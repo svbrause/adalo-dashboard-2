@@ -1332,6 +1332,11 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0; /* allow product-inline/carousel inside to shrink and scroll horizontally (same as By Treatment tab) */
+}
+
+.discussed-treatments-treatment-product-section {
+  min-width: 0; /* allow product carousel to shrink and scroll horizontally in both By Patient Interests and By Treatment */
 }
 
 /* Other chip + inline input on same row (Treatments for this goal) */

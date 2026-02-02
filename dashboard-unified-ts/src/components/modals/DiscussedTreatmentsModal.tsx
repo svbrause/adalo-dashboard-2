@@ -1058,6 +1058,9 @@ export default function DiscussedTreatmentsModal({
   const [otherFindingSearch, setOtherFindingSearch] = useState("");
   const [otherFindingSearchByTreatment, setOtherFindingSearchByTreatment] =
     useState("");
+  const [showOtherFindingPickerGoal, setShowOtherFindingPickerGoal] =
+    useState(false);
+  const [otherFindingSearchGoal, setOtherFindingSearchGoal] = useState("");
   const [interestSearch, setInterestSearch] = useState("");
   const [showFullInterestList, setShowFullInterestList] = useState(false);
   /** Which treatment's "See all options" picker is open (null = none). */
@@ -1112,6 +1115,13 @@ export default function DiscussedTreatmentsModal({
     if (!q) return [...ASSESSMENT_FINDINGS];
     return ASSESSMENT_FINDINGS.filter((f) => f.toLowerCase().includes(q));
   }, [otherFindingSearchByTreatment]);
+
+  /** Searchable full list for "Other finding" (by-patient-interests mode) */
+  const filteredOtherFindingsGoal = useMemo(() => {
+    const q = otherFindingSearchGoal.trim().toLowerCase();
+    if (!q) return [...ASSESSMENT_FINDINGS];
+    return ASSESSMENT_FINDINGS.filter((f) => f.toLowerCase().includes(q));
+  }, [otherFindingSearchGoal]);
 
   /** Chips: patient's interests + Other. Full list only shown when Other is expanded. */
   const interestChipOptions = useMemo(
@@ -1454,8 +1464,10 @@ export default function DiscussedTreatmentsModal({
       setExpandedFindingAreas(new Set());
       setShowOtherFindingPicker(false);
       setShowOtherFindingPickerByTreatment(false);
+      setShowOtherFindingPickerGoal(false);
       setOtherFindingSearch("");
       setOtherFindingSearchByTreatment("");
+      setOtherFindingSearchGoal("");
       setOpenProductSearchFor(null);
       setProductSearchQuery("");
       setForm((f) => ({
@@ -1485,8 +1497,10 @@ export default function DiscussedTreatmentsModal({
     setExpandedFindingAreas(new Set());
     setShowOtherFindingPicker(false);
     setShowOtherFindingPickerByTreatment(false);
+    setShowOtherFindingPickerGoal(false);
     setOtherFindingSearch("");
     setOtherFindingSearchByTreatment("");
+    setOtherFindingSearchGoal("");
     setOpenProductSearchFor(null);
     setProductSearchQuery("");
     setForm((f) => ({
@@ -4480,11 +4494,6 @@ export default function DiscussedTreatmentsModal({
                                         const hasProductOptions =
                                           (TREATMENT_PRODUCT_OPTIONS[name]
                                             ?.length ?? 0) > 0;
-                                        const issues =
-                                          getDetectedIssuesForTreatment(
-                                            name,
-                                            form.interest ?? ""
-                                          );
                                         const treatment = name;
                                         const opts =
                                           TREATMENT_PRODUCT_OPTIONS[
@@ -5199,175 +5208,230 @@ export default function DiscussedTreatmentsModal({
                                                   )}
                                               </div>
                                             )}
-                                            <div
-                                              className="discussed-treatments-detected-issues-inline"
-                                              role="group"
-                                              aria-label={`Detected issues for ${name}`}
-                                            >
-                                              <span className="discussed-treatments-detected-issues-inline-label">
-                                                Select the issues detected below
-                                                that relate to this treatment:
-                                              </span>
-                                              {issues.length > 0 ? (
-                                                <div
-                                                  className="discussed-treatments-chip-row discussed-treatments-detected-issues-chips"
-                                                  role="group"
-                                                >
-                                                  {issues.map((issue) => {
-                                                    const selectedForTx =
-                                                      form
-                                                        .selectedFindingsByTreatment[
-                                                        name
-                                                      ] ?? issues;
-                                                    const isIssueSelected =
-                                                      selectedForTx.includes(
-                                                        issue
-                                                      );
-                                                    return (
-                                                      <label
-                                                        key={issue}
-                                                        className={`discussed-treatments-checkbox-chip discussed-treatments-treatment-chip ${
-                                                          isIssueSelected
-                                                            ? "selected"
-                                                            : ""
-                                                        }`}
-                                                      >
-                                                        <input
-                                                          type="checkbox"
-                                                          checked={
-                                                            isIssueSelected
-                                                          }
-                                                          onChange={() => {
-                                                            const current =
-                                                              form
-                                                                .selectedFindingsByTreatment[
-                                                                name
-                                                              ] ?? issues;
-                                                            setForm((f) => ({
-                                                              ...f,
-                                                              selectedFindingsByTreatment:
-                                                                {
-                                                                  ...f.selectedFindingsByTreatment,
-                                                                  [name]:
-                                                                    isIssueSelected
-                                                                      ? current.filter(
-                                                                          (x) =>
-                                                                            x !==
-                                                                            issue
+                                            {/* To address (optional) — same style as By Treatment tab */}
+                                            {(() => {
+                                              const findingsByAreaGoal =
+                                                getFindingsByAreaForTreatment(
+                                                  name
+                                                );
+                                              const selectedFindingsGoal =
+                                                form
+                                                  .selectedFindingsByTreatment[
+                                                  name
+                                                ] ?? [];
+                                              const handleToggleFindingGoal = (
+                                                finding: string
+                                              ) => {
+                                                const current =
+                                                  form
+                                                    .selectedFindingsByTreatment[
+                                                    name
+                                                  ] ?? [];
+                                                const next = current.includes(
+                                                  finding
+                                                )
+                                                  ? current.filter(
+                                                      (x) => x !== finding
+                                                    )
+                                                  : [...current, finding];
+                                                setForm((f) => ({
+                                                  ...f,
+                                                  selectedFindingsByTreatment: {
+                                                    ...f.selectedFindingsByTreatment,
+                                                    [name]: next,
+                                                  },
+                                                }));
+                                              };
+                                              return (
+                                                <div className="discussed-treatments-treatment-sub-box discussed-treatments-to-address-in-goal">
+                                                  <h3 className="discussed-treatments-form-title discussed-treatments-form-title-step2">
+                                                    To address (optional)
+                                                  </h3>
+                                                  <p className="discussed-treatments-form-hint">
+                                                    Select an AI or provider
+                                                    identified concern for the
+                                                    selected treatment.
+                                                  </p>
+                                                  <div className="discussed-treatments-to-address-wrap">
+                                                    {findingsByAreaGoal.length >
+                                                    0 ? (
+                                                      <div className="discussed-treatments-findings-by-area discussed-treatments-findings-cards-grid discussed-treatments-to-address-grid">
+                                                        {findingsByAreaGoal.map(
+                                                          ({
+                                                            area,
+                                                            findings,
+                                                          }) => (
+                                                            <div
+                                                              key={area}
+                                                              className="discussed-treatments-area-card discussed-treatments-area-card-to-address"
+                                                            >
+                                                              <span className="discussed-treatments-area-label discussed-treatments-area-card-heading">
+                                                                {area}
+                                                              </span>
+                                                              <div
+                                                                className="discussed-treatments-chip-row"
+                                                                role="group"
+                                                                aria-label={`Findings – ${area}`}
+                                                              >
+                                                                {findings.map(
+                                                                  (f) => (
+                                                                    <button
+                                                                      key={f}
+                                                                      type="button"
+                                                                      className={`discussed-treatments-topic-chip ${
+                                                                        selectedFindingsGoal.includes(
+                                                                          f
                                                                         )
-                                                                      : [
-                                                                          ...current,
-                                                                          issue,
-                                                                        ],
-                                                                },
-                                                            }));
-                                                          }}
-                                                          className="discussed-treatments-checkbox-input"
-                                                        />
-                                                        <span className="discussed-treatments-checkbox-label">
-                                                          {issue}
-                                                        </span>
-                                                      </label>
-                                                    );
-                                                  })}
-                                                </div>
-                                              ) : (
-                                                (() => {
-                                                  const manualIssues =
-                                                    getFindingsForTreatment(
-                                                      name
-                                                    ).length > 0
-                                                      ? getFindingsForTreatment(
-                                                          name
-                                                        )
-                                                      : ASSESSMENT_FINDINGS;
-                                                  const selectedForTx =
-                                                    form
-                                                      .selectedFindingsByTreatment[
-                                                      name
-                                                    ] ?? [];
-                                                  return (
-                                                    <>
-                                                      <p className="discussed-treatments-detected-issues-empty">
-                                                        No detected issues below
-                                                        relate to this
-                                                        treatment. Select an
-                                                        issue to treat with this
-                                                        treatment:
+                                                                          ? "selected"
+                                                                          : ""
+                                                                      }`}
+                                                                      onClick={() =>
+                                                                        handleToggleFindingGoal(
+                                                                          f
+                                                                        )
+                                                                      }
+                                                                    >
+                                                                      {f}
+                                                                    </button>
+                                                                  )
+                                                                )}
+                                                              </div>
+                                                            </div>
+                                                          )
+                                                        )}
+                                                      </div>
+                                                    ) : (
+                                                      <p className="discussed-treatments-form-hint">
+                                                        No assessment findings
+                                                        mapped for this
+                                                        treatment. Add
+                                                        goal/region in optional
+                                                        details below.
                                                       </p>
-                                                      {manualIssues.length >
-                                                        0 && (
-                                                        <div
-                                                          className="discussed-treatments-chip-row discussed-treatments-detected-issues-chips"
-                                                          role="group"
+                                                    )}
+                                                    <div className="discussed-treatments-other-finding-section discussed-treatments-other-at-bottom">
+                                                      <span className="discussed-treatments-finding-col-label">
+                                                        Other
+                                                      </span>
+                                                      <div className="discussed-treatments-other-selected-chips">
+                                                        {selectedFindingsGoal
+                                                          .filter(
+                                                            (f) =>
+                                                              !findingsByAreaGoal.some(
+                                                                (g) =>
+                                                                  g.findings.includes(
+                                                                    f
+                                                                  )
+                                                              )
+                                                          )
+                                                          .map((f) => (
+                                                            <button
+                                                              key={f}
+                                                              type="button"
+                                                              className="discussed-treatments-topic-chip selected"
+                                                              onClick={() =>
+                                                                handleToggleFindingGoal(
+                                                                  f
+                                                                )
+                                                              }
+                                                            >
+                                                              {f}
+                                                            </button>
+                                                          ))}
+                                                      </div>
+                                                      {!showOtherFindingPickerGoal ? (
+                                                        <button
+                                                          type="button"
+                                                          className="discussed-treatments-topic-chip other-chip"
+                                                          onClick={() => {
+                                                            setShowOtherFindingPickerGoal(
+                                                              true
+                                                            );
+                                                            setOtherFindingSearchGoal(
+                                                              ""
+                                                            );
+                                                          }}
                                                         >
-                                                          {manualIssues.map(
-                                                            (issue) => {
-                                                              const isIssueSelected =
-                                                                selectedForTx.includes(
-                                                                  issue
-                                                                );
-                                                              return (
-                                                                <label
-                                                                  key={issue}
-                                                                  className={`discussed-treatments-checkbox-chip discussed-treatments-treatment-chip ${
-                                                                    isIssueSelected
+                                                          +{" "}
+                                                          {OTHER_FINDING_LABEL}
+                                                        </button>
+                                                      ) : (
+                                                        <div className="discussed-treatments-interest-search-wrap discussed-treatments-search-compact">
+                                                          <input
+                                                            type="text"
+                                                            className="discussed-treatments-interest-search-input"
+                                                            placeholder="Search..."
+                                                            value={
+                                                              otherFindingSearchGoal
+                                                            }
+                                                            onChange={(e) =>
+                                                              setOtherFindingSearchGoal(
+                                                                e.target.value
+                                                              )
+                                                            }
+                                                            autoFocus
+                                                          />
+                                                          <button
+                                                            type="button"
+                                                            className="discussed-treatments-interest-back-btn discussed-treatments-back-inline"
+                                                            onClick={() => {
+                                                              setShowOtherFindingPickerGoal(
+                                                                false
+                                                              );
+                                                              setOtherFindingSearchGoal(
+                                                                ""
+                                                              );
+                                                            }}
+                                                          >
+                                                            ← Back
+                                                          </button>
+                                                          <div
+                                                            className="discussed-treatments-interest-dropdown discussed-treatments-findings-dropdown"
+                                                            role="listbox"
+                                                          >
+                                                            {filteredOtherFindingsGoal.map(
+                                                              (f) => (
+                                                                <button
+                                                                  key={f}
+                                                                  type="button"
+                                                                  role="option"
+                                                                  className={`discussed-treatments-interest-option ${
+                                                                    selectedFindingsGoal.includes(
+                                                                      f
+                                                                    )
                                                                       ? "selected"
                                                                       : ""
                                                                   }`}
+                                                                  onClick={() => {
+                                                                    handleToggleFindingGoal(
+                                                                      f
+                                                                    );
+                                                                    setShowOtherFindingPickerGoal(
+                                                                      false
+                                                                    );
+                                                                    setOtherFindingSearchGoal(
+                                                                      ""
+                                                                    );
+                                                                  }}
                                                                 >
-                                                                  <input
-                                                                    type="checkbox"
-                                                                    checked={
-                                                                      isIssueSelected
-                                                                    }
-                                                                    onChange={() => {
-                                                                      const current =
-                                                                        form
-                                                                          .selectedFindingsByTreatment[
-                                                                          name
-                                                                        ] ?? [];
-                                                                      setForm(
-                                                                        (
-                                                                          f
-                                                                        ) => ({
-                                                                          ...f,
-                                                                          selectedFindingsByTreatment:
-                                                                            {
-                                                                              ...f.selectedFindingsByTreatment,
-                                                                              [name]:
-                                                                                isIssueSelected
-                                                                                  ? current.filter(
-                                                                                      (
-                                                                                        x
-                                                                                      ) =>
-                                                                                        x !==
-                                                                                        issue
-                                                                                    )
-                                                                                  : [
-                                                                                      ...current,
-                                                                                      issue,
-                                                                                    ],
-                                                                            },
-                                                                        })
-                                                                      );
-                                                                    }}
-                                                                    className="discussed-treatments-checkbox-input"
-                                                                  />
-                                                                  <span className="discussed-treatments-checkbox-label">
-                                                                    {issue}
-                                                                  </span>
-                                                                </label>
-                                                              );
-                                                            }
-                                                          )}
+                                                                  {f}
+                                                                </button>
+                                                              )
+                                                            )}
+                                                            {filteredOtherFindingsGoal.length ===
+                                                              0 && (
+                                                              <div className="discussed-treatments-interest-empty">
+                                                                No matches.
+                                                              </div>
+                                                            )}
+                                                          </div>
                                                         </div>
                                                       )}
-                                                    </>
-                                                  );
-                                                })()
-                                              )}
-                                            </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })()}
                                           </div>
                                         );
                                       })()}

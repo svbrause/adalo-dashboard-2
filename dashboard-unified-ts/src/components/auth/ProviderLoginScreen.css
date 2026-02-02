@@ -1,7 +1,8 @@
 /* Provider Login Screen Styles - extracted from main CSS */
 
 /* Ensure no gaps at the top */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
@@ -236,7 +237,9 @@ html, body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 968px) {
@@ -245,9 +248,36 @@ html, body {
     min-height: 50vh;
     max-height: 50vh;
   }
-  
+
   .login-content {
     min-height: 50vh;
     flex: 1 1 50vh;
+  }
+}
+
+/* Wide: banner left, form right */
+@media (min-width: 969px) {
+  .login-layout {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .login-banner {
+    flex: 0 0 50%;
+    max-width: 55%;
+    height: 100%;
+    min-height: 100vh;
+    max-height: none;
+  }
+
+  .login-content {
+    flex: 1 0 50%;
+    min-width: 320px;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    overflow-y: auto;
   }
 }
