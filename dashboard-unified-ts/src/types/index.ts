@@ -119,7 +119,8 @@ export type ViewType =
   | "cards"
   | "kanban"
   | "facial-analysis"
-  | "archived";
+  | "archived"
+  | "offers";
 
 export interface FilterState {
   source: string;

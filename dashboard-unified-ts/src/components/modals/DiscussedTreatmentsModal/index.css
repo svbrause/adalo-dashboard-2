@@ -9,6 +9,9 @@
 /* Wider when showing plan + form side by side */
 .discussed-treatments-modal-content.discussed-treatments-modal-content-has-plan {
   max-width: min(96vw, 960px);
+  /* Use fixed height instead of max-height to prevent layout shifts when content changes
+     (e.g. when selecting timeline option which shows badge in new-item preview row) */
+  height: 85vh;
 }
 
 /* Master–detail (list–detail) layout: list left, detail right */
@@ -17,8 +20,9 @@
   flex-direction: row;
   gap: 0;
   align-items: stretch;
-  min-height: 0;
-  max-height: min(85vh, 720px);
+  flex: 1 1 auto;
+  min-height: 0; /* fill body and allow columns to scroll */
+  max-height: 100%; /* don't exceed body; prevents overlap when header + body share 85vh */
   border: 1px solid rgba(79, 70, 229, 0.2);
   border-radius: 12px;
   overflow: hidden;
@@ -43,13 +47,18 @@
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden; /* prevent horizontal overflow from breaking layout */
   background: var(--theme-bg-card, #fff);
   padding: 20px 20px 20px 24px;
 }
 
 /* Single column when no plan items yet */
 .discussed-treatments-single-column {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Highlight item being edited in the plan list */
@@ -184,7 +193,7 @@
   min-width: 0;
 }
 
-/* Plan sections: Now, Add next visit, Save for later (later at bottom) */
+/* Plan sections: Now, Add next visit, Wishlist (Wishlist at bottom) */
 .discussed-treatments-plan-sections {
   display: flex;
   flex-direction: column;
@@ -342,6 +351,7 @@
   line-height: 1.35;
 }
 
+.discussed-treatments-record-product,
 .discussed-treatments-record-for,
 .discussed-treatments-record-timeline {
   display: inline-flex;
@@ -851,6 +861,8 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
+  min-width: 0; /* allow subtitle to wrap and not overflow into body/columns */
+  flex: 1 1 auto;
 }
 
 .discussed-treatments-modal-content .modal-subtitle {
@@ -858,12 +870,23 @@
   font-size: 14px;
   line-height: 1.45;
   color: var(--theme-text-secondary, #666);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .discussed-treatments-modal-body {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-height: 0; /* allow two-column to scroll inside body */
+}
+
+/* When two-column (has plan), body content must not overflow */
+.discussed-treatments-modal-content.discussed-treatments-modal-content-has-plan
+  .discussed-treatments-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .discussed-treatments-modal-footer {
@@ -1200,6 +1223,13 @@
   border-radius: 12px;
   padding: 18px;
   background: #fff;
+  min-width: 0; /* contain content so Timeline row etc. don't overflow */
+  overflow-wrap: break-word;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .discussed-treatments-add-form-header-row {
@@ -1208,10 +1238,19 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 12px;
+  min-width: 0;
 }
 
 .discussed-treatments-add-form-header-row > div:first-child {
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Keep BUILD PLAN hint contained so it doesn't flow into Timeline row */
+.discussed-treatments-add-form-header-row .discussed-treatments-form-hint {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 .discussed-treatments-select-prompt {
@@ -1390,6 +1429,11 @@
   border-radius: 10px;
   padding: 16px 0 0 0;
   margin-top: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 /* Single gray rectangle for all sections below mode chips */
@@ -2279,6 +2323,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  min-width: 0; /* allow row to shrink so chips wrap instead of overflowing */
 }
 
 .discussed-treatments-prefill-label {
@@ -2604,6 +2649,12 @@
     border-radius: 0;
     max-height: 100vh;
     overflow-y: auto;
+  }
+
+  /* On mobile, use max-height instead of fixed height for the two-column modal */
+  .discussed-treatments-modal-content.discussed-treatments-modal-content-has-plan {
+    height: auto;
+    max-height: 100vh;
   }
 
   /* Stack two-column layout (AI findings | Other) into single column */

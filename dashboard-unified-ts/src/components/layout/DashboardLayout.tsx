@@ -1,15 +1,16 @@
 // Main Dashboard Layout Component
 
 // import React from 'react';
-import { useDashboard } from '../../context/DashboardContext';
-import Sidebar from './Sidebar';
-import Header from './Header';
-import ViewControls from './ViewControls';
-import ListView from '../views/ListView';
-import KanbanView from '../views/KanbanView';
-import ArchivedView from '../views/ArchivedView';
-import FacialAnalysisView from '../views/FacialAnalysisView';
-import './DashboardLayout.css';
+import { useDashboard } from "../../context/DashboardContext";
+import Sidebar from "./Sidebar";
+import Header from "./Header";
+import ViewControls from "./ViewControls";
+import ListView from "../views/ListView";
+import KanbanView from "../views/KanbanView";
+import ArchivedView from "../views/ArchivedView";
+import FacialAnalysisView from "../views/FacialAnalysisView";
+import OffersView from "../views/OffersView";
+import "./DashboardLayout.css";
 
 interface DashboardLayoutProps {
   onLogout: () => void;
@@ -17,16 +18,18 @@ interface DashboardLayoutProps {
 
 function DashboardViews() {
   const { currentView } = useDashboard();
-  
+
   switch (currentView) {
-    case 'kanban':
+    case "kanban":
       return <KanbanView />;
-    case 'archived':
+    case "archived":
       return <ArchivedView />;
-    case 'facial-analysis':
-    case 'cards':
+    case "offers":
+      return <OffersView />;
+    case "facial-analysis":
+    case "cards":
       return <FacialAnalysisView />;
-    case 'list':
+    case "list":
     default:
       return <ListView />;
   }

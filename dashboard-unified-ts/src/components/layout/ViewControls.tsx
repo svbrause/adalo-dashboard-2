@@ -37,6 +37,16 @@ export default function ViewControls() {
     return Array.from(set).sort();
   }, [clients]);
 
+  /** Source filter options: all unique source values present in the current data (not hardcoded). */
+  const sourceOptions = useMemo(() => {
+    const set = new Set<string>();
+    clients.forEach((c) => {
+      const src = String(c.source ?? "").trim();
+      if (src) set.add(src);
+    });
+    return Array.from(set).sort();
+  }, [clients]);
+
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
 
@@ -45,7 +55,9 @@ export default function ViewControls() {
       <div className="control-section view-toggle-section">
         <div className="view-toggle-buttons">
           <button
-            className={`view-toggle-btn ${currentView === "list" ? "active" : ""}`}
+            className={`view-toggle-btn ${
+              currentView === "list" ? "active" : ""
+            }`}
             onClick={() => setCurrentView("list")}
             title="List View"
           >
@@ -67,7 +79,11 @@ export default function ViewControls() {
             <span>List</span>
           </button>
           <button
-            className={`view-toggle-btn ${currentView === "cards" || currentView === "facial-analysis" ? "active" : ""}`}
+            className={`view-toggle-btn ${
+              currentView === "cards" || currentView === "facial-analysis"
+                ? "active"
+                : ""
+            }`}
             onClick={() => setCurrentView("facial-analysis")}
             title="Card View"
           >
@@ -144,19 +160,11 @@ export default function ViewControls() {
                 className="filter-select"
               >
                 <option value="">All Sources</option>
-                <option value="Website">Website</option>
-                <option value="Facial Analysis Form">
-                  Facial Analysis Form
-                </option>
-                <option value="Treatment Room QR Code">
-                  Treatment Room QR Code
-                </option>
-                <option value="Walk-in">Walk-in</option>
-                <option value="Phone Call">Phone Call</option>
-                <option value="Referral">Referral</option>
-                <option value="Social Media">Social Media</option>
-                <option value="AI Consult">AI Consult Tool</option>
-                <option value="Other">Other</option>
+                {sourceOptions.map((src) => (
+                  <option key={src} value={src}>
+                    {src}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="filter-group">

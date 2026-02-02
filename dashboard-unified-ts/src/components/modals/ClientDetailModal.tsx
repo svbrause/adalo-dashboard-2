@@ -53,14 +53,14 @@ export default function ClientDetailModal({
   const { provider } = useDashboard();
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedClient, setEditedClient] = useState<Partial<Client> | null>(
-    null,
+    null
   );
   const [status, setStatus] = useState<Client["status"]>("new");
   const [showTelehealthSMS, setShowTelehealthSMS] = useState(false);
   const [showShareAnalysis, setShowShareAnalysis] = useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [photoViewerType, setPhotoViewerType] = useState<"front" | "side">(
-    "front",
+    "front"
   );
   const [frontPhotoUrl, setFrontPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
@@ -150,8 +150,8 @@ export default function ClientDetailModal({
   const lastActivityRelative = client.lastContact
     ? formatRelativeDate(client.lastContact)
     : client.createdAt
-      ? formatRelativeDate(client.createdAt)
-      : "No activity yet";
+    ? formatRelativeDate(client.createdAt)
+    : "No activity yet";
 
   const handleSave = async () => {
     if (!editedClient || !client) return;
@@ -245,10 +245,10 @@ export default function ClientDetailModal({
       params.push(`faceRegions=${encodeURIComponent(faceRegions.join(","))}`);
     if (skinComplaints.length > 0)
       params.push(
-        `skinComplaints=${encodeURIComponent(skinComplaints.join(","))}`,
+        `skinComplaints=${encodeURIComponent(skinComplaints.join(","))}`
       );
     params.push(
-      `source=${encodeURIComponent("Provider Dashboard - In-Clinic Scan")}`,
+      `source=${encodeURIComponent("Provider Dashboard - In-Clinic Scan")}`
     );
 
     const formUrl = `${getJotformUrl(provider)}?${params.join("&")}`;
@@ -330,7 +330,13 @@ export default function ClientDetailModal({
         <div className="modal-body">
           {/* Contact Information Section */}
           <div
-            className={`detail-section modal-contact-section ${frontPhotoUrl || client.tableSource === "Patients" || client.tableSource === "Web Popup Leads" ? "modal-header-with-photo" : "modal-contact-section-base"}`}
+            className={`detail-section modal-contact-section ${
+              frontPhotoUrl ||
+              client.tableSource === "Patients" ||
+              client.tableSource === "Web Popup Leads"
+                ? "modal-header-with-photo"
+                : "modal-contact-section-base"
+            }`}
           >
             {frontPhotoUrl && (
               <div
@@ -546,7 +552,7 @@ export default function ClientDetailModal({
                           <label>Provider name</label>
                           <div className="detail-value">
                             {formatProviderDisplayName(
-                              client.appointmentStaffName,
+                              client.appointmentStaffName
                             )}
                           </div>
                         </div>
@@ -638,8 +644,8 @@ export default function ClientDetailModal({
                               .map((c) => c.trim())
                               .filter((c) => c)
                           : Array.isArray(client.concerns)
-                            ? client.concerns
-                            : []
+                          ? client.concerns
+                          : []
                         ).map((c, i) => (
                           <span key={i} className="detail-tag">
                             {c}
@@ -753,13 +759,13 @@ export default function ClientDetailModal({
                       style={{
                         background: getFacialStatusColorForDisplay(
                           client.facialAnalysisStatus,
-                          hasInterestedTreatments(client),
+                          hasInterestedTreatments(client)
                         ),
                       }}
                     >
                       {formatFacialStatusForDisplay(
                         client.facialAnalysisStatus,
-                        hasInterestedTreatments(client),
+                        hasInterestedTreatments(client)
                       )}
                     </span>
                   )}
@@ -891,55 +897,71 @@ export default function ClientDetailModal({
               </div>
               <div className="discussed-treatments-in-facial-summary-row">
                 {client.discussedItems && client.discussedItems.length > 0 ? (
-                  <div className="discussed-treatments-rows">
-                    {[...(client.discussedItems || [])]
-                      .sort((a, b) => {
-                        const order = ["Now", "Add next visit", "Save for later"];
-                        const ta = a.timeline || "";
-                        const tb = b.timeline || "";
-                        const ia = order.indexOf(ta);
-                        const ib = order.indexOf(tb);
-                        if (ia !== -1 && ib !== -1) return ia - ib;
-                        if (ia !== -1) return -1;
-                        if (ib !== -1) return 1;
-                        return (a.treatment || "").localeCompare(b.treatment || "");
-                      })
-                      .map((item) => (
-                        <div key={item.id} className="discussed-treatments-row">
-                          <span className="discussed-treatments-row-treatment-name">
-                            {item.treatment}
-                          </span>
-                          <div className="discussed-treatments-row-content">
-                            {item.findings && item.findings.length > 0 ? (
-                              <span className="discussed-treatments-row-interest">
-                                For: {item.findings.join(", ")}
-                              </span>
-                            ) : item.interest && item.interest.trim() ? (
-                              <span className="discussed-treatments-row-interest">
-                                For: {item.interest.trim()}
-                              </span>
-                            ) : null}
-                            {(item.brand ||
-                              item.region ||
-                              item.timeline ||
-                              item.recurring ||
-                              (item.notes && item.notes.trim())) && (
-                              <span className="discussed-treatments-row-meta">
-                                {[
-                                  item.brand && `Brand: ${item.brand}`,
-                                  item.region && `Region: ${item.region}`,
-                                  item.timeline && `Timeline: ${item.timeline}`,
-                                  item.recurring && `Recurring: ${item.recurring}`,
-                                  item.notes?.trim() &&
-                                    `Notes: ${item.notes.trim()}`,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </span>
-                            )}
+                  <div className="discussed-treatments-plan-sections-outer">
+                    {(["Now", "Add next visit", "Wishlist"] as const).map(
+                      (sectionLabel) => {
+                        const sectionItems = (client.discussedItems || [])
+                          .filter((item) => {
+                            const t = item.timeline?.trim();
+                            if (sectionLabel === "Now") return t === "Now";
+                            if (sectionLabel === "Add next visit")
+                              return t === "Add next visit";
+                            return t === "Wishlist" || !t; // Wishlist or empty
+                          })
+                          .sort((a, b) =>
+                            (a.treatment || "").localeCompare(b.treatment || "")
+                          );
+                        if (sectionItems.length === 0) return null;
+                        return (
+                          <div
+                            key={sectionLabel}
+                            className="discussed-treatments-plan-section-outer"
+                          >
+                            <h4 className="discussed-treatments-plan-section-title-outer">
+                              {sectionLabel}
+                            </h4>
+                            <div className="discussed-treatments-records-list-outer">
+                              {sectionItems.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="discussed-treatments-record-row-outer"
+                                >
+                                  <div className="discussed-treatments-record-primary-outer">
+                                    {item.treatment || "—"}
+                                  </div>
+                                  {(item.product ||
+                                    item.findings?.length ||
+                                    item.interest ||
+                                    item.quantity) && (
+                                    <div className="discussed-treatments-record-meta-outer">
+                                      {item.product ? (
+                                        <span className="discussed-treatments-record-product-outer">
+                                          {item.product}
+                                        </span>
+                                      ) : item.findings &&
+                                        item.findings.length > 0 ? (
+                                        <span className="discussed-treatments-record-for-outer">
+                                          {item.findings.join(", ")}
+                                        </span>
+                                      ) : item.interest ? (
+                                        <span className="discussed-treatments-record-for-outer">
+                                          {item.interest}
+                                        </span>
+                                      ) : null}
+                                      {item.quantity && (
+                                        <span className="discussed-treatments-record-quantity-outer">
+                                          Qty: {item.quantity}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      }
+                    )}
                   </div>
                 ) : (
                   <span className="discussed-treatments-in-facial-summary">

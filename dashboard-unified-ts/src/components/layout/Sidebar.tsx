@@ -79,7 +79,9 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       <nav className="sidebar-nav">
         <a
           href="#"
-          className={`nav-item ${currentView === "list" || currentView === "cards" ? "active" : ""}`}
+          className={`nav-item ${
+            currentView === "list" || currentView === "cards" ? "active" : ""
+          }`}
           onClick={(e) => {
             e.preventDefault();
             handleViewChange("list");
@@ -102,6 +104,32 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           </svg>
           All Clients
         </a>
+        {(provider?.code || "").trim().toLowerCase() === "lakeshore153" && (
+          <>
+            <div className="nav-divider"></div>
+            <a
+              href="#"
+              className={`nav-item ${currentView === "offers" ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                handleViewChange("offers");
+              }}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+              </svg>
+              Offers
+            </a>
+          </>
+        )}
         <div className="nav-divider"></div>
         <a
           href="#"

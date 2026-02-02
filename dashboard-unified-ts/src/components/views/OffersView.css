@@ -1,0 +1,12 @@
+/* Offers View Styles */
+
+.offers-view {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--theme-bg-gradient);
+}
+
+.offers-view-placeholder {
+  color: var(--theme-text-secondary);
+  margin-top: 12px;
+}
