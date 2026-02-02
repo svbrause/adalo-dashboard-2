@@ -1,0 +1,192 @@
+/* Patient Issues Modal Styles */
+
+.patient-issues-modal-overlay {
+  z-index: 10000;
+}
+
+.patient-issues-modal {
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.patient-issues-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.patient-issues-modal-header-content {
+  flex: 1;
+}
+
+.patient-issues-modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.patient-issues-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.patient-issues-activity-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.patient-issues-activity-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.patient-issues-activity-value {
+  font-size: 14px;
+  color: #212121;
+  font-weight: 600;
+}
+
+.patient-issues-modal-body {
+  padding: 24px;
+}
+
+.modal-photo-container {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto 24px;
+  margin-bottom: 24px;
+}
+
+.modal-photo {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.patient-issues-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.patient-issues-empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: #666;
+  grid-column: 1 / -1;
+}
+
+.detail-section-spacing-bottom {
+  margin-bottom: 24px;
+}
+
+.patient-issues-area-card {
+  background: white;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.patient-issues-area-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #212121;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.patient-issues-focus-badge {
+  padding: 2px 8px;
+  background: #5ba3a3;
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.patient-issues-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  margin-left: 8px;
+}
+
+.patient-issues-item {
+  margin-bottom: 10px;
+  padding-left: 16px;
+  position: relative;
+}
+
+.patient-issues-bullet {
+  position: absolute;
+  left: 0;
+  color: #666;
+}
+
+.patient-issues-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.patient-issues-name {
+  font-size: 13px;
+  color: #212121;
+}
+
+.patient-issues-interested-badge {
+  padding: 2px 6px;
+  font-weight: 600;
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid rgba(206, 147, 216, 0.35);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.patient-issues-treatments-container {
+  margin-top: 4px;
+  margin-left: 16px;
+  padding-left: 0;
+}
+
+.patient-issues-treatments-label {
+  font-size: 11px;
+  color: #666;
+  margin-right: 6px;
+}
+
+.patient-issues-treatment-tag {
+  padding: 3px 8px;
+  font-weight: 600;
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid rgba(206, 147, 216, 0.35);
+  border-radius: 999px;
+  font-size: 11px;
+  margin-right: 4px;
+  display: inline-block;
+  margin-top: 4px;
+}

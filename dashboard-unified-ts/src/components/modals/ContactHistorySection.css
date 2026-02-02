@@ -1,0 +1,77 @@
+/* Contact History Section Styles */
+
+.contact-history-section {
+  border-top: 1px solid var(--theme-border);
+  padding-top: 20px;
+  margin-top: 20px;
+  background: #fafafa;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.add-contact-log-form {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid var(--theme-border);
+}
+
+.contact-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contact-entry {
+  padding: 12px;
+  background: white !important;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border);
+  border-left: 3px solid var(--theme-accent);
+}
+
+.contact-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.contact-type {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  text-transform: capitalize;
+}
+
+.contact-date {
+  font-size: 12px;
+  color: var(--theme-text-muted);
+}
+
+.contact-outcome {
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.contact-outcome.scheduled {
+  color: #388e3c;
+  font-weight: 600;
+}
+
+.contact-notes {
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 14px;
+}

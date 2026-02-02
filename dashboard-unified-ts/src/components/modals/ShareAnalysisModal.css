@@ -1,0 +1,68 @@
+/* Share Analysis Modal Styles */
+
+.share-analysis-modal-overlay {
+  z-index: 10000;
+}
+
+/* Close button: closer to top-right, square (1:1) */
+.share-analysis-modal-content .modal-header {
+  padding-top: 12px;
+  padding-right: 12px;
+  padding-bottom: 20px;
+  padding-left: 24px;
+  align-items: flex-start;
+}
+
+.share-analysis-modal-content .modal-close {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+/* Make subtitle appear below title instead of beside it */
+.share-analysis-modal-content .modal-header-info {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.share-analysis-modal-content .modal-subtitle {
+  margin-top: 0;
+}
+
+/* Checkbox and label on one line, next to each other (override .form-group label) */
+.share-analysis-modal-content .form-group.share-analysis-checkbox-row {
+  display: block;
+  width: 100%;
+}
+
+.share-analysis-modal-content .form-group.share-analysis-checkbox-row label.share-analysis-checkbox-label {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  width: auto;
+  max-width: 100%;
+  font-size: 14px;
+  color: var(--theme-text-primary, #333);
+  cursor: default;
+  user-select: none;
+  margin-bottom: 0;
+}
+
+.share-analysis-checkbox-text {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.share-analysis-include-link-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--theme-accent, #6366f1);
+  cursor: default;
+  flex-shrink: 0;
+}

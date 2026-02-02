@@ -1,0 +1,463 @@
+/* Client Detail Panel Styles - Full screen version */
+
+.client-detail-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--theme-bg-card);
+  display: flex;
+  flex-direction: column;
+  z-index: 100; /* Above all content, below modals (which are z-index 1000+) */
+  overflow: hidden;
+}
+
+/* Panel header */
+.client-detail-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-bg-card);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.client-detail-panel-header-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.client-detail-panel-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  margin: 0;
+}
+
+.client-detail-panel-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.client-detail-panel-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.client-detail-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Left-align photo and contact info section in panel */
+.client-detail-panel-body .modal-header-with-photo {
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+  padding-top: 20px !important;
+  padding-bottom: 12px !important;
+  margin-left: 0;
+  margin-right: 0;
+  gap: 24px; /* Space between photo and contact info */
+  align-items: flex-start; /* Align to top */
+  background: #fafafa !important; /* Restore gray background */
+  border-bottom: 1px solid var(--theme-border) !important; /* Restore border */
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+/* Reduce photo container column width in panel - pin to left */
+.client-detail-panel-body .modal-photo-container {
+  width: 200px !important;
+  max-width: 200px !important;
+  min-width: 200px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  align-self: flex-start !important; /* Don't stretch vertically */
+  margin: 0 !important; /* Remove any margins */
+}
+
+/* Make photo square - not stretch too tall */
+.client-detail-panel-body .modal-photo-container .modal-photo {
+  min-height: 200px;
+  max-height: 200px;
+  object-fit: cover;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1/1; /* Square orientation */
+}
+
+/* Adjust placeholder containers - make wider and square */
+.client-detail-panel-body .modal-photo-placeholder-wrapper {
+  width: 240px !important;
+  max-width: 240px !important;
+  min-width: 240px !important;
+  height: 240px !important;
+  max-height: 240px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+}
+
+.client-detail-panel-body
+  .modal-photo-placeholder-wrapper
+  .photo-placeholder-container {
+  height: 240px !important;
+  min-height: 240px !important;
+  max-height: 240px !important;
+}
+
+.client-detail-panel-body .modal-photo-container .web-popup-photo-placeholder {
+  width: 240px;
+  max-width: 240px;
+  height: 240px;
+  min-height: 240px;
+  max-height: 240px;
+}
+
+/* Ensure contact section takes full available width */
+.client-detail-panel-body .modal-contact-section {
+  flex: 1;
+  min-width: 0;
+  max-width: none; /* Take full width */
+}
+
+/* Adjust edit toggle position - move it up and left */
+.client-detail-panel-body .detail-section-relative {
+  position: relative;
+}
+
+.client-detail-panel-body .edit-toggle-btn {
+  position: absolute;
+  top: -8px; /* Move up */
+  right: 16px; /* Move left from edge */
+  margin: 0;
+}
+
+/* Header layout - name and last activity inline */
+.client-detail-panel-header-name-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.client-detail-panel-activity-inline {
+  margin: 0;
+}
+
+/* Contact info grid - takes full width */
+.client-detail-panel-body .modal-contact-section .detail-grid {
+  gap: 16px 24px; /* row gap, column gap */
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  max-width: none; /* Take full width */
+}
+
+/* Contact info with actions - side by side layout */
+.contact-info-with-actions {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+/* Contact actions bar - positioned below contact section */
+.contact-actions-bar {
+  margin-top: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--theme-border);
+  border-bottom: 1px solid var(--theme-border);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Legacy class for backward compatibility */
+.contact-actions-section {
+  margin-top: 16px;
+  padding-top: 0;
+  border-top: none;
+  width: 100%;
+  max-width: 200px; /* Match photo width */
+}
+
+.contact-actions-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.contact-actions-heading {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.contact-actions-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Treatments discussed in clinic – inside Facial Analysis section */
+.discussed-treatments-in-facial-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--theme-border);
+  width: 100%;
+}
+
+.discussed-treatments-in-facial-title-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.discussed-treatments-in-facial-heading-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.discussed-treatments-in-facial-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.discussed-treatments-in-facial-subheading {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-in-facial-summary-row {
+  margin-top: 4px;
+}
+
+.discussed-treatments-in-facial-summary {
+  font-size: 13px;
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+}
+
+.discussed-treatments-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--theme-border);
+  min-height: 36px;
+}
+
+.discussed-treatments-row:last-child {
+  border-bottom: none;
+}
+
+.discussed-treatments-row-treatment-name {
+  flex-shrink: 0;
+  min-width: 90px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-row-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+
+.discussed-treatments-row-interest {
+  font-size: 12px;
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-row-treatment {
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-row-meta {
+  font-size: 12px;
+  color: var(--theme-text-muted);
+}
+
+.client-detail-panel-footer {
+  padding: 24px 32px;
+  border-top: 1px solid var(--theme-border);
+  background: var(--theme-bg-card);
+  flex-shrink: 0;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Scan Patient Dropdown in Panel - Scoped to panel to avoid conflicts */
+.client-detail-panel .scan-client-dropdown {
+  position: relative;
+}
+
+.client-detail-panel .scan-client-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  width: auto;
+  min-width: auto;
+  overflow: hidden;
+}
+
+.client-detail-panel .scan-client-option {
+  width: 100%;
+  padding: 12px 20px;
+  text-align: center;
+  background: white;
+  border: none;
+  border-bottom: 1px solid var(--theme-border);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  transition: all 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.client-detail-panel .scan-client-option:last-child {
+  border-bottom: none;
+}
+
+.client-detail-panel .scan-client-option:hover {
+  background: #f5f5f5;
+  transform: translateY(-1px);
+}
+
+/* Redeemed Offers section (same as ClientDetailModal) */
+.modal-contact-section-with-offers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.modal-contact-section-with-offers .detail-section-relative {
+  flex: 1;
+  min-width: 200px;
+}
+
+.client-detail-panel .redeemed-offers-section {
+  flex-shrink: 0;
+  min-width: 180px;
+}
+
+.client-detail-panel .redeemed-offers-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--theme-text-muted);
+  margin-bottom: 8px;
+}
+
+.client-detail-panel .redeemed-offers-card {
+  padding: 14px;
+  background: #f7f4f1;
+  border-radius: 10px;
+  border-left: 4px solid #7fa882;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.client-detail-panel .redeemed-offers-coupon {
+  font-weight: 700;
+  font-size: 16px;
+  color: #222;
+}
+
+.client-detail-panel .redeemed-offers-expiry {
+  font-size: 13px;
+  color: var(--theme-text-muted);
+}
+
+.client-detail-panel .redeemed-offers-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #388e3c;
+}
+
+.client-detail-panel .redeemed-offers-icon {
+  font-size: 16px;
+}
+
+.client-detail-panel .redeemed-offers-mark-btn {
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .client-detail-panel-header {
+    padding: 20px 24px;
+  }
+
+  .client-detail-panel-body {
+    padding: 24px;
+  }
+
+  .client-detail-panel-footer {
+    padding: 20px 24px;
+  }
+}

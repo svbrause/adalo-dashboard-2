@@ -1,0 +1,94 @@
+/* Shared Form Styles - Reusable across all modals */
+
+.form-container {
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group-spacing {
+  margin-top: 16px;
+}
+
+.form-group-spacing-lg {
+  margin-top: 20px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.form-input-base {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.form-textarea-base {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.character-count {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.character-count-normal {
+  color: #666;
+}
+
+.character-count-warning {
+  color: #ff9800;
+}
+
+.character-count-error {
+  color: #f44336;
+}
+
+.modal-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.modal-icon-spacing {
+  margin-right: 6px;
+}
+
+.spinner-inline {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.patient-info-box {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.patient-info-row {
+  font-size: 14px;
+  color: #212121;
+  margin-bottom: 4px;
+}
+
+.patient-info-row:last-child {
+  margin-bottom: 0;
+}

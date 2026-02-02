@@ -1,0 +1,33 @@
+/* Pagination Styles */
+
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border-top: 1px solid var(--theme-border);
+  background: white;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #666;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-page-info {
+  font-size: 14px;
+  color: #666;
+  padding: 0 12px;
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 13px;
+}

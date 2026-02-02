@@ -1,0 +1,14 @@
+New app login
+
+Who: [Name]
+When: [Logged in at]
+App: [Source]
+Provider code: [Provider Code]
+Provider ID: [Provider Id]
+Email: [Email]
+Stage: [Stage]
+Session ID: [Session ID]
+Metadata: [Metadata]
+
+---
+Instructions: In your Airtable automation (When record created in "New App Logins" → Send to Slack), replace each [Field Name] with the automation's insert field / variable for that column (e.g. use the field picker and select the matching Airtable field). Use only the lines you want in Slack; omit Email, Session ID, or Metadata if you prefer a shorter message.

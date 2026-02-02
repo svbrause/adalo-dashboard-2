@@ -1,0 +1,7 @@
+/* Archived View Styles */
+
+.archived-view {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--theme-bg-gradient);
+}

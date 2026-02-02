@@ -1,0 +1,5 @@
+/* Send SMS Modal Styles */
+
+.send-sms-modal-overlay {
+  z-index: 10000;
+}

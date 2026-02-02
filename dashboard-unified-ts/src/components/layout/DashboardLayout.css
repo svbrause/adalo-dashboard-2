@@ -1,0 +1,23 @@
+/* Dashboard Layout Styles */
+
+.dashboard-wrapper {
+  display: flex;
+  min-height: 100vh;
+  background: var(--theme-bg-gradient);
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  margin-left: 240px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+  }
+}

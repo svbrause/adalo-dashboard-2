@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/dashboard",
+      "destination": "https://YOUR-DASHBOARD-PROJECT.vercel.app/dashboard"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "destination": "https://YOUR-DASHBOARD-PROJECT.vercel.app/dashboard/:path*"
+    },
+    {
+      "source": "/cases",
+      "destination": "https://YOUR-CASES-PROJECT.vercel.app/cases"
+    },
+    {
+      "source": "/cases/:path*",
+      "destination": "https://YOUR-CASES-PROJECT.vercel.app/cases/:path*"
+    },
+    {
+      "source": "/",
+      "destination": "https://YOUR-DASHBOARD-PROJECT.vercel.app/"
+    }
+  ]
+}

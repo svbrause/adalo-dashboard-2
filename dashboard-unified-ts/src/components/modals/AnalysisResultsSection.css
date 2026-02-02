@@ -1,0 +1,199 @@
+/* Analysis Results Section Styles */
+
+.analysis-results-section {
+  padding: 16px;
+  background: white;
+  border-radius: 6px;
+  color: #333;
+  font-size: 14px;
+}
+
+.analysis-results-empty {
+  padding: 16px;
+  background: white;
+  border-radius: 6px;
+  color: #666;
+  font-size: 13px;
+}
+
+.analysis-summary-section {
+  margin-bottom: 16px;
+}
+
+.analysis-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analysis-section-title-focus {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5ba3a3;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analysis-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.analysis-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid rgba(206, 147, 216, 0.35);
+  border-radius: 999px;
+}
+
+.analysis-focus-areas-text {
+  font-size: 13px;
+  color: #5ba3a3;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.analysis-expand-button {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.analysis-expand-button.expanded {
+  margin-bottom: 16px;
+}
+
+.analysis-expand-icon {
+  transition: transform 0.3s ease;
+}
+
+.analysis-expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.analysis-expanded-content {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--theme-border);
+}
+
+.analysis-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.analysis-empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: #666;
+  grid-column: 1 / -1;
+}
+
+.analysis-area-card {
+  background: white;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.analysis-area-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #212121;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analysis-focus-badge {
+  padding: 2px 8px;
+  background: #5ba3a3;
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.analysis-issues-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  margin-left: 8px;
+}
+
+.analysis-issue-item {
+  margin-bottom: 10px;
+  padding-left: 16px;
+  position: relative;
+}
+
+.analysis-issue-bullet {
+  position: absolute;
+  left: 0;
+  color: #666;
+}
+
+.analysis-issue-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.analysis-issue-name {
+  font-size: 13px;
+  color: #212121;
+}
+
+.analysis-interested-badge {
+  padding: 2px 6px;
+  font-weight: 600;
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid rgba(206, 147, 216, 0.35);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.analysis-treatments-container {
+  margin-top: 4px;
+  margin-left: 16px;
+  padding-left: 0;
+}
+
+.analysis-treatments-label {
+  font-size: 11px;
+  color: #666;
+  margin-right: 6px;
+}
+
+.analysis-treatment-tag {
+  padding: 3px 8px;
+  font-weight: 600;
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid rgba(206, 147, 216, 0.35);
+  border-radius: 999px;
+  font-size: 11px;
+  margin-right: 4px;
+  display: inline-block;
+  margin-top: 4px;
+}

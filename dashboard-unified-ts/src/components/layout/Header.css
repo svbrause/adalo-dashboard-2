@@ -1,0 +1,85 @@
+/* Header Styles */
+
+.main-header {
+  background: var(--theme-bg-card);
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--theme-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  margin-bottom: 4px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--theme-text-muted);
+}
+
+.header-right {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+/* Header-specific scan dropdown styles - scoped to main-header to avoid conflicts */
+.main-header .scan-client-dropdown {
+  position: relative;
+}
+
+.main-header .scan-client-btn {
+  min-width: 100px;
+  padding: 10px 16px;
+}
+
+.main-header .scan-client-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  width: auto;
+  min-width: auto;
+  overflow: hidden;
+}
+
+.main-header .scan-client-option {
+  width: 100%;
+  padding: 12px 20px;
+  text-align: center;
+  background: white;
+  border: none;
+  border-bottom: 1px solid var(--theme-border);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  transition: all 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.main-header .scan-client-option:last-child {
+  border-bottom: none;
+}
+
+.main-header .scan-client-option:hover {
+  background: #f5f5f5;
+  transform: translateY(-1px);
+}

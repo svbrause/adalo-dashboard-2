@@ -1,0 +1,2760 @@
+/* Discussed Treatments Modal – copilot / assistant feel */
+
+.discussed-treatments-modal-content {
+  position: relative;
+  max-width: 560px;
+  animation: discussed-treatments-modal-in 0.25s ease-out;
+}
+
+/* Wider when showing plan + form side by side */
+.discussed-treatments-modal-content.discussed-treatments-modal-content-has-plan {
+  max-width: min(96vw, 960px);
+}
+
+/* Master–detail (list–detail) layout: list left, detail right */
+.discussed-treatments-two-column {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  align-items: stretch;
+  min-height: 0;
+  max-height: min(85vh, 720px);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.discussed-treatments-two-column .discussed-treatments-column-plan,
+.discussed-treatments-two-column .discussed-treatments-column-master {
+  flex: 0 0 auto;
+  width: 240px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+  border-right: 1px solid rgba(79, 70, 229, 0.2);
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.discussed-treatments-two-column .discussed-treatments-column-form,
+.discussed-treatments-two-column .discussed-treatments-column-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--theme-bg-card, #fff);
+  padding: 20px 20px 20px 24px;
+}
+
+/* Single column when no plan items yet */
+.discussed-treatments-single-column {
+  display: block;
+}
+
+/* Highlight item being edited in the plan list */
+.discussed-treatments-group-item-line.discussed-treatments-group-item-editing {
+  background: rgba(79, 70, 229, 0.12);
+  border-radius: 8px;
+  outline: 1px solid rgba(79, 70, 229, 0.35);
+}
+
+/* Plan column: purple theme */
+.discussed-treatments-column-plan .discussed-treatments-list-section {
+  padding: 12px 14px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.discussed-treatments-column-plan .discussed-treatments-list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin-bottom: 4px;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-list-hint {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  margin-bottom: 10px;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-rows {
+  padding: 10px 12px;
+  margin-top: 0;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-group-row {
+  padding: 6px 8px 6px 0;
+  min-height: 0;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-row-treatment-name {
+  min-width: 72px;
+  font-size: 12px;
+  padding-top: 6px;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-group-items {
+  gap: 0;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-group-item-line {
+  padding: 5px 0 5px 8px;
+  min-height: 0;
+  gap: 8px;
+  align-items: flex-start;
+  border-bottom-color: rgba(79, 70, 229, 0.1);
+}
+
+.discussed-treatments-column-plan
+  .discussed-treatments-group-item-line
+  .discussed-treatments-row-content {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-row-interest,
+.discussed-treatments-column-plan .discussed-treatments-row-findings,
+.discussed-treatments-column-plan .discussed-treatments-row-meta {
+  font-size: 11px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-row-findings {
+  margin-top: 0;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-row-meta {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-row-actions {
+  gap: 4px;
+  align-items: center;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-bubble-action-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-complete-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.discussed-treatments-column-plan .discussed-treatments-complete-label {
+  width: 100%;
+  font-size: 11px;
+  margin-bottom: 0;
+}
+
+/* Master list: header row with title and add button */
+.discussed-treatments-master-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.discussed-treatments-master-list-header .discussed-treatments-list-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Plan sections: Now, Add next visit, Save for later (later at bottom) */
+.discussed-treatments-plan-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.discussed-treatments-plan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.discussed-treatments-plan-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--theme-text-muted);
+  margin: 0;
+  padding: 0 2px 2px 0;
+}
+
+/* Master list: purple theme */
+.discussed-treatments-master-records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(79, 70, 229, 0.15);
+  background: rgba(99, 102, 241, 0.03);
+}
+
+.discussed-treatments-plan-section .discussed-treatments-master-records-list {
+  margin-top: 4px;
+}
+
+.discussed-treatments-record-row {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.12);
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.discussed-treatments-record-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Drag handle for reordering items */
+.discussed-treatments-drag-handle {
+  flex: 0 0 auto;
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: rgba(79, 70, 229, 0.4);
+  cursor: grab;
+  user-select: none;
+  letter-spacing: -2px;
+}
+
+.discussed-treatments-drag-handle:active {
+  cursor: grabbing;
+}
+
+.discussed-treatments-record-row:hover .discussed-treatments-drag-handle {
+  color: rgba(79, 70, 229, 0.7);
+}
+
+/* Dragging states */
+.discussed-treatments-record-row.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.discussed-treatments-plan-section.drag-over {
+  background: rgba(79, 70, 229, 0.08);
+  border-radius: 8px;
+}
+
+.discussed-treatments-plan-section.drag-over
+  .discussed-treatments-master-records-list {
+  border-color: rgba(79, 70, 229, 0.35);
+}
+
+.discussed-treatments-record-row:last-child {
+  border-bottom: none;
+}
+
+.discussed-treatments-record-row:hover {
+  background: rgba(79, 70, 229, 0.06);
+}
+
+.discussed-treatments-record-row.selected {
+  background: rgba(79, 70, 229, 0.12);
+  border-left: 3px solid #4f46e5;
+  padding-left: 9px;
+}
+
+/* New-item row: top of list when add form is shown (no move control) */
+.discussed-treatments-record-row-new {
+  cursor: default;
+  flex-direction: column;
+  border: 1px dashed rgba(79, 70, 229, 0.4);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.discussed-treatments-record-row-new:hover {
+  background: rgba(79, 70, 229, 0.1);
+}
+
+.discussed-treatments-record-row-new.selected {
+  border-left: 3px solid #4f46e5;
+  border-style: dashed;
+  padding-left: 9px;
+}
+
+.discussed-treatments-record-row-new .discussed-treatments-record-primary {
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-record-row-new
+  .discussed-treatments-record-primary:first-letter {
+  text-transform: uppercase;
+}
+
+.discussed-treatments-record-primary {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  line-height: 1.4;
+}
+
+.discussed-treatments-record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--theme-text-secondary);
+  line-height: 1.35;
+}
+
+.discussed-treatments-record-for,
+.discussed-treatments-record-timeline {
+  display: inline-flex;
+  align-items: center;
+}
+
+.discussed-treatments-record-for::before {
+  content: "For: ";
+  opacity: 0.7;
+  margin-right: 3px;
+}
+
+.discussed-treatments-record-timeline::before {
+  content: "⏱ ";
+  opacity: 0.6;
+  margin-right: 2px;
+}
+
+.discussed-treatments-record-quantity {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Quantity quick-select: Other number input (narrow, inline with chips) */
+.discussed-treatments-quantity-other-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.discussed-treatments-quantity-other-input {
+  width: 56px;
+  min-width: 56px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: var(--theme-bg-card);
+  color: var(--theme-text-primary);
+  text-align: center;
+}
+
+.discussed-treatments-quantity-other-input:focus {
+  outline: none;
+  border-color: rgba(79, 70, 229, 0.5);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.discussed-treatments-quantity-other-input::placeholder {
+  color: var(--theme-text-muted);
+}
+
+/* Post-care & recommended (Laser, Chemical Peel, etc. – “patients often add”) */
+.discussed-treatments-postcare-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--theme-border);
+}
+
+.discussed-treatments-postcare-section
+  .discussed-treatments-detail-section-title {
+  margin-bottom: 12px;
+}
+
+.discussed-treatments-postcare-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.discussed-treatments-postcare-send-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3730a3;
+  background: rgba(79, 70, 229, 0.1);
+  border: 1px solid rgba(79, 70, 229, 0.25);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  align-self: flex-start;
+}
+
+.discussed-treatments-postcare-send-btn:hover {
+  background: rgba(79, 70, 229, 0.15);
+  border-color: rgba(79, 70, 229, 0.4);
+}
+
+.discussed-treatments-postcare-suggested {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.discussed-treatments-postcare-suggested-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+}
+
+.discussed-treatments-postcare-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.discussed-treatments-postcare-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  background: var(--theme-bg-card);
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.discussed-treatments-postcare-chip:hover {
+  background: rgba(79, 70, 229, 0.06);
+  border-color: rgba(79, 70, 229, 0.3);
+}
+
+.discussed-treatments-add-form-postcare {
+  margin-top: 16px;
+}
+
+/* Post-care instructions modal (copy to clipboard) */
+.discussed-treatments-postcare-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: 20px;
+}
+
+.discussed-treatments-postcare-modal {
+  background: var(--theme-bg-card);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.discussed-treatments-postcare-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.discussed-treatments-postcare-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0;
+}
+
+.discussed-treatments-postcare-modal-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 20px;
+}
+
+.discussed-treatments-postcare-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.discussed-treatments-postcare-modal-text {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--theme-text-primary);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.discussed-treatments-postcare-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 20px;
+  border-top: 1px solid var(--theme-border);
+}
+
+/* Edit panel: header with "Add new item" to switch back to add form */
+.discussed-treatments-edit-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+/* Record-review detail panel: title row with actions on the right */
+.discussed-treatments-detail-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+}
+
+.discussed-treatments-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--theme-border);
+  margin-bottom: 20px;
+}
+
+.discussed-treatments-detail-header-left {
+  min-width: 0;
+}
+
+.discussed-treatments-detail-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.discussed-treatments-detail-subtitle {
+  font-size: 14px;
+  color: var(--theme-text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Actions in detail header (aligned with treatment title) */
+.discussed-treatments-detail-header
+  .discussed-treatments-detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.discussed-treatments-detail-complete-confirm-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.discussed-treatments-detail-complete-confirm-inline
+  .discussed-treatments-detail-complete-text {
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  margin: 0;
+  margin-right: 4px;
+}
+
+/* Remove = secondary button with danger styling */
+.discussed-treatments-btn-remove {
+  border-color: rgba(185, 28, 28, 0.5);
+  color: #b91c1c;
+}
+
+.discussed-treatments-btn-remove:hover {
+  border-color: #b91c1c;
+  background: rgba(185, 28, 28, 0.08);
+  color: #991b1b;
+}
+
+/* Unify button size across modal: all actions use same compact size */
+.discussed-treatments-modal-content .btn-sm {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.discussed-treatments-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.discussed-treatments-detail-section {
+  border: 1px solid rgba(79, 70, 229, 0.12);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.discussed-treatments-detail-section-title {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--theme-text-secondary);
+}
+
+.discussed-treatments-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .discussed-treatments-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.discussed-treatments-detail-field-full {
+  grid-column: 1 / -1;
+}
+
+.discussed-treatments-finding-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.discussed-treatments-finding-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 70, 229, 0.18);
+  background: rgba(79, 70, 229, 0.08);
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.discussed-treatments-detail-value-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.discussed-treatments-detail-inline-icon {
+  opacity: 0.8;
+}
+
+.discussed-treatments-detail-notes {
+  white-space: pre-wrap;
+}
+
+.discussed-treatments-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.discussed-treatments-detail-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-detail-field-value {
+  font-size: 15px;
+  color: var(--theme-text-primary);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* Complete confirm inline in detail pane */
+.discussed-treatments-detail-complete-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.discussed-treatments-detail-complete-confirm
+  .discussed-treatments-complete-label {
+  width: 100%;
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+/* Remove button styling in detail view */
+.discussed-treatments-remove-btn {
+  color: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+.discussed-treatments-remove-btn:hover {
+  background: rgba(220, 38, 38, 0.1) !important;
+  border-color: #b91c1c !important;
+}
+
+/* Stack columns on narrow viewports */
+@media (max-width: 768px) {
+  .discussed-treatments-two-column {
+    flex-direction: column;
+  }
+
+  .discussed-treatments-two-column .discussed-treatments-column-plan {
+    width: 100%;
+    position: static;
+  }
+}
+
+@keyframes discussed-treatments-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header: badge + title */
+.discussed-treatments-modal-content
+  .modal-header.discussed-treatments-modal-header {
+  background: linear-gradient(
+    180deg,
+    rgba(99, 102, 241, 0.06) 0%,
+    transparent 100%
+  );
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.discussed-treatments-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #3730a3;
+  background: rgba(79, 70, 229, 0.22);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 4px;
+  border: 1px solid rgba(79, 70, 229, 0.4);
+}
+
+.discussed-treatments-modal-content .modal-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Close button: closer to top-right, square (1:1) */
+.discussed-treatments-modal-content .modal-header {
+  padding-top: 12px;
+  padding-right: 12px;
+  padding-bottom: 20px;
+  padding-left: 24px;
+  align-items: flex-start;
+}
+
+.discussed-treatments-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.discussed-treatments-close-btn {
+  width: 36px;
+  min-width: 36px;
+  padding: 0 8px;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discussed-treatments-modal-content .modal-close,
+.discussed-treatments-modal-content .discussed-treatments-close-btn {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.discussed-treatments-modal-content .modal-header-info {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.discussed-treatments-modal-content .modal-subtitle {
+  margin-top: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--theme-text-secondary, #666);
+}
+
+.discussed-treatments-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.discussed-treatments-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid var(--theme-border);
+  background: var(--theme-bg-card);
+}
+
+/* “We pulled this for you” context block */
+.discussed-treatments-context {
+  padding: 14px 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.08) 0%,
+    rgba(99, 102, 241, 0.02) 100%
+  );
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.06);
+}
+
+.discussed-treatments-context-label {
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-context-value {
+  color: var(--theme-text-secondary);
+}
+
+/* Their plan so far – one lighter purple (outer) */
+.discussed-treatments-list-section {
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.discussed-treatments-list-section .discussed-treatments-list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  margin: 0 0 4px 0;
+  letter-spacing: 0.3px;
+}
+
+.discussed-treatments-list-hint {
+  font-size: 12px;
+  color: var(--theme-text-muted);
+  margin: 0 0 12px 0;
+}
+
+/* One row per treatment plan item – one darker purple (inner block + padding) */
+.discussed-treatments-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.09);
+  margin-top: 4px;
+}
+
+.discussed-treatments-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--theme-border);
+  min-height: 44px;
+}
+
+.discussed-treatments-row:last-child {
+  border-bottom: none;
+}
+
+/* Treatment plan rows (in list section) – same darker tone as inner block, no alternating stripe */
+.discussed-treatments-list-section .discussed-treatments-row {
+  background: transparent;
+  border-bottom-color: rgba(79, 70, 229, 0.2);
+}
+
+.discussed-treatments-list-section .discussed-treatments-row:nth-child(even) {
+  background: transparent;
+}
+
+/* Inner rounded corners: first group top, last group bottom (match .discussed-treatments-rows radius) */
+.discussed-treatments-list-section
+  .discussed-treatments-group:first-child
+  .discussed-treatments-group-row {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+.discussed-treatments-list-section
+  .discussed-treatments-group:last-child
+  .discussed-treatments-group-item-line:last-child {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.discussed-treatments-row-treatment-name {
+  flex-shrink: 0;
+  min-width: 100px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-row-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+
+.discussed-treatments-row-interest {
+  font-size: 12px;
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-row-treatment {
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-row-meta {
+  font-size: 12px;
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Grouped by treatment: one row per treatment, multiple item lines inside */
+.discussed-treatments-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.discussed-treatments-group-row {
+  align-items: flex-start;
+}
+
+.discussed-treatments-group-row .discussed-treatments-row-treatment-name {
+  padding-top: 10px;
+  align-self: flex-start;
+}
+
+.discussed-treatments-group-items {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.discussed-treatments-group-item-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0 8px 0;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.12);
+  min-height: 40px;
+}
+
+.discussed-treatments-group-item-line:last-child {
+  border-bottom: none;
+}
+
+.discussed-treatments-group-item-line .discussed-treatments-row-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Edit form when editing a row (full width row, column layout) */
+.discussed-treatments-row-edit-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 12px 14px;
+  background: rgba(79, 70, 229, 0.06);
+  border: 1px solid rgba(79, 70, 229, 0.25);
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.discussed-treatments-row-edit-form .discussed-treatments-edit-actions {
+  width: 100%;
+}
+
+.discussed-treatments-bubble-action-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--theme-text-secondary);
+  background: transparent;
+  border: 1px solid var(--theme-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.discussed-treatments-bubble-action-btn:hover {
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--theme-text-primary);
+  border-color: rgba(79, 70, 229, 0.3);
+}
+
+.discussed-treatments-bubble-remove-action:hover {
+  background: rgba(185, 28, 28, 0.08);
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, 0.3);
+}
+
+/* Inline edit form (replaces row when editing) */
+.discussed-treatments-edit-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 0;
+}
+
+.discussed-treatments-edit-select,
+.discussed-treatments-edit-input {
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 6px;
+  background: var(--theme-bg-card);
+  color: var(--theme-text-primary);
+  margin-bottom: 2px;
+}
+
+.discussed-treatments-edit-select:focus,
+.discussed-treatments-edit-input:focus {
+  outline: none;
+  border-color: rgba(79, 70, 229, 0.5);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+/* Edit panel: selected value at top-left of each section, then dropdown */
+.discussed-treatments-edit-field {
+  margin-bottom: 16px;
+}
+
+.discussed-treatments-edit-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.discussed-treatments-edit-selected-row {
+  margin-bottom: 6px;
+}
+
+.discussed-treatments-edit-selected-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-edit-field .discussed-treatments-edit-select {
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 0;
+}
+
+.discussed-treatments-edit-other-input {
+  margin-top: 6px;
+  width: 100%;
+  max-width: 240px;
+}
+
+.discussed-treatments-edit-fields-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 600px) {
+  .discussed-treatments-edit-fields-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.discussed-treatments-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(79, 70, 229, 0.15);
+}
+
+/* Primary “Add treatment” and “Save note” feel */
+.discussed-treatments-add-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.discussed-treatments-add-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.discussed-treatments-save-btn {
+  font-weight: 600;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* Add another item – white background */
+.discussed-treatments-form-section {
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  padding: 18px;
+  background: #fff;
+}
+
+.discussed-treatments-add-form-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.discussed-treatments-add-form-header-row > div:first-child {
+  min-width: 0;
+}
+
+.discussed-treatments-select-prompt {
+  padding: 24px;
+}
+
+.discussed-treatments-select-prompt .discussed-treatments-form-hint {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.discussed-treatments-edit-panel {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--theme-border, #e5e7eb);
+}
+
+.discussed-treatments-edit-panel-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.discussed-treatments-edit-panel-actions > button {
+  flex: 1;
+  min-width: 0;
+}
+
+.discussed-treatments-form-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0 0 14px 0;
+  letter-spacing: 0.2px;
+}
+
+/* Section label matching "Interested Treatments" / "Treatment Interests" on other screens */
+.discussed-treatments-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary, #666);
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Patient's Treatment Interests section — when not in goal flow box, keep subtle background */
+.discussed-treatments-patient-interests-section {
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+
+/* Goal flow: inner sections are transparent (single gray box wraps all via .discussed-treatments-add-form-single-box) */
+.discussed-treatments-add-form-body.goal-flow-active
+  .discussed-treatments-goal-flow-box {
+  overflow: visible;
+}
+
+.discussed-treatments-goal-flow-box
+  .discussed-treatments-patient-interests-section {
+  background: transparent;
+  margin-bottom: 0;
+  padding-bottom: 4px;
+}
+
+/* Inside single gray box: no extra horizontal padding so Patient's heading aligns with Treatment options */
+.discussed-treatments-add-form-single-box
+  .discussed-treatments-goal-flow-box
+  .discussed-treatments-patient-interests-section {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.discussed-treatments-goal-flow-box
+  .discussed-treatments-detected-issues-section {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.discussed-treatments-step-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--theme-accent, #6366f1);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.discussed-treatments-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.discussed-treatments-form-hint {
+  font-size: 12px;
+  color: var(--theme-text-secondary);
+  margin: -4px 0 10px 0;
+}
+
+.discussed-treatments-treatments-subheading {
+  margin-top: -2px;
+  margin-bottom: 12px;
+}
+
+/* By Patient Interest: additional selections below the full row of treatment chips */
+.discussed-treatments-goal-below-row {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Other chip + inline input on same row (Treatments for this goal) */
+.discussed-treatments-other-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.discussed-treatments-other-treatment-inline-input {
+  min-width: 140px;
+  flex: 1;
+  max-width: 200px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: var(--theme-bg-card);
+  color: var(--theme-text-primary);
+  outline: none;
+}
+
+.discussed-treatments-other-treatment-inline-input:focus {
+  border-color: rgba(79, 70, 229, 0.5);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.discussed-treatments-other-treatment-inline-input::placeholder {
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-prefill-hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(79, 70, 229, 0.06);
+  border-radius: 8px;
+  border: 1px solid rgba(79, 70, 229, 0.15);
+}
+
+.discussed-treatments-add-by-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Everything under By Patient Interests / By Treatment */
+.discussed-treatments-add-form-body {
+  background: transparent;
+  border-radius: 10px;
+  padding: 16px 0 0 0;
+  margin-top: 0;
+}
+
+/* Single gray rectangle for all sections below mode chips */
+.discussed-treatments-add-form-single-box {
+  background: #f0efed;
+  border-radius: 12px;
+  padding: 16px 0;
+  margin-top: 0;
+  overflow: hidden;
+}
+
+/* All sections inside gray box: same horizontal padding so left/right edges align with Patient's Treatment Interests */
+.discussed-treatments-add-form-single-box .discussed-treatments-goal-flow-box,
+.discussed-treatments-add-form-single-box .discussed-treatments-finding-step,
+.discussed-treatments-add-form-single-box
+  .discussed-treatments-treatment-options-block,
+.discussed-treatments-add-form-single-box
+  .discussed-treatments-treatment-sub-box,
+.discussed-treatments-add-form-single-box .discussed-treatments-prefill-rows {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* No separate gray on inner sections – they sit inside the single box */
+.discussed-treatments-add-form-single-box .discussed-treatments-goal-flow-box,
+.discussed-treatments-add-form-single-box
+  .discussed-treatments-treatment-options-block {
+  background: transparent;
+  border-radius: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.discussed-treatments-add-form-single-box .discussed-treatments-goal-flow-box {
+  padding-bottom: 2px;
+}
+
+/* Smaller gap between interest and treatment options */
+.discussed-treatments-add-form-single-box
+  .discussed-treatments-treatment-options-block {
+  padding-top: 6px;
+}
+
+/* Quantity, timeline, recurring, notes, Add to plan */
+.discussed-treatments-add-form-single-box .discussed-treatments-prefill-rows {
+  margin-top: 12px;
+}
+
+.discussed-treatments-add-form-single-box
+  .discussed-treatments-treatment-sub-box {
+  background: transparent;
+  border-radius: 0;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 0;
+  padding-bottom: 12px;
+  margin-bottom: 0;
+}
+
+.discussed-treatments-add-form-single-box
+  .discussed-treatments-treatment-sub-box:last-child {
+  padding-bottom: 0;
+}
+
+.discussed-treatments-add-form-single-box .discussed-treatments-finding-step {
+  background: transparent;
+}
+
+/* Gray boxes for By Treatment sub-sections (when not inside single box, e.g. edit panel) */
+.discussed-treatments-treatment-sub-box {
+  background: #f0efed;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.discussed-treatments-treatment-sub-box:last-child {
+  margin-bottom: 0;
+}
+
+.discussed-treatments-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-secondary);
+  background: var(--theme-bg-card);
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.discussed-treatments-mode-chip:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-mode-chip.selected {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.15);
+  color: #4338ca;
+}
+
+.discussed-treatments-finding-step,
+.discussed-treatments-treatment-first-step {
+  margin-bottom: 4px;
+}
+
+/* Two-column layout: AI findings (left) | Other finding (right) */
+/* To address (by treatment): grid of area cards + Other at bottom */
+.discussed-treatments-to-address-wrap {
+  margin-top: 8px;
+}
+
+.discussed-treatments-to-address-grid {
+  margin-bottom: 0;
+}
+
+.discussed-treatments-area-card-to-address {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.discussed-treatments-area-card-to-address
+  .discussed-treatments-area-card-heading {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 0;
+}
+
+.discussed-treatments-area-card-to-address .discussed-treatments-chip-row {
+  flex-wrap: wrap;
+}
+
+.discussed-treatments-other-at-bottom {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--theme-border, #e5e7eb);
+}
+
+.discussed-treatments-other-at-bottom .discussed-treatments-finding-col-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--theme-text-muted);
+  margin-bottom: 6px;
+}
+
+.discussed-treatments-finding-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+.discussed-treatments-finding-col-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--theme-text-muted);
+  margin-bottom: 8px;
+}
+
+.discussed-treatments-finding-ai-col {
+  min-width: 0;
+}
+
+.discussed-treatments-other-finding-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--theme-border, #e5e7eb);
+}
+
+/* Compact Other finding in right column (by-treatment flow) */
+.discussed-treatments-other-finding-compact {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.discussed-treatments-other-finding-compact
+  .discussed-treatments-other-finding-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--theme-text-muted);
+}
+
+/* Selected "Other" findings as chips in right column (same style as AI chips, wrap) */
+.discussed-treatments-other-selected-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.discussed-treatments-other-finding-compact .discussed-treatments-topic-chip {
+  margin-bottom: 0;
+}
+
+.discussed-treatments-other-finding-compact
+  .discussed-treatments-topic-chip.other-chip {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.discussed-treatments-search-compact
+  .discussed-treatments-interest-search-input {
+  font-size: 12px;
+  padding: 6px 8px;
+  min-width: 0;
+}
+
+.discussed-treatments-search-compact .discussed-treatments-interest-back-btn {
+  font-size: 11px;
+  margin-top: 4px;
+  padding: 2px 0;
+}
+
+.discussed-treatments-search-compact .discussed-treatments-interest-dropdown {
+  max-height: 160px;
+  margin-top: 4px;
+}
+
+.discussed-treatments-back-inline {
+  display: inline;
+  background: none;
+  border: none;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 11px;
+  text-decoration: underline;
+}
+
+.discussed-treatments-other-finding-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text, #1f2937);
+  margin: 0 0 6px 0;
+}
+
+.discussed-treatments-other-finding-section
+  .discussed-treatments-interest-search-wrap {
+  margin-top: 6px;
+}
+
+.discussed-treatments-findings-dropdown {
+  max-height: 200px;
+}
+
+.discussed-treatments-findings-by-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+/* By assessment finding: area cards in a responsive grid (multiple per row) */
+.discussed-treatments-findings-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.discussed-treatments-area-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Area card: each area is a card so multiple fit per row */
+.discussed-treatments-area-card {
+  min-width: 0;
+}
+
+/* Collapsible areas (by assessment finding): card style, expanded by default */
+.discussed-treatments-findings-collapsible
+  .discussed-treatments-area-collapsible {
+  border: 1px solid var(--theme-border, #e5e7eb);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: var(--theme-bg-card, #fff);
+}
+
+.discussed-treatments-area-collapse-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  background: var(--theme-bg-secondary, #f9fafb);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.discussed-treatments-area-collapse-trigger:hover {
+  background: var(--theme-border, #e5e7eb);
+}
+
+.discussed-treatments-area-collapse-label {
+  flex: 1;
+}
+
+.discussed-treatments-area-focus-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.14);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(5, 150, 105, 0.35);
+}
+
+.discussed-treatments-area-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4f46e5;
+  background: rgba(79, 70, 229, 0.15);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.discussed-treatments-area-chevron {
+  font-size: 10px;
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-area-collapse-content {
+  padding: 10px 12px;
+  border-top: 1px solid var(--theme-border, #e5e7eb);
+  background: var(--theme-bg-card, #fff);
+}
+
+.discussed-treatments-area-collapse-content[hidden] {
+  display: none;
+}
+
+.discussed-treatments-area-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Treatments with product/type inline — chips next to each other like patient goal chips */
+.discussed-treatments-treatments-with-products {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.discussed-treatments-treatment-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0; /* allow product-inline/carousel to shrink and scroll */
+}
+
+.discussed-treatments-treatment-block .discussed-treatments-treatment-chip {
+  align-self: flex-start;
+}
+
+/* Other treatment row on its own line */
+.discussed-treatments-treatments-with-products .discussed-treatments-other-row {
+  flex-basis: 100%;
+}
+
+.discussed-treatments-product-inline {
+  margin-left: 0;
+  padding-left: 0;
+  min-width: 0; /* allow carousel inside to shrink and scroll horizontally */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 12px;
+  border-left: 3px solid rgba(99, 102, 241, 0.25);
+}
+
+.discussed-treatments-product-inline-by-treatment {
+  margin-top: 4px;
+}
+
+.discussed-treatments-product-inline-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.discussed-treatments-skincare-products {
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.discussed-treatments-product-selected-other {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.discussed-treatments-product-selected-label {
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+}
+
+.discussed-treatments-product-change-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: #4f46e5;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.discussed-treatments-product-change-btn:hover {
+  text-decoration: underline;
+}
+
+.discussed-treatments-see-all-options-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4f46e5;
+  background: transparent;
+  border: 1px dashed var(--theme-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.discussed-treatments-see-all-options-btn:hover {
+  border-color: rgba(79, 70, 229, 0.5);
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.discussed-treatments-product-search-wrap {
+  margin-top: 8px;
+}
+
+.discussed-treatments-product-search-wrap
+  .discussed-treatments-interest-search-input {
+  margin-bottom: 6px;
+}
+
+.discussed-treatments-product-other-input-wrap {
+  margin-top: 8px;
+}
+
+.discussed-treatments-product-other-input-wrap
+  .discussed-treatments-prefill-other-input {
+  width: 100%;
+  max-width: 280px;
+}
+
+.discussed-treatments-edit-product-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* Topic selector (single-select chips) – combined with “what they’re interested in” */
+/* Searchable interest selector */
+.discussed-treatments-interest-search-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.discussed-treatments-interest-search-input {
+  width: 100%;
+  font-size: 14px;
+  padding: 10px 36px 10px 12px;
+  border: 1.5px solid var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-bg-card);
+  color: var(--theme-text-primary);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.discussed-treatments-interest-search-input:focus {
+  outline: none;
+  border-color: rgba(79, 70, 229, 0.5);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.discussed-treatments-interest-search-input::placeholder {
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-interest-clear-btn {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--theme-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.discussed-treatments-interest-clear-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--theme-text-primary);
+}
+
+.discussed-treatments-interest-dropdown {
+  margin-top: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-bg-card);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.discussed-treatments-interest-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid var(--theme-border);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.discussed-treatments-interest-option:last-child {
+  border-bottom: none;
+}
+
+.discussed-treatments-interest-option:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.discussed-treatments-interest-option.selected {
+  background: rgba(79, 70, 229, 0.15);
+  color: #3730a3;
+}
+
+.discussed-treatments-interest-option-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #4f46e5;
+  background: rgba(79, 70, 229, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.discussed-treatments-interest-empty {
+  padding: 14px;
+  font-size: 12px;
+  color: var(--theme-text-muted);
+  text-align: center;
+}
+
+.discussed-treatments-interest-full-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.discussed-treatments-interest-full-list-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+}
+
+.discussed-treatments-interest-back-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: #4f46e5;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.discussed-treatments-interest-back-btn:hover {
+  text-decoration: underline;
+}
+
+.discussed-treatments-topic-chip.other-chip {
+  border-style: dashed;
+}
+
+/* Selected interest from search: show as chips (same style as selected treatment interests) */
+.discussed-treatments-selected-from-list-chips {
+  margin-top: 8px;
+}
+
+.discussed-treatments-selected-from-list-chips
+  .discussed-treatments-topic-chip.selected {
+  /* same as .discussed-treatments-topic-chip.selected – already inherited */
+}
+
+.discussed-treatments-interest-change-chip {
+  font-size: 12px;
+  font-weight: 500;
+  color: #4f46e5;
+  background: rgba(79, 70, 229, 0.1);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  cursor: pointer;
+}
+
+.discussed-treatments-interest-change-chip:hover {
+  background: rgba(79, 70, 229, 0.15);
+  border-color: rgba(79, 70, 229, 0.5);
+}
+
+.discussed-treatments-topic-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.discussed-treatments-topic-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--theme-border);
+  background: var(--theme-bg-card);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.discussed-treatments-topic-chip:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.discussed-treatments-topic-chip.selected {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.2);
+  color: #3730a3;
+}
+
+.discussed-treatments-form-title-step2 {
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+/* First section heading in single box: no top margin for alignment */
+.discussed-treatments-add-form-single-box
+  > *:first-child
+  .discussed-treatments-form-title-step2,
+.discussed-treatments-add-form-single-box
+  > .discussed-treatments-treatment-sub-box:first-child
+  .discussed-treatments-form-title-step2,
+.discussed-treatments-add-form-single-box
+  > .discussed-treatments-goal-flow-box
+  .discussed-treatments-form-title-step2:first-child {
+  margin-top: 0;
+}
+
+.discussed-treatments-detected-issues-section {
+  margin-top: 16px;
+}
+
+.discussed-treatments-detected-issues-chips {
+  margin-top: 8px;
+}
+
+/* Detected issues shown below each selected treatment (goal mode) */
+.discussed-treatments-detected-issues-inline {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.discussed-treatments-detected-issues-inline-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--theme-text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
+}
+
+.discussed-treatments-detected-issues-empty {
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  margin: 0 0 0 0;
+  font-style: italic;
+}
+
+.discussed-treatments-row-findings {
+  display: block;
+  font-size: 12px;
+  color: var(--theme-text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+/* Checkbox grid: clickable chips */
+.discussed-treatments-checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.discussed-treatments-checkbox-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--theme-border);
+  background: var(--theme-bg-card);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  transition: background 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.discussed-treatments-checkbox-chip:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.discussed-treatments-checkbox-chip.selected {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.2);
+  color: #3730a3;
+}
+
+.discussed-treatments-checkbox-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.discussed-treatments-checkbox-label {
+  user-select: none;
+}
+
+.discussed-treatments-other-row {
+  flex: 1;
+  min-width: 160px;
+  flex-wrap: nowrap;
+}
+
+.discussed-treatments-other-input {
+  flex: 1;
+  min-width: 80px;
+  padding: 4px 8px;
+  border: none;
+  border-bottom: 1px solid var(--theme-border);
+  background: transparent;
+  font-size: 13px;
+  color: var(--theme-text-primary);
+  outline: none;
+}
+
+.discussed-treatments-other-input::placeholder {
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-other-input:focus {
+  border-bottom-color: var(--theme-accent);
+}
+
+/* Optional details: collapsed by default */
+.discussed-treatments-optional-toggle {
+  display: inline-block;
+  padding: 6px 0;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--theme-text-primary, #1f2937);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.discussed-treatments-optional-toggle:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+.discussed-treatments-optional-hide {
+  margin-bottom: 12px;
+}
+
+.discussed-treatments-optional-fields {
+  padding: 12px 0;
+  border-top: 1px dashed var(--theme-border);
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.discussed-treatments-optional-fields .form-group {
+  margin-bottom: 12px;
+}
+
+.discussed-treatments-optional-fields .form-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Pre-fill rows: brand, region, timeline as clickable chips */
+.discussed-treatments-prefill-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  margin: 16px 0 8px 0;
+}
+
+.discussed-treatments-prefill-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.discussed-treatments-prefill-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.discussed-treatments-prefill-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--theme-text-secondary);
+  min-width: 56px;
+}
+
+.discussed-treatments-quantity-unit-select {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--theme-border, #e5e7eb);
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary);
+  min-width: 100px;
+  max-width: 120px;
+}
+
+.discussed-treatments-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Product/device carousel for Skincare and Laser */
+.discussed-treatments-product-carousel {
+  width: 100%;
+  min-width: 0; /* allow shrink in flex so track overflows and scroll appears */
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-top: 8px;
+}
+
+.discussed-treatments-product-carousel::-webkit-scrollbar {
+  height: 6px;
+}
+
+.discussed-treatments-product-carousel::-webkit-scrollbar-thumb {
+  background: var(--theme-border, #e5e7eb);
+  border-radius: 3px;
+}
+
+.discussed-treatments-product-carousel-track {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 4px 0 8px 0;
+  min-width: min-content;
+}
+
+/* Base product card: Skincare gets square with image; non-Skincare gets horizontal text-only */
+.discussed-treatments-product-carousel-item {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100px;
+  min-height: 100px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--theme-border);
+  background: var(--theme-bg-card);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  transition: border-color 0.15s ease, background 0.15s ease;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Checkbox in top corner (Skincare) or centered right (non-Skincare) */
+.discussed-treatments-product-carousel-item
+  .discussed-treatments-checkbox-input {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  opacity: 1;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #4f46e5;
+}
+
+/* Skincare: square card with image on top and product name below */
+.discussed-treatments-product-carousel-item
+  .discussed-treatments-product-carousel-image {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 60px;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(
+    145deg,
+    var(--theme-border, #e5e7eb) 0%,
+    rgba(0, 0, 0, 0.06) 100%
+  );
+  border: none;
+  border-bottom: 1px solid var(--theme-border, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--theme-text-muted, #6b7280);
+  overflow: hidden;
+}
+.discussed-treatments-product-carousel-item
+  .discussed-treatments-product-carousel-image::before {
+  content: "◆";
+  font-size: 14px;
+  opacity: 0.6;
+}
+.discussed-treatments-product-carousel-item.selected
+  .discussed-treatments-product-carousel-image {
+  border-color: rgba(79, 70, 229, 0.3);
+  background: linear-gradient(
+    145deg,
+    rgba(79, 70, 229, 0.12) 0%,
+    rgba(79, 70, 229, 0.06) 100%
+  );
+  color: #4f46e5;
+}
+.discussed-treatments-product-carousel-item.selected
+  .discussed-treatments-product-carousel-image::before {
+  opacity: 0.9;
+}
+
+/* Product name below image (Skincare) */
+.discussed-treatments-product-carousel-item
+  .discussed-treatments-product-carousel-label {
+  flex: 1 1 auto;
+  padding: 6px 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.25;
+  min-height: 0;
+  font-size: 10px;
+}
+
+/* Non-Skincare (Laser, etc.): horizontal text-only chip, no image */
+.discussed-treatments-product-carousel-item.discussed-treatments-product-text-only {
+  flex-direction: row;
+  width: auto;
+  min-height: auto;
+  height: auto;
+  aspect-ratio: auto;
+  padding: 8px 32px 8px 12px;
+  align-items: center;
+  gap: 8px;
+}
+
+.discussed-treatments-product-carousel-item.discussed-treatments-product-text-only
+  .discussed-treatments-product-carousel-image {
+  display: none;
+}
+
+.discussed-treatments-product-carousel-item.discussed-treatments-product-text-only
+  .discussed-treatments-product-carousel-label {
+  display: block;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  text-align: left;
+  line-height: 1.3;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+}
+
+.discussed-treatments-product-carousel-item.discussed-treatments-product-text-only
+  .discussed-treatments-checkbox-input {
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.discussed-treatments-product-carousel-item:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.discussed-treatments-product-carousel-item.selected {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.2);
+  color: #3730a3;
+}
+
+.discussed-treatments-prefill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border);
+  background: var(--theme-bg-card);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--theme-text-primary);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.discussed-treatments-prefill-chip:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.discussed-treatments-prefill-chip.selected {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.2);
+  color: #3730a3;
+}
+
+.discussed-treatments-radio-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.discussed-treatments-prefill-other-input {
+  width: 72px;
+  padding: 2px 6px;
+  border: none;
+  border-bottom: 1px solid var(--theme-border);
+  background: transparent;
+  font-size: 12px;
+  outline: none;
+}
+
+/* By treatment: "Other" treatment — clear section with visible input */
+.discussed-treatments-other-treatment-by-tx {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--theme-bg-card, #fff);
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  margin-bottom: 4px;
+}
+
+.discussed-treatments-other-treatment-by-tx-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0 0 4px 0;
+}
+
+.discussed-treatments-other-treatment-by-tx-hint {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  color: var(--theme-text-secondary);
+}
+
+.discussed-treatments-other-treatment-by-tx-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1.5px solid var(--theme-border);
+  border-radius: 8px;
+  background: var(--theme-bg-card);
+  color: var(--theme-text-primary);
+  outline: none;
+}
+
+.discussed-treatments-other-treatment-by-tx-input:focus {
+  border-color: rgba(79, 70, 229, 0.5);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.discussed-treatments-other-treatment-by-tx-input::placeholder {
+  color: var(--theme-text-muted);
+}
+
+.discussed-treatments-prefill-other-input:focus {
+  border-bottom-color: var(--theme-accent);
+}
+
+.discussed-treatments-notes-row {
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.discussed-treatments-notes-row .form-label {
+  font-size: 12px;
+}
+
+.discussed-treatments-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .discussed-treatments-form-row {
+    grid-template-columns: 1fr;
+  }
+  .discussed-treatments-other-row {
+    min-width: 100%;
+  }
+  .discussed-treatments-prefill-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ========== Mobile / touch-friendly overrides ========== */
+@media (max-width: 768px) {
+  .discussed-treatments-modal-content {
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+
+  /* Stack two-column layout (AI findings | Other) into single column */
+  .discussed-treatments-finding-two-col {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .discussed-treatments-findings-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Touch-friendly chip and button sizes (min 44px tap target) */
+  .discussed-treatments-topic-chip,
+  .discussed-treatments-checkbox-chip,
+  .discussed-treatments-prefill-chip,
+  .discussed-treatments-mode-chip {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 16px;
+    font-size: 14px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .discussed-treatments-checkbox-grid,
+  .discussed-treatments-topic-grid,
+  .discussed-treatments-chip-row {
+    gap: 10px;
+  }
+
+  /* Dropdown option rows: larger tap targets */
+  .discussed-treatments-interest-option,
+  .discussed-treatments-interest-option button {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .discussed-treatments-interest-dropdown {
+    max-height: min(60vh, 320px);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* "See all options" / product search: full width, larger inputs */
+  .discussed-treatments-see-all-options-btn {
+    min-height: 48px;
+    padding: 12px 16px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .discussed-treatments-interest-search-input {
+    min-height: 48px;
+    padding: 12px 40px 12px 14px;
+    font-size: 16px; /* avoids zoom on focus in iOS */
+  }
+
+  /* Native select fallback (shown on mobile for product/interest pickers) */
+  .discussed-treatments-mobile-select {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 40px 12px 14px;
+    font-size: 16px;
+    border: 1.5px solid var(--theme-border);
+    border-radius: 10px;
+    background: var(--theme-bg-card);
+    color: var(--theme-text-primary);
+    margin-top: 8px;
+    margin-bottom: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236366f1' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 40px;
+  }
+
+  .discussed-treatments-mobile-select:focus {
+    outline: none;
+    border-color: rgba(79, 70, 229, 0.5);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+  }
+
+  .discussed-treatments-mobile-select-wrap {
+    margin-top: 8px;
+  }
+
+  /* Mobile "Other" treatment interest picker: label + native select + back */
+  .discussed-treatments-interest-mobile-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .discussed-treatments-interest-mobile-picker
+    .discussed-treatments-mobile-picker-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--theme-text-primary);
+    margin: 0;
+  }
+
+  .discussed-treatments-interest-mobile-picker
+    .discussed-treatments-mobile-select {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .discussed-treatments-interest-mobile-picker
+    .discussed-treatments-mobile-picker-back {
+    margin-top: 4px;
+    padding: 10px 0;
+    font-size: 14px;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Hide native select on desktop (only show on narrow) */
+@media (min-width: 769px) {
+  .discussed-treatments-mobile-select-wrap {
+    display: none;
+  }
+}
+
+.discussed-treatments-complete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.discussed-treatments-complete-label {
+  font-size: 12px;
+  color: var(--theme-text-secondary);
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.discussed-treatments-action-complete {
+  color: #059669; /* Green */
+}
+
+.discussed-treatments-action-complete:hover {
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.discussed-treatments-action-primary {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.discussed-treatments-action-primary:hover {
+  background: rgba(79, 70, 229, 0.1);
+}
+
+.discussed-treatments-action-cancel {
+  color: var(--theme-text-muted);
+}
