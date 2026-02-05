@@ -7,8 +7,8 @@ const BACKEND_API_URL = "https://ponce-patient-backend.vercel.app";
 const API_BASE_URL = USE_BACKEND_API
   ? BACKEND_API_URL
   : typeof window !== "undefined" && window.location
-    ? window.location.origin
-    : "";
+  ? window.location.origin
+  : "";
 
 export interface Provider {
   id: string;
@@ -44,18 +44,23 @@ async function safeJsonParse(response: Response): Promise<any> {
   if (!contentType || !contentType.includes("application/json")) {
     const text = await response.text();
     throw new Error(
-      `Expected JSON but got ${contentType}. Response: ${text.substring(0, 100)}`,
+      `Expected JSON but got ${contentType}. Response: ${text.substring(
+        0,
+        100
+      )}`
     );
   }
   return response.json();
 }
 
 export async function fetchProviderByCode(
-  providerCode: string,
+  providerCode: string
 ): Promise<Provider> {
   const apiPath = USE_BACKEND_API
     ? `/api/dashboard/provider?providerCode=${encodeURIComponent(providerCode)}`
-    : `/api/airtable-get-provider?providerCode=${encodeURIComponent(providerCode)}`;
+    : `/api/airtable-get-provider?providerCode=${encodeURIComponent(
+        providerCode
+      )}`;
   const apiUrl = API_BASE_URL + apiPath;
 
   const response = await fetch(apiUrl);
@@ -117,7 +122,7 @@ export async function fetchTableRecords(
     filterFormula?: string;
     providerId?: string;
     fields?: string[];
-  } = {},
+  } = {}
 ): Promise<AirtableRecord[]> {
   const { filterFormula, providerId, fields } = options;
 
@@ -153,7 +158,9 @@ export async function fetchTableRecords(
   if (!response.ok) {
     const errorData = await safeJsonParse(response).catch(() => ({}));
     throw new Error(
-      `API error for ${tableName}: ${response.status} ${errorData.message || response.statusText}`,
+      `API error for ${tableName}: ${response.status} ${
+        errorData.message || response.statusText
+      }`
     );
   }
 
@@ -174,7 +181,7 @@ export async function fetchContactHistory(
   options: {
     providerId?: string;
     leadIds?: string[];
-  } = {},
+  } = {}
 ): Promise<any[]> {
   const { providerId, leadIds } = options;
 
@@ -204,7 +211,7 @@ export async function fetchContactHistory(
   if (!response.ok) {
     if (response.status === 414) {
       console.warn(
-        "URI too long error (414) - Contact history temporarily unavailable",
+        "URI too long error (414) - Contact history temporarily unavailable"
       );
       return [];
     }
@@ -269,7 +276,7 @@ export async function fetchContactHistory(
 export async function updateLeadRecord(
   recordId: string,
   tableName: string,
-  fields: Record<string, any>,
+  fields: Record<string, any>
 ): Promise<boolean> {
   const params = new URLSearchParams();
   params.append("recordId", recordId);
@@ -302,7 +309,7 @@ export async function sendSMSNotification(
   phone: string,
   message: string,
   leadId: string,
-  tableSource: string,
+  tableSource: string
 ): Promise<boolean> {
   const apiPath = USE_BACKEND_API
     ? `/api/dashboard/sms`
@@ -330,7 +337,7 @@ export async function sendSMSNotification(
  */
 export async function createLeadRecord(
   _tableName: string,
-  fields: Record<string, any>,
+  fields: Record<string, any>
 ): Promise<AirtableRecord> {
   const apiPath = USE_BACKEND_API
     ? `/api/dashboard/leads`
@@ -348,7 +355,7 @@ export async function createLeadRecord(
   if (!response.ok) {
     const errorData = await safeJsonParse(response).catch(() => ({}));
     throw new Error(
-      errorData.error?.message || errorData.message || "Failed to create lead",
+      errorData.error?.message || errorData.message || "Failed to create lead"
     );
   }
 
@@ -363,7 +370,7 @@ export async function submitHelpRequest(
   name: string,
   email: string,
   message: string,
-  providerId: string,
+  providerId: string
 ): Promise<boolean> {
   const apiPath = USE_BACKEND_API
     ? `/api/dashboard/help-request`
@@ -391,7 +398,7 @@ export async function submitHelpRequest(
  */
 export async function updateFacialAnalysisStatus(
   clientId: string,
-  newStatus: string,
+  newStatus: string
 ): Promise<void> {
   // Handle "not-started" - send empty string to Airtable
   const airtableStatus =
@@ -426,7 +433,76 @@ export async function updateFacialAnalysisStatus(
     throw new Error(
       error.error?.message ||
         error.message ||
-        "Failed to update facial analysis status",
+        "Failed to update facial analysis status"
     );
   }
+}
+
+/**
+ * Fetch treatment photos from the Photos table.
+ * Uses a minimal filter (done = TRUE when possible); filtering by treatment/area
+ * is done client-side for reliability across different Airtable field types.
+ *
+ * The backend must paginate Airtable (pageSize 100 + offset loop) when tableName
+ * is "Photos" so that all photos are returned; Airtable returns at most 100 per request.
+ */
+export async function fetchTreatmentPhotos(
+  options: {
+    treatment?: string;
+    area?: string;
+    /** Client-side cap; use a high value or omit to use all records the backend returns. Backend must paginate to return more than 100. */
+    limit?: number;
+  } = {}
+): Promise<AirtableRecord[]> {
+  const { limit = 2000 } = options;
+
+  // Fetch with minimal filter so client can filter by treatment/region
+  const filterFormula = "done = TRUE()";
+
+  let records: AirtableRecord[] = [];
+  try {
+    records = await fetchTableRecords("Photos", {
+      filterFormula,
+      fields: [
+        "Name",
+        "Photo",
+        "Treatments",
+        "Name (from Treatments)",
+        "General Treatments",
+        "Name (from General Treatments)",
+        "Area Names",
+        "Surgical (from General Treatments)",
+        "Caption",
+        "Story Title",
+        "Story Detailed",
+        "Age",
+        "Skin Tone",
+        "Ethnic Background",
+        "Skin Type",
+        "Longevity (from General Treatments)",
+        "Downtime (from General Treatments)",
+        "Price Range (from General Treatments)",
+      ],
+    });
+  } catch {
+    // If Photos table or filter fails, try without filter to get any photos
+    try {
+      records = await fetchTableRecords("Photos", {
+        fields: [
+          "Name",
+          "Photo",
+          "Name (from General Treatments)",
+          "Area Names",
+          "Surgical (from General Treatments)",
+          "Caption",
+          "Story Title",
+          "Story Detailed",
+        ],
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  return limit > 0 ? records.slice(0, limit) : records;
 }

@@ -1,0 +1,50 @@
+/* Treatment Photos Modal – overlay when opened from issue/interest (same design as DiscussedTreatments photo browser) */
+
+.treatment-photos-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 24px;
+}
+
+.treatment-photos-modal-content {
+  background: var(--theme-bg-card, #fff);
+  border-radius: 16px;
+  width: 920px;
+  max-width: calc(100vw - 48px);
+  height: 90vh;
+  min-height: 480px;
+  max-height: 820px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.treatment-photos-modal-content .treatment-photos-browser {
+  border: none;
+  border-radius: 0;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 600px) {
+  .treatment-photos-modal-overlay {
+    padding: 0;
+  }
+
+  .treatment-photos-modal-content {
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    max-height: none;
+    border-radius: 0;
+  }
+}

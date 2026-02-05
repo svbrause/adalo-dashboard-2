@@ -183,9 +183,16 @@ export default function PlanListColumn({
                         <div className="discussed-treatments-record-primary">
                           {item.treatment || "—"}
                         </div>
-                        {(item.product || item.interest || item.quantity) && (
+                        {(item.region ||
+                          item.product ||
+                          item.interest ||
+                          item.quantity) && (
                           <div className="discussed-treatments-record-meta">
-                            {item.product ? (
+                            {item.region ? (
+                              <span className="discussed-treatments-record-region">
+                                {item.region}
+                              </span>
+                            ) : item.product ? (
                               <span className="discussed-treatments-record-product">
                                 {item.product}
                               </span>

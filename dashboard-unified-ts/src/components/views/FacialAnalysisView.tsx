@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import ClientDetailPanel from "./ClientDetailPanel";
 import PatientIssuesModal from "../modals/PatientIssuesModal";
+import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
+import { getIssueArea } from "../../utils/issueMapping";
 import Pagination from "../common/Pagination";
 import { formatRelativeDate } from "../../utils/dateFormatting";
 import {
@@ -38,6 +40,12 @@ export default function FacialAnalysisView() {
   const [showPatientIssues, setShowPatientIssues] = useState<
     (typeof clients)[0] | null
   >(null);
+  const [issuePhotosContext, setIssuePhotosContext] = useState<{
+    client: (typeof clients)[0];
+    issue?: string;
+    region?: string;
+    interest?: string;
+  } | null>(null);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null);
   const [clientPhotos, setClientPhotos] = useState<Record<string, string>>({});
@@ -408,10 +416,22 @@ export default function FacialAnalysisView() {
                               Issues Detected
                             </div>
                             <div className="facial-card-tags">
-                              {allIssues.map((issue, i) => (
-                                <span key={i} className="facial-tag">
-                                  {issue}
-                                </span>
+                              {allIssues.map((issueName, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  className="facial-tag facial-tag-button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIssuePhotosContext({
+                                      client,
+                                      issue: issueName,
+                                      region: getIssueArea(issueName),
+                                    });
+                                  }}
+                                >
+                                  {issueName}
+                                </button>
                               ))}
                             </div>
                           </div>
@@ -422,20 +442,22 @@ export default function FacialAnalysisView() {
                           </div>
                           {interestedIssues.length > 0 ? (
                             <div className="facial-card-tags">
-                              {interestedIssues.map((issue, i) => (
-                                <span key={i} className="facial-tag interest">
-                                  {issue}
-                                </span>
+                              {interestedIssues.map((interestName, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  className="facial-tag interest facial-tag-button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIssuePhotosContext({
+                                      client,
+                                      interest: interestName,
+                                    });
+                                  }}
+                                >
+                                  {interestName}
+                                </button>
                               ))}
-                            </div>
-                          ) : client.facialAnalysisStatus &&
-                            (client.facialAnalysisStatus
-                              .toLowerCase()
-                              .includes("ready") ||
-                              client.facialAnalysisStatus.toLowerCase() ===
-                                "ready for review") ? (
-                            <div className="facial-card-text facial-card-text-italic">
-                              Available after patient review
                             </div>
                           ) : null}
                         </div>
@@ -542,6 +564,17 @@ export default function FacialAnalysisView() {
         <PatientIssuesModal
           client={showPatientIssues}
           onClose={() => setShowPatientIssues(null)}
+        />
+      )}
+
+      {issuePhotosContext && (
+        <TreatmentPhotosModal
+          client={issuePhotosContext.client}
+          issue={issuePhotosContext.issue}
+          region={issuePhotosContext.region}
+          interest={issuePhotosContext.interest}
+          onClose={() => setIssuePhotosContext(null)}
+          onUpdate={() => refreshClients(true)}
         />
       )}
     </section>

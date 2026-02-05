@@ -672,7 +672,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["sagging", "laxity"],
     goal: "Tighten Skin Laxity",
     region: "Other",
-    treatments: ["Radiofrequency", "Threadlift", "Laser"],
+    treatments: ["Radiofrequency", "Laser"],
   },
 ];
 
@@ -699,8 +699,17 @@ export const ALL_INTEREST_OPTIONS = [
   "Fade Scars",
 ];
 
+/** Treatment names to exclude from selectable options (surgical / invasive procedures). */
+export const SURGICAL_TREATMENTS = [
+  "Threadlift",
+  "Blepharoplasty",
+  "Facelift",
+  "Rhinoplasty",
+  "Surgical",
+];
+
 /** All treatment/procedure options (non-surgical only). */
-export const ALL_TREATMENTS = [
+const ALL_TREATMENTS_RAW = [
   "Skincare",
   "Laser",
   "Radiofrequency",
@@ -711,7 +720,58 @@ export const ALL_TREATMENTS = [
   "Kybella",
   "Threadlift",
 ];
+export const ALL_TREATMENTS = ALL_TREATMENTS_RAW.filter(
+  (t) => !SURGICAL_TREATMENTS.includes(t)
+);
 export const OTHER_TREATMENT_LABEL = "Other";
+
+/** Longevity, downtime, and pricing for treatment examples. */
+export const TREATMENT_META: Record<
+  string,
+  { longevity?: string; downtime?: string; priceRange?: string }
+> = {
+  Skincare: { longevity: "Ongoing", downtime: "None", priceRange: "Varies" },
+  Laser: {
+    longevity: "6–12+ months",
+    downtime: "3–7 days",
+    priceRange: "$200–$800+",
+  },
+  Radiofrequency: {
+    longevity: "6–12 months",
+    downtime: "Minimal",
+    priceRange: "$300–$600",
+  },
+  "Chemical Peel": {
+    longevity: "1–3 months",
+    downtime: "3–7 days",
+    priceRange: "$100–$300",
+  },
+  Microneedling: {
+    longevity: "2–4 months",
+    downtime: "1–3 days",
+    priceRange: "$200–$500",
+  },
+  Filler: {
+    longevity: "6–18 months",
+    downtime: "1–2 days",
+    priceRange: "$500–$2,000+",
+  },
+  Neurotoxin: {
+    longevity: "3–4 months",
+    downtime: "None",
+    priceRange: "$300–$600",
+  },
+  Kybella: {
+    longevity: "Permanent",
+    downtime: "3–7 days",
+    priceRange: "$1,200–$1,800",
+  },
+  Threadlift: {
+    longevity: "12–18 months",
+    downtime: "3–7 days",
+    priceRange: "$1,500–$4,000",
+  },
+};
 
 /** Map each interest (by keyword match) to suggested treatments. */
 export const INTEREST_TO_TREATMENTS: {
@@ -750,7 +810,7 @@ export const INTEREST_TO_TREATMENTS: {
   },
   {
     keywords: ["laxity", "tighten", "sag"],
-    treatments: ["Skincare", "Radiofrequency", "Threadlift"],
+    treatments: ["Skincare", "Radiofrequency"],
   },
   {
     keywords: ["shadow", "tear trough", "under eye"],

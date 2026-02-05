@@ -763,7 +763,8 @@
 }
 
 .discussed-treatments-record-product-outer,
-.discussed-treatments-record-for-outer {
+.discussed-treatments-record-for-outer,
+.discussed-treatments-record-region-outer {
   display: inline-flex;
   align-items: center;
 }

@@ -40,6 +40,30 @@ export interface DiscussedItem {
   notes?: string;
 }
 
+/** Treatment photo from the Photos table (before/after examples) */
+export interface TreatmentPhoto {
+  id: string;
+  name: string;
+  photoUrl: string;
+  thumbnailUrl?: string;
+  treatments: string[];
+  generalTreatments: string[];
+  areaNames: string[];
+  /** "Surgical" or "Non-Surgical" from Photos table – used to filter to non-surgical only */
+  surgical?: string;
+  caption?: string;
+  storyTitle?: string;
+  storyDetailed?: string;
+  longevity?: string;
+  downtime?: string;
+  priceRange?: string;
+  /** Patient demographics for matching */
+  age?: string;
+  skinTone?: string;
+  ethnicBackground?: string;
+  skinType?: string;
+}
+
 export interface ContactHistoryEntry {
   id: string;
   leadId: string;

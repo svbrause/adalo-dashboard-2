@@ -1,5 +1,23 @@
 /* Discussed Treatments Modal – copilot / assistant feel */
 
+/*
+ * Why layout can "squish" when selecting treatment + timeline:
+ * The left column shows a "new item" preview row when the add form is open. That row’s content
+ * comes from newItemPreview (treatment name, then product/interest/timeline/quantity when set).
+ * When you pick a treatment (e.g. Laser), the row shows "Laser". When you then pick a timeline
+ * (e.g. Add next visit), the row gains a second line (e.g. "⏱ Add next visit"). So the plan
+ * column’s content height increases. In some browsers, flex items can end up sizing to that
+ * content (min-height: auto) so the body/two-column shrink instead of filling 85vh. Fix: force
+ * modal content, body, and two-column to not size to content (height: 0, min-height: 0,
+ * flex: 1 1 0%, contain: layout) so they always fill the available space.
+ */
+
+/* Trap scroll inside modal: overlay does not scroll, so wheel events are consumed by modal columns */
+.modal-overlay:has(.discussed-treatments-modal-content) {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 .discussed-treatments-modal-content {
   position: relative;
   max-width: 560px;
@@ -8,21 +26,29 @@
 
 /* Wider when showing plan + form side by side */
 .discussed-treatments-modal-content.discussed-treatments-modal-content-has-plan {
+  width: min(96vw, 960px);
   max-width: min(96vw, 960px);
-  /* Use fixed height instead of max-height to prevent layout shifts when content changes
-     (e.g. when selecting timeline option which shows badge in new-item preview row) */
+  box-sizing: border-box;
   height: 85vh;
+  min-height: 0;
+  overflow: clip; /* Use clip instead of hidden to prevent any scrolling, including programmatic */
+  display: flex !important;
+  flex-direction: column !important;
+  /* Isolate layout: content (e.g. new-item row + timeline badge) cannot change this box’s size */
 }
 
-/* Master–detail (list–detail) layout: list left, detail right */
+/* Master–detail (list–detail) layout: list left, detail right. Fill body (flex child). */
 .discussed-treatments-two-column {
   display: flex;
   flex-direction: row;
   gap: 0;
   align-items: stretch;
-  flex: 1 1 auto;
-  min-height: 0; /* fill body and allow columns to scroll */
-  max-height: 100%; /* don't exceed body; prevents overlap when header + body share 85vh */
+  flex: 1 1 0%;
+  min-height: 0 !important;
+  min-width: 0;
+  max-height: 100%;
+  margin: 0 !important; /* no margin that could push content up or add bottom space */
+  padding: 0;
   border: 1px solid rgba(79, 70, 229, 0.2);
   border-radius: 12px;
   overflow: hidden;
@@ -35,8 +61,8 @@
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  position: sticky;
-  top: 0;
+  overflow-x: hidden;
+  position: relative; /* allow column to scroll; sticky was preventing scroll in some cases */
   border-right: 1px solid rgba(79, 70, 229, 0.2);
   background: rgba(99, 102, 241, 0.04);
 }
@@ -46,10 +72,17 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden; /* prevent horizontal overflow from breaking layout */
+  overflow-y: auto; /* column is the scroll container so user can scroll to timeline etc. */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   background: var(--theme-bg-card, #fff);
   padding: 20px 20px 20px 24px;
+}
+
+/* Form column children can shrink so chips wrap */
+.discussed-treatments-two-column .discussed-treatments-column-form > *,
+.discussed-treatments-two-column .discussed-treatments-column-detail > * {
+  min-width: 0;
 }
 
 /* Single column when no plan items yet */
@@ -353,6 +386,7 @@
 
 .discussed-treatments-record-product,
 .discussed-treatments-record-for,
+.discussed-treatments-record-region,
 .discussed-treatments-record-timeline {
   display: inline-flex;
   align-items: center;
@@ -477,6 +511,21 @@
 .discussed-treatments-postcare-chip:hover {
   background: rgba(79, 70, 229, 0.06);
   border-color: rgba(79, 70, 229, 0.3);
+}
+
+.discussed-treatments-postcare-chip.added,
+.discussed-treatments-postcare-chip:disabled {
+  cursor: default;
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.35);
+  color: #059669;
+  font-weight: 600;
+}
+
+.discussed-treatments-postcare-chip.added:hover,
+.discussed-treatments-postcare-chip:disabled:hover {
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.35);
 }
 
 .discussed-treatments-add-form-postcare {
@@ -882,11 +931,21 @@
   min-height: 0; /* allow two-column to scroll inside body */
 }
 
-/* When two-column (has plan), body content must not overflow */
+/* When two-column (has plan), body height is set by JS (contentHeight - headerHeight) so
+   content (e.g. new-item preview) cannot shrink it. No gap/padding so nothing pushes content up. */
 .discussed-treatments-modal-content.discussed-treatments-modal-content-has-plan
   .discussed-treatments-modal-body {
-  flex: 1 1 auto;
-  min-height: 0;
+  min-height: 0 !important;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%; /* overridden by JS inline height when has-plan */
+  gap: 0 !important; /* single child: no gap; avoids any phantom bottom space */
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
 }
 
 .discussed-treatments-modal-footer {
@@ -1357,12 +1416,12 @@
 .discussed-treatments-form-hint {
   font-size: 12px;
   color: var(--theme-text-secondary);
-  margin: -4px 0 10px 0;
+  margin: 0 0 10px 0; /* no negative top: avoids content being pulled up */
 }
 
 .discussed-treatments-treatments-subheading {
-  margin-top: -2px;
-  margin-bottom: 12px;
+  margin-top: 0;
+  margin-bottom: 12px; /* no negative top: avoids content being pulled up */
 }
 
 /* By Patient Interest: additional selections below the full row of treatment chips */
@@ -1443,6 +1502,8 @@
   padding: 16px 0;
   margin-top: 0;
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* All sections inside gray box: same horizontal padding so left/right edges align with Patient's Treatment Interests */
@@ -1480,6 +1541,14 @@
 /* Quantity, timeline, recurring, notes, Add to plan */
 .discussed-treatments-add-form-single-box .discussed-treatments-prefill-rows {
   margin-top: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.discussed-treatments-add-form-single-box
+  .discussed-treatments-prefill-rows
+  .discussed-treatments-chip-row {
+  min-width: 0;
 }
 
 .discussed-treatments-add-form-single-box
@@ -2813,4 +2882,972 @@
 
 .discussed-treatments-action-cancel {
   color: var(--theme-text-muted);
+}
+
+/* ===== Treatment Photos Browser ===== */
+.treatment-photos-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  background: #fff;
+  border-radius: 0;
+  border: none;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.treatment-photos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--theme-border);
+  flex-shrink: 0;
+}
+
+.treatment-photos-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0;
+}
+
+.treatment-photos-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.treatment-photos-close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--theme-text-primary);
+}
+
+/* Two-column layout: client left, gallery right – takes remaining space */
+.treatment-photos-layout {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.treatment-photos-client-column {
+  flex: 0 0 240px;
+  min-width: 0;
+  padding: 16px;
+  border-right: 1px solid var(--theme-border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.treatment-photos-client-card {
+  background: #f8f8f8;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--theme-border);
+}
+
+.treatment-photos-client-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0 0 12px 0;
+}
+
+.treatment-photos-client-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.treatment-photos-toggle-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+}
+
+.treatment-photos-toggle-btn:hover:not(:disabled) {
+  border-color: rgba(79, 70, 229, 0.5);
+  color: var(--theme-text-primary);
+}
+
+.treatment-photos-toggle-btn.active {
+  background: rgba(79, 70, 229, 0.1);
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.treatment-photos-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.treatment-photos-client-image-wrap {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e5e5e5;
+}
+
+.treatment-photos-client-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.treatment-photos-client-placeholder {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--theme-text-muted);
+  background: #f0f0f0;
+  border-radius: 8px;
+}
+
+/* Treatment meta (longevity, downtime) when treatment selected */
+.treatment-photos-meta-card {
+  background: rgba(79, 70, 229, 0.06);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.treatment-photos-meta-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0 0 10px 0;
+}
+
+.treatment-photos-meta-list {
+  margin: 0;
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+}
+
+.treatment-photos-meta-list dt {
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  margin-top: 8px;
+}
+
+.treatment-photos-meta-list dt:first-child {
+  margin-top: 0;
+}
+
+.treatment-photos-meta-list dd {
+  margin: 2px 0 0 0;
+}
+
+/* Right column: filters + gallery – scrollable when content overflows */
+.treatment-photos-gallery-column {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 380px; /* ensure grid has room in live modal; avoid thin-line collapse */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+}
+
+.treatment-photos-filters {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.treatment-photos-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--theme-text-muted);
+  padding-top: 6px;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+.treatment-photos-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.treatment-photos-chip {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--theme-border);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.treatment-photos-chip:hover {
+  border-color: rgba(79, 70, 229, 0.4);
+  color: var(--theme-text-primary);
+}
+
+.treatment-photos-chip.active {
+  background: rgba(79, 70, 229, 0.12);
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.treatment-photos-interest-other-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.treatment-photos-chip-other.open {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.treatment-photos-interest-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 10;
+  padding: 4px 0;
+}
+
+.treatment-photos-interest-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--theme-text-primary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.treatment-photos-interest-dropdown-item:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.treatment-photos-loading,
+.treatment-photos-error {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--theme-text-muted);
+}
+
+.treatment-photos-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--theme-text-muted);
+}
+
+.treatment-photos-error {
+  color: #dc2626;
+  background: #fef2f2;
+  border-radius: 8px;
+}
+
+.treatment-photos-grid {
+  display: grid;
+  gap: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 360px; /* prevent collapse to thin lines when inside nested flex (live modal) */
+  padding: 4px;
+  align-content: start;
+}
+
+/* Photo cards: wider cards for before/after display */
+.treatment-photos-grid-square {
+  grid-template-columns: repeat(auto-fill, 280px);
+  gap: 16px;
+  justify-content: start;
+}
+
+.treatment-photo-card,
+.treatment-photos-grid-square .treatment-photo-card {
+  background: #fff;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  text-align: left;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+  min-height: 200px !important;
+  box-sizing: border-box;
+}
+
+/* Wide cards for before/after photos */
+.treatment-photo-card-wide {
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+  min-height: 180px !important;
+}
+
+.treatment-photo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  border-color: rgba(79, 70, 229, 0.3);
+}
+
+.treatment-photo-card-square .treatment-photo-image-wrap {
+  flex-shrink: 0;
+}
+
+.treatment-photo-image-wrap {
+  overflow: hidden;
+  background: #e8e8e8;
+}
+
+/* Image wrap: fixed square for consistent card sizing */
+.treatment-photo-image-wrap-square,
+.treatment-photos-grid-square .treatment-photo-image-wrap-square {
+  position: relative;
+  width: 200px !important;
+  height: 200px !important;
+  min-width: 200px !important;
+  min-height: 200px !important;
+  flex: 0 0 200px !important; /* explicit flex basis to ensure height */
+  display: block;
+  overflow: hidden;
+}
+
+.treatment-photo-image-wrap-square .treatment-photo-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Wide image wrap for before/after photos (16:9 aspect ratio) */
+.treatment-photo-image-wrap-wide {
+  position: relative;
+  width: 280px !important;
+  height: 140px !important;
+  min-width: 280px !important;
+  min-height: 140px !important;
+  flex: 0 0 140px !important;
+  display: block;
+  overflow: hidden;
+}
+
+.treatment-photo-image-wrap-wide .treatment-photo-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Chips row at bottom of photo card */
+.treatment-photo-chips-row {
+  padding: 8px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid var(--theme-border);
+  min-height: 32px;
+}
+
+/* Name field from Photos table as label under each photo */
+.treatment-photo-card-label {
+  padding: 6px 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--theme-text, #1e293b);
+  border-top: 1px solid var(--theme-border);
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.treatment-photo-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.treatment-photo-chip-treatment {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+  border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.treatment-photo-chip-region {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.treatment-photo-chip-interest {
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid rgba(206, 147, 216, 0.35);
+}
+
+.treatment-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.treatment-photo-title-bottom {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  line-height: 1.4;
+  border-top: 1px solid var(--theme-border);
+  /* Allow title to wrap naturally - no height restriction */
+  min-height: 44px; /* at least 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* allow up to 3 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Relevance badge for patient-matching photos */
+.treatment-photo-relevance-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(34, 197, 94, 0.9);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.treatment-photo-relevance-icon {
+  font-size: 10px;
+}
+
+.treatment-photo-card-relevant {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.treatment-photo-card-relevant:hover {
+  border-color: rgba(34, 197, 94, 0.6);
+}
+
+/* Gallery sections: Exact matches / Close matches */
+.treatment-photos-gallery-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.treatment-photos-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.treatment-photos-section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.treatment-photos-section-desc {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  line-height: 1.35;
+}
+
+/* Match badge: Exact match (green) / Close match (gray) */
+.treatment-photo-match-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.treatment-photo-match-badge-exact {
+  background: rgba(34, 197, 94, 0.92);
+  color: #fff;
+}
+
+.treatment-photo-match-badge-close {
+  background: rgba(71, 85, 105, 0.9);
+  color: #fff;
+}
+
+.treatment-photo-match-icon {
+  font-size: 10px;
+}
+
+.treatment-photo-match-text {
+  white-space: nowrap;
+}
+
+.treatment-photo-info {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.treatment-photo-treatment {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  line-height: 1.3;
+}
+
+.treatment-photo-area {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  line-height: 1.3;
+}
+
+/* Photo detail modal */
+.treatment-photo-detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 24px;
+}
+
+.treatment-photo-detail-modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 1000px;
+  max-height: 90vh;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.treatment-photo-detail-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  font-size: 28px;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  padding: 4px 12px;
+  line-height: 1;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.treatment-photo-detail-close:hover {
+  background: #fff;
+  color: var(--theme-text-primary);
+}
+
+.treatment-photo-detail-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Side-by-side comparison layout */
+.treatment-photo-detail-side-by-side {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  padding: 20px;
+  background: #f5f5f5;
+}
+
+.treatment-photo-detail-client,
+.treatment-photo-detail-example {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.treatment-photo-detail-client-header,
+.treatment-photo-detail-example-header {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--theme-border);
+  background: #fff;
+}
+
+.treatment-photo-detail-client-label,
+.treatment-photo-detail-example-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.treatment-photo-detail-client-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.treatment-photo-detail-toggle-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--theme-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.treatment-photo-detail-toggle-btn:hover:not(:disabled) {
+  border-color: rgba(79, 70, 229, 0.4);
+}
+
+.treatment-photo-detail-toggle-btn.active {
+  background: rgba(79, 70, 229, 0.1);
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.treatment-photo-detail-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.treatment-photo-detail-client-image {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
+  background: #f8f8f8;
+}
+
+.treatment-photo-detail-image {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  background: #f8f8f8;
+}
+
+.treatment-photo-detail-info-row {
+  padding: 16px 20px;
+  border-top: 1px solid var(--theme-border);
+  background: #fff;
+}
+
+.treatment-photo-detail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.treatment-photo-detail-info {
+  padding: 0;
+  overflow-y: auto;
+}
+
+.treatment-photo-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.treatment-photo-detail-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  margin: 0;
+}
+
+.treatment-photo-detail-match {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.treatment-photo-detail-match-exact {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.treatment-photo-detail-match-close {
+  background: rgba(71, 85, 105, 0.15);
+  color: #475569;
+}
+
+.treatment-photo-detail-caption {
+  font-size: 14px;
+  color: var(--theme-text-secondary);
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.treatment-photo-detail-story {
+  font-size: 14px;
+  color: var(--theme-text-muted);
+  margin: 0 0 16px 0;
+  line-height: 1.6;
+}
+
+.treatment-photo-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  border-top: 1px solid var(--theme-border);
+  padding-top: 12px;
+}
+
+.treatment-photo-detail-meta-item {
+  display: flex;
+  gap: 6px;
+}
+
+.treatment-photo-detail-meta-item strong {
+  color: var(--theme-text-muted);
+  font-weight: 500;
+}
+
+.treatment-photo-detail-add-btn {
+  margin-top: 12px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid #4f46e5;
+  background: #4f46e5;
+  color: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.treatment-photo-detail-add-btn:hover:not(:disabled):not(.treatment-photo-detail-add-btn-added) {
+  background: #4338ca;
+  border-color: #4338ca;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+}
+.treatment-photo-detail-add-btn:disabled:not(.treatment-photo-detail-add-btn-added) {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+.treatment-photo-detail-add-btn-added {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: #22c55e;
+  color: #15803d;
+  cursor: default;
+}
+.treatment-photo-detail-add-btn-added:hover {
+  background: rgba(34, 197, 94, 0.18);
+  border-color: #22c55e;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .treatment-photos-layout {
+    flex-direction: column;
+  }
+
+  .treatment-photos-client-column {
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid var(--theme-border);
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .treatment-photos-client-card {
+    flex: 1 1 200px;
+  }
+
+  .treatment-photos-meta-card {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .treatment-photos-grid-square {
+    grid-template-columns: repeat(auto-fill, 140px);
+    grid-auto-rows: 200px;
+    gap: 12px;
+  }
+
+  .treatment-photo-card {
+    width: 140px;
+    min-width: 140px;
+    min-height: 180px;
+  }
+
+  .treatment-photo-image-wrap-square {
+    width: 140px !important;
+    height: 140px !important;
+    min-width: 140px !important;
+    min-height: 140px !important;
+  }
+
+  .treatment-photo-title-bottom {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .treatment-photo-detail-modal {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}
+
+/* Photos modal overlay – fixed size popup */
+.discussed-treatments-photos-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 24px;
+}
+
+.discussed-treatments-photos-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 920px;
+  max-width: calc(100vw - 48px);
+  height: 90vh;
+  min-height: 480px;
+  max-height: 820px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.discussed-treatments-photos-modal .treatment-photos-browser {
+  border: none;
+  border-radius: 0;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header actions row */
+.discussed-treatments-add-form-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* View Examples button */
+.discussed-treatments-view-examples-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 600px) {
+  .discussed-treatments-photos-modal-overlay {
+    padding: 0;
+  }
+
+  .discussed-treatments-photos-modal {
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .discussed-treatments-photos-modal .treatment-photos-browser {
+    max-height: 100vh;
+    height: 100vh;
+  }
 }

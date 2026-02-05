@@ -1,15 +1,18 @@
-// Discussed Treatments Modal – header (title, subtitle, Share, Close)
+// Discussed Treatments Modal – header (title, subtitle, Treatment Explorer, Share, Close)
 
 interface DiscussedTreatmentsModalHeaderProps {
   clientName: string;
   onShare: () => void;
   onClose: () => void;
+  /** Open the treatment explorer photo gallery */
+  onViewExamples?: () => void;
 }
 
 export default function DiscussedTreatmentsModalHeader({
   clientName,
   onShare,
   onClose,
+  onViewExamples,
 }: DiscussedTreatmentsModalHeaderProps) {
   return (
     <div className="modal-header discussed-treatments-modal-header">
@@ -21,6 +24,15 @@ export default function DiscussedTreatmentsModalHeader({
         </p>
       </div>
       <div className="discussed-treatments-modal-header-actions">
+        {onViewExamples && (
+          <button
+            type="button"
+            className="btn-secondary btn-sm discussed-treatments-view-examples-header-btn"
+            onClick={onViewExamples}
+          >
+            Treatment Explorer
+          </button>
+        )}
         <button
           type="button"
           className="btn-secondary btn-sm"

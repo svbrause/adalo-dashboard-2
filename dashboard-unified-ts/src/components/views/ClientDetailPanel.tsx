@@ -19,6 +19,8 @@ import PhotoViewerModal from "../modals/PhotoViewerModal";
 import NewClientSMSModal from "../modals/NewClientSMSModal";
 import SendSMSModal from "../modals/SendSMSModal";
 import DiscussedTreatmentsModal from "../modals/DiscussedTreatmentsModal";
+import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
+import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import {
   getJotformUrl,
   formatProviderDisplayName,
@@ -66,6 +68,13 @@ export default function ClientDetailPanel({
   const [showNewClientSMS, setShowNewClientSMS] = useState(false);
   const [showSendSMS, setShowSendSMS] = useState(false);
   const [showDiscussedTreatments, setShowDiscussedTreatments] = useState(false);
+  const [initialAddFormPrefill, setInitialAddFormPrefill] =
+    useState<TreatmentPlanPrefill | null>(null);
+  const [issuePhotosContext, setIssuePhotosContext] = useState<{
+    issue?: string;
+    region?: string;
+    interest?: string;
+  } | null>(null);
   const scanDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -144,7 +153,8 @@ export default function ClientDetailPanel({
           !showPhotoViewer &&
           !showNewClientSMS &&
           !showSendSMS &&
-          !showDiscussedTreatments
+          !showDiscussedTreatments &&
+          !issuePhotosContext
         ) {
           onClose();
         }
@@ -167,6 +177,7 @@ export default function ClientDetailPanel({
     showNewClientSMS,
     showSendSMS,
     showDiscussedTreatments,
+    issuePhotosContext,
   ]);
 
   if (!client) return null;
@@ -880,7 +891,15 @@ export default function ClientDetailPanel({
               </div>
             </div>
             {facialAnalysisFormHasData ? (
-              <AnalysisResultsSection client={client} />
+              <AnalysisResultsSection
+                client={client}
+                onViewExamples={(issue, region) =>
+                  setIssuePhotosContext({ issue, region })
+                }
+                onTreatmentInterestClick={(interest) =>
+                  setIssuePhotosContext({ interest })
+                }
+              />
             ) : (
               <div className="detail-empty-state">
                 {hasWebPopupForm ? (
@@ -951,11 +970,16 @@ export default function ClientDetailPanel({
                                   <div className="discussed-treatments-record-primary-outer">
                                     {item.treatment || "—"}
                                   </div>
-                                  {(item.product ||
+                                  {(item.region ||
+                                    item.product ||
                                     item.interest ||
                                     item.quantity) && (
                                     <div className="discussed-treatments-record-meta-outer">
-                                      {item.product ? (
+                                      {item.region ? (
+                                        <span className="discussed-treatments-record-region-outer">
+                                          {item.region}
+                                        </span>
+                                      ) : item.product ? (
                                         <span className="discussed-treatments-record-product-outer">
                                           {item.product}
                                         </span>
@@ -1103,8 +1127,29 @@ export default function ClientDetailPanel({
       {showDiscussedTreatments && client && (
         <DiscussedTreatmentsModal
           client={client}
-          onClose={() => setShowDiscussedTreatments(false)}
+          onClose={() => {
+            setShowDiscussedTreatments(false);
+            setInitialAddFormPrefill(null);
+          }}
           onUpdate={onUpdate}
+          initialAddFormPrefill={initialAddFormPrefill}
+          onClearInitialPrefill={() => setInitialAddFormPrefill(null)}
+        />
+      )}
+      {issuePhotosContext && client && (
+        <TreatmentPhotosModal
+          client={client}
+          issue={issuePhotosContext.issue}
+          region={issuePhotosContext.region}
+          interest={issuePhotosContext.interest}
+          onClose={() => setIssuePhotosContext(null)}
+          onUpdate={onUpdate}
+          onAddToPlanWithPrefill={(prefill) => {
+            setIssuePhotosContext(null);
+            setInitialAddFormPrefill(prefill);
+            setShowDiscussedTreatments(true);
+          }}
+          planItems={client.discussedItems ?? []}
         />
       )}
     </>

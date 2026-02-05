@@ -7,9 +7,17 @@ import './AnalysisResultsSection.css';
 
 interface AnalysisResultsSectionProps {
   client: Client;
+  /** Called when user wants to view treatment photos for a specific issue/region */
+  onViewExamples?: (issue: string, region: string) => void;
+  /** Called when user clicks on a treatment interest */
+  onTreatmentInterestClick?: (interest: string) => void;
 }
 
-export default function AnalysisResultsSection({ client }: AnalysisResultsSectionProps) {
+export default function AnalysisResultsSection({ 
+  client,
+  onViewExamples,
+  onTreatmentInterestClick,
+}: AnalysisResultsSectionProps) {
   const [expanded, setExpanded] = useState(false);
 
   // Parse issues
@@ -137,11 +145,6 @@ export default function AnalysisResultsSection({ client }: AnalysisResultsSectio
     return aIndex - bIndex;
   });
 
-  // Check if status is "Ready for Review"
-  const isReadyForReview = client.facialAnalysisStatus && 
-    (client.facialAnalysisStatus.toLowerCase().includes('ready') || 
-     client.facialAnalysisStatus.toLowerCase() === 'ready for review');
-
   return (
     <div className="analysis-results-section">
       {/* Summary sections */}
@@ -152,14 +155,16 @@ export default function AnalysisResultsSection({ client }: AnalysisResultsSectio
         {interestedIssues.length > 0 ? (
           <div className="analysis-tags-container">
             {interestedIssues.map((issue, i) => (
-              <span key={i} className="analysis-tag">
+              <button
+                key={i}
+                type="button"
+                className={`analysis-tag${onTreatmentInterestClick ? ' analysis-tag-clickable' : ''}`}
+                onClick={() => onTreatmentInterestClick?.(issue)}
+                disabled={!onTreatmentInterestClick}
+              >
                 {issue}
-              </span>
+              </button>
             ))}
-          </div>
-        ) : isReadyForReview ? (
-          <div className="analysis-text-italic">
-            Available after patient review
           </div>
         ) : null}
       </div>
@@ -233,31 +238,41 @@ export default function AnalysisResultsSection({ client }: AnalysisResultsSectio
                         return (
                           <li key={i} className="analysis-issue-item">
                             <span className="analysis-issue-bullet">•</span>
-                            <div className="analysis-issue-header">
-                              <span className="analysis-issue-name">{issue}</span>
-                              {isInterested && (
-                                <span className="analysis-interested-badge">
-                                  Interested
-                                </span>
+                            <div className="analysis-issue-content">
+                              <div className="analysis-issue-header">
+                                <span className="analysis-issue-name">{issue}</span>
+                                {isInterested && (
+                                  <span className="analysis-interested-badge">
+                                    Interested
+                                  </span>
+                                )}
+                              </div>
+                              {matchingInterests.length > 0 ? (
+                                <div className="analysis-treatments-container">
+                                  <span className="analysis-treatments-label">Interested Treatments:</span>
+                                  {matchingInterests.map((interest, j) => (
+                                    <button
+                                      key={j}
+                                      type="button"
+                                      className={`analysis-treatment-tag${onTreatmentInterestClick ? ' analysis-tag-clickable' : ''}`}
+                                      onClick={() => onTreatmentInterestClick?.(interest)}
+                                      disabled={!onTreatmentInterestClick}
+                                    >
+                                      {interest}
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {onViewExamples && (
+                                <button
+                                  type="button"
+                                  className="analysis-view-examples-btn"
+                                  onClick={() => onViewExamples(issue, area)}
+                                >
+                                  View Examples
+                                </button>
                               )}
                             </div>
-                            {matchingInterests.length > 0 ? (
-                              <div className="analysis-treatments-container">
-                                <span className="analysis-treatments-label">Interested Treatments:</span>
-                                {matchingInterests.map((interest, j) => (
-                                  <span key={j} className="analysis-treatment-tag">
-                                    {interest}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : isReadyForReview ? (
-                              <div className="analysis-treatments-container">
-                                <span className="analysis-treatments-label">Interested Treatments:</span>
-                                <span className="analysis-text-italic-sm">
-                                  Available after patient review
-                                </span>
-                              </div>
-                            ) : null}
                           </li>
                         );
                       })}

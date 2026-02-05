@@ -41,13 +41,22 @@ import {
 import DiscussedTreatmentsModalHeader from "./DiscussedTreatmentsModalHeader";
 import SelectPrompt from "./SelectPrompt";
 import PlanListColumn from "./PlanListColumn";
+import TreatmentPhotos, {
+  type TreatmentPlanPrefill,
+} from "./TreatmentPhotos";
 import "./index.css";
 
 export default function DiscussedTreatmentsModal({
   client,
   onClose,
   onUpdate,
-}: DiscussedTreatmentsModalProps) {
+  /** When set, open the add form with this prefill (e.g. from Treatment Explorer "Add to plan" when opened from Client Detail) */
+  initialAddFormPrefill = null,
+  onClearInitialPrefill,
+}: DiscussedTreatmentsModalProps & {
+  initialAddFormPrefill?: TreatmentPlanPrefill | null;
+  onClearInitialPrefill?: () => void;
+}) {
   const [items, setItems] = useState<DiscussedItem[]>(
     client.discussedItems?.length ? [...client.discussedItems] : []
   );
@@ -409,6 +418,92 @@ export default function DiscussedTreatmentsModal({
     form.skincareProductOther,
   ]);
 
+  /**
+   * Layout sanity check: detect when the two-column modal is "squished" (body/two-column
+   * not filling height). Exposes window.__treatmentPlanModalLayoutBroken and logs so
+   * we can verify fixes programmatically (e.g. in browser automation or console).
+   */
+  useEffect(() => {
+    if (items.length === 0 || !showAddForm) {
+      if (typeof window !== "undefined")
+        (
+          window as unknown as { __treatmentPlanModalLayoutBroken?: boolean }
+        ).__treatmentPlanModalLayoutBroken = false;
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const content =
+          modalContentRef.current ??
+          document.querySelector(
+            ".discussed-treatments-modal-content-has-plan"
+          );
+        if (!content) return;
+        const header = content.querySelector(".modal-header");
+        const body = content.querySelector(".discussed-treatments-modal-body");
+        const twoCol = content.querySelector(
+          ".discussed-treatments-two-column"
+        );
+        if (!header || !body || !twoCol) return;
+        const contentH = (content as HTMLElement).clientHeight;
+        const headerH = (header as HTMLElement).clientHeight;
+        const bodyH = (body as HTMLElement).clientHeight;
+        const twoColH = (twoCol as HTMLElement).clientHeight;
+        const expectedBodyMin = (contentH - headerH) * 0.6;
+        const broken = bodyH < expectedBodyMin || twoColH < expectedBodyMin;
+        const win = window as unknown as {
+          __treatmentPlanModalLayoutBroken?: boolean;
+          __treatmentPlanModalLayoutDebug?: Record<string, unknown>;
+        };
+        win.__treatmentPlanModalLayoutBroken = broken;
+        if (broken) {
+          const bodyStyle = getComputedStyle(body as HTMLElement);
+          const twoColStyle = getComputedStyle(twoCol as HTMLElement);
+          const contentRect = (content as HTMLElement).getBoundingClientRect();
+          const headerRect = (header as HTMLElement).getBoundingClientRect();
+          const bodyRect = (body as HTMLElement).getBoundingClientRect();
+          const twoColRect = (twoCol as HTMLElement).getBoundingClientRect();
+          win.__treatmentPlanModalLayoutDebug = {
+            contentH,
+            headerH,
+            bodyH,
+            twoColH,
+            expectedBodyMin,
+            bodyMargin: bodyStyle.margin,
+            bodyPadding: bodyStyle.padding,
+            bodyBorder: bodyStyle.borderWidth,
+            twoColMargin: twoColStyle.margin,
+            twoColPadding: twoColStyle.padding,
+            contentTop: contentRect.top,
+            headerBottom: headerRect.bottom,
+            bodyTop: bodyRect.top,
+            bodyBottom: bodyRect.bottom,
+            twoColTop: twoColRect.top,
+            twoColBottom: twoColRect.bottom,
+          };
+          console.warn(
+            "[Treatment plan modal] Layout squished: body/two-column did not fill height. Possible causes: margin/padding pushing content up, or extra space at bottom. Check window.__treatmentPlanModalLayoutDebug for bodyMargin, bodyPadding, bodyTop, bodyBottom, twoColTop, twoColBottom.",
+            win.__treatmentPlanModalLayoutDebug
+          );
+        }
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [
+    items.length,
+    showAddForm,
+    form.timeline,
+    form.selectedTreatments,
+    selectedTreatmentFirst,
+  ]);
+
+  /** Ref to modal content div so layout check measures this instance, not a wrapper (e.g. debug page). */
+  const modalContentRef = useRef<HTMLDivElement | null>(null);
+
+  // Note: We previously had JS to enforce body height, but it was causing
+  // positioning issues (body.top becoming negative). The grid layout with
+  // grid-template-rows: auto 1fr should handle this correctly without JS.
+
   const [completeItemId, setCompleteItemId] = useState<string | null>(null);
   /** Post-care instructions modal: show instructions text + copy. */
   const [postCareModal, setPostCareModal] = useState<{
@@ -416,6 +511,11 @@ export default function DiscussedTreatmentsModal({
     label: string;
     instructionsText: string;
   } | null>(null);
+  /** Treatment photos browser state */
+  const [showPhotoBrowser, setShowPhotoBrowser] = useState(false);
+  const [photoBrowserTreatment, setPhotoBrowserTreatment] =
+    useState<string>("");
+  const [photoBrowserRegion, setPhotoBrowserRegion] = useState<string>("");
   /** Drag and drop state for moving items between sections. */
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<
@@ -885,6 +985,136 @@ export default function DiscussedTreatmentsModal({
     setShowAddForm(false);
   };
 
+  /** Open the add form prefilled from Treatment Explorer "Add to plan" (photo). */
+  const handleAddToPlanWithPrefill = useCallback(
+    (prefilled: TreatmentPlanPrefill) => {
+      setShowPhotoBrowser(false);
+      setShowAddForm(true);
+      setAddMode("goal");
+      const treatment = prefilled.treatment?.trim() || "";
+      const productOpts = treatment
+        ? (TREATMENT_PRODUCT_OPTIONS[treatment] ?? [])
+        : [];
+      const productIsOption =
+        prefilled.treatmentProduct &&
+        productOpts.some(
+          (p) => p.toLowerCase() === prefilled.treatmentProduct!.toLowerCase()
+        );
+      const productValue =
+        productIsOption && prefilled.treatmentProduct
+          ? (productOpts.find(
+              (p) =>
+                p.toLowerCase() === prefilled.treatmentProduct!.toLowerCase()
+            ) ?? OTHER_PRODUCT_LABEL)
+          : OTHER_PRODUCT_LABEL;
+      const customProduct =
+        treatment &&
+        prefilled.treatmentProduct &&
+        !productIsOption
+          ? prefilled.treatmentProduct
+          : undefined;
+      setForm((f) => {
+        const next: Parameters<typeof setForm>[0] = {
+          ...f,
+          interest: prefilled.interest || "",
+          region: prefilled.region || "",
+          selectedTreatments: treatment ? [treatment] : [],
+          otherTreatment: "",
+          treatmentProducts: {
+            ...f.treatmentProducts,
+            ...(treatment && prefilled.treatmentProduct
+              ? { [treatment]: productValue }
+              : {}),
+          },
+          treatmentProductOther: {
+            ...f.treatmentProductOther,
+            ...(customProduct && treatment ? { [treatment]: customProduct } : {}),
+          },
+          timeline: prefilled.timeline || "Wishlist",
+          quantityUnit: treatment
+            ? getQuantityContext(treatment).unitLabel
+            : f.quantityUnit,
+          selectedFindingsByTreatment: {
+            ...f.selectedFindingsByTreatment,
+            ...(treatment && prefilled.findings?.length
+              ? { [treatment]: prefilled.findings }
+              : {}),
+          },
+        };
+        return next;
+      });
+      setSelectedFindings([]);
+      setSelectedTreatmentFirst("");
+      setSelectedFindingByTreatment([]);
+      setInterestSearch(prefilled.interest || "");
+      setShowFullInterestList(false);
+    },
+    []
+  );
+
+  /** When opened with initial prefill (e.g. from Treatment Explorer in Client Detail), apply it and open add form */
+  useEffect(() => {
+    if (!initialAddFormPrefill || !onClearInitialPrefill) return;
+    const prefilled = initialAddFormPrefill;
+    setShowAddForm(true);
+    setAddMode("goal");
+    const treatment = prefilled.treatment?.trim() || "";
+    const productOpts = treatment
+      ? (TREATMENT_PRODUCT_OPTIONS[treatment] ?? [])
+      : [];
+    const productIsOption =
+      prefilled.treatmentProduct &&
+      productOpts.some(
+        (p) => p.toLowerCase() === prefilled.treatmentProduct!.toLowerCase()
+      );
+    const productValue =
+      productIsOption && prefilled.treatmentProduct
+        ? (productOpts.find(
+            (p) =>
+              p.toLowerCase() === prefilled.treatmentProduct!.toLowerCase()
+          ) ?? OTHER_PRODUCT_LABEL)
+        : OTHER_PRODUCT_LABEL;
+    const customProduct =
+      treatment &&
+      prefilled.treatmentProduct &&
+      !productIsOption
+        ? prefilled.treatmentProduct
+        : undefined;
+    setForm((f) => ({
+      ...f,
+      interest: prefilled.interest || "",
+      region: prefilled.region || "",
+      selectedTreatments: treatment ? [treatment] : [],
+      otherTreatment: "",
+      treatmentProducts: {
+        ...f.treatmentProducts,
+        ...(treatment && prefilled.treatmentProduct
+          ? { [treatment]: productValue }
+          : {}),
+      },
+      treatmentProductOther: {
+        ...f.treatmentProductOther,
+        ...(customProduct && treatment ? { [treatment]: customProduct } : {}),
+      },
+      timeline: prefilled.timeline || "Wishlist",
+      quantityUnit: treatment
+        ? getQuantityContext(treatment).unitLabel
+        : f.quantityUnit,
+      selectedFindingsByTreatment: {
+        ...f.selectedFindingsByTreatment,
+        ...(treatment && prefilled.findings?.length
+          ? { [treatment]: prefilled.findings }
+          : {}),
+      },
+    }));
+    setSelectedFindings([]);
+    setSelectedTreatmentFirst("");
+    setSelectedFindingByTreatment([]);
+    setInterestSearch(prefilled.interest || "");
+    setShowFullInterestList(false);
+    onClearInitialPrefill();
+  }, [initialAddFormPrefill, onClearInitialPrefill]);
+
   const hasAnyTreatmentSelected =
     (addMode === "treatment" &&
       selectedTreatmentFirst &&
@@ -1024,17 +1254,32 @@ export default function DiscussedTreatmentsModal({
     setDraggedItemId(null);
   };
 
-  /** Add a suggested post-care product to the plan (one-click, like "customers also bought"). */
+  /** Whether a suggested post-care product is already in the plan (same product name + post-care note). */
+  const isSuggestedProductInPlan = useCallback(
+    (productName: string) =>
+      items.some(
+        (item) =>
+          item.product === productName &&
+          (item.notes?.includes("Post care") ??
+            item.notes?.includes("Post-care") ??
+            false)
+      ),
+    [items]
+  );
+
+  /** Add a suggested post-care product to the plan as a Skincare item (one-click). */
   const handleAddSuggestedProduct = async (
-    treatment: string,
+    treatmentContext: string,
     productName: string
   ) => {
+    if (isSuggestedProductInPlan(productName)) return;
+
     const newItem: DiscussedItem = {
       id: generateId(),
-      treatment,
+      treatment: "Skincare",
       product: productName,
       timeline: "Wishlist",
-      notes: "Post-care / recommended",
+      notes: `Post care for ${treatmentContext}`,
     };
     const nextItems = [...items, newItem];
     setItems(nextItems);
@@ -1112,6 +1357,7 @@ export default function DiscussedTreatmentsModal({
   return (
     <div className="modal-overlay active" onClick={handleCloseImmediate}>
       <div
+        ref={modalContentRef}
         className={`modal-content discussed-treatments-modal-content${
           items.length > 0 ? " discussed-treatments-modal-content-has-plan" : ""
         }`}
@@ -1121,6 +1367,14 @@ export default function DiscussedTreatmentsModal({
           clientName={client.name?.split(" ")[0] || "patient"}
           onShare={() => showToast("Share with patient coming soon")}
           onClose={handleCloseImmediate}
+          onViewExamples={() => {
+            const sel = selectedPlanItemId
+              ? items.find((i) => i.id === selectedPlanItemId)
+              : null;
+            setPhotoBrowserTreatment(sel?.treatment ?? "");
+            setPhotoBrowserRegion(sel?.region ?? "");
+            setShowPhotoBrowser(true);
+          }}
         />
 
         <div className="modal-body discussed-treatments-modal-body">
@@ -1318,9 +1572,8 @@ export default function DiscussedTreatmentsModal({
                           );
                           const sectionTitle =
                             treatment === "Skincare" ? "Product" : "Type";
-                          const isSkincareOrLaser =
-                            treatment === "Skincare" || treatment === "Laser";
-                          const editProductSelected = isSkincareOrLaser
+                          const isSkincareOnly = treatment === "Skincare";
+                          const editProductSelected = isSkincareOnly
                             ? fullList.includes(editForm.product)
                               ? [editForm.product]
                               : editForm.product
@@ -1338,7 +1591,7 @@ export default function DiscussedTreatmentsModal({
                                 desired.
                               </p>
                               <div className="discussed-treatments-product-inline discussed-treatments-product-inline-by-treatment">
-                                {isSkincareOrLaser ? (
+                                {isSkincareOnly ? (
                                   <div
                                     className="discussed-treatments-product-carousel"
                                     role="group"
@@ -1497,7 +1750,7 @@ export default function DiscussedTreatmentsModal({
                                     )}
                                   </div>
                                 )}
-                                {isSkincareOrLaser &&
+                                {isSkincareOnly &&
                                   (editProductSelected.includes(
                                     OTHER_PRODUCT_LABEL
                                   ) ||
@@ -1902,11 +2155,11 @@ export default function DiscussedTreatmentsModal({
                               </div>
                             ) : null}
 
-                            {/* Post-care & recommended products (Laser, Chemical Peel, etc.) */}
+                            {/* Post care for [treatment] – instructions + suggested products */}
                             {TREATMENT_POSTCARE[sel.treatment] && (
                               <div className="discussed-treatments-detail-section discussed-treatments-postcare-section">
                                 <h4 className="discussed-treatments-detail-section-title">
-                                  Post-care & recommended
+                                  Post care for {sel.treatment}
                                 </h4>
                                 <div className="discussed-treatments-postcare-actions">
                                   <button
@@ -1937,21 +2190,35 @@ export default function DiscussedTreatmentsModal({
                                       <div className="discussed-treatments-postcare-chips">
                                         {TREATMENT_POSTCARE[
                                           sel.treatment
-                                        ].suggestedProducts.map((product) => (
-                                          <button
-                                            key={product}
-                                            type="button"
-                                            className="discussed-treatments-postcare-chip"
-                                            onClick={() =>
-                                              handleAddSuggestedProduct(
-                                                sel.treatment,
-                                                product
-                                              )
-                                            }
-                                          >
-                                            + {product}
-                                          </button>
-                                        ))}
+                                        ].suggestedProducts.map((product) => {
+                                          const added =
+                                            isSuggestedProductInPlan(product);
+                                          return (
+                                            <button
+                                              key={product}
+                                              type="button"
+                                              className={`discussed-treatments-postcare-chip${
+                                                added ? " added" : ""
+                                              }`}
+                                              onClick={() =>
+                                                handleAddSuggestedProduct(
+                                                  sel.treatment,
+                                                  product
+                                                )
+                                              }
+                                              disabled={added}
+                                              aria-pressed={added}
+                                              title={
+                                                added
+                                                  ? "Already in plan"
+                                                  : `Add ${product}`
+                                              }
+                                            >
+                                              {added ? "✓ " : "+ "}
+                                              {product}
+                                            </button>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -1988,15 +2255,32 @@ export default function DiscussedTreatmentsModal({
                         patients can plan and research
                       </p>
                     </div>
-                    {items.length > 0 && (
+                    <div className="discussed-treatments-add-form-header-actions">
                       <button
                         type="button"
-                        className="btn-secondary btn-sm"
-                        onClick={handleDiscardAddForm}
+                        className="btn-secondary btn-sm discussed-treatments-view-examples-btn"
+                        onClick={() => {
+                          setPhotoBrowserTreatment(
+                            addMode === "treatment" && selectedTreatmentFirst
+                              ? selectedTreatmentFirst
+                              : form.selectedTreatments[0] || ""
+                          );
+                          setPhotoBrowserRegion(form.region || "");
+                          setShowPhotoBrowser(true);
+                        }}
                       >
-                        Discard
+                        View Examples
                       </button>
-                    )}
+                      {items.length > 0 && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={handleDiscardAddForm}
+                        >
+                          Discard
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div
                     className="discussed-treatments-add-by-mode"
@@ -2417,102 +2701,8 @@ export default function DiscussedTreatmentsModal({
                                             })}
                                           </div>
                                         </div>
-                                      ) : treatment === "Laser" ? (
-                                        <div
-                                          className="discussed-treatments-product-carousel"
-                                          role="group"
-                                          aria-label={`Select ${sectionTitle.toLowerCase()}`}
-                                        >
-                                          <div className="discussed-treatments-product-carousel-track">
-                                            {fullList.map((p) => {
-                                              const isSelectedTx =
-                                                selected === p;
-                                              return (
-                                                <button
-                                                  key={p}
-                                                  type="button"
-                                                  className={`discussed-treatments-product-carousel-item discussed-treatments-product-text-only ${
-                                                    isSelectedTx
-                                                      ? "selected"
-                                                      : ""
-                                                  } ${
-                                                    p === OTHER_PRODUCT_LABEL
-                                                      ? "other-chip"
-                                                      : ""
-                                                  }`}
-                                                  onClick={() =>
-                                                    setForm((f) => ({
-                                                      ...f,
-                                                      treatmentProducts: {
-                                                        ...f.treatmentProducts,
-                                                        [treatment]: p,
-                                                      },
-                                                      treatmentProductOther: {
-                                                        ...f.treatmentProductOther,
-                                                        [treatment]:
-                                                          p ===
-                                                          OTHER_PRODUCT_LABEL
-                                                            ? f
-                                                                .treatmentProductOther[
-                                                                treatment
-                                                              ] ?? ""
-                                                            : "",
-                                                      },
-                                                    }))
-                                                  }
-                                                >
-                                                  <div
-                                                    className="discussed-treatments-product-carousel-image"
-                                                    aria-hidden
-                                                  />
-                                                  <span className="discussed-treatments-product-carousel-label">
-                                                    {p}
-                                                  </span>
-                                                </button>
-                                              );
-                                            })}
-                                            {opts.includes(
-                                              OTHER_PRODUCT_LABEL
-                                            ) && (
-                                              <button
-                                                type="button"
-                                                className={`discussed-treatments-product-carousel-item discussed-treatments-product-text-only ${
-                                                  selected ===
-                                                  OTHER_PRODUCT_LABEL
-                                                    ? "selected"
-                                                    : ""
-                                                } other-chip`}
-                                                onClick={() =>
-                                                  setForm((f) => ({
-                                                    ...f,
-                                                    treatmentProducts: {
-                                                      ...f.treatmentProducts,
-                                                      [treatment]:
-                                                        OTHER_PRODUCT_LABEL,
-                                                    },
-                                                    treatmentProductOther: {
-                                                      ...f.treatmentProductOther,
-                                                      [treatment]:
-                                                        f.treatmentProductOther[
-                                                          treatment
-                                                        ] ?? "",
-                                                    },
-                                                  }))
-                                                }
-                                              >
-                                                <div
-                                                  className="discussed-treatments-product-carousel-image"
-                                                  aria-hidden
-                                                />
-                                                <span className="discussed-treatments-product-carousel-label">
-                                                  {OTHER_PRODUCT_LABEL}
-                                                </span>
-                                              </button>
-                                            )}
-                                          </div>
-                                        </div>
                                       ) : (
-                                        /* Filler, Neurotoxin, Chemical Peel, etc.: show full type list as chips (single-select) */
+                                        /* Laser, Filler, Neurotoxin, Chemical Peel, etc.: show full type list as chips (single-select) */
                                         <div
                                           className="discussed-treatments-product-carousel"
                                           role="group"
@@ -3486,110 +3676,6 @@ export default function DiscussedTreatmentsModal({
                                                       })}
                                                     </div>
                                                   </div>
-                                                ) : treatment === "Laser" ? (
-                                                  <div
-                                                    className="discussed-treatments-product-carousel"
-                                                    role="group"
-                                                    aria-label={`Select ${sectionTitle.toLowerCase()}`}
-                                                  >
-                                                    <div className="discussed-treatments-product-carousel-track">
-                                                      {fullList.map((p) => {
-                                                        const isSelectedRec =
-                                                          selected === p;
-                                                        return (
-                                                          <button
-                                                            key={p}
-                                                            type="button"
-                                                            className={`discussed-treatments-product-carousel-item discussed-treatments-product-text-only ${
-                                                              isSelectedRec
-                                                                ? "selected"
-                                                                : ""
-                                                            } ${
-                                                              p ===
-                                                              OTHER_PRODUCT_LABEL
-                                                                ? "other-chip"
-                                                                : ""
-                                                            }`}
-                                                            onClick={() =>
-                                                              setForm((f) => ({
-                                                                ...f,
-                                                                treatmentProducts:
-                                                                  {
-                                                                    ...f.treatmentProducts,
-                                                                    [treatment]:
-                                                                      p,
-                                                                  },
-                                                                treatmentProductOther:
-                                                                  {
-                                                                    ...f.treatmentProductOther,
-                                                                    [treatment]:
-                                                                      p ===
-                                                                      OTHER_PRODUCT_LABEL
-                                                                        ? f
-                                                                            .treatmentProductOther[
-                                                                            treatment
-                                                                          ] ??
-                                                                          ""
-                                                                        : "",
-                                                                  },
-                                                              }))
-                                                            }
-                                                          >
-                                                            <div
-                                                              className="discussed-treatments-product-carousel-image"
-                                                              aria-hidden
-                                                            />
-                                                            <span className="discussed-treatments-product-carousel-label">
-                                                              {p}
-                                                            </span>
-                                                          </button>
-                                                        );
-                                                      })}
-                                                      {opts.includes(
-                                                        OTHER_PRODUCT_LABEL
-                                                      ) && (
-                                                        <button
-                                                          type="button"
-                                                          className={`discussed-treatments-product-carousel-item discussed-treatments-product-text-only ${
-                                                            selected ===
-                                                            OTHER_PRODUCT_LABEL
-                                                              ? "selected"
-                                                              : ""
-                                                          } other-chip`}
-                                                          onClick={() =>
-                                                            setForm((f) => ({
-                                                              ...f,
-                                                              treatmentProducts:
-                                                                {
-                                                                  ...f.treatmentProducts,
-                                                                  [treatment]:
-                                                                    OTHER_PRODUCT_LABEL,
-                                                                },
-                                                              treatmentProductOther:
-                                                                {
-                                                                  ...f.treatmentProductOther,
-                                                                  [treatment]:
-                                                                    f
-                                                                      .treatmentProductOther[
-                                                                      treatment
-                                                                    ] ?? "",
-                                                                },
-                                                            }))
-                                                          }
-                                                        >
-                                                          <div
-                                                            className="discussed-treatments-product-carousel-image"
-                                                            aria-hidden
-                                                          />
-                                                          <span className="discussed-treatments-product-carousel-label">
-                                                            {
-                                                              OTHER_PRODUCT_LABEL
-                                                            }
-                                                          </span>
-                                                        </button>
-                                                      )}
-                                                    </div>
-                                                  </div>
                                                 ) : (
                                                   <>
                                                     {(() => {
@@ -4418,106 +4504,6 @@ export default function DiscussedTreatmentsModal({
                                                         </button>
                                                       );
                                                     })}
-                                                  </div>
-                                                </div>
-                                              ) : treatment === "Laser" ? (
-                                                <div
-                                                  className="discussed-treatments-product-carousel"
-                                                  role="group"
-                                                  aria-label={`Select ${sectionTitle.toLowerCase()}`}
-                                                >
-                                                  <div className="discussed-treatments-product-carousel-track">
-                                                    {fullList.map((p) => {
-                                                      const isSelectedRec =
-                                                        selected === p;
-                                                      return (
-                                                        <button
-                                                          key={p}
-                                                          type="button"
-                                                          className={`discussed-treatments-product-carousel-item discussed-treatments-product-text-only ${
-                                                            isSelectedRec
-                                                              ? "selected"
-                                                              : ""
-                                                          } ${
-                                                            p ===
-                                                            OTHER_PRODUCT_LABEL
-                                                              ? "other-chip"
-                                                              : ""
-                                                          }`}
-                                                          onClick={() =>
-                                                            setForm((f) => ({
-                                                              ...f,
-                                                              treatmentProducts:
-                                                                {
-                                                                  ...f.treatmentProducts,
-                                                                  [treatment]:
-                                                                    p,
-                                                                },
-                                                              treatmentProductOther:
-                                                                {
-                                                                  ...f.treatmentProductOther,
-                                                                  [treatment]:
-                                                                    p ===
-                                                                    OTHER_PRODUCT_LABEL
-                                                                      ? f
-                                                                          .treatmentProductOther[
-                                                                          treatment
-                                                                        ] ?? ""
-                                                                      : "",
-                                                                },
-                                                            }))
-                                                          }
-                                                        >
-                                                          <div
-                                                            className="discussed-treatments-product-carousel-image"
-                                                            aria-hidden
-                                                          />
-                                                          <span className="discussed-treatments-product-carousel-label">
-                                                            {p}
-                                                          </span>
-                                                        </button>
-                                                      );
-                                                    })}
-                                                    {opts.includes(
-                                                      OTHER_PRODUCT_LABEL
-                                                    ) && (
-                                                      <button
-                                                        type="button"
-                                                        className={`discussed-treatments-product-carousel-item discussed-treatments-product-text-only ${
-                                                          selected ===
-                                                          OTHER_PRODUCT_LABEL
-                                                            ? "selected"
-                                                            : ""
-                                                        } other-chip`}
-                                                        onClick={() =>
-                                                          setForm((f) => ({
-                                                            ...f,
-                                                            treatmentProducts: {
-                                                              ...f.treatmentProducts,
-                                                              [treatment]:
-                                                                OTHER_PRODUCT_LABEL,
-                                                            },
-                                                            treatmentProductOther:
-                                                              {
-                                                                ...f.treatmentProductOther,
-                                                                [treatment]:
-                                                                  f
-                                                                    .treatmentProductOther[
-                                                                    treatment
-                                                                  ] ?? "",
-                                                              },
-                                                          }))
-                                                        }
-                                                      >
-                                                        <div
-                                                          className="discussed-treatments-product-carousel-image"
-                                                          aria-hidden
-                                                        />
-                                                        <span className="discussed-treatments-product-carousel-label">
-                                                          {OTHER_PRODUCT_LABEL}
-                                                        </span>
-                                                      </button>
-                                                    )}
                                                   </div>
                                                 </div>
                                               ) : (
@@ -5628,7 +5614,7 @@ export default function DiscussedTreatmentsModal({
                             />
                           </div>
 
-                          {/* Post-care & recommended (when a treatment with post-care is selected) */}
+                          {/* Post care for [treatment] (when a treatment with post-care is selected) */}
                           {(() => {
                             const currentTx =
                               form.selectedTreatments[0] ||
@@ -5641,7 +5627,7 @@ export default function DiscussedTreatmentsModal({
                             return (
                               <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
                                 <h4 className="discussed-treatments-detail-section-title">
-                                  Post-care & recommended
+                                  Post care for {currentTx}
                                 </h4>
                                 <div className="discussed-treatments-postcare-actions">
                                   <button
@@ -5663,21 +5649,35 @@ export default function DiscussedTreatmentsModal({
                                         Patients often add:
                                       </span>
                                       <div className="discussed-treatments-postcare-chips">
-                                        {pc.suggestedProducts.map((product) => (
-                                          <button
-                                            key={product}
-                                            type="button"
-                                            className="discussed-treatments-postcare-chip"
-                                            onClick={() =>
-                                              handleAddSuggestedProduct(
-                                                currentTx,
-                                                product
-                                              )
-                                            }
-                                          >
-                                            + {product}
-                                          </button>
-                                        ))}
+                                        {pc.suggestedProducts.map((product) => {
+                                          const added =
+                                            isSuggestedProductInPlan(product);
+                                          return (
+                                            <button
+                                              key={product}
+                                              type="button"
+                                              className={`discussed-treatments-postcare-chip${
+                                                added ? " added" : ""
+                                              }`}
+                                              onClick={() =>
+                                                handleAddSuggestedProduct(
+                                                  currentTx,
+                                                  product
+                                                )
+                                              }
+                                              disabled={added}
+                                              aria-pressed={added}
+                                              title={
+                                                added
+                                                  ? "Already in plan"
+                                                  : `Add ${product}`
+                                              }
+                                            >
+                                              {added ? "✓ " : "+ "}
+                                              {product}
+                                            </button>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -5914,11 +5914,11 @@ export default function DiscussedTreatmentsModal({
                           className="form-input-base"
                         />
                       </div>
-                      {/* Post-care & recommended (treatment mode) */}
+                      {/* Post care for [treatment] (treatment mode) */}
                       {TREATMENT_POSTCARE[selectedTreatmentFirst] && (
                         <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
                           <h4 className="discussed-treatments-detail-section-title">
-                            Post-care & recommended
+                            Post care for {selectedTreatmentFirst}
                           </h4>
                           <div className="discussed-treatments-postcare-actions">
                             <button
@@ -5949,21 +5949,35 @@ export default function DiscussedTreatmentsModal({
                                 <div className="discussed-treatments-postcare-chips">
                                   {TREATMENT_POSTCARE[
                                     selectedTreatmentFirst
-                                  ].suggestedProducts.map((product) => (
-                                    <button
-                                      key={product}
-                                      type="button"
-                                      className="discussed-treatments-postcare-chip"
-                                      onClick={() =>
-                                        handleAddSuggestedProduct(
-                                          selectedTreatmentFirst,
-                                          product
-                                        )
-                                      }
-                                    >
-                                      + {product}
-                                    </button>
-                                  ))}
+                                  ].suggestedProducts.map((product) => {
+                                    const added =
+                                      isSuggestedProductInPlan(product);
+                                    return (
+                                      <button
+                                        key={product}
+                                        type="button"
+                                        className={`discussed-treatments-postcare-chip${
+                                          added ? " added" : ""
+                                        }`}
+                                        onClick={() =>
+                                          handleAddSuggestedProduct(
+                                            selectedTreatmentFirst,
+                                            product
+                                          )
+                                        }
+                                        disabled={added}
+                                        aria-pressed={added}
+                                        title={
+                                          added
+                                            ? "Already in plan"
+                                            : `Add ${product}`
+                                        }
+                                      >
+                                        {added ? "✓ " : "+ "}
+                                        {product}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -6032,6 +6046,31 @@ export default function DiscussedTreatmentsModal({
                   Copy to clipboard
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Treatment photos browser modal */}
+        {showPhotoBrowser && (
+          <div
+            className="discussed-treatments-photos-modal-overlay"
+            onClick={() => setShowPhotoBrowser(false)}
+            role="dialog"
+            aria-label="Treatment Explorer"
+          >
+            <div
+              className="discussed-treatments-photos-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <TreatmentPhotos
+                client={client}
+                selectedTreatment={photoBrowserTreatment}
+                selectedRegion={photoBrowserRegion}
+                onClose={() => setShowPhotoBrowser(false)}
+                onUpdate={onUpdate}
+                onAddToPlanWithPrefill={handleAddToPlanWithPrefill}
+                planItems={items}
+              />
             </div>
           </div>
         )}
