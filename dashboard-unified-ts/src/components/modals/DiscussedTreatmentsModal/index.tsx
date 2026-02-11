@@ -1673,15 +1673,21 @@ export default function DiscussedTreatmentsModal({
                                               className="discussed-treatments-product-carousel-image"
                                               aria-hidden
                                             >
-                                              {"imageUrl" in item &&
-                                              item.imageUrl ? (
-                                                <img
-                                                  src={item.imageUrl}
-                                                  alt=""
-                                                  loading="lazy"
-                                                  className="discussed-treatments-product-carousel-img"
-                                                />
-                                              ) : null}
+                                              {(() => {
+                                                const url =
+                                                  "imageUrl" in item &&
+                                                  typeof (item as { imageUrl?: string }).imageUrl === "string"
+                                                    ? (item as { imageUrl: string }).imageUrl
+                                                    : "";
+                                                return url ? (
+                                                  <img
+                                                    src={url}
+                                                    alt=""
+                                                    loading="lazy"
+                                                    className="discussed-treatments-product-carousel-img"
+                                                  />
+                                                ) : null;
+                                              })()}
                                             </div>
                                             <span className="discussed-treatments-product-carousel-label">
                                               {p}
