@@ -246,6 +246,13 @@
   margin-bottom: 8px;
 }
 
+.discussed-treatments-in-facial-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
 .discussed-treatments-in-facial-heading-block {
   display: flex;
   flex-direction: column;
@@ -374,11 +381,51 @@
   border-bottom: none;
 }
 
+/* Single line with bullet separators: Treatment • Area • Product • Timeline • Qty */
+.discussed-treatments-record-row-one-line .discussed-treatments-record-line-outer {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Treatment name as heading, metadata below */
+.discussed-treatments-record-row-heading-meta .discussed-treatments-record-treatment-heading-outer {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  line-height: 1.3;
+}
+
+.discussed-treatments-record-row-heading-meta .discussed-treatments-record-meta-line-outer {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--theme-text-secondary);
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.discussed-treatments-record-heading-block-outer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .discussed-treatments-record-primary-outer {
   font-size: 14px;
   font-weight: 600;
   color: var(--theme-text-primary);
   line-height: 1.4;
+}
+
+.discussed-treatments-record-area-subheading-outer {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--theme-text-secondary, #666);
+  line-height: 1.3;
 }
 
 .discussed-treatments-record-meta-outer {

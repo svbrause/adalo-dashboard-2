@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { DiscussedItem } from "../../../types";
 import { updateLeadRecord } from "../../../services/api";
 import { showToast, showError } from "../../../utils/toast";
+import { formatDateTime } from "../../../utils/dateFormatting";
 import { groupIssuesByArea } from "../../../utils/issueMapping";
 import type { DiscussedTreatmentsModalProps, AddByMode } from "./types";
 import { useIsNarrowScreen } from "./hooks";
@@ -26,6 +27,7 @@ import {
   QUANTITY_UNIT_OPTIONS,
   RECURRING_OPTIONS,
   OTHER_RECURRING_LABEL,
+  getSkincareCarouselItems,
 } from "./constants";
 import {
   getRecommendedProducts,
@@ -35,6 +37,8 @@ import {
   getGoalsAndRegionsForTreatment,
   getTreatmentsForInterest,
   getQuantityContext,
+  getTreatmentDisplayName,
+  getDisplayAreaForItem,
   parseInterestedIssues,
   generateId,
 } from "./utils";
@@ -44,6 +48,7 @@ import PlanListColumn from "./PlanListColumn";
 import TreatmentPhotos, {
   type TreatmentPlanPrefill,
 } from "./TreatmentPhotos";
+import ShareTreatmentPlanModal from "../ShareTreatmentPlanModal";
 import "./index.css";
 
 export default function DiscussedTreatmentsModal({
@@ -335,15 +340,17 @@ export default function DiscussedTreatmentsModal({
   );
   void goalsAndRegionsForTreatment;
 
-  /** Items grouped by plan section (Now, Add next visit, Wishlist). Empty/missing timeline → Wishlist. */
+  /** Items grouped by plan section (Now, Add next visit, Wishlist, Completed). Empty/missing timeline → Wishlist. */
   const itemsBySection = useMemo(() => {
     const now: DiscussedItem[] = [];
     const addNext: DiscussedItem[] = [];
     const wishlist: DiscussedItem[] = [];
+    const completed: DiscussedItem[] = [];
     for (const item of items) {
       const t = item.timeline?.trim();
       if (t === "Now") now.push(item);
       else if (t === "Add next visit") addNext.push(item);
+      else if (t === "Completed") completed.push(item);
       else wishlist.push(item); // "Wishlist" or empty/other
     }
     const byTreatment = (a: DiscussedItem, b: DiscussedItem) =>
@@ -352,6 +359,7 @@ export default function DiscussedTreatmentsModal({
       Now: now.sort(byTreatment),
       "Add next visit": addNext.sort(byTreatment),
       Wishlist: wishlist.sort(byTreatment),
+      Completed: completed.sort(byTreatment),
     };
   }, [items]);
 
@@ -395,12 +403,25 @@ export default function DiscussedTreatmentsModal({
             : (p ?? "").trim() || null;
       }
     }
+    const regionValue =
+      form.region === "Other"
+        ? form.regionOther?.trim() || undefined
+        : form.region?.trim() || undefined;
+    const area = getDisplayAreaForItem({
+      id: "",
+      treatment: treatment || "",
+      region: regionValue,
+      interest: form.interest?.trim() || undefined,
+      findings: [],
+    });
+
     return {
       primary: treatment || "New item",
       product,
       interest: form.interest?.trim() || null,
       timeline: form.timeline?.trim() || null,
       quantity,
+      area: area || null,
     };
   }, [
     addMode,
@@ -408,6 +429,8 @@ export default function DiscussedTreatmentsModal({
     form.otherTreatment,
     form.selectedTreatments,
     form.interest,
+    form.region,
+    form.regionOther,
     form.timeline,
     form.quantity,
     form.quantityUnit,
@@ -505,6 +528,8 @@ export default function DiscussedTreatmentsModal({
   // grid-template-rows: auto 1fr should handle this correctly without JS.
 
   const [completeItemId, setCompleteItemId] = useState<string | null>(null);
+  /** When set, show "Are you sure?" confirmation before removing this plan item. */
+  const [removeConfirmItemId, setRemoveConfirmItemId] = useState<string | null>(null);
   /** Post-care instructions modal: show instructions text + copy. */
   const [postCareModal, setPostCareModal] = useState<{
     treatment: string;
@@ -513,6 +538,7 @@ export default function DiscussedTreatmentsModal({
   } | null>(null);
   /** Treatment photos browser state */
   const [showPhotoBrowser, setShowPhotoBrowser] = useState(false);
+  const [showShareTreatmentPlan, setShowShareTreatmentPlan] = useState(false);
   const [photoBrowserTreatment, setPhotoBrowserTreatment] =
     useState<string>("");
   const [photoBrowserRegion, setPhotoBrowserRegion] = useState<string>("");
@@ -523,26 +549,30 @@ export default function DiscussedTreatmentsModal({
   >(null);
 
   const handleComplete = (item: DiscussedItem, addNext: boolean) => {
-    // Remove the completed item
-    const nextItems = items.filter((i) => i.id !== item.id);
-
+    setCompleteItemId(null);
+    setSavingAdd(true);
     if (addNext) {
-      // Add a new item for next visit
+      // Remove the completed item and add a new one for next visit
+      const nextItems = items.filter((i) => i.id !== item.id);
       const newItem: DiscussedItem = {
         ...item,
         id: generateId(),
         timeline: "Add next visit",
-        recurring: item.recurring, // Keep recurring if set? Or maybe clear it?
-        // Maybe clear notes?
+        recurring: item.recurring,
         notes: undefined,
+        addedAt: new Date().toISOString(),
       };
       nextItems.push(newItem);
+      setItems(nextItems);
+      persistItems(nextItems).finally(() => setSavingAdd(false));
+    } else {
+      // Move item to Completed section (keep in list)
+      const nextItems = items.map((i) =>
+        i.id === item.id ? { ...i, timeline: "Completed" } : i
+      );
+      setItems(nextItems);
+      persistItems(nextItems).finally(() => setSavingAdd(false));
     }
-
-    setItems(nextItems);
-    setCompleteItemId(null);
-    setSavingAdd(true);
-    persistItems(nextItems).finally(() => setSavingAdd(false));
   };
 
   const toggleFinding = (finding: string) => {
@@ -849,6 +879,7 @@ export default function DiscussedTreatmentsModal({
           ? (form.recurringOther || "").trim() || undefined
           : form.recurring || undefined,
       notes: form.notes.trim() || undefined,
+      addedAt: new Date().toISOString(),
     };
     const newItems: DiscussedItem[] = [];
     for (const treatment of effectiveTreatments) {
@@ -1129,6 +1160,7 @@ export default function DiscussedTreatmentsModal({
     (addMode === "finding" && selectedFindings.length > 0);
 
   const handleRemove = async (id: string) => {
+    setRemoveConfirmItemId(null);
     if (editingId === id) setEditingId(null);
     if (selectedPlanItemId === id) setSelectedPlanItemId(null);
     const nextItems = items.filter((x) => x.id !== id);
@@ -1280,6 +1312,7 @@ export default function DiscussedTreatmentsModal({
       product: productName,
       timeline: "Wishlist",
       notes: `Post care for ${treatmentContext}`,
+      addedAt: new Date().toISOString(),
     };
     const nextItems = [...items, newItem];
     setItems(nextItems);
@@ -1324,8 +1357,10 @@ export default function DiscussedTreatmentsModal({
       quantityVal && quantityUnitVal && quantityUnitVal !== "Quantity"
         ? `${quantityVal} ${quantityUnitVal}`
         : quantityVal || undefined;
+    const existing = items.find((x) => x.id === editingId);
     const updated: DiscussedItem = {
       id: editingId,
+      ...(existing?.addedAt ? { addedAt: existing.addedAt } : {}),
       interest: interest || undefined,
       treatment: editForm.treatment.trim(),
       ...(productVal ? { product: productVal } : {}),
@@ -1365,7 +1400,7 @@ export default function DiscussedTreatmentsModal({
       >
         <DiscussedTreatmentsModalHeader
           clientName={client.name?.split(" ")[0] || "patient"}
-          onShare={() => showToast("Share with patient coming soon")}
+          onShare={() => setShowShareTreatmentPlan(true)}
           onClose={handleCloseImmediate}
           onViewExamples={() => {
             const sel = selectedPlanItemId
@@ -1598,7 +1633,20 @@ export default function DiscussedTreatmentsModal({
                                     aria-label={`Select ${sectionTitle.toLowerCase()}`}
                                   >
                                     <div className="discussed-treatments-product-carousel-track">
-                                      {fullList.map((p) => {
+                                      {(
+                                        isSkincareOnly
+                                          ? (() => {
+                                              const items =
+                                                getSkincareCarouselItems();
+                                              return fullList.map((name) =>
+                                                items.find(
+                                                  (i) => i.name === name
+                                                ) ?? { name }
+                                              );
+                                            })()
+                                          : fullList.map((p) => ({ name: p }))
+                                      ).map((item) => {
+                                        const p = item.name;
                                         const isChecked =
                                           editProductSelected.includes(p);
                                         return (
@@ -1624,7 +1672,17 @@ export default function DiscussedTreatmentsModal({
                                             <div
                                               className="discussed-treatments-product-carousel-image"
                                               aria-hidden
-                                            />
+                                            >
+                                              {"imageUrl" in item &&
+                                              item.imageUrl ? (
+                                                <img
+                                                  src={item.imageUrl}
+                                                  alt=""
+                                                  loading="lazy"
+                                                  className="discussed-treatments-product-carousel-img"
+                                                />
+                                              ) : null}
+                                            </div>
                                             <span className="discussed-treatments-product-carousel-label">
                                               {p}
                                             </span>
@@ -1970,7 +2028,7 @@ export default function DiscussedTreatmentsModal({
                           <div className="discussed-treatments-detail-header">
                             <div className="discussed-treatments-detail-header-left">
                               <h3 className="discussed-treatments-detail-title">
-                                {sel.treatment}
+                                {getTreatmentDisplayName(sel)}
                               </h3>
                               {sel.product && (
                                 <p className="discussed-treatments-detail-subtitle">
@@ -2006,15 +2064,48 @@ export default function DiscussedTreatmentsModal({
                                     Yes
                                   </button>
                                 </div>
-                              ) : (
-                                <>
+                              ) : removeConfirmItemId === sel.id ? (
+                                <div className="discussed-treatments-detail-complete-confirm-inline">
+                                  <span className="discussed-treatments-detail-complete-text">
+                                    Remove this item from the plan?
+                                  </span>
                                   <button
                                     type="button"
                                     className="btn-secondary btn-sm"
-                                    onClick={() => setCompleteItemId(sel.id)}
+                                    onClick={() => setRemoveConfirmItemId(null)}
                                   >
-                                    Mark completed
+                                    Cancel
                                   </button>
+                                  <button
+                                    type="button"
+                                    className="btn-secondary btn-sm discussed-treatments-btn-remove"
+                                    onClick={() => handleRemove(sel.id)}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  {sel.timeline?.trim() !== "Completed" && (
+                                    <button
+                                      type="button"
+                                      className="btn-secondary btn-sm"
+                                      onClick={() => setCompleteItemId(sel.id)}
+                                    >
+                                      Mark completed
+                                    </button>
+                                  )}
+                                  {sel.timeline?.trim() === "Completed" && (
+                                    <button
+                                      type="button"
+                                      className="btn-secondary btn-sm"
+                                      onClick={() =>
+                                        handleMoveToSection(sel.id, "Add next visit")
+                                      }
+                                    >
+                                      Add again
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     className="btn-secondary btn-sm"
@@ -2025,7 +2116,7 @@ export default function DiscussedTreatmentsModal({
                                   <button
                                     type="button"
                                     className="btn-secondary btn-sm discussed-treatments-btn-remove"
-                                    onClick={() => handleRemove(sel.id)}
+                                    onClick={() => setRemoveConfirmItemId(sel.id)}
                                   >
                                     Remove
                                   </button>
@@ -2039,6 +2130,14 @@ export default function DiscussedTreatmentsModal({
                                 Clinical details
                               </h4>
                               <div className="discussed-treatments-detail-grid">
+                                <div className="discussed-treatments-detail-field">
+                                  <div className="discussed-treatments-detail-field-label">
+                                    Added
+                                  </div>
+                                  <div className="discussed-treatments-detail-field-value">
+                                    {formatDateTime(sel.addedAt)}
+                                  </div>
+                                </div>
                                 {sel.interest ? (
                                   <div className="discussed-treatments-detail-field">
                                     <div className="discussed-treatments-detail-field-label">
@@ -2614,6 +2713,18 @@ export default function DiscussedTreatmentsModal({
                                       p.toLowerCase().includes(q)
                                     )
                                   : fullList;
+                                const skincareItems =
+                                  treatment === "Skincare"
+                                    ? getSkincareCarouselItems()
+                                    : [];
+                                const skincareDisplayItems =
+                                  treatment === "Skincare"
+                                    ? searchFilteredList.map((name) =>
+                                        skincareItems.find(
+                                          (i) => i.name === name
+                                        ) ?? { name }
+                                      )
+                                    : [];
                                 return (
                                   <div className="discussed-treatments-treatment-sub-box">
                                     <h3 className="discussed-treatments-form-title discussed-treatments-form-title-step2">
@@ -2631,74 +2742,88 @@ export default function DiscussedTreatmentsModal({
                                           aria-label={`Select ${sectionTitle.toLowerCase()} (multiple)`}
                                         >
                                           <div className="discussed-treatments-product-carousel-track">
-                                            {fullList.map((p) => {
-                                              const selectedListTx =
-                                                form
-                                                  .selectedProductsByTreatment[
-                                                  treatment
-                                                ] ?? [];
-                                              const isCheckedTx =
-                                                selectedListTx.includes(p);
-                                              return (
-                                                <button
-                                                  key={p}
-                                                  type="button"
-                                                  className={`discussed-treatments-product-carousel-item ${
-                                                    isCheckedTx
-                                                      ? "selected"
-                                                      : ""
-                                                  } ${
-                                                    p === OTHER_PRODUCT_LABEL
-                                                      ? "other-chip"
-                                                      : ""
-                                                  }`}
-                                                  onClick={() => {
-                                                    const currentTx =
-                                                      form
-                                                        .selectedProductsByTreatment[
-                                                        treatment
-                                                      ] ?? [];
-                                                    setForm((f) => ({
-                                                      ...f,
-                                                      selectedProductsByTreatment:
-                                                        {
-                                                          ...f.selectedProductsByTreatment,
-                                                          [treatment]:
-                                                            isCheckedTx
-                                                              ? currentTx.filter(
-                                                                  (x) => x !== p
-                                                                )
-                                                              : [
-                                                                  ...currentTx,
-                                                                  p,
-                                                                ],
-                                                        },
-                                                      ...(p ===
-                                                        OTHER_PRODUCT_LABEL &&
-                                                      !isCheckedTx
-                                                        ? {
-                                                            treatmentProductOther:
-                                                              {
-                                                                ...f.treatmentProductOther,
-                                                                [treatment]: "",
-                                                              },
-                                                            skincareProductOther:
-                                                              "",
-                                                          }
-                                                        : {}),
-                                                    }));
-                                                  }}
-                                                >
-                                                  <div
-                                                    className="discussed-treatments-product-carousel-image"
-                                                    aria-hidden
-                                                  />
-                                                  <span className="discussed-treatments-product-carousel-label">
-                                                    {p}
-                                                  </span>
-                                                </button>
-                                              );
-                                            })}
+                                            {skincareDisplayItems.map(
+                                              (item) => {
+                                                const p = item.name;
+                                                const selectedListTx =
+                                                  form
+                                                    .selectedProductsByTreatment[
+                                                    treatment
+                                                  ] ?? [];
+                                                const isCheckedTx =
+                                                  selectedListTx.includes(p);
+                                                return (
+                                                  <button
+                                                    key={p}
+                                                    type="button"
+                                                    className={`discussed-treatments-product-carousel-item ${
+                                                      isCheckedTx
+                                                        ? "selected"
+                                                        : ""
+                                                    } ${
+                                                      p === OTHER_PRODUCT_LABEL
+                                                        ? "other-chip"
+                                                        : ""
+                                                    }`}
+                                                    onClick={() => {
+                                                      const currentTx =
+                                                        form
+                                                          .selectedProductsByTreatment[
+                                                          treatment
+                                                        ] ?? [];
+                                                      setForm((f) => ({
+                                                        ...f,
+                                                        selectedProductsByTreatment:
+                                                          {
+                                                            ...f.selectedProductsByTreatment,
+                                                            [treatment]:
+                                                              isCheckedTx
+                                                                ? currentTx.filter(
+                                                                    (x) =>
+                                                                      x !== p
+                                                                  )
+                                                                : [
+                                                                    ...currentTx,
+                                                                    p,
+                                                                  ],
+                                                          },
+                                                        ...(p ===
+                                                          OTHER_PRODUCT_LABEL &&
+                                                        !isCheckedTx
+                                                          ? {
+                                                              treatmentProductOther:
+                                                                {
+                                                                  ...f.treatmentProductOther,
+                                                                  [treatment]:
+                                                                    "",
+                                                                },
+                                                              skincareProductOther:
+                                                                "",
+                                                            }
+                                                          : {}),
+                                                      }));
+                                                    }}
+                                                  >
+                                                    <div
+                                                      className="discussed-treatments-product-carousel-image"
+                                                      aria-hidden
+                                                    >
+                                                      {item.imageUrl ? (
+                                                        <img
+                                                          src={item.imageUrl}
+                                                          alt=""
+                                                          loading="lazy"
+                                                          className="discussed-treatments-product-carousel-img"
+                                                        />
+                                                      ) : null}
+                                                    </div>
+                                                    <span className="discussed-treatments-product-carousel-label">
+                                                      {p}
+                                                    </span>
+                                                  </button>
+                                                );
+                                              }
+                                            )}
                                           </div>
                                         </div>
                                       ) : (
@@ -3584,6 +3709,18 @@ export default function DiscussedTreatmentsModal({
                                               p.toLowerCase().includes(q)
                                             )
                                           : fullList;
+                                        const skincareItemsByTreatment =
+                                          treatment === "Skincare"
+                                            ? getSkincareCarouselItems()
+                                            : [];
+                                        const skincareDisplayItemsByTreatment =
+                                          treatment === "Skincare"
+                                            ? searchFilteredList.map((name) =>
+                                                skincareItemsByTreatment.find(
+                                                  (i) => i.name === name
+                                                ) ?? { name }
+                                              )
+                                            : [];
                                         return (
                                           <div className="discussed-treatments-treatment-product-section">
                                             {hasProductOptions && (
@@ -3598,82 +3735,96 @@ export default function DiscussedTreatmentsModal({
                                                     aria-label={`Select ${sectionTitle.toLowerCase()} (multiple)`}
                                                   >
                                                     <div className="discussed-treatments-product-carousel-track">
-                                                      {fullList.map((p) => {
-                                                        const selectedList =
-                                                          form
-                                                            .selectedProductsByTreatment[
-                                                            treatment
-                                                          ] ?? [];
-                                                        const isChecked =
-                                                          selectedList.includes(
-                                                            p
-                                                          );
-                                                        return (
-                                                          <button
-                                                            key={p}
-                                                            type="button"
-                                                            className={`discussed-treatments-product-carousel-item ${
-                                                              isChecked
-                                                                ? "selected"
-                                                                : ""
-                                                            } ${
-                                                              p ===
-                                                              OTHER_PRODUCT_LABEL
-                                                                ? "other-chip"
-                                                                : ""
-                                                            }`}
-                                                            onClick={() => {
-                                                              const current =
-                                                                form
-                                                                  .selectedProductsByTreatment[
-                                                                  treatment
-                                                                ] ?? [];
-                                                              setForm((f) => ({
-                                                                ...f,
-                                                                selectedProductsByTreatment:
-                                                                  {
-                                                                    ...f.selectedProductsByTreatment,
-                                                                    [treatment]:
-                                                                      isChecked
-                                                                        ? current.filter(
-                                                                            (
-                                                                              x
-                                                                            ) =>
-                                                                              x !==
-                                                                              p
-                                                                          )
-                                                                        : [
-                                                                            ...current,
-                                                                            p,
-                                                                          ],
-                                                                  },
-                                                                ...(p ===
-                                                                  OTHER_PRODUCT_LABEL &&
-                                                                !isChecked
-                                                                  ? {
-                                                                      treatmentProductOther:
-                                                                        {
-                                                                          ...f.treatmentProductOther,
-                                                                          [treatment]:
-                                                                            "",
-                                                                        },
-                                                                      skincareProductOther:
-                                                                        "",
+                                                      {skincareDisplayItemsByTreatment.map(
+                                                        (item) => {
+                                                          const p = item.name;
+                                                          const selectedList =
+                                                            form
+                                                              .selectedProductsByTreatment[
+                                                              treatment
+                                                            ] ?? [];
+                                                          const isChecked =
+                                                            selectedList.includes(
+                                                              p
+                                                            );
+                                                          return (
+                                                            <button
+                                                              key={p}
+                                                              type="button"
+                                                              className={`discussed-treatments-product-carousel-item ${
+                                                                isChecked
+                                                                  ? "selected"
+                                                                  : ""
+                                                              } ${
+                                                                p ===
+                                                                OTHER_PRODUCT_LABEL
+                                                                  ? "other-chip"
+                                                                  : ""
+                                                              }`}
+                                                              onClick={() => {
+                                                                const current =
+                                                                  form
+                                                                    .selectedProductsByTreatment[
+                                                                    treatment
+                                                                  ] ?? [];
+                                                                setForm((f) => ({
+                                                                  ...f,
+                                                                  selectedProductsByTreatment:
+                                                                    {
+                                                                      ...f.selectedProductsByTreatment,
+                                                                      [treatment]:
+                                                                        isChecked
+                                                                          ? current.filter(
+                                                                              (
+                                                                                x
+                                                                              ) =>
+                                                                                x !==
+                                                                                p
+                                                                            )
+                                                                          : [
+                                                                              ...current,
+                                                                              p,
+                                                                            ],
+                                                                    },
+                                                                  ...(p ===
+                                                                    OTHER_PRODUCT_LABEL &&
+                                                                  !isChecked
+                                                                    ? {
+                                                                        treatmentProductOther:
+                                                                          {
+                                                                            ...f.treatmentProductOther,
+                                                                            [treatment]:
+                                                                              "",
+                                                                          },
+                                                                        skincareProductOther:
+                                                                          "",
+                                                                      }
+                                                                    : {}),
+                                                                }));
+                                                              }}
+                                                            >
+                                                              <div
+                                                                className="discussed-treatments-product-carousel-image"
+                                                                aria-hidden
+                                                              >
+                                                                {item.imageUrl ? (
+                                                                  <img
+                                                                    src={
+                                                                      item.imageUrl
                                                                     }
-                                                                  : {}),
-                                                              }));
-                                                            }}
-                                                          >
-                                                            <div
-                                                              className="discussed-treatments-product-carousel-image"
-                                                              aria-hidden
-                                                            />
-                                                            <span className="discussed-treatments-product-carousel-label">
-                                                              {p}
-                                                            </span>
-                                                          </button>
-                                                        );
-                                                      })}
+                                                                    alt=""
+                                                                    loading="lazy"
+                                                                    className="discussed-treatments-product-carousel-img"
+                                                                  />
+                                                                ) : null}
+                                                              </div>
+                                                              <span className="discussed-treatments-product-carousel-label">
+                                                                {p}
+                                                              </span>
+                                                            </button>
+                                                          );
+                                                        }
+                                                      )}
                                                     </div>
                                                   </div>
                                                 ) : (
@@ -4396,6 +4547,18 @@ export default function DiscussedTreatmentsModal({
                                             p.toLowerCase().includes(q)
                                           )
                                         : fullList;
+                                      const skincareItemsTopic =
+                                        treatment === "Skincare"
+                                          ? getSkincareCarouselItems()
+                                          : [];
+                                      const skincareDisplayItemsTopic =
+                                        treatment === "Skincare"
+                                          ? searchFilteredList.map((n) =>
+                                              skincareItemsTopic.find(
+                                                (i) => i.name === n
+                                              ) ?? { name: n }
+                                            )
+                                          : [];
                                       return (
                                         <div
                                           key={name}
@@ -4430,36 +4593,38 @@ export default function DiscussedTreatmentsModal({
                                                   aria-label={`Select ${sectionTitle.toLowerCase()} (multiple)`}
                                                 >
                                                   <div className="discussed-treatments-product-carousel-track">
-                                                    {fullList.map((p) => {
-                                                      const selectedList =
-                                                        form
-                                                          .selectedProductsByTreatment[
-                                                          treatment
-                                                        ] ?? [];
-                                                      const isChecked =
-                                                        selectedList.includes(
-                                                          p
-                                                        );
-                                                      return (
-                                                        <button
-                                                          key={p}
-                                                          type="button"
-                                                          className={`discussed-treatments-product-carousel-item ${
-                                                            isChecked
-                                                              ? "selected"
-                                                              : ""
-                                                          } ${
-                                                            p ===
-                                                            OTHER_PRODUCT_LABEL
-                                                              ? "other-chip"
-                                                              : ""
-                                                          }`}
-                                                          onClick={() => {
-                                                            const current =
-                                                              form
-                                                                .selectedProductsByTreatment[
-                                                                treatment
-                                                              ] ?? [];
+                                                    {skincareDisplayItemsTopic.map(
+                                                      (item) => {
+                                                        const p = item.name;
+                                                        const selectedList =
+                                                          form
+                                                            .selectedProductsByTreatment[
+                                                            treatment
+                                                          ] ?? [];
+                                                        const isChecked =
+                                                          selectedList.includes(
+                                                            p
+                                                          );
+                                                        return (
+                                                          <button
+                                                            key={p}
+                                                            type="button"
+                                                            className={`discussed-treatments-product-carousel-item ${
+                                                              isChecked
+                                                                ? "selected"
+                                                                : ""
+                                                            } ${
+                                                              p ===
+                                                              OTHER_PRODUCT_LABEL
+                                                                ? "other-chip"
+                                                                : ""
+                                                            }`}
+                                                            onClick={() => {
+                                                              const current =
+                                                                form
+                                                                  .selectedProductsByTreatment[
+                                                                  treatment
+                                                                ] ?? [];
                                                             setForm((f) => ({
                                                               ...f,
                                                               selectedProductsByTreatment:
@@ -4497,7 +4662,16 @@ export default function DiscussedTreatmentsModal({
                                                           <div
                                                             className="discussed-treatments-product-carousel-image"
                                                             aria-hidden
-                                                          />
+                                                          >
+                                                            {item.imageUrl ? (
+                                                              <img
+                                                                src={item.imageUrl}
+                                                                alt=""
+                                                                loading="lazy"
+                                                                className="discussed-treatments-product-carousel-img"
+                                                              />
+                                                            ) : null}
+                                                          </div>
                                                           <span className="discussed-treatments-product-carousel-label">
                                                             {p}
                                                           </span>
@@ -6073,6 +6247,19 @@ export default function DiscussedTreatmentsModal({
               />
             </div>
           </div>
+        )}
+
+        {/* Share treatment plan with patient – same modal as from client detail treatment plan section */}
+        {showShareTreatmentPlan && (
+          <ShareTreatmentPlanModal
+            client={client}
+            discussedItems={items}
+            onClose={() => setShowShareTreatmentPlan(false)}
+            onSuccess={() => {
+              setShowShareTreatmentPlan(false);
+              onUpdate();
+            }}
+          />
         )}
       </div>
     </div>

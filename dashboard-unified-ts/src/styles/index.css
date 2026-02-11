@@ -1201,6 +1201,13 @@ body.theme-warm .kanban-cards.drag-over {
   margin-bottom: 8px;
 }
 
+.discussed-treatments-in-facial-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
 .discussed-treatments-in-facial-heading-block {
   display: flex;
   flex-direction: column;

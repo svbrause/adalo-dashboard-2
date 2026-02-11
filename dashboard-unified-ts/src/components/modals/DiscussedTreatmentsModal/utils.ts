@@ -1,6 +1,6 @@
 // Discussed Treatments Modal – pure helpers
 
-import type { Client } from "../../../types";
+import type { Client, DiscussedItem } from "../../../types";
 import {
   ASSESSMENT_FINDINGS_BY_AREA,
   FINDING_TO_GOAL_REGION_TREATMENTS,
@@ -11,6 +11,7 @@ import {
   OTHER_FINDING_LABEL,
   REGION_OPTIONS,
   RECOMMENDED_PRODUCTS_BY_CONTEXT,
+  TREATMENT_GOAL_ONLY,
   TREATMENT_PRODUCT_OPTIONS,
   OTHER_PRODUCT_LABEL,
   ALL_TREATMENTS,
@@ -172,4 +173,66 @@ export function generateId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : `disc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/** Maps region/interest/finding text to a single display area (Forehead, Eyes, Nose, Cheeks, Lips, Chin, Jawline, Neck, Skin, Full face), or null if no match. */
+function normalizeToDisplayArea(text: string | null | undefined): string | null {
+  if (!text || !String(text).trim()) return null;
+  const lower = String(text).toLowerCase().trim();
+  if (lower.includes("forehead")) return "Forehead";
+  if (lower.includes("under eye") || lower.includes("tear trough") || (lower.includes("eye") && !lower.includes("eyebrow"))) return "Eyes";
+  if (lower.includes("eyelid") || lower.includes("crow") || lower.includes("bunny")) return "Eyes";
+  if (lower.includes("nose") || lower.includes("nasal")) return "Nose";
+  if (lower.includes("cheek") || lower.includes("mid cheek")) return "Cheeks";
+  if (lower.includes("lip")) return "Lips";
+  if (lower.includes("chin")) return "Chin";
+  if (lower.includes("jaw") || lower.includes("jowl") || lower.includes("prejowl")) return "Jawline";
+  if (lower.includes("neck") || lower.includes("platysma")) return "Neck";
+  if (lower.includes("full face")) return "Full face";
+  if (lower === "skin" || lower.includes("skin")) return "Skin";
+  return null;
+}
+
+/** Get a single display area for an item: region (normalized), else derived from interest, else from first finding. No "—". */
+export function getDisplayAreaForItem(item: DiscussedItem): string | null {
+  const fromRegion = normalizeToDisplayArea(item.region);
+  if (fromRegion) return fromRegion;
+  const fromInterest = normalizeToDisplayArea(item.interest);
+  if (fromInterest) return fromInterest;
+  if (item.findings?.length) {
+    for (const f of item.findings) {
+      const a = normalizeToDisplayArea(f);
+      if (a) return a;
+    }
+  }
+  return null;
+}
+
+/** Bullet character used to separate attributes in one line. */
+export const TREATMENT_PLAN_BULLET = " • ";
+
+/** Display name for the treatment heading: when treatment is "Goal only", show the goal/interest (e.g. "Fade Scars") instead. */
+export function getTreatmentDisplayName(item: DiscussedItem): string {
+  if (item.treatment === TREATMENT_GOAL_ONLY && item.interest?.trim()) {
+    return item.interest.trim();
+  }
+  return (item.treatment || "").trim() || "—";
+}
+
+/** Build metadata line only: area, product, quantity (no treatment name, no timeline — sections already group by timeline). */
+export function formatTreatmentPlanRecordMetaLine(item: DiscussedItem): string {
+  const parts: string[] = [];
+  const area = getDisplayAreaForItem(item);
+  if (area) parts.push(area);
+  const product = (item.product || "").trim();
+  if (product) parts.push(product);
+  if (item.quantity && String(item.quantity).trim()) parts.push(`Qty: ${item.quantity}`);
+  return parts.join(TREATMENT_PLAN_BULLET);
+}
+
+/** Build a single line of non-empty parts: treatment, area, product, quantity (timeline omitted; sections group by timeline). */
+export function formatTreatmentPlanRecordLine(item: DiscussedItem): string {
+  const treatment = (item.treatment || "").trim();
+  const meta = formatTreatmentPlanRecordMetaLine(item);
+  return treatment && meta ? `${treatment}${TREATMENT_PLAN_BULLET}${meta}` : treatment || meta;
 }

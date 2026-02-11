@@ -18,12 +18,15 @@ import ContactHistorySection from "./ContactHistorySection";
 import AnalysisResultsSection from "./AnalysisResultsSection";
 import TelehealthSMSModal from "./TelehealthSMSModal";
 import ShareAnalysisModal from "./ShareAnalysisModal";
+import ShareTreatmentPlanModal from "./ShareTreatmentPlanModal";
 import PhotoViewerModal from "./PhotoViewerModal";
 import NewClientSMSModal from "./NewClientSMSModal";
 import SendSMSModal from "./SendSMSModal";
 import DiscussedTreatmentsModal from "./DiscussedTreatmentsModal";
 import TreatmentPhotosModal from "./TreatmentPhotosModal";
 import type { TreatmentPlanPrefill } from "./DiscussedTreatmentsModal/TreatmentPhotos";
+import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName } from "./DiscussedTreatmentsModal/utils";
+import { PLAN_SECTIONS } from "./DiscussedTreatmentsModal/constants";
 import {
   getJotformUrl,
   formatProviderDisplayName,
@@ -60,6 +63,7 @@ export default function ClientDetailModal({
   const [status, setStatus] = useState<Client["status"]>("new");
   const [showTelehealthSMS, setShowTelehealthSMS] = useState(false);
   const [showShareAnalysis, setShowShareAnalysis] = useState(false);
+  const [showShareTreatmentPlan, setShowShareTreatmentPlan] = useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [photoViewerType, setPhotoViewerType] = useState<"front" | "side">(
     "front"
@@ -902,27 +906,38 @@ export default function ClientDetailModal({
                     In reference to analysis findings & interests
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="btn-secondary btn-sm"
-                  onClick={() => setShowDiscussedTreatments(true)}
-                >
-                  {client.discussedItems && client.discussedItems.length > 0
-                    ? "Manage"
-                    : "Add"}
-                </button>
+                <div className="discussed-treatments-in-facial-actions">
+                  {facialAnalysisFormHasData && (
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={() => setShowShareTreatmentPlan(true)}
+                    >
+                      Share with Patient
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-secondary btn-sm"
+                    onClick={() => setShowDiscussedTreatments(true)}
+                  >
+                    {client.discussedItems && client.discussedItems.length > 0
+                      ? "Manage"
+                      : "Add"}
+                  </button>
+                </div>
               </div>
               <div className="discussed-treatments-in-facial-summary-row">
                 {client.discussedItems && client.discussedItems.length > 0 ? (
                   <div className="discussed-treatments-plan-sections-outer">
-                    {(["Now", "Add next visit", "Wishlist"] as const).map(
-                      (sectionLabel) => {
+                    {PLAN_SECTIONS.map((sectionLabel) => {
                         const sectionItems = (client.discussedItems || [])
                           .filter((item) => {
                             const t = item.timeline?.trim();
                             if (sectionLabel === "Now") return t === "Now";
                             if (sectionLabel === "Add next visit")
                               return t === "Add next visit";
+                            if (sectionLabel === "Completed") return t === "Completed";
                             return t === "Wishlist" || !t; // Wishlist or empty
                           })
                           .sort((a, b) =>
@@ -941,42 +956,16 @@ export default function ClientDetailModal({
                               {sectionItems.map((item) => (
                                 <div
                                   key={item.id}
-                                  className="discussed-treatments-record-row-outer"
+                                  className="discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta"
                                 >
-                                  <div className="discussed-treatments-record-primary-outer">
-                                    {item.treatment || "—"}
+                                  <div className="discussed-treatments-record-treatment-heading-outer">
+                                    {getTreatmentDisplayName(item)}
                                   </div>
-                                  {(item.region ||
-                                    item.product ||
-                                    item.findings?.length ||
-                                    item.interest ||
-                                    item.quantity) && (
-                                    <div className="discussed-treatments-record-meta-outer">
-                                      {item.region ? (
-                                        <span className="discussed-treatments-record-region-outer">
-                                          {item.region}
-                                        </span>
-                                      ) : item.product ? (
-                                        <span className="discussed-treatments-record-product-outer">
-                                          {item.product}
-                                        </span>
-                                      ) : item.findings &&
-                                        item.findings.length > 0 ? (
-                                        <span className="discussed-treatments-record-for-outer">
-                                          {item.findings.join(", ")}
-                                        </span>
-                                      ) : item.interest ? (
-                                        <span className="discussed-treatments-record-for-outer">
-                                          {item.interest}
-                                        </span>
-                                      ) : null}
-                                      {item.quantity && (
-                                        <span className="discussed-treatments-record-quantity-outer">
-                                          Qty: {item.quantity}
-                                        </span>
-                                      )}
+                                  {formatTreatmentPlanRecordMetaLine(item) ? (
+                                    <div className="discussed-treatments-record-meta-line-outer">
+                                      {formatTreatmentPlanRecordMetaLine(item)}
                                     </div>
-                                  )}
+                                  ) : null}
                                 </div>
                               ))}
                             </div>
@@ -1111,6 +1100,16 @@ export default function ClientDetailModal({
           onClose={() => setShowShareAnalysis(false)}
           onSuccess={() => {
             setShowShareAnalysis(false);
+            onUpdate();
+          }}
+        />
+      )}
+      {showShareTreatmentPlan && client && (
+        <ShareTreatmentPlanModal
+          client={client}
+          onClose={() => setShowShareTreatmentPlan(false)}
+          onSuccess={() => {
+            setShowShareTreatmentPlan(false);
             onUpdate();
           }}
         />

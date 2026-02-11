@@ -567,6 +567,7 @@ export default function TreatmentPhotos({
       if (!onUpdate) return;
       const newItem: DiscussedItem = {
         id: generateId(),
+        addedAt: new Date().toISOString(),
         interest: filterInterest || undefined,
         findings: filterIssue ? [filterIssue] : issue ? [issue] : undefined,
         treatment: normalizedTreatment,

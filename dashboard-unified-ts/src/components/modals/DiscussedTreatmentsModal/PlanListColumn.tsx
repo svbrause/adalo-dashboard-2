@@ -1,6 +1,7 @@
 // Discussed Treatments Modal – left column (plan list with sections and drag-and-drop)
 
 import type { DiscussedItem } from "../../../types";
+import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName } from "./utils";
 
 export interface NewItemPreview {
   primary: string;
@@ -8,6 +9,7 @@ export interface NewItemPreview {
   interest: string | null;
   timeline: string | null;
   quantity: string | null;
+  area: string | null;
 }
 
 interface PlanListColumnProps {
@@ -80,7 +82,9 @@ export default function PlanListColumn({
             aria-label={`New item${
               newItemPreview.primary !== "New item"
                 ? `: ${newItemPreview.primary}${
-                    newItemPreview.product
+                    newItemPreview.area
+                      ? ` / ${newItemPreview.area}`
+                      : newItemPreview.product
                       ? ` / ${newItemPreview.product}`
                       : newItemPreview.interest
                       ? ` for ${newItemPreview.interest}`
@@ -92,11 +96,17 @@ export default function PlanListColumn({
             <div className="discussed-treatments-record-primary">
               {newItemPreview.primary}
             </div>
-            {(newItemPreview.product ||
+            {(newItemPreview.area ||
+              newItemPreview.product ||
               newItemPreview.interest ||
               newItemPreview.timeline ||
               newItemPreview.quantity) && (
               <div className="discussed-treatments-record-meta">
+                {newItemPreview.area && (
+                  <span className="discussed-treatments-record-region">
+                    {newItemPreview.area}
+                  </span>
+                )}
                 {newItemPreview.product ? (
                   <span className="discussed-treatments-record-product">
                     {newItemPreview.product}
@@ -162,12 +172,8 @@ export default function PlanListColumn({
                           onSelectItem(item.id);
                         }
                       }}
-                      aria-label={`Select ${item.treatment}${
-                        item.product
-                          ? ` / ${item.product}`
-                          : item.interest
-                          ? ` for ${item.interest}`
-                          : ""
+                      aria-label={`Select ${getTreatmentDisplayName(item)}${
+                        item.product ? ` / ${item.product}` : ""
                       }`}
                       aria-selected={
                         selectedPlanItemId === item.id || editingId === item.id
@@ -179,35 +185,15 @@ export default function PlanListColumn({
                       >
                         ⋮⋮
                       </div>
-                      <div className="discussed-treatments-record-row-main">
-                        <div className="discussed-treatments-record-primary">
-                          {item.treatment || "—"}
+                      <div className="discussed-treatments-record-row-main discussed-treatments-record-row-heading-meta">
+                        <div className="discussed-treatments-record-treatment-heading">
+                          {getTreatmentDisplayName(item)}
                         </div>
-                        {(item.region ||
-                          item.product ||
-                          item.interest ||
-                          item.quantity) && (
-                          <div className="discussed-treatments-record-meta">
-                            {item.region ? (
-                              <span className="discussed-treatments-record-region">
-                                {item.region}
-                              </span>
-                            ) : item.product ? (
-                              <span className="discussed-treatments-record-product">
-                                {item.product}
-                              </span>
-                            ) : item.interest ? (
-                              <span className="discussed-treatments-record-for">
-                                {item.interest}
-                              </span>
-                            ) : null}
-                            {item.quantity && (
-                              <span className="discussed-treatments-record-quantity">
-                                Qty: {item.quantity}
-                              </span>
-                            )}
+                        {formatTreatmentPlanRecordMetaLine(item) ? (
+                          <div className="discussed-treatments-record-meta-line">
+                            {formatTreatmentPlanRecordMetaLine(item)}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   ))}

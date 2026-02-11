@@ -15,6 +15,23 @@ export function formatDate(dateString: string | null): string {
   }
 }
 
+/** Format ISO date string as date and time (e.g. "Jan 15, 2025 at 2:30 PM"). */
+export function formatDateTime(dateString: string | null | undefined): string {
+  if (!dateString) return '—';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch (e) {
+    return '—';
+  }
+}
+
 export function formatRelativeDate(dateString: string | null): string {
   if (!dateString) return 'No activity yet';
   

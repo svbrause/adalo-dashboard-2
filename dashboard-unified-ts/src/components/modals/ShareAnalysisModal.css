@@ -34,19 +34,13 @@
   margin-top: 0;
 }
 
-/* Checkbox and label on one line, next to each other (override .form-group label) */
+/* Checkbox and text inline, no flex/columns — just a small gap between them */
 .share-analysis-modal-content .form-group.share-analysis-checkbox-row {
   display: block;
-  width: 100%;
 }
 
 .share-analysis-modal-content .form-group.share-analysis-checkbox-row label.share-analysis-checkbox-label {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: nowrap;
-  width: auto;
-  max-width: 100%;
+  display: block !important;
   font-size: 14px;
   color: var(--theme-text-primary, #333);
   cursor: default;
@@ -54,15 +48,20 @@
   margin-bottom: 0;
 }
 
-.share-analysis-checkbox-text {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.share-analysis-include-link-checkbox {
-  width: 18px;
-  height: 18px;
+/* Override .form-group input { width: 100% } so checkbox stays narrow and left of text */
+.share-analysis-modal-content .form-group.share-analysis-checkbox-row input.share-analysis-include-link-checkbox {
+  width: 18px !important;
+  min-width: 18px;
+  max-width: 18px;
+  display: inline-block;
+  margin: 0 8px 0 0;
+  vertical-align: middle;
   accent-color: var(--theme-accent, #6366f1);
   cursor: default;
-  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.share-analysis-checkbox-text {
+  display: inline-block;
+  vertical-align: middle;
 }

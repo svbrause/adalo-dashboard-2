@@ -97,36 +97,34 @@ export const ASSESSMENT_FINDINGS_BY_AREA: {
   { area: "Nose", findings: ["Dorsal Hump", "Crooked Nose", "Droopy Tip"] },
 ];
 
-/** Skincare: specific products (brand + product) for carousel */
+/** Skincare: products from The Treatment Skin Boutique (shop.getthetreatment.com) + Other */
+import {
+  TREATMENT_BOUTIQUE_SKINCARE,
+  type TreatmentBoutiqueProduct,
+} from "./treatmentBoutiqueProducts";
+
 export const SKINCARE_PRODUCTS = [
-  "Skinceuticals Retinol 0.3",
-  "Skinceuticals Retinol 0.5",
-  "Skinceuticals Retinol 1.0",
-  "SkinMedica Retinol 0.25",
-  "SkinMedica Retinol 0.5",
-  "SkinMedica Retinol 1.0",
-  "CeraVe Resurfacing Retinol Serum",
-  "Paula's Choice 1% Retinol",
-  "Skinceuticals C E Ferulic",
-  "Skinceuticals Phloretin CF",
-  "SkinMedica Vitamin C+ E Complex",
-  "Drunk Elephant C-Firma",
-  "Skinceuticals Hyaluronic Acid",
-  "SkinMedica HA5 Rejuvenating Hydrator",
-  "CeraVe Moisturizing Cream",
-  "Skinceuticals Blemish + Age Defense",
-  "Paula's Choice 2% BHA",
-  "SkinMedica Lytic Treatment",
-  "Skinceuticals Discoloration Defense",
-  "SkinMedica Even Correct",
-  "Skinceuticals Metacell Renewal B3",
-  "SkinMedica TNS Advanced+",
-  "Neostrata Glycolic Renewal",
-  "Skinceuticals LHA Toner",
-  "EltaMD UV Clear",
-  "Skinceuticals Triple Lipid Restore",
+  ...TREATMENT_BOUTIQUE_SKINCARE.map((p) => p.name),
   "Other",
 ];
+
+/** Skincare carousel items: name + optional image URL (same order as SKINCARE_PRODUCTS) */
+export function getSkincareCarouselItems(): {
+  name: string;
+  imageUrl?: string;
+  productUrl?: string;
+}[] {
+  return [
+    ...TREATMENT_BOUTIQUE_SKINCARE.map(
+      (p: TreatmentBoutiqueProduct) => ({
+        name: p.name,
+        imageUrl: p.imageUrl,
+        productUrl: p.productUrl,
+      })
+    ),
+    { name: "Other" },
+  ];
+}
 
 /** Laser: specific devices for carousel */
 export const LASER_DEVICES = [
@@ -160,10 +158,10 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
     treatment: "Skincare",
     keywords: ["hydrate", "dry", "moisturize", "barrier", "laxity"],
     products: [
-      "Skinceuticals Hyaluronic Acid",
-      "SkinMedica HA5 Rejuvenating Hydrator",
-      "CeraVe Moisturizing Cream",
-      "Skinceuticals Triple Lipid Restore",
+      "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
+      "SkinCeuticals Hydrating B5 Gel | Lightweight Moisturizer with Vitamin B5 for Deep Skin Hydration",
+      "GM Collin Daily Ceramide Comfort | Nourishing Skin Barrier Capsules for Hydration & Repair (20 Ct.)",
+      "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
     ],
   },
   {
@@ -178,9 +176,9 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
       "benzoyl",
     ],
     products: [
-      "Skinceuticals Blemish + Age Defense",
-      "Paula's Choice 2% BHA",
-      "SkinMedica Lytic Treatment",
+      "SkinCeuticals Blemish + Age Defense | Targeted Serum for Acne and Signs of Aging",
+      "GM Collin Essential Oil Complex | Nourishing Blend for Calm, Hydrated, Glowing Skin",
+      "SkinCeuticals Silymarin CF | Antioxidant Serum for Oily & Acne-Prone Skin",
     ],
   },
   {
@@ -194,12 +192,12 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
       "melasma",
     ],
     products: [
-      "Skinceuticals C E Ferulic",
-      "Skinceuticals Phloretin CF",
-      "SkinMedica Vitamin C+ E Complex",
-      "Skinceuticals Discoloration Defense",
-      "SkinMedica Even Correct",
-      "EltaMD UV Clear",
+      "SkinCeuticals C E Ferulic | Antioxidant Vitamin C Serum for Brightening & Anti-Aging",
+      "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
+      "SkinCeuticals Serum 10 AOX | Antioxidant Serum with 10% Vitamin C for Brightening & Protection",
+      "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
+      "SkinCeuticals Phyto A+ Brightening Treatment | Lightweight Gel Moisturizer for Dull, Uneven Skin",
+      "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
     ],
   },
   {
@@ -213,23 +211,22 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
       "scar",
     ],
     products: [
-      "Skinceuticals Retinol 0.3",
-      "Skinceuticals Retinol 0.5",
-      "SkinMedica Retinol 0.25",
-      "SkinMedica Retinol 0.5",
-      "Skinceuticals C E Ferulic",
-      "SkinMedica TNS Advanced+",
-      "Skinceuticals Metacell Renewal B3",
-      "Neostrata Glycolic Renewal",
+      "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+      "SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+      "SkinCeuticals Retinol 1.0% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+      "SkinCeuticals C E Ferulic | Antioxidant Vitamin C Serum for Brightening & Anti-Aging",
+      "SkinCeuticals Metacell Renewal B3 | Brightening & Anti-Aging Serum with Vitamin B3",
+      "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
     ],
   },
   {
     treatment: "Skincare",
     keywords: ["sensitive", "redness", "irritat", "licorice", "centella"],
     products: [
-      "CeraVe Moisturizing Cream",
-      "Skinceuticals Triple Lipid Restore",
-      "EltaMD UV Clear",
+      "GM Collin Sensiderm Cleansing Milk | Gentle Cleanser for Sensitive & Irritated Skin",
+      "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
+      "SkinCeuticals Phyto Corrective Gel | Soothing Hydrating Serum for Redness & Sensitive Skin",
+      "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
     ],
   },
   {
@@ -437,13 +434,7 @@ export const TREATMENT_POSTCARE: Record<
 • Avoid harsh actives (retinoids, acids) for 3–5 days
 • No hot tubs, saunas, or intense exercise for 24–48 hours
 • Apply healing balm or recommended post-care as directed`,
-    suggestedProducts: [
-      "Sunscreen SPF 50+",
-      "Healing balm",
-      "Gentle cleanser",
-      "Post-care serum",
-      "Hydrating moisturizer",
-    ],
+    suggestedProducts: [],
   },
   "Chemical Peel": {
     sendInstructionsLabel: "Send chemical peel post-care instructions",
@@ -453,13 +444,7 @@ export const TREATMENT_POSTCARE: Record<
 • Avoid retinoids, AHAs/BHAs, and exfoliants for 5–7 days
 • No waxing or harsh treatments on treated area
 • Keep skin hydrated`,
-    suggestedProducts: [
-      "Gentle cleanser",
-      "Hydrating moisturizer",
-      "Sunscreen SPF 50+",
-      "Healing ointment",
-      "Vitamin C serum (after peel has healed)",
-    ],
+    suggestedProducts: [],
   },
   Microneedling: {
     sendInstructionsLabel: "Send microneedling post-care instructions",
@@ -468,13 +453,7 @@ export const TREATMENT_POSTCARE: Record<
 • Keep skin clean and moisturized; avoid harsh actives for 3–5 days
 • No saunas, hot yoga, or intense sweating for 24–48 hours
 • Use gentle, hydrating products only`,
-    suggestedProducts: [
-      "Hyaluronic acid serum",
-      "Healing balm",
-      "Gentle cleanser",
-      "Sunscreen SPF 50+",
-      "Growth factor serum",
-    ],
+    suggestedProducts: [],
   },
   Filler: {
     sendInstructionsLabel: "Send filler aftercare instructions",
@@ -483,12 +462,7 @@ export const TREATMENT_POSTCARE: Record<
 • Avoid alcohol and blood thinners for 24 hours
 • Ice if needed for swelling; sleep with head elevated first night
 • Call if you notice severe pain, vision changes, or blanching`,
-    suggestedProducts: [
-      "Arnica (for bruising)",
-      "Lip balm (for lip filler)",
-      "Gentle cleanser",
-      "Sunscreen SPF 50+",
-    ],
+    suggestedProducts: [],
   },
   Neurotoxin: {
     sendInstructionsLabel: "Send neurotoxin aftercare instructions",
@@ -496,11 +470,7 @@ export const TREATMENT_POSTCARE: Record<
 • No rubbing or massaging treated area for 24 hours
 • Avoid strenuous exercise for 24 hours
 • Results typically visible in 3–7 days`,
-    suggestedProducts: [
-      "Gentle cleanser",
-      "Sunscreen SPF 50+",
-      "Facial moisturizer",
-    ],
+    suggestedProducts: [],
   },
   Skincare: {
     sendInstructionsLabel: "Send skincare routine instructions",
@@ -841,9 +811,9 @@ export const REGION_OPTIONS = [
   "Multiple",
   "Other",
 ];
-export const TIMELINE_OPTIONS = ["Now", "Add next visit", "Wishlist"];
-/** Plan sections in display order (Now top, Wishlist bottom). */
-export const PLAN_SECTIONS = ["Now", "Add next visit", "Wishlist"] as const;
+export const TIMELINE_OPTIONS = ["Now", "Add next visit", "Wishlist", "Completed"];
+/** Plan sections in display order (Now top, Completed bottom). */
+export const PLAN_SECTIONS = ["Now", "Add next visit", "Wishlist", "Completed"] as const;
 
 export const QUANTITY_QUICK_OPTIONS_DEFAULT = ["1", "2", "3", "4", "5"];
 export const QUANTITY_OPTIONS_FILLER = ["1", "2", "3", "4", "5"];

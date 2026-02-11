@@ -24,6 +24,8 @@ export interface Provider {
 /** One item (treatment/product) discussed with the patient in clinic */
 export interface DiscussedItem {
   id: string;
+  /** ISO date string when this item was added to the plan */
+  addedAt?: string;
   /** High-level treatment interest from analysis (e.g. "Improve Cheek Definition") that this treatment addresses */
   interest?: string;
   /** Detected issues linked to this item (e.g. "Forehead Wrinkles") when added by patient interest */
