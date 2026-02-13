@@ -24,6 +24,7 @@ import NewClientSMSModal from "./NewClientSMSModal";
 import SendSMSModal from "./SendSMSModal";
 import DiscussedTreatmentsModal from "./DiscussedTreatmentsModal";
 import TreatmentPhotosModal from "./TreatmentPhotosModal";
+import AnalysisOverviewModal, { type DetailView } from "./AnalysisOverviewModal";
 import type { TreatmentPlanPrefill } from "./DiscussedTreatmentsModal/TreatmentPhotos";
 import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName } from "./DiscussedTreatmentsModal/utils";
 import { PLAN_SECTIONS } from "./DiscussedTreatmentsModal/constants";
@@ -74,6 +75,8 @@ export default function ClientDetailModal({
   const [showNewClientSMS, setShowNewClientSMS] = useState(false);
   const [showSendSMS, setShowSendSMS] = useState(false);
   const [showDiscussedTreatments, setShowDiscussedTreatments] = useState(false);
+  const [showAnalysisOverview, setShowAnalysisOverview] = useState(false);
+  const [returnToOverviewView, setReturnToOverviewView] = useState<DetailView | null>(null);
   const [initialAddFormPrefill, setInitialAddFormPrefill] =
     useState<TreatmentPlanPrefill | null>(null);
   const [issuePhotosContext, setIssuePhotosContext] = useState<{
@@ -793,14 +796,25 @@ export default function ClientDetailModal({
               </div>
               <div className="detail-actions-inline">
                 {facialAnalysisFormHasData && (
-                  <button
-                    type="button"
-                    className="btn-secondary btn-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowShareAnalysis(true);
-                    }}
-                  >
+                  <>
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowAnalysisOverview(true);
+                      }}
+                    >
+                      Overview
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowShareAnalysis(true);
+                      }}
+                    >
                     {/* <svg
                       width="14"
                       height="14"
@@ -815,6 +829,7 @@ export default function ClientDetailModal({
                     </svg> */}
                     Share with Patient
                   </button>
+                  </>
                 )}
                 {hasWebPopupForm && (
                   <div className="scan-client-dropdown" ref={scanDropdownRef}>
@@ -1104,6 +1119,22 @@ export default function ClientDetailModal({
           }}
         />
       )}
+      {showAnalysisOverview && client && (
+        <AnalysisOverviewModal
+          client={client}
+          onClose={() => {
+            setShowAnalysisOverview(false);
+            setReturnToOverviewView(null);
+          }}
+          initialDetailView={returnToOverviewView ?? undefined}
+          onAddToPlan={(prefill, detailView) => {
+            setShowAnalysisOverview(false);
+            setReturnToOverviewView(detailView ?? null);
+            setInitialAddFormPrefill(prefill);
+            setShowDiscussedTreatments(true);
+          }}
+        />
+      )}
       {showShareTreatmentPlan && client && (
         <ShareTreatmentPlanModal
           client={client}
@@ -1146,6 +1177,9 @@ export default function ClientDetailModal({
           onClose={() => {
             setShowDiscussedTreatments(false);
             setInitialAddFormPrefill(null);
+            if (returnToOverviewView !== null) {
+              setShowAnalysisOverview(true);
+            }
           }}
           onUpdate={onUpdate}
           initialAddFormPrefill={initialAddFormPrefill}

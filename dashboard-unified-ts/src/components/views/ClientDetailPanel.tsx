@@ -21,6 +21,7 @@ import NewClientSMSModal from "../modals/NewClientSMSModal";
 import SendSMSModal from "../modals/SendSMSModal";
 import DiscussedTreatmentsModal from "../modals/DiscussedTreatmentsModal";
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
+import AnalysisOverviewModal, { type DetailView } from "../modals/AnalysisOverviewModal";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName } from "../modals/DiscussedTreatmentsModal/utils";
 import { PLAN_SECTIONS } from "../modals/DiscussedTreatmentsModal/constants";
@@ -72,6 +73,8 @@ export default function ClientDetailPanel({
   const [showNewClientSMS, setShowNewClientSMS] = useState(false);
   const [showSendSMS, setShowSendSMS] = useState(false);
   const [showDiscussedTreatments, setShowDiscussedTreatments] = useState(false);
+  const [showAnalysisOverview, setShowAnalysisOverview] = useState(false);
+  const [returnToOverviewView, setReturnToOverviewView] = useState<DetailView | null>(null);
   const [initialAddFormPrefill, setInitialAddFormPrefill] =
     useState<TreatmentPlanPrefill | null>(null);
   const [issuePhotosContext, setIssuePhotosContext] = useState<{
@@ -154,6 +157,7 @@ export default function ClientDetailPanel({
         if (
           !showTelehealthSMS &&
           !showShareAnalysis &&
+          !showAnalysisOverview &&
           !showPhotoViewer &&
           !showNewClientSMS &&
           !showSendSMS &&
@@ -177,6 +181,7 @@ export default function ClientDetailPanel({
     onClose,
     showTelehealthSMS,
     showShareAnalysis,
+    showAnalysisOverview,
     showPhotoViewer,
     showNewClientSMS,
     showSendSMS,
@@ -845,16 +850,28 @@ export default function ClientDetailPanel({
               </div>
               <div className="detail-actions-inline">
                 {facialAnalysisFormHasData && (
-                  <button
-                    type="button"
-                    className="btn-secondary btn-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowShareAnalysis(true);
-                    }}
-                  >
-                    Share with Patient
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowAnalysisOverview(true);
+                      }}
+                    >
+                      Overview
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowShareAnalysis(true);
+                      }}
+                    >
+                      Share with Patient
+                    </button>
+                  </>
                 )}
                 {hasWebPopupForm && (
                   <div className="scan-client-dropdown" ref={scanDropdownRef}>
@@ -1093,6 +1110,22 @@ export default function ClientDetailPanel({
           }}
         />
       )}
+      {showAnalysisOverview && client && (
+        <AnalysisOverviewModal
+          client={client}
+          onClose={() => {
+            setShowAnalysisOverview(false);
+            setReturnToOverviewView(null);
+          }}
+          initialDetailView={returnToOverviewView ?? undefined}
+          onAddToPlan={(prefill, detailView) => {
+            setShowAnalysisOverview(false);
+            setReturnToOverviewView(detailView ?? null);
+            setInitialAddFormPrefill(prefill);
+            setShowDiscussedTreatments(true);
+          }}
+        />
+      )}
       {showShareTreatmentPlan && client && (
         <ShareTreatmentPlanModal
           client={client}
@@ -1135,6 +1168,9 @@ export default function ClientDetailPanel({
           onClose={() => {
             setShowDiscussedTreatments(false);
             setInitialAddFormPrefill(null);
+            if (returnToOverviewView !== null) {
+              setShowAnalysisOverview(true);
+            }
           }}
           onUpdate={onUpdate}
           initialAddFormPrefill={initialAddFormPrefill}

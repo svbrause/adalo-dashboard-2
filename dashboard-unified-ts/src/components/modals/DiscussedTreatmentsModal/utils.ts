@@ -53,6 +53,37 @@ export function getGoalRegionTreatmentsForFinding(
   return null;
 }
 
+/**
+ * Suggested treatments for a list of findings/issues (e.g. from analysis).
+ * Returns deduplicated entries with goal, region, and an example finding for prefill.
+ * Used by Analysis Overview category/area detail views.
+ */
+export function getSuggestedTreatmentsForFindings(findings: string[]): {
+  treatment: string;
+  goal: string;
+  region: string;
+  exampleFinding: string;
+}[] {
+  const seen = new Set<string>();
+  const result: { treatment: string; goal: string; region: string; exampleFinding: string }[] = [];
+  for (const finding of findings) {
+    const mapped = getGoalRegionTreatmentsForFinding(finding);
+    if (!mapped) continue;
+    for (const treatment of mapped.treatments) {
+      const key = `${treatment}|${mapped.goal}|${mapped.region}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push({
+        treatment,
+        goal: mapped.goal,
+        region: mapped.region,
+        exampleFinding: finding,
+      });
+    }
+  }
+  return result;
+}
+
 /** Findings that map to a given treatment (via getGoalRegionTreatmentsForFinding). */
 export function getFindingsForTreatment(treatment: string): string[] {
   const lower = (treatment || "").toLowerCase();
