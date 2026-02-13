@@ -23,7 +23,6 @@ import {
   getAreaDescriptionForPatient,
   type CategoryResult,
   type AreaResult,
-  type ThemeSummary,
 } from "../../config/analysisOverviewConfig";
 import { getSuggestedTreatmentsForFindings } from "./DiscussedTreatmentsModal/utils";
 import { TREATMENT_META } from "./DiscussedTreatmentsModal/constants";
@@ -850,7 +849,6 @@ function AreaDetailContent({
     (t) => t.totalCount - t.detectedCount,
     (t) => t.detectedCount
   );
-  const impCount = areaResult.improvements.length;
 
   return (
     <div className="ao-detail">
@@ -1131,9 +1129,6 @@ export default function AnalysisOverviewModal({
 
   const focusAreas = areaResults
     .filter((a) => a.hasInterest)
-    .sort((a, b) => a.score - b.score);
-  const otherAreas = areaResults
-    .filter((a) => !a.hasInterest)
     .sort((a, b) => a.score - b.score);
   const focusCount = focusAreas.length;
 
