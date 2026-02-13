@@ -20,13 +20,22 @@ export interface SubScoreDef {
 export interface CategoryDef {
   name: string;
   key: string;
+  description: string;
   subScores: SubScoreDef[];
 }
+
+/** Short category descriptions for overview cards */
+export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  skinHealth: "Covers wrinkles, texture, pigmentation, and hydration",
+  volumeLoss: "Evaluates facial volume in the eye, cheek, neck, and lower face areas",
+  proportions: "Assesses symmetry and balance of brow, jaw, nose, and lips",
+};
 
 export const CATEGORIES: CategoryDef[] = [
   {
     name: "Skin Health",
     key: "skinHealth",
+    description: "Covers wrinkles, texture, pigmentation, and hydration",
     subScores: [
       {
         name: "Wrinkles",
@@ -71,6 +80,7 @@ export const CATEGORIES: CategoryDef[] = [
   {
     name: "Volume Loss",
     key: "volumeLoss",
+    description: "Evaluates facial volume in the eye, cheek, neck, and lower face areas",
     subScores: [
       {
         name: "Eye Area",
@@ -108,6 +118,7 @@ export const CATEGORIES: CategoryDef[] = [
   {
     name: "Proportions",
     key: "proportions",
+    description: "Assesses symmetry and balance of brow, jaw, nose, and lips",
     subScores: [
       {
         name: "Brow & Eyes",

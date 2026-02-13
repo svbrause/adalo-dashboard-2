@@ -7,6 +7,7 @@ import { fetchTreatmentPhotos, fetchTableRecords } from "../../services/api";
 import type { AirtableRecord } from "../../services/api";
 import {
   CATEGORIES,
+  CATEGORY_DESCRIPTIONS,
   AREAS,
   normalizeIssue,
   computeCategories,
@@ -32,7 +33,8 @@ import "./AnalysisOverviewModal.css";
 export type DetailView =
   | null
   | { type: "category"; key: string }
-  | { type: "area"; name: string };
+  | { type: "area"; name: string }
+  | { type: "areas" };
 
 interface AnalysisOverviewModalProps {
   client: Client;
@@ -211,6 +213,9 @@ function getWhyThisTreatment(
 }
 
 /** Single treatment row: one relevant photo, why text, meta (longevity/downtime/price), Add to plan */
+const TIMELINE_OPTIONS = ["Now", "Next Visit", "Wishlist"] as const;
+type TimelineOption = typeof TIMELINE_OPTIONS[number];
+
 function TreatmentRowContent({
   suggestion,
   bestPhoto,
@@ -221,12 +226,30 @@ function TreatmentRowContent({
   onAddToPlan?: (prefill: TreatmentPlanPrefill) => void;
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [addedTimeline, setAddedTimeline] = useState<TimelineOption | null>(null);
   const meta = TREATMENT_META[suggestion.treatment];
   const whyText = getWhyThisTreatment(
     suggestion.exampleFinding,
     suggestion.goal,
     suggestion.treatment
   );
+
+  const handleAddWithTimeline = (timeline: TimelineOption) => {
+    setShowTimeline(false);
+    setAddedTimeline(timeline);
+    onAddToPlan?.({
+      interest: suggestion.goal,
+      region: suggestion.region,
+      treatment: suggestion.treatment,
+      findings: [suggestion.exampleFinding],
+      timeline,
+    });
+  };
+
+  const handleRemove = () => {
+    setAddedTimeline(null);
+  };
 
   return (
     <>
@@ -236,7 +259,7 @@ function TreatmentRowContent({
             <div className="ao-detail__treatment-info">
               <span className="ao-detail__treatment-name">{suggestion.treatment}</span>
               <span className="ao-detail__treatment-meta">
-                {suggestion.goal} · {suggestion.region}
+                {suggestion.exampleFinding} · {suggestion.region}
               </span>
             </div>
           </div>
@@ -249,21 +272,43 @@ function TreatmentRowContent({
             </div>
           )}
           {onAddToPlan && (
-            <button
-              type="button"
-              className="ao-detail__treatment-add"
-              onClick={() =>
-                onAddToPlan({
-                  interest: suggestion.goal,
-                  region: suggestion.region,
-                  treatment: suggestion.treatment,
-                  findings: [suggestion.exampleFinding],
-                  timeline: "Wishlist",
-                })
-              }
-            >
-              Add to plan
-            </button>
+            <div className="ao-detail__treatment-actions">
+              {addedTimeline ? (
+                <>
+                  <span className="ao-detail__treatment-added">
+                    ✓ {addedTimeline}
+                  </span>
+                  <button
+                    type="button"
+                    className="ao-detail__treatment-remove"
+                    onClick={handleRemove}
+                  >
+                    Remove
+                  </button>
+                </>
+              ) : showTimeline ? (
+                <div className="ao-detail__timeline-picker">
+                  {TIMELINE_OPTIONS.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className="ao-detail__timeline-btn"
+                      onClick={() => handleAddWithTimeline(t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="ao-detail__treatment-add"
+                  onClick={() => setShowTimeline(true)}
+                >
+                  Add to plan
+                </button>
+              )}
+            </div>
           )}
         </div>
         {bestPhoto ? (
@@ -324,6 +369,89 @@ function TreatmentRowContent({
   );
 }
 
+/** SVG radar/spider chart for category sub-scores */
+function RadarChart({
+  data,
+  size = 180,
+  animate,
+}: {
+  data: { name: string; score: number }[];
+  size?: number;
+  animate: boolean;
+}) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 28;
+  const n = data.length;
+  if (n < 3) return null;
+  const angleStep = (2 * Math.PI) / n;
+  const rings = [25, 50, 75, 100];
+
+  const pointAt = (i: number, val: number) => {
+    const angle = -Math.PI / 2 + i * angleStep;
+    const dist = (val / 100) * r;
+    return { x: cx + dist * Math.cos(angle), y: cy + dist * Math.sin(angle) };
+  };
+
+  const dataPoints = data.map((d, i) => pointAt(i, animate ? d.score : 0));
+  const polygon = dataPoints.map((p) => `${p.x},${p.y}`).join(" ");
+
+  return (
+    <div className="ao-radar">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Grid rings */}
+        {rings.map((ringVal) => (
+          <polygon
+            key={ringVal}
+            points={Array.from({ length: n }, (_, i) => {
+              const p = pointAt(i, ringVal);
+              return `${p.x},${p.y}`;
+            }).join(" ")}
+            fill="none"
+            stroke="rgba(0,0,0,0.08)"
+            strokeWidth="1"
+          />
+        ))}
+        {/* Axis lines */}
+        {data.map((_, i) => {
+          const p = pointAt(i, 100);
+          return (
+            <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(0,0,0,0.06)" strokeWidth="1" />
+          );
+        })}
+        {/* Data polygon */}
+        <polygon
+          points={polygon}
+          fill="rgba(59,130,246,0.15)"
+          stroke="#3b82f6"
+          strokeWidth="2"
+          style={{ transition: "all 0.6s ease-out" }}
+        />
+        {/* Data points */}
+        {dataPoints.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#3b82f6" style={{ transition: "all 0.6s ease-out" }} />
+        ))}
+        {/* Labels */}
+        {data.map((d, i) => {
+          const p = pointAt(i, 118);
+          return (
+            <text
+              key={d.name}
+              x={p.x}
+              y={p.y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="ao-radar__label"
+            >
+              {d.name}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 /** Horizontal bar for sub-score breakdown in category detail */
 function DetailBar({
   label,
@@ -370,6 +498,7 @@ function CategoryCard({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const color = tierColor(cat.tier);
+  const desc = CATEGORY_DESCRIPTIONS[cat.key] || "";
 
   return (
     <div
@@ -380,7 +509,10 @@ function CategoryCard({
         onClick={() => setOpen(!open)}
         type="button"
       >
-        <span className="ao-modal-cat-card__name">{cat.name}</span>
+        <div className="ao-modal-cat-card__header-left">
+          <span className="ao-modal-cat-card__name">{cat.name}</span>
+          {desc && <span className="ao-modal-cat-card__desc">{desc}</span>}
+        </div>
         <div className="ao-modal-cat-card__right">
           <span
             className="ao-modal-cat-card__score"
@@ -396,8 +528,13 @@ function CategoryCard({
 
       {open && (
         <div className="ao-modal-cat-card__body">
-          <div className="ao-modal-cat-card__breakdown">
-            <h4 className="ao-modal-cat-card__group-title">Breakdown</h4>
+          {cat.subScores.length >= 3 ? (
+            <RadarChart
+              data={cat.subScores.map((s) => ({ name: s.name, score: s.score }))}
+              size={200}
+              animate={animate}
+            />
+          ) : (
             <div className="ao-modal-cat-card__bars">
               {cat.subScores.map((s) => (
                 <DetailBar
@@ -408,7 +545,7 @@ function CategoryCard({
                 />
               ))}
             </div>
-          </div>
+          )}
           <button
             type="button"
             className="ao-modal-cat-card__explore"
@@ -417,7 +554,7 @@ function CategoryCard({
               onExploreDetails(cat.key);
             }}
           >
-            Explore {cat.name} →
+            Explore →
           </button>
         </div>
       )}
@@ -427,118 +564,30 @@ function CategoryCard({
 
 function AreaCard({
   area,
-  themes,
-  defaultOpen,
   onExploreDetails,
 }: {
   area: AreaResult;
-  themes: ThemeSummary[];
-  defaultOpen: boolean;
   onExploreDetails: (areaName: string) => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
   const color = tierColor(area.tier);
-  const { strengths, improvements } = splitStrengthsAndImprovements(
-    themes,
-    (t) => t.totalCount - t.detectedCount,
-    (t) => t.detectedCount
-  );
 
   return (
-    <div
-      className={`ao-modal-area-card ${open ? "ao-modal-area-card--open" : ""}`}
+    <button
+      type="button"
+      className="ao-modal-area-card"
+      onClick={() => onExploreDetails(area.name)}
     >
-      <button
-        className="ao-modal-area-card__header"
-        onClick={() => setOpen(!open)}
-        type="button"
-      >
-        <div className="ao-modal-area-card__left">
-          {area.hasInterest && (
-            <span className="ao-modal-area-card__star" aria-hidden>
-              ★
-            </span>
-          )}
-          <span className="ao-modal-area-card__name">{area.name}</span>
-        </div>
-        <div className="ao-modal-area-card__right">
-          <span
-            className="ao-modal-area-card__score"
-            style={{ background: color }}
-          >
-            {area.score}
+      <div className="ao-modal-area-card__left">
+        <span className="ao-modal-area-card__dot" style={{ background: color }} />
+        {area.hasInterest && (
+          <span className="ao-modal-area-card__star" aria-hidden>
+            ★
           </span>
-          <span className="ao-modal-area-card__chev" aria-hidden>
-            {open ? "▲" : "▼"}
-          </span>
-        </div>
-      </button>
-
-      {open && (
-        <div className="ao-modal-area-card__body">
-          <div className="ao-modal-area-card__group">
-            <h4 className="ao-modal-area-card__group-title ao-modal-area-card__group-title--good">
-              Strengths
-            </h4>
-            <div className="ao-modal-area-card__pills">
-              {strengths.length > 0 ? (
-                strengths.map((t) => (
-                  <span
-                    key={t.label}
-                    className="ao-modal-area-card__pill ao-modal-area-card__pill--good"
-                  >
-                    {t.label}
-                    <span className="ao-modal-area-card__pill-count">
-                      {t.totalCount - t.detectedCount}/{t.totalCount} look good
-                    </span>
-                  </span>
-                ))
-              ) : (
-                <span className="ao-modal-area-card__pill ao-modal-area-card__pill--good ao-modal-area-card__pill--empty">
-                  All features in this area need attention
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="ao-modal-area-card__group">
-            <h4 className="ao-modal-area-card__group-title ao-modal-area-card__group-title--imp">
-              Areas for Improvement
-            </h4>
-            <div className="ao-modal-area-card__pills">
-              {improvements.length > 0 ? (
-                improvements.map((t) => (
-                  <span
-                    key={t.label}
-                    className="ao-modal-area-card__pill ao-modal-area-card__pill--imp"
-                  >
-                    {t.label}
-                    {t.detectedCount > 0 && (
-                      <span className="ao-modal-area-card__pill-count">
-                        {t.detectedCount}/{t.totalCount}
-                      </span>
-                    )}
-                  </span>
-                ))
-              ) : (
-                <span className="ao-modal-area-card__pill ao-modal-area-card__pill--imp ao-modal-area-card__pill--empty">
-                  None — looking good
-                </span>
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="ao-modal-area-card__explore"
-            onClick={(e) => {
-              e.stopPropagation();
-              onExploreDetails(area.name);
-            }}
-          >
-            Explore {area.name} →
-          </button>
-        </div>
-      )}
-    </div>
+        )}
+        <span className="ao-modal-area-card__name">{area.name}</span>
+      </div>
+      <span className="ao-modal-area-card__chev" aria-hidden>→</span>
+    </button>
   );
 }
 
@@ -658,7 +707,6 @@ function CategoryDetailContent({
       </section>
 
       <section className="ao-detail__section">
-        <h3 className="ao-detail__section-title">Breakdown</h3>
         <div className="ao-detail__bars">
           {catResult.subScores.map((s) => (
             <DetailBar
@@ -672,57 +720,30 @@ function CategoryDetailContent({
       </section>
 
       <section className="ao-detail__section">
-        <h3 className="ao-detail__section-title ao-detail__section-title--good">
-          Strengths
-        </h3>
+        <h3 className="ao-detail__section-title">Feature Summary</h3>
         <div className="ao-detail__theme-list">
-          {strengthSubs.length > 0 ? (
-            strengthSubs.map((s) => (
-              <div
-                key={s.name}
-                className="ao-detail__theme-card ao-detail__theme-card--good"
-              >
-                <span className="ao-detail__theme-label">{s.name}</span>
-                <span className="ao-detail__theme-detail">
-                  {s.total - s.detected} of {s.total} features look good
-                  {s.score > 0 ? ` (score ${s.score})` : ""}
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="ao-detail__theme-card ao-detail__theme-card--good ao-detail__theme-card--empty">
-              <span className="ao-detail__theme-detail">
-                All features in this category need attention.
+          {strengthSubs.map((s) => (
+            <div
+              key={s.name}
+              className="ao-detail__feature-row ao-detail__feature-row--good"
+            >
+              <span className="ao-detail__feature-label">{s.name}</span>
+              <span className="ao-detail__feature-detail">
+                {s.total - s.detected} of {s.total} look good · score {s.score}
               </span>
             </div>
-          )}
-        </div>
-      </section>
-
-      <section className="ao-detail__section">
-        <h3 className="ao-detail__section-title ao-detail__section-title--imp">
-          Areas for Improvement
-        </h3>
-        <div className="ao-detail__theme-list">
-          {improvementSubs.length > 0 ? (
-            improvementSubs.map((s) => (
-              <div
-                key={s.name}
-                className="ao-detail__theme-card ao-detail__theme-card--imp"
-              >
-                <span className="ao-detail__theme-label">{s.name}</span>
-                <span className="ao-detail__theme-detail">
-                  {s.detected} of {s.total} features detected (score {s.score})
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="ao-detail__theme-card ao-detail__theme-card--imp ao-detail__theme-card--empty">
-              <span className="ao-detail__theme-detail">
-                No areas for improvement — all sub-scores are in good shape.
+          ))}
+          {improvementSubs.map((s) => (
+            <div
+              key={s.name}
+              className="ao-detail__feature-row ao-detail__feature-row--imp"
+            >
+              <span className="ao-detail__feature-label">{s.name}</span>
+              <span className="ao-detail__feature-detail">
+                {s.detected} of {s.total} detected · score {s.score}
               </span>
             </div>
-          )}
+          ))}
         </div>
       </section>
 
@@ -886,68 +907,32 @@ function AreaDetailContent({
       </section>
 
       <section className="ao-detail__section">
-        <h3 className="ao-detail__section-title">What We Analyzed</h3>
-        <p className="ao-detail__overview-text">
-          We evaluated {areaDef.issues.length} features in this area.{" "}
-          {impCount > 0
-            ? `${impCount} ${impCount === 1 ? "feature was" : "features were"} identified for potential improvement.`
-            : "No notable concerns were detected — looking great!"}
-        </p>
-      </section>
-
-      <section className="ao-detail__section">
-        <h3 className="ao-detail__section-title ao-detail__section-title--good">
-          Strengths
-        </h3>
+        <h3 className="ao-detail__section-title">Feature Summary</h3>
         <div className="ao-detail__theme-list">
-          {strengths.length > 0 ? (
-            strengths.map((t) => (
-              <div
-                key={t.label}
-                className="ao-detail__theme-card ao-detail__theme-card--good"
-              >
-                <span className="ao-detail__theme-label">{t.label}</span>
-                <span className="ao-detail__theme-detail">
-                  {t.totalCount - t.detectedCount} of {t.totalCount}{" "}
-                  {t.totalCount === 1 ? "feature" : "features"} look good
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="ao-detail__theme-card ao-detail__theme-card--good ao-detail__theme-card--empty">
-              <span className="ao-detail__theme-detail">
-                All features in this area need attention.
+          {strengths.map((t) => (
+            <div
+              key={t.label}
+              className="ao-detail__feature-row ao-detail__feature-row--good"
+            >
+              <span className="ao-detail__feature-label">{t.label}</span>
+              <span className="ao-detail__feature-detail">
+                {t.totalCount - t.detectedCount} of {t.totalCount}{" "}
+                {t.totalCount === 1 ? "feature" : "features"} look good
               </span>
             </div>
-          )}
-        </div>
-      </section>
-
-      <section className="ao-detail__section">
-        <h3 className="ao-detail__section-title ao-detail__section-title--imp">
-          Areas for Improvement
-        </h3>
-        <div className="ao-detail__theme-list">
-          {improvements.length > 0 ? (
-            improvements.map((t) => (
-              <div
-                key={t.label}
-                className="ao-detail__theme-card ao-detail__theme-card--imp"
-              >
-                <span className="ao-detail__theme-label">{t.label}</span>
-                <span className="ao-detail__theme-detail">
-                  {t.detectedCount} of {t.totalCount}{" "}
-                  {t.totalCount === 1 ? "feature" : "features"} detected
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="ao-detail__theme-card ao-detail__theme-card--imp ao-detail__theme-card--empty">
-              <span className="ao-detail__theme-detail">
-                No areas for improvement — all features in this area look good.
+          ))}
+          {improvements.map((t) => (
+            <div
+              key={t.label}
+              className="ao-detail__feature-row ao-detail__feature-row--imp"
+            >
+              <span className="ao-detail__feature-label">{t.label}</span>
+              <span className="ao-detail__feature-detail">
+                {t.detectedCount} of {t.totalCount}{" "}
+                {t.totalCount === 1 ? "feature" : "features"} detected
               </span>
             </div>
-          )}
+          ))}
         </div>
       </section>
 
@@ -1144,14 +1129,6 @@ export default function AnalysisOverviewModal({
     [detectedIssues, interestAreaNames]
   );
 
-  const areaThemes = useMemo(() => {
-    const map: Record<string, ThemeSummary[]> = {};
-    areaResults.forEach((a) => {
-      map[a.name] = summarizeAreaThemes(a.name, detectedIssues);
-    });
-    return map;
-  }, [areaResults, detectedIssues]);
-
   const focusAreas = areaResults
     .filter((a) => a.hasInterest)
     .sort((a, b) => a.score - b.score);
@@ -1169,6 +1146,8 @@ export default function AnalysisOverviewModal({
 
   const showCategoryDetail = detailView?.type === "category";
   const showAreaDetail = detailView?.type === "area";
+  const showAreasPage = detailView?.type === "areas";
+  const [aiSummaryOpen, setAiSummaryOpen] = useState(false);
 
   return (
     <div className="modal-overlay active" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="ao-modal-title">
@@ -1178,11 +1157,13 @@ export default function AnalysisOverviewModal({
       >
         <div className="analysis-overview-modal__header">
           <h2 id="ao-modal-title" className="analysis-overview-modal__title">
-            {showCategoryDetail && detailView
+            {showCategoryDetail && detailView?.type === "category"
               ? (categories.find((c) => c.key === detailView.key)?.name ?? detailView.key)
-              : showAreaDetail
-                ? (detailView?.name ?? "")
-                : "Analysis Overview"}
+              : showAreaDetail && detailView?.type === "area"
+                ? (detailView.name)
+                : showAreasPage
+                  ? "All Areas"
+                  : "Aesthetic Analysis"}
           </h2>
           <button
             type="button"
@@ -1223,62 +1204,190 @@ export default function AnalysisOverviewModal({
               clientFrontPhotoUrl={clientFrontPhotoUrl}
               clientSidePhotoUrl={clientSidePhotoUrl}
             />
+          ) : showAreasPage ? (
+            /* ===== All Areas inner page with face map ===== */
+            <div className="ao-detail">
+              <button
+                type="button"
+                className="ao-detail__back"
+                onClick={() => setDetailView(null)}
+                aria-label="Back to overview"
+              >
+                ← Back to Overview
+              </button>
+
+              {/* SVG face map */}
+              <div className="ao-face-map">
+                <svg viewBox="0 0 300 400" className="ao-face-map__svg">
+                  {/* Face outline */}
+                  <ellipse cx="150" cy="190" rx="110" ry="150" fill="none" stroke="#e0e0e0" strokeWidth="1.5" />
+                  {/* Forehead region */}
+                  <ellipse cx="150" cy="90" rx="80" ry="40"
+                    className="ao-face-map__region"
+                    fill={tierColor((areaResults.find(a => a.name === "Forehead") || { tier: "good" as const }).tier)}
+                    opacity="0.25"
+                    onClick={() => setDetailView({ type: "area", name: "Forehead" })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <text x="150" y="95" textAnchor="middle" className="ao-face-map__label">Forehead</text>
+                  {/* Eyes region */}
+                  <ellipse cx="110" cy="155" rx="30" ry="16"
+                    className="ao-face-map__region"
+                    fill={tierColor((areaResults.find(a => a.name === "Eyes") || { tier: "good" as const }).tier)}
+                    opacity="0.25"
+                    onClick={() => setDetailView({ type: "area", name: "Eyes" })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <ellipse cx="190" cy="155" rx="30" ry="16"
+                    className="ao-face-map__region"
+                    fill={tierColor((areaResults.find(a => a.name === "Eyes") || { tier: "good" as const }).tier)}
+                    opacity="0.25"
+                    onClick={() => setDetailView({ type: "area", name: "Eyes" })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <text x="150" y="150" textAnchor="middle" className="ao-face-map__label">Eyes</text>
+                  {/* Nose region */}
+                  <ellipse cx="150" cy="200" rx="18" ry="28"
+                    className="ao-face-map__region"
+                    fill={tierColor((areaResults.find(a => a.name === "Nose") || { tier: "good" as const }).tier)}
+                    opacity="0.25"
+                    onClick={() => setDetailView({ type: "area", name: "Nose" })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <text x="150" y="205" textAnchor="middle" className="ao-face-map__label">Nose</text>
+                  {/* Cheeks region */}
+                  <ellipse cx="80" cy="205" rx="30" ry="30"
+                    className="ao-face-map__region"
+                    fill={tierColor((areaResults.find(a => a.name === "Cheeks") || { tier: "good" as const }).tier)}
+                    opacity="0.25"
+                    onClick={() => setDetailView({ type: "area", name: "Cheeks" })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <ellipse cx="220" cy="205" rx="30" ry="30"
+                    className="ao-face-map__region"
+                    fill={tierColor((areaResults.find(a => a.name === "Cheeks") || { tier: "good" as const }).tier)}
+                    opacity="0.25"
+                    onClick={() => setDetailView({ type: "area", name: "Cheeks" })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <text x="80" y="210" textAnchor="middle" className="ao-face-map__label">Cheeks</text>
+                  {/* Lips region */}
+                  <ellipse cx="150" cy="260" rx="30" ry="14"
+                    className="ao-face-map__region"
+                    fill={tierColor((areaResults.find(a => a.name === "Lips") || { tier: "good" as const }).tier)}
+                    opacity="0.25"
+                    onClick={() => setDetailView({ type: "area", name: "Lips" })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <text x="150" y="264" textAnchor="middle" className="ao-face-map__label">Lips</text>
+                  {/* Jawline region */}
+                  <path d="M60,250 Q60,330 150,340 Q240,330 240,250"
+                    className="ao-face-map__region"
+                    fill={tierColor((areaResults.find(a => a.name === "Jawline") || { tier: "good" as const }).tier)}
+                    opacity="0.15"
+                    onClick={() => setDetailView({ type: "area", name: "Jawline" })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <text x="150" y="320" textAnchor="middle" className="ao-face-map__label">Jawline</text>
+                </svg>
+
+                {/* Legend */}
+                <div className="ao-face-map__legend">
+                  <span className="ao-face-map__legend-item">
+                    <span className="ao-face-map__legend-dot" style={{ background: tierColor("excellent") }} />
+                    Excellent
+                  </span>
+                  <span className="ao-face-map__legend-item">
+                    <span className="ao-face-map__legend-dot" style={{ background: tierColor("good") }} />
+                    Good
+                  </span>
+                  <span className="ao-face-map__legend-item">
+                    <span className="ao-face-map__legend-dot" style={{ background: tierColor("moderate") }} />
+                    Moderate
+                  </span>
+                  <span className="ao-face-map__legend-item">
+                    <span className="ao-face-map__legend-dot" style={{ background: tierColor("attention") }} />
+                    Attention
+                  </span>
+                </div>
+              </div>
+
+              {/* Area list below the map */}
+              <div className="analysis-overview-modal__areas-list">
+                {areaResults
+                  .sort((a, b) => a.score - b.score)
+                  .map((a) => (
+                    <AreaCard
+                      key={a.name}
+                      area={a}
+                      onExploreDetails={(name) => setDetailView({ type: "area", name })}
+                    />
+                  ))}
+              </div>
+            </div>
           ) : (
+            /* ===== Main overview ===== */
             <>
+              {/* Hero: front photo + score gauge + tier */}
               <section className="analysis-overview-modal__hero">
                 <div className="analysis-overview-modal__hero-card">
-                  <div className="analysis-overview-modal__score-and-desc">
-                    <div className="analysis-overview-modal__score-block">
-                      <ScoreGauge
-                        score={overall}
-                        size={128}
-                        strokeWidth={10}
-                        animate={animate}
-                        label="Overall Score"
+                  {clientFrontPhotoUrl && (
+                    <div className="analysis-overview-modal__client-photo-wrap">
+                      <img
+                        src={clientFrontPhotoUrl}
+                        alt="Patient"
+                        className="analysis-overview-modal__client-photo"
                       />
-                      <span
-                        className="analysis-overview-modal__tier"
-                        style={{ color: tierColor(overallTier) }}
-                      >
-                        {tierLabel(overallTier)}
-                      </span>
-                    </div>
-                    <p className="analysis-overview-modal__assessment analysis-overview-modal__assessment--hero">
-                      {assessmentText}
-                    </p>
-                  </div>
-                  {(clientFrontPhotoUrl || clientSidePhotoUrl) && (
-                    <div className="analysis-overview-modal__client-photos">
-                      {clientFrontPhotoUrl && (
-                        <div className="analysis-overview-modal__client-photo-wrap">
-                          <img
-                            src={clientFrontPhotoUrl}
-                            alt="Front"
-                            className="analysis-overview-modal__client-photo"
-                          />
-                          <span className="analysis-overview-modal__client-photo-label">Front</span>
-                        </div>
-                      )}
-                      {clientSidePhotoUrl && (
-                        <div className="analysis-overview-modal__client-photo-wrap">
-                          <img
-                            src={clientSidePhotoUrl}
-                            alt="Side"
-                            className="analysis-overview-modal__client-photo"
-                          />
-                          <span className="analysis-overview-modal__client-photo-label">Side</span>
-                        </div>
-                      )}
                     </div>
                   )}
+                  <div className="analysis-overview-modal__score-block">
+                    <ScoreGauge
+                      score={overall}
+                      size={110}
+                      strokeWidth={10}
+                      animate={animate}
+                      label="Aesthetic Age"
+                    />
+                    <span
+                      className="analysis-overview-modal__tier"
+                      style={{ color: tierColor(overallTier) }}
+                    >
+                      {tierLabel(overallTier)}
+                    </span>
+                  </div>
                 </div>
+              </section>
 
+              {/* AI Summary: "Aesthetic Intelligence" branded, collapsed by default */}
+              <section className="ao-ai-summary">
+                <button
+                  type="button"
+                  className="ao-ai-summary__toggle"
+                  onClick={() => setAiSummaryOpen(!aiSummaryOpen)}
+                >
+                  <div className="ao-ai-summary__brand">
+                    <span className="ao-ai-summary__icon" aria-hidden>✦</span>
+                    <span className="ao-ai-summary__label">Aesthetic Intelligence</span>
+                  </div>
+                  <span className="ao-ai-summary__chev" aria-hidden>
+                    {aiSummaryOpen ? "▲" : "▼"}
+                  </span>
+                </button>
+                {aiSummaryOpen && (
+                  <div className="ao-ai-summary__body">
+                    <p className="ao-ai-summary__text">{assessmentText}</p>
+                  </div>
+                )}
+              </section>
+
+              {/* Category sub-scores */}
+              <section className="analysis-overview-modal__categories">
                 <div className="analysis-overview-modal__cat-cards">
                   {categories.map((c) => (
                     <CategoryCard
                       key={c.key}
                       cat={c}
-                      defaultOpen={true}
+                      defaultOpen={false}
                       animate={animate}
                       onExploreDetails={(key) => setDetailView({ type: "category", key })}
                     />
@@ -1286,46 +1395,33 @@ export default function AnalysisOverviewModal({
                 </div>
               </section>
 
-              <section className="analysis-overview-modal__areas">
-                {focusAreas.length > 0 && (
-                  <div className="analysis-overview-modal__area-group">
-                    <h3 className="analysis-overview-modal__area-group-title">
-                      <span className="analysis-overview-modal__area-group-icon" aria-hidden>★</span>
-                      Focus Areas
-                    </h3>
-                    <div className="analysis-overview-modal__area-grid">
-                      {focusAreas.map((a) => (
-                        <AreaCard
-                          key={a.name}
-                          area={a}
-                          themes={areaThemes[a.name] || []}
-                          defaultOpen={true}
-                          onExploreDetails={(name) => setDetailView({ type: "area", name })}
-                        />
-                      ))}
-                    </div>
+              {/* Focus Areas (if any) */}
+              {focusAreas.length > 0 && (
+                <section className="analysis-overview-modal__areas">
+                  <h3 className="analysis-overview-modal__area-group-title">
+                    <span className="analysis-overview-modal__area-group-icon" aria-hidden>★</span>
+                    Focus Areas
+                  </h3>
+                  <div className="analysis-overview-modal__area-grid">
+                    {focusAreas.map((a) => (
+                      <AreaCard
+                        key={a.name}
+                        area={a}
+                        onExploreDetails={(name) => setDetailView({ type: "area", name })}
+                      />
+                    ))}
                   </div>
-                )}
+                </section>
+              )}
 
-                {otherAreas.length > 0 && (
-                  <div className="analysis-overview-modal__area-group">
-                    <h3 className="analysis-overview-modal__area-group-title">
-                      All Areas
-                    </h3>
-                    <div className="analysis-overview-modal__area-grid">
-                      {otherAreas.map((a) => (
-                        <AreaCard
-                          key={a.name}
-                          area={a}
-                          themes={areaThemes[a.name] || []}
-                          defaultOpen={false}
-                          onExploreDetails={(name) => setDetailView({ type: "area", name })}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </section>
+              {/* View All Areas link */}
+              <button
+                type="button"
+                className="analysis-overview-modal__view-all-areas"
+                onClick={() => setDetailView({ type: "areas" })}
+              >
+                View All Areas →
+              </button>
             </>
           )}
         </div>
