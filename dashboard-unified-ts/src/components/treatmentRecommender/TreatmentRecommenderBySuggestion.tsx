@@ -139,7 +139,7 @@ export interface TreatmentRecommenderBySuggestionProps {
 
 export default function TreatmentRecommenderBySuggestion({
   client,
-  onBack,
+  onBack: _onBack,
   onUpdate,
   onAddToPlanDirect,
   onOpenTreatmentPlan,
