@@ -69,7 +69,7 @@ interface TreatmentPhotosProps {
   demoPhotos?: TreatmentPhoto[] | null;
 }
 
-/** Data to prefill the treatment planning form when adding from a photo */
+/** Data to prefill the treatment planning form when adding from a photo or recommender */
 export interface TreatmentPlanPrefill {
   interest: string;
   region: string;
@@ -80,6 +80,10 @@ export interface TreatmentPlanPrefill {
   /** Issue/finding when opened from an issue */
   findings?: string[];
   timeline?: string;
+  /** Optional quantity (e.g. "2" or "2 Syringes") – prefilled from recommender optional details */
+  quantity?: string;
+  /** Optional notes – prefilled from recommender optional details */
+  notes?: string;
 }
 
 /** Map Airtable record to TreatmentPhoto type */

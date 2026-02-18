@@ -89,6 +89,10 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    document.body.classList.add("pastel-teal-theme");
+    return () => document.body.classList.remove("pastel-teal-theme");
+  }, []);
   return (
     <DashboardProvider>
       <AppContent />

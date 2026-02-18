@@ -66,15 +66,22 @@
 }
 
 .nav-item:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--theme-nav-hover-bg, rgba(0, 0, 0, 0.03));
   color: var(--theme-text-primary);
 }
 
 .nav-item.active {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--theme-nav-active-bg, rgba(0, 0, 0, 0.05));
   color: var(--theme-text-primary);
-  border-left-color: transparent;
+  border-left-color: var(--theme-nav-active-border, transparent);
   font-weight: 600;
+}
+
+/* All Clients link: white text on active/blue background (override theme text color) */
+.nav-item--all-clients,
+.nav-item--all-clients:hover,
+.nav-item--all-clients.active {
+  color: #fff !important;
 }
 
 .nav-divider {

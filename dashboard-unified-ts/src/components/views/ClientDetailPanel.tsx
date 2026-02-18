@@ -1,7 +1,7 @@
 // Client Detail Panel Component - Side panel version (non-modal)
 
 import { useState, useEffect, useRef } from "react";
-import { Client } from "../../types";
+import { Client, DiscussedItem } from "../../types";
 import { formatDate, formatRelativeDate } from "../../utils/dateFormatting";
 import {
   formatFacialStatusForDisplay,
@@ -23,8 +23,10 @@ import DiscussedTreatmentsModal from "../modals/DiscussedTreatmentsModal";
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import AnalysisOverviewModal, { type DetailView } from "../modals/AnalysisOverviewModal";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
-import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName } from "../modals/DiscussedTreatmentsModal/utils";
-import { PLAN_SECTIONS } from "../modals/DiscussedTreatmentsModal/constants";
+import TreatmentRecommenderByTreatment from "../treatmentRecommender/TreatmentRecommenderByTreatment";
+import TreatmentRecommenderBySuggestion from "../treatmentRecommender/TreatmentRecommenderBySuggestion";
+import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName, generateId } from "../modals/DiscussedTreatmentsModal/utils";
+import { PLAN_SECTIONS, AIRTABLE_FIELD } from "../modals/DiscussedTreatmentsModal/constants";
 import {
   getJotformUrl,
   formatProviderDisplayName,
@@ -77,13 +79,17 @@ export default function ClientDetailPanel({
   const [returnToOverviewView, setReturnToOverviewView] = useState<DetailView | null>(null);
   const [initialAddFormPrefill, setInitialAddFormPrefill] =
     useState<TreatmentPlanPrefill | null>(null);
+  const [initialEditingItem, setInitialEditingItem] = useState<DiscussedItem | null>(null);
   const [issuePhotosContext, setIssuePhotosContext] = useState<{
     issue?: string;
     region?: string;
     interest?: string;
   } | null>(null);
+  const [recommenderMode, setRecommenderMode] = useState<"by-treatment" | "by-suggestion" | null>(null);
   const scanDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  /** Called when treatment plan modal closes so recommenders can clear "just added" state */
+  const treatmentPlanModalClosedRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (client) {
@@ -382,6 +388,106 @@ export default function ClientDetailPanel({
         </div>
 
         <div className="client-detail-panel-body">
+          {recommenderMode === "by-treatment" && client && (
+            <TreatmentRecommenderByTreatment
+              client={client}
+              onBack={() => setRecommenderMode(null)}
+              onUpdate={onUpdate}
+              onAddToPlanDirect={async (prefill) => {
+                const newItem: DiscussedItem = {
+                  id: generateId(),
+                  addedAt: new Date().toISOString(),
+                  interest: prefill.interest?.trim() || undefined,
+                  findings: prefill.findings?.length ? prefill.findings : undefined,
+                  treatment: prefill.treatment?.trim() || "",
+                  product: prefill.treatmentProduct?.trim() || undefined,
+                  region: prefill.region?.trim() || undefined,
+                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+                  quantity: prefill.quantity?.trim() || undefined,
+                  notes: prefill.notes?.trim() || undefined,
+                };
+                const nextItems = [...(client.discussedItems || []), newItem];
+                try {
+                  await updateLeadRecord(client.id, client.tableSource, {
+                    [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+                  });
+                  showToast("Added to treatment plan");
+                  onUpdate();
+                  return newItem;
+                } catch (e) {
+                  showError(e instanceof Error ? e.message : "Failed to add to plan");
+                  throw e;
+                }
+              }}
+              onOpenTreatmentPlan={() => {
+                setShowDiscussedTreatments(true);
+                setInitialAddFormPrefill(null);
+                setInitialEditingItem(null);
+              }}
+              onOpenTreatmentPlanWithPrefill={(prefill) => {
+                setInitialAddFormPrefill(prefill);
+                setInitialEditingItem(null);
+                setShowDiscussedTreatments(true);
+              }}
+              onOpenTreatmentPlanWithItem={(item) => {
+                setInitialEditingItem(item);
+                setInitialAddFormPrefill(null);
+                setShowDiscussedTreatments(true);
+              }}
+              treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
+            />
+          )}
+          {recommenderMode === "by-suggestion" && client && (
+            <TreatmentRecommenderBySuggestion
+              client={client}
+              onBack={() => setRecommenderMode(null)}
+              onUpdate={onUpdate}
+              onAddToPlanDirect={async (prefill) => {
+                const newItem: DiscussedItem = {
+                  id: generateId(),
+                  addedAt: new Date().toISOString(),
+                  interest: prefill.interest?.trim() || undefined,
+                  findings: prefill.findings?.length ? prefill.findings : undefined,
+                  treatment: prefill.treatment?.trim() || "",
+                  product: prefill.treatmentProduct?.trim() || undefined,
+                  region: prefill.region?.trim() || undefined,
+                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+                  quantity: prefill.quantity?.trim() || undefined,
+                  notes: prefill.notes?.trim() || undefined,
+                };
+                const nextItems = [...(client.discussedItems || []), newItem];
+                try {
+                  await updateLeadRecord(client.id, client.tableSource, {
+                    [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+                  });
+                  showToast("Added to treatment plan");
+                  onUpdate();
+                  return newItem;
+                } catch (e) {
+                  showError(e instanceof Error ? e.message : "Failed to add to plan");
+                  throw e;
+                }
+              }}
+              onOpenTreatmentPlan={() => {
+                setShowDiscussedTreatments(true);
+                setInitialAddFormPrefill(null);
+                setInitialEditingItem(null);
+              }}
+              onOpenTreatmentPlanWithPrefill={(prefill) => {
+                setInitialAddFormPrefill(prefill);
+                setInitialEditingItem(null);
+                setShowDiscussedTreatments(true);
+              }}
+              onOpenTreatmentPlanWithItem={(item) => {
+                setInitialEditingItem(item);
+                setInitialAddFormPrefill(null);
+                setShowDiscussedTreatments(true);
+              }}
+              treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
+            />
+          )}
+          {!recommenderMode ? (
+            <div className="client-detail-panel-main">
           {/* Contact Information Section */}
           <div
             className={`detail-section modal-contact-section ${
@@ -949,13 +1055,35 @@ export default function ClientDetailPanel({
                 </div>
                 <div className="discussed-treatments-in-facial-actions">
                   {facialAnalysisFormHasData && (
-                    <button
-                      type="button"
-                      className="btn-secondary btn-sm"
-                      onClick={() => setShowShareTreatmentPlan(true)}
-                    >
-                      Share with Patient
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() => setShowShareTreatmentPlan(true)}
+                      >
+                        Share with Patient
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRecommenderMode("by-treatment");
+                        }}
+                      >
+                        Recommender (by treatment)
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRecommenderMode("by-suggestion");
+                        }}
+                      >
+                        Recommender (by suggestion)
+                      </button>
+                    </>
                   )}
                   <button
                     type="button"
@@ -1087,9 +1215,12 @@ export default function ClientDetailPanel({
             </div>
           </div>
         </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Modals */}
+
       {showTelehealthSMS && (
         <TelehealthSMSModal
           client={client}
@@ -1168,6 +1299,9 @@ export default function ClientDetailPanel({
           onClose={() => {
             setShowDiscussedTreatments(false);
             setInitialAddFormPrefill(null);
+            setInitialEditingItem(null);
+            treatmentPlanModalClosedRef.current?.();
+            onUpdate();
             if (returnToOverviewView !== null) {
               setShowAnalysisOverview(true);
             }
@@ -1175,6 +1309,7 @@ export default function ClientDetailPanel({
           onUpdate={onUpdate}
           initialAddFormPrefill={initialAddFormPrefill}
           onClearInitialPrefill={() => setInitialAddFormPrefill(null)}
+          initialEditingItem={initialEditingItem}
         />
       )}
       {issuePhotosContext && client && (

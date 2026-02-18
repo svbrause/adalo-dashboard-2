@@ -291,13 +291,13 @@ export function tierLabel(tier: ScoreTier): string {
 export function tierColor(tier: ScoreTier): string {
   switch (tier) {
     case "excellent":
-      return "#4CAF50";
+      return "#43a047";
     case "good":
-      return "#8BC34A";
+      return "#66bb6a";
     case "moderate":
-      return "#FFA726";
+      return "#f9a825";
     case "attention":
-      return "#E65100";
+      return "#ef6c00";
   }
 }
 

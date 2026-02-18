@@ -1,0 +1,77 @@
+/* Treatment Recommender – shared filters */
+
+.treatment-recommender-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--theme-border, #e8e8e8);
+  margin-bottom: 16px;
+}
+
+.treatment-recommender-filters__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.treatment-recommender-filters__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-filters__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.treatment-recommender-filters__chip {
+  padding: 8px 14px;
+  font-size: 0.875rem;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #212121);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.treatment-recommender-filters__chip:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  border-color: var(--theme-border-strong, #ccc);
+}
+
+.treatment-recommender-filters__chip--selected {
+  background: var(--theme-accent, #0d9488);
+  border-color: var(--theme-accent, #0d9488);
+  color: #fff;
+}
+
+.treatment-recommender-filters__chip--selected:hover {
+  background: var(--theme-accent-hover, #0f766e);
+  border-color: var(--theme-accent-hover, #0f766e);
+  color: #fff;
+}
+
+.treatment-recommender-filters__select {
+  max-width: 400px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-filters__select--multi {
+  min-height: 80px;
+}
+
+.treatment-recommender-filters__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-muted, #757575);
+}
+

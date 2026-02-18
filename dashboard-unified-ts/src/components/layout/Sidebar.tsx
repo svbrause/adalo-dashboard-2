@@ -79,7 +79,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       <nav className="sidebar-nav">
         <a
           href="#"
-          className={`nav-item ${
+          className={`nav-item nav-item--all-clients ${
             currentView === "list" || currentView === "cards" ? "active" : ""
           }`}
           onClick={(e) => {

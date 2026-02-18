@@ -58,9 +58,12 @@ export default function DiscussedTreatmentsModal({
   /** When set, open the add form with this prefill (e.g. from Treatment Explorer "Add to plan" when opened from Client Detail) */
   initialAddFormPrefill = null,
   onClearInitialPrefill,
+  /** When set, open the modal with this item selected for editing (e.g. "Add additional details" from Treatment Recommender) */
+  initialEditingItem = null,
 }: DiscussedTreatmentsModalProps & {
   initialAddFormPrefill?: TreatmentPlanPrefill | null;
   onClearInitialPrefill?: () => void;
+  initialEditingItem?: DiscussedItem | null;
 }) {
   const [items, setItems] = useState<DiscussedItem[]>(
     client.discussedItems?.length ? [...client.discussedItems] : []
@@ -1065,6 +1068,8 @@ export default function DiscussedTreatmentsModal({
           quantityUnit: treatment
             ? getQuantityContext(treatment).unitLabel
             : f.quantityUnit,
+          quantity: prefilled.quantity ?? f.quantity,
+          notes: prefilled.notes ?? f.notes,
           selectedFindingsByTreatment: {
             ...f.selectedFindingsByTreatment,
             ...(treatment && prefilled.findings?.length
@@ -1131,6 +1136,8 @@ export default function DiscussedTreatmentsModal({
       quantityUnit: treatment
         ? getQuantityContext(treatment).unitLabel
         : f.quantityUnit,
+      quantity: prefilled.quantity ?? f.quantity,
+      notes: prefilled.notes ?? f.notes,
       selectedFindingsByTreatment: {
         ...f.selectedFindingsByTreatment,
         ...(treatment && prefilled.findings?.length
@@ -1145,6 +1152,51 @@ export default function DiscussedTreatmentsModal({
     setShowFullInterestList(false);
     onClearInitialPrefill();
   }, [initialAddFormPrefill, onClearInitialPrefill]);
+
+  /** When opened with an item to edit (e.g. "Add additional details" from Treatment Recommender), ensure it's in the list and open edit form */
+  useEffect(() => {
+    if (!initialEditingItem) return;
+    const item = initialEditingItem;
+    setItems((prev) =>
+      prev.some((i) => i.id === item.id) ? prev : [item, ...prev]
+    );
+    setEditingId(item.id);
+    setShowAddForm(true);
+    const timeline = item.timeline?.trim() || "";
+    const hasOptional = !!(
+      timeline ||
+      (item.notes?.trim() ?? "") ||
+      (item.quantity?.trim() ?? "")
+    );
+    setEditShowOptionalDetails(hasOptional);
+    const qRaw = item.quantity?.trim() || "";
+    const qtyCtx = getQuantityContext(item.treatment?.trim());
+    const parsed =
+      /^(\d+)\s+(.+)$/.exec(qRaw) ||
+      (qRaw && !/^\d+$/.test(qRaw) ? null : null);
+    const quantity = parsed ? parsed[1]! : qRaw;
+    const rawUnit = parsed ? parsed[2]!.trim() : "";
+    const matchedUnit = rawUnit
+      ? QUANTITY_UNIT_OPTIONS.find(
+          (u) => u.toLowerCase() === rawUnit.toLowerCase()
+        )
+      : undefined;
+    const quantityUnit = matchedUnit ?? (qRaw ? qtyCtx.unitLabel : "");
+    setEditForm({
+      interest: item.interest?.trim() || "",
+      treatment: item.treatment?.trim() || "",
+      product: item.product?.trim() || "",
+      quantity,
+      quantityUnit,
+      brand: "",
+      brandOther: "",
+      region: "",
+      regionOther: "",
+      timeline: TIMELINE_OPTIONS.includes(timeline) ? timeline : "",
+      timelineOther: "",
+      notes: item.notes?.trim() || "",
+    });
+  }, [initialEditingItem]);
 
   const hasAnyTreatmentSelected =
     (addMode === "treatment" &&

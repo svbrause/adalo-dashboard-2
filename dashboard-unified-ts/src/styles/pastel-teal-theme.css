@@ -1,0 +1,46 @@
+/**
+ * Pastel Teal & Gray theme — from PASTEL_TEAL_GRAY_STYLE_GUIDE.md
+ * Apply by adding class "pastel-teal-theme" to body (e.g. in App.tsx).
+ * Existing Lakeshore variables in :root are unchanged; this overrides them when the class is present.
+ */
+
+.pastel-teal-theme {
+  /* Teal (primary accent) */
+  --theme-accent: #367588;
+  --theme-accent-hover: #2c5f6b;
+  --theme-primary-btn: #367588;
+  --theme-primary-btn-hover: #2c5f6b;
+
+  /* Backgrounds — page and cards */
+  --theme-bg-gradient: linear-gradient(180deg, #f8f9fa 0%, #f3f4f6 50%, #ffffff 100%);
+  --theme-bg-card: #ffffff;
+
+  /* Grays — borders and text */
+  --theme-border: #E5E7EB;
+  --theme-text-primary: #111827;
+  --theme-text-secondary: #6B7280;
+  --theme-text-muted: #6B7280;
+
+  /* Shadows — subtle */
+  --theme-shadow: rgba(54, 117, 136, 0.06);
+  --theme-shadow-hover: rgba(54, 117, 136, 0.12);
+
+  /* Nav/sidebar (pastel teal when theme is on) */
+  --theme-nav-active-bg: #e6f3f7;
+  --theme-nav-active-border: #367588;
+  --theme-nav-hover-bg: rgba(54, 117, 136, 0.08);
+}
+
+/* Optional: pastel teal accents for selected/hover areas (use var(--teal-pastel-bg) in components if desired) */
+.pastel-teal-theme {
+  --teal-primary: #367588;
+  --teal-secondary: #2c5f6b;
+  --teal-pastel-bg: #e6f3f7;
+  --teal-tint-10: rgba(54, 117, 136, 0.1);
+  --teal-tint-20: rgba(54, 117, 136, 0.2);
+  --teal-tint-30: rgba(54, 117, 136, 0.3);
+  --gray-page-bg: #f8f9fa;
+  --gray-section-bg: #F3F4F6;
+  --gray-border: #E5E7EB;
+  --gray-border-hover: #D1D5DB;
+}

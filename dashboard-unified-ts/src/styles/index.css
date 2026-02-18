@@ -1,6 +1,7 @@
 /* Dashboard Styles - Aligned with STYLE_GUIDE.md */
 @import "./utilities.css";
 @import "./forms.css";
+@import "./pastel-teal-theme.css";
 
 * {
   margin: 0;

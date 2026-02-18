@@ -1,7 +1,7 @@
 // Client Detail Modal Component - Complete Version
 
 import { useState, useEffect, useRef } from "react";
-import { Client } from "../../types";
+import { Client, DiscussedItem } from "../../types";
 import { formatDate, formatRelativeDate } from "../../utils/dateFormatting";
 import {
   formatFacialStatusForDisplay,
@@ -26,8 +26,10 @@ import DiscussedTreatmentsModal from "./DiscussedTreatmentsModal";
 import TreatmentPhotosModal from "./TreatmentPhotosModal";
 import AnalysisOverviewModal, { type DetailView } from "./AnalysisOverviewModal";
 import type { TreatmentPlanPrefill } from "./DiscussedTreatmentsModal/TreatmentPhotos";
-import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName } from "./DiscussedTreatmentsModal/utils";
-import { PLAN_SECTIONS } from "./DiscussedTreatmentsModal/constants";
+import TreatmentRecommenderByTreatment from "../treatmentRecommender/TreatmentRecommenderByTreatment";
+import TreatmentRecommenderBySuggestion from "../treatmentRecommender/TreatmentRecommenderBySuggestion";
+import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName, generateId } from "./DiscussedTreatmentsModal/utils";
+import { PLAN_SECTIONS, AIRTABLE_FIELD } from "./DiscussedTreatmentsModal/constants";
 import {
   getJotformUrl,
   formatProviderDisplayName,
@@ -79,12 +81,15 @@ export default function ClientDetailModal({
   const [returnToOverviewView, setReturnToOverviewView] = useState<DetailView | null>(null);
   const [initialAddFormPrefill, setInitialAddFormPrefill] =
     useState<TreatmentPlanPrefill | null>(null);
+  const [initialEditingItem, setInitialEditingItem] = useState<DiscussedItem | null>(null);
   const [issuePhotosContext, setIssuePhotosContext] = useState<{
     issue?: string;
     region?: string;
     interest?: string;
   } | null>(null);
+  const [recommenderMode, setRecommenderMode] = useState<"by-treatment" | "by-suggestion" | null>(null);
   const scanDropdownRef = useRef<HTMLDivElement>(null);
+  const treatmentPlanModalClosedRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (client) {
@@ -344,6 +349,106 @@ export default function ClientDetailModal({
         </div>
 
         <div className="modal-body">
+          {recommenderMode === "by-treatment" && client && (
+            <TreatmentRecommenderByTreatment
+              client={client}
+              onBack={() => setRecommenderMode(null)}
+              onUpdate={onUpdate}
+              onAddToPlanDirect={async (prefill) => {
+                const newItem: DiscussedItem = {
+                  id: generateId(),
+                  addedAt: new Date().toISOString(),
+                  interest: prefill.interest?.trim() || undefined,
+                  findings: prefill.findings?.length ? prefill.findings : undefined,
+                  treatment: prefill.treatment?.trim() || "",
+                  product: prefill.treatmentProduct?.trim() || undefined,
+                  region: prefill.region?.trim() || undefined,
+                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+                  quantity: prefill.quantity?.trim() || undefined,
+                  notes: prefill.notes?.trim() || undefined,
+                };
+                const nextItems = [...(client.discussedItems || []), newItem];
+                try {
+                  await updateLeadRecord(client.id, client.tableSource, {
+                    [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+                  });
+                  showToast("Added to treatment plan");
+                  onUpdate();
+                  return newItem;
+                } catch (e) {
+                  showError(e instanceof Error ? e.message : "Failed to add to plan");
+                  throw e;
+                }
+              }}
+              onOpenTreatmentPlan={() => {
+                setShowDiscussedTreatments(true);
+                setInitialAddFormPrefill(null);
+                setInitialEditingItem(null);
+              }}
+              onOpenTreatmentPlanWithPrefill={(prefill) => {
+                setInitialAddFormPrefill(prefill);
+                setInitialEditingItem(null);
+                setShowDiscussedTreatments(true);
+              }}
+              onOpenTreatmentPlanWithItem={(item) => {
+                setInitialEditingItem(item);
+                setInitialAddFormPrefill(null);
+                setShowDiscussedTreatments(true);
+              }}
+              treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
+            />
+          )}
+          {recommenderMode === "by-suggestion" && client && (
+            <TreatmentRecommenderBySuggestion
+              client={client}
+              onBack={() => setRecommenderMode(null)}
+              onUpdate={onUpdate}
+              onAddToPlanDirect={async (prefill) => {
+                const newItem: DiscussedItem = {
+                  id: generateId(),
+                  addedAt: new Date().toISOString(),
+                  interest: prefill.interest?.trim() || undefined,
+                  findings: prefill.findings?.length ? prefill.findings : undefined,
+                  treatment: prefill.treatment?.trim() || "",
+                  product: prefill.treatmentProduct?.trim() || undefined,
+                  region: prefill.region?.trim() || undefined,
+                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+                  quantity: prefill.quantity?.trim() || undefined,
+                  notes: prefill.notes?.trim() || undefined,
+                };
+                const nextItems = [...(client.discussedItems || []), newItem];
+                try {
+                  await updateLeadRecord(client.id, client.tableSource, {
+                    [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+                  });
+                  showToast("Added to treatment plan");
+                  onUpdate();
+                  return newItem;
+                } catch (e) {
+                  showError(e instanceof Error ? e.message : "Failed to add to plan");
+                  throw e;
+                }
+              }}
+              onOpenTreatmentPlan={() => {
+                setShowDiscussedTreatments(true);
+                setInitialAddFormPrefill(null);
+                setInitialEditingItem(null);
+              }}
+              onOpenTreatmentPlanWithPrefill={(prefill) => {
+                setInitialAddFormPrefill(prefill);
+                setInitialEditingItem(null);
+                setShowDiscussedTreatments(true);
+              }}
+              onOpenTreatmentPlanWithItem={(item) => {
+                setInitialEditingItem(item);
+                setInitialAddFormPrefill(null);
+                setShowDiscussedTreatments(true);
+              }}
+              treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
+            />
+          )}
+          {!recommenderMode ? (
+            <div className="client-detail-modal-main">
           {/* Contact Information Section */}
           <div
             className={`detail-section modal-contact-section ${
@@ -815,20 +920,8 @@ export default function ClientDetailModal({
                         setShowShareAnalysis(true);
                       }}
                     >
-                    {/* <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                      <polyline points="16 6 12 2 8 6"></polyline>
-                      <line x1="12" y1="2" x2="12" y2="15"></line>
-                    </svg> */}
-                    Share with Patient
-                  </button>
+                      Share with Patient
+                    </button>
                   </>
                 )}
                 {hasWebPopupForm && (
@@ -923,13 +1016,35 @@ export default function ClientDetailModal({
                 </div>
                 <div className="discussed-treatments-in-facial-actions">
                   {facialAnalysisFormHasData && (
-                    <button
-                      type="button"
-                      className="btn-secondary btn-sm"
-                      onClick={() => setShowShareTreatmentPlan(true)}
-                    >
-                      Share with Patient
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() => setShowShareTreatmentPlan(true)}
+                      >
+                        Share with Patient
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRecommenderMode("by-treatment");
+                        }}
+                      >
+                        Recommender (by treatment)
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRecommenderMode("by-suggestion");
+                        }}
+                      >
+                        Recommender (by suggestion)
+                      </button>
+                    </>
                   )}
                   <button
                     type="button"
@@ -1061,8 +1176,11 @@ export default function ClientDetailModal({
             </div>
           </div>
         </div>
+          ) : null}
+        </div>
 
         <div className="modal-footer">
+
           <div className="modal-actions-left">
             <div className="modal-contact-group">
               <span className="modal-contact-heading">Contact</span>
@@ -1177,6 +1295,9 @@ export default function ClientDetailModal({
           onClose={() => {
             setShowDiscussedTreatments(false);
             setInitialAddFormPrefill(null);
+            setInitialEditingItem(null);
+            treatmentPlanModalClosedRef.current?.();
+            onUpdate();
             if (returnToOverviewView !== null) {
               setShowAnalysisOverview(true);
             }
@@ -1184,6 +1305,7 @@ export default function ClientDetailModal({
           onUpdate={onUpdate}
           initialAddFormPrefill={initialAddFormPrefill}
           onClearInitialPrefill={() => setInitialAddFormPrefill(null)}
+          initialEditingItem={initialEditingItem}
         />
       )}
       {issuePhotosContext && client && (

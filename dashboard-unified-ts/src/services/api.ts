@@ -506,3 +506,193 @@ export async function fetchTreatmentPhotos(
 
   return limit > 0 ? records.slice(0, limit) : records;
 }
+
+/**
+ * Fetch patient mapping records (Patient-Issue/Suggestion Mapping) by patient email.
+ * Used for area cropped photos on suggestion cards. Each record includes
+ * "Name (from Suggestions)" and "Photo (from Area Cropped Photos)".
+ * See AREA_CROPPED_IMAGE_INTEGRATION.md for response shape.
+ */
+export async function fetchPatientRecords(
+  email: string
+): Promise<AirtableRecord[]> {
+  if (!email?.trim()) return [];
+  const apiUrl = `${API_BASE_URL}/api/patient-records?email=${encodeURIComponent(
+    email.trim().toLowerCase()
+  )}`;
+  const response = await fetch(apiUrl);
+  if (!response.ok) return [];
+  const data = await safeJsonParse(response).catch(() => ({}));
+  const records = data?.records;
+  return Array.isArray(records) ? records : [];
+}
+
+/** Field name for area cropped photo in patient-records response */
+export const PATIENT_RECORDS_PHOTO_FIELD = "Photo (from Area Cropped Photos)";
+/** Field name for suggestion name in patient-records response */
+export const PATIENT_RECORDS_SUGGESTION_NAME_FIELD = "Name (from Suggestions)";
+/** Area label (e.g. "Under Eyes") */
+export const PATIENT_RECORDS_AREA_NAMES_FIELD = "Area Names";
+/** Short "I am noticing…" copy */
+export const PATIENT_RECORDS_SHORT_SUMMARY_FIELD = "short summary";
+/** Longer AI summary (Learn more) */
+export const PATIENT_RECORDS_AI_SUMMARY_FIELD = "ai summary test v2 copy";
+/** Comma-separated issues (e.g. "Issue A, Issue B") */
+export const PATIENT_RECORDS_ISSUES_STRING_FIELD = "Issues String";
+/** 1 / "1" / true = focus area */
+export const PATIENT_RECORDS_IS_FOCUS_FIELD = "Is an area of interest?";
+export const PATIENT_RECORDS_SUGGESTION_RECORD_ID_FIELD = "Record ID (from Suggestions)";
+export const PATIENT_RECORDS_PATIENT_ID_FIELD = "RECORD ID (from Patients)";
+export const PATIENT_RECORDS_PATIENT_EMAIL_FIELD = "Email (from Patients)";
+
+/** One suggestion card from patient-records (SUGGESTION_CARDS_INTEGRATION.md) */
+export interface PatientSuggestionCard {
+  id: string;
+  suggestionName: string;
+  areaNames: string;
+  photoUrl: string | null;
+  shortSummary: string;
+  aiSummary: string;
+  issuesString: string;
+  isFocusArea: boolean;
+  suggestionRecordId: string;
+  patientId: string;
+  patientEmail: string;
+}
+
+/** Normalize Airtable linked-record field (string or [string]) to a single display string */
+export function toDisplayName(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value) && value.length > 0) {
+    const first = value[0];
+    return typeof first === "string" ? first.trim() : String(first).trim();
+  }
+  return String(value).trim();
+}
+
+/** Parse patient-records response into suggestion cards with details (SUGGESTION_CARDS_INTEGRATION.md) */
+export function parsePatientRecordsToCards(records: AirtableRecord[]): PatientSuggestionCard[] {
+  const cards: PatientSuggestionCard[] = [];
+  for (const record of records) {
+    const fields = record.fields || {};
+    const suggestionName = toDisplayName(fields[PATIENT_RECORDS_SUGGESTION_NAME_FIELD]);
+    if (!suggestionName) continue;
+    const areaNames = toDisplayName(fields[PATIENT_RECORDS_AREA_NAMES_FIELD]);
+    const photo = fields[PATIENT_RECORDS_PHOTO_FIELD];
+    const photoUrl = getAreaCroppedPhotoUrl(photo);
+    const shortSummary = toDisplayName(fields[PATIENT_RECORDS_SHORT_SUMMARY_FIELD]);
+    const aiSummary = toDisplayName(fields[PATIENT_RECORDS_AI_SUMMARY_FIELD]);
+    const issuesString = toDisplayName(fields[PATIENT_RECORDS_ISSUES_STRING_FIELD]);
+    const focusVal = fields[PATIENT_RECORDS_IS_FOCUS_FIELD];
+    const isFocusArea = focusVal === 1 || focusVal === "1" || focusVal === true;
+    const suggestionRecordId = toDisplayName(fields[PATIENT_RECORDS_SUGGESTION_RECORD_ID_FIELD]);
+    const patientId = toDisplayName(fields[PATIENT_RECORDS_PATIENT_ID_FIELD]);
+    const patientEmail = toDisplayName(fields[PATIENT_RECORDS_PATIENT_EMAIL_FIELD]);
+    cards.push({
+      id: record.id,
+      suggestionName,
+      areaNames,
+      photoUrl,
+      shortSummary,
+      aiSummary,
+      issuesString,
+      isFocusArea,
+      suggestionRecordId,
+      patientId,
+      patientEmail,
+    });
+  }
+  return cards;
+}
+
+type PhotoField =
+  | { id?: string; url: string; filename?: string }
+  | { id?: string; url: string; filename?: string }[]
+  | string
+  | null
+  | undefined;
+
+/**
+ * Extract a single image URL from the "Photo (from Area Cropped Photos)" field
+ * (array of attachments, single attachment, or string URL).
+ */
+export function getAreaCroppedPhotoUrl(photo: PhotoField): string | null {
+  if (photo == null || photo === undefined) return null;
+  if (Array.isArray(photo) && photo.length > 0) {
+    const first = photo[0];
+    if (typeof first === "object" && first && "url" in first) return first.url;
+    if (typeof first === "string") return first;
+  }
+  if (typeof photo === "object" && "url" in photo) return (photo as { url: string }).url;
+  if (typeof photo === "string") return photo;
+  return null;
+}
+
+/* ========== AI Assessment APIs ========== */
+
+export interface AIAssessmentPayload {
+  overall: number;
+  categories: Array<{ name: string; score: number; tier: string }>;
+  focusCount: number;
+  detectedIssues: string[];
+}
+
+export interface CategoryAssessmentPayload {
+  categoryOrArea: string;
+  score: number;
+  tier: string;
+  subScores: Array<{ name: string; score: number; detected: number; total: number }>;
+  detectedIssues: string[];
+  strengthIssues: string[];
+}
+
+/**
+ * Fetch AI-generated overview assessment from the backend.
+ * Falls back to null on failure (caller should use template text as fallback).
+ */
+export async function fetchAIAssessment(
+  payload: AIAssessmentPayload
+): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`${API_BASE_URL}/api/assessment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { assessment?: string };
+    return data.assessment || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch AI-generated category/area-specific assessment from the backend.
+ * Falls back to null on failure.
+ */
+export async function fetchCategoryAssessment(
+  payload: CategoryAssessmentPayload
+): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`${API_BASE_URL}/api/category-assessment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { assessment?: string };
+    return data.assessment || null;
+  } catch {
+    return null;
+  }
+}
