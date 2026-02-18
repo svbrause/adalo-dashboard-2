@@ -370,16 +370,32 @@ export default function ClientDetailPanel({
       <div className="client-detail-panel" ref={panelRef}>
         <div className="client-detail-panel-header">
           <div className="client-detail-panel-header-info">
+            {recommenderMode && (
+              <button
+                type="button"
+                className="client-detail-panel-back"
+                onClick={() => setRecommenderMode(null)}
+              >
+                ← Back to client
+              </button>
+            )}
             <div className="client-detail-panel-header-name-row">
               <h2 className="client-detail-panel-title">{client.name}</h2>
-              <div className="modal-header-activity-badge client-detail-panel-activity-inline">
-                <span className="modal-header-activity-label">
-                  Last Activity:
+              {recommenderMode && (
+                <span className="client-detail-panel-header-subtitle">
+                  Treatment recommender ({recommenderMode === "by-treatment" ? "by treatment" : "by suggestion"})
                 </span>
-                <span className="modal-header-activity-value">
-                  {lastActivityRelative}
-                </span>
-              </div>
+              )}
+              {!recommenderMode && (
+                <div className="modal-header-activity-badge client-detail-panel-activity-inline">
+                  <span className="modal-header-activity-label">
+                    Last Activity:
+                  </span>
+                  <span className="modal-header-activity-value">
+                    {lastActivityRelative}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <button className="client-detail-panel-close" onClick={onClose}>
@@ -387,7 +403,8 @@ export default function ClientDetailPanel({
           </button>
         </div>
 
-        <div className="client-detail-panel-body">
+        <div className="client-detail-panel-scroll">
+          <div className={`client-detail-panel-body${recommenderMode ? " client-detail-panel-body--recommender" : ""}`}>
           {recommenderMode === "by-treatment" && client && (
             <TreatmentRecommenderByTreatment
               client={client}
@@ -1216,6 +1233,7 @@ export default function ClientDetailPanel({
           </div>
         </div>
           ) : null}
+          </div>
         </div>
       </div>
 
@@ -1320,10 +1338,26 @@ export default function ClientDetailPanel({
           interest={issuePhotosContext.interest}
           onClose={() => setIssuePhotosContext(null)}
           onUpdate={onUpdate}
-          onAddToPlanWithPrefill={(prefill) => {
+          onAddToPlanDirect={async (prefill) => {
+            const newItem: DiscussedItem = {
+              id: generateId(),
+              addedAt: new Date().toISOString(),
+              interest: prefill.interest?.trim() || undefined,
+              findings: prefill.findings?.length ? prefill.findings : undefined,
+              treatment: prefill.treatment?.trim() || "",
+              product: prefill.treatmentProduct?.trim() || undefined,
+              region: prefill.region?.trim() || undefined,
+              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+              quantity: prefill.quantity?.trim() || undefined,
+              notes: prefill.notes?.trim() || undefined,
+            };
+            const nextItems = [...(client.discussedItems || []), newItem];
+            await updateLeadRecord(client.id, client.tableSource, {
+              [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+            });
+            showToast("Added to treatment plan");
             setIssuePhotosContext(null);
-            setInitialAddFormPrefill(prefill);
-            setShowDiscussedTreatments(true);
+            onUpdate();
           }}
           planItems={client.discussedItems ?? []}
         />

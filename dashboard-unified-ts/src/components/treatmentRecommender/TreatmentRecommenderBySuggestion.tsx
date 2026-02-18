@@ -18,6 +18,8 @@ import { normalizeIssue, scoreTier, tierColor, scoreIssues } from "../../config/
 import {
   DEFAULT_RECOMMENDER_FILTER_STATE,
   filterSuggestionsByRegion,
+  filterSuggestionsByFindings,
+  getFindingsFromConcerns,
   AREA_CROPPED_PHOTO_FIELDS,
   type TreatmentRecommenderFilterState,
 } from "../../config/treatmentRecommenderConfig";
@@ -174,10 +176,20 @@ export default function TreatmentRecommenderBySuggestion({
 
   const detectedIssues = useMemo(() => getDetectedIssues(client), [client]);
 
+  /** All selected findings (explicit + from general concerns) used to filter suggestions. */
+  const effectiveFindings = useMemo(() => {
+    const fromConcerns = getFindingsFromConcerns(filterState.generalConcerns);
+    const set = new Set([...filterState.findingsToAddress, ...fromConcerns]);
+    return Array.from(set);
+  }, [filterState.findingsToAddress, filterState.generalConcerns]);
+
   const staticSuggestionList = useMemo(() => {
     let list = [...ALL_TREATMENT_INTERESTS];
     if (filterState.region.length > 0) {
       list = filterSuggestionsByRegion(list, filterState.region);
+    }
+    if (effectiveFindings.length > 0) {
+      list = filterSuggestionsByFindings(list, effectiveFindings, SUGGESTION_TO_ISSUES);
     }
     if (filterState.sameDayAddOn) {
       list = list.filter((name) => {
@@ -186,7 +198,7 @@ export default function TreatmentRecommenderBySuggestion({
       });
     }
     return list;
-  }, [filterState.region, filterState.sameDayAddOn]);
+  }, [filterState.region, filterState.sameDayAddOn, effectiveFindings]);
 
   /** When we have API cards, filter and sort them (focus first, then by name). Otherwise use static list. */
   const displayCards = useMemo((): { type: "api"; cards: PatientSuggestionCard[] } | { type: "static"; names: string[] } => {
@@ -196,6 +208,16 @@ export default function TreatmentRecommenderBySuggestion({
     let list = apiCards;
     if (filterState.region.length > 0) {
       const allowedNames = new Set(filterSuggestionsByRegion(apiCards.map((c) => c.suggestionName), filterState.region));
+      list = list.filter((c) => allowedNames.has(c.suggestionName));
+    }
+    if (effectiveFindings.length > 0) {
+      const allowedNames = new Set(
+        filterSuggestionsByFindings(
+          list.map((c) => c.suggestionName),
+          effectiveFindings,
+          SUGGESTION_TO_ISSUES
+        )
+      );
       list = list.filter((c) => allowedNames.has(c.suggestionName));
     }
     if (filterState.sameDayAddOn) {
@@ -209,7 +231,7 @@ export default function TreatmentRecommenderBySuggestion({
       return a.suggestionName.localeCompare(b.suggestionName);
     });
     return { type: "api", cards: sorted };
-  }, [apiCards, filterState.region, filterState.sameDayAddOn, staticSuggestionList]);
+  }, [apiCards, filterState.region, filterState.sameDayAddOn, effectiveFindings, staticSuggestionList]);
 
   type CardViewItem =
     | { source: "api"; card: PatientSuggestionCard }
@@ -375,29 +397,20 @@ export default function TreatmentRecommenderBySuggestion({
 
   return (
     <div className="treatment-recommender-by-suggestion">
-      <header className="treatment-recommender-by-suggestion__header">
-        <button
-          type="button"
-          className="treatment-recommender-by-suggestion__back"
-          onClick={onBack}
-        >
-          ← Back to client
-        </button>
-        <h1 className="treatment-recommender-by-suggestion__title">
-          Treatment recommender (by suggestion)
-        </h1>
-      </header>
-
       <div className="treatment-recommender-by-suggestion__body">
         <TreatmentRecommenderFilters
           state={filterState}
           onStateChange={(next) => setFilterState((s) => ({ ...s, ...next }))}
         />
 
+        <h2 className="treatment-recommender-by-suggestion__results-heading">
+          {viewItems.length} suggestion{viewItems.length !== 1 ? "s" : ""}
+        </h2>
+
         <div className="treatment-recommender-by-suggestion__cards">
           {viewItems.length === 0 ? (
             <p className="treatment-recommender-by-suggestion__empty">
-              Select region and/or same-day filter to see suggestions.
+              No suggestions match the current filters. Try expanding filters or changing region, findings, or same-day.
             </p>
           ) : (
             viewItems.map((item) => {

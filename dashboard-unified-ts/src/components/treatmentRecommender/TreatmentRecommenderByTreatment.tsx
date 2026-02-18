@@ -11,14 +11,38 @@ import { normalizeIssue, scoreTier, tierColor, scoreIssues, CATEGORIES } from ".
 import {
   DEFAULT_RECOMMENDER_FILTER_STATE,
   filterTreatmentsBySameDay,
+  filterTreatmentsByRegion,
+  getFindingsFromConcerns,
   getInternalRegionForFilter,
   type TreatmentRecommenderFilterState,
 } from "../../config/treatmentRecommenderConfig";
-import { getSuggestedTreatmentsForFindings } from "../modals/DiscussedTreatmentsModal/utils";
-import { getFindingsByAreaForTreatment } from "../modals/DiscussedTreatmentsModal/utils";
-import { REGION_OPTIONS, TIMELINE_OPTIONS } from "../modals/DiscussedTreatmentsModal/constants";
+import {
+  getSuggestedTreatmentsForFindings,
+  getFindingsByAreaForTreatment,
+  getTreatmentDisplayName,
+  formatTreatmentPlanRecordMetaLine,
+} from "../modals/DiscussedTreatmentsModal/utils";
+import { REGION_OPTIONS, TIMELINE_OPTIONS, PLAN_SECTIONS } from "../modals/DiscussedTreatmentsModal/constants";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
+
+/** Skincare "What" options in by-treatment add form (replaces Where/region). */
+const SKINCARE_WHAT_OPTIONS = [
+  "Anti-aging cream",
+  "Moisturizer",
+  "Sunscreen",
+  "Vitamin C serum",
+  "HLA serum",
+  "Anti-aging serum",
+  "Anti-oxidants",
+  "Exfoliators",
+  "Cleansers",
+  "Toners/mists",
+  "Face masks",
+  "Retinols",
+  "Eye care",
+  "Lip care",
+];
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import "../modals/AnalysisOverviewModal.css";
 import "./TreatmentRecommenderByTreatment.css";
@@ -96,63 +120,156 @@ function getDetectedIssues(client: Client): Set<string> {
   return set;
 }
 
-/** Collapsible feature breakdown row (check/x pills + bar) – same pattern as AnalysisOverviewModal SubScoreRow. */
-function FeatureBreakdownRow({
+/** Circular progress + label; click selects it (detail shows in panel below). */
+const CIRCLE_R = 18;
+const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_R;
+
+function FeatureBreakdownCircle({
   label,
   issues,
   detectedIssues,
+  isSelected,
+  onSelect,
 }: {
   label: string;
   issues: string[];
   detectedIssues: Set<string>;
+  isSelected: boolean;
+  onSelect: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const score = scoreIssues(issues, detectedIssues);
   const color = tierColor(scoreTier(score));
-  const goodIssues = issues.filter((i) => !detectedIssues.has(normalizeIssue(i)));
-  const badIssues = issues.filter((i) => detectedIssues.has(normalizeIssue(i)));
+  const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - score / 100);
 
   if (issues.length === 0) return null;
 
   return (
-    <div className={`ao-subscore-row ${expanded ? "ao-subscore-row--open" : ""}`}>
+    <div className={`treatment-recommender-by-treatment__breakdown-circle ${isSelected ? "treatment-recommender-by-treatment__breakdown-circle--selected" : ""}`}>
       <button
         type="button"
-        className="ao-subscore-row__header"
-        onClick={() => setExpanded(!expanded)}
+        className="treatment-recommender-by-treatment__breakdown-circle-btn"
+        onClick={onSelect}
+        aria-pressed={isSelected}
+        aria-expanded={isSelected}
+        title={`${label}: ${score}%`}
       >
-        <span className="ao-subscore-row__name">{label}</span>
-        <div className="ao-subscore-row__bar-wrap">
-          <div className="ao-subscore-row__bar-track">
-            <div
-              className="ao-subscore-row__bar-fill"
-              style={{ width: `${score}%`, background: color }}
+        <span className="treatment-recommender-by-treatment__breakdown-circle-svg-wrap">
+          <svg className="treatment-recommender-by-treatment__breakdown-circle-svg" viewBox="0 0 44 44" aria-hidden>
+            <circle
+              className="treatment-recommender-by-treatment__breakdown-circle-track"
+              cx="22"
+              cy="22"
+              r={CIRCLE_R}
+              fill="none"
+              strokeWidth="4"
             />
-          </div>
-          <span className="ao-subscore-row__score" style={{ color }}>
+            <circle
+              className="treatment-recommender-by-treatment__breakdown-circle-fill"
+              cx="22"
+              cy="22"
+              r={CIRCLE_R}
+              fill="none"
+              strokeWidth="4"
+              strokeDasharray={CIRCLE_CIRCUMFERENCE}
+              strokeDashoffset={strokeDashoffset}
+              transform="rotate(-90 22 22)"
+              style={{ stroke: color }}
+            />
+          </svg>
+          <span className="treatment-recommender-by-treatment__breakdown-circle-score" style={{ color }}>
             {score}
           </span>
-        </div>
-        <span className="ao-subscore-row__chev" aria-hidden>
-          {expanded ? "▲" : "▼"}
         </span>
+        <span className="treatment-recommender-by-treatment__breakdown-circle-label">{label}</span>
       </button>
-      {expanded && (
-        <div className="ao-subscore-row__pills">
-          {goodIssues.map((issue) => (
-            <span key={issue} className="ao-pill ao-pill--good">
-              <span className="ao-pill__icon">✓</span>
-              {issue}
-            </span>
-          ))}
-          {badIssues.map((issue) => (
-            <span key={issue} className="ao-pill ao-pill--concern">
-              <span className="ao-pill__icon">✕</span>
-              {issue}
-            </span>
-          ))}
-        </div>
-      )}
+    </div>
+  );
+}
+
+/** Analysis: grid of circles + one detail panel below showing selected circle's findings. */
+function FeatureBreakdownSection({
+  treatment,
+  getBreakdownRowsForTreatment,
+  detectedIssues,
+}: {
+  treatment: string;
+  getBreakdownRowsForTreatment: (t: string) => { label: string; issues: string[] }[];
+  detectedIssues: Set<string>;
+}) {
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  const rows = getBreakdownRowsForTreatment(treatment);
+  if (rows.length === 0) return null;
+
+  const selectedRow = selectedLabel ? rows.find((r) => r.label === selectedLabel) : null;
+  const goodIssues = selectedRow
+    ? selectedRow.issues.filter((i) => !detectedIssues.has(normalizeIssue(i)))
+    : [];
+  const badIssues = selectedRow
+    ? selectedRow.issues.filter((i) => detectedIssues.has(normalizeIssue(i)))
+    : [];
+
+  return (
+    <div className="treatment-recommender-by-treatment__breakdown">
+      <h3 className="treatment-recommender-by-treatment__breakdown-title">
+        Analysis
+      </h3>
+      <div className="treatment-recommender-by-treatment__breakdown-circles">
+        {rows.map((row) => (
+          <FeatureBreakdownCircle
+            key={row.label}
+            label={row.label}
+            issues={row.issues}
+            detectedIssues={detectedIssues}
+            isSelected={selectedLabel === row.label}
+            onSelect={() => setSelectedLabel(selectedLabel === row.label ? null : row.label)}
+          />
+        ))}
+      </div>
+      <div className="treatment-recommender-by-treatment__breakdown-detail">
+        {selectedRow ? (
+          <div className="treatment-recommender-by-treatment__breakdown-expanded">
+            <p className="treatment-recommender-by-treatment__breakdown-detail-heading">
+              {selectedRow.label}
+            </p>
+            {(goodIssues.length > 0 || badIssues.length > 0) ? (
+              <>
+                {goodIssues.length > 0 && (
+                  <div className="treatment-recommender-by-treatment__breakdown-expanded-group">
+                    <span className="treatment-recommender-by-treatment__breakdown-expanded-label">No concerns</span>
+                    <div className="treatment-recommender-by-treatment__breakdown-expanded-pills">
+                      {goodIssues.map((issue) => (
+                        <span key={issue} className="treatment-recommender-by-treatment__breakdown-pill treatment-recommender-by-treatment__breakdown-pill--good">
+                          <span className="treatment-recommender-by-treatment__breakdown-pill-icon">✓</span>
+                          {issue}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {badIssues.length > 0 && (
+                  <div className="treatment-recommender-by-treatment__breakdown-expanded-group">
+                    <span className="treatment-recommender-by-treatment__breakdown-expanded-label">Areas of concern</span>
+                    <div className="treatment-recommender-by-treatment__breakdown-expanded-pills">
+                      {badIssues.map((issue) => (
+                        <span key={issue} className="treatment-recommender-by-treatment__breakdown-pill treatment-recommender-by-treatment__breakdown-pill--concern">
+                          <span className="treatment-recommender-by-treatment__breakdown-pill-icon">✕</span>
+                          {issue}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="treatment-recommender-by-treatment__breakdown-expanded-empty">No findings in this area</p>
+            )}
+          </div>
+        ) : (
+          <p className="treatment-recommender-by-treatment__breakdown-detail-placeholder">
+            Click a circle to view analysis
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -191,6 +308,8 @@ export default function TreatmentRecommenderByTreatment({
   const [addToPlanForTreatment, setAddToPlanForTreatment] = useState<{
     treatment: string;
     where: string[];
+    /** For Skincare: multi-select "What" options (e.g. Sunscreen, Moisturizer). */
+    skincareWhat?: string[];
     when: string;
     detailsExpanded: boolean;
     product?: string;
@@ -205,6 +324,16 @@ export default function TreatmentRecommenderByTreatment({
   const [clientPhotoView, setClientPhotoView] = useState<"front" | "side">("front");
   const [frontPhotoUrl, setFrontPhotoUrl] = useState<string | null>(null);
   const [sidePhotoUrl, setSidePhotoUrl] = useState<string | null>(null);
+  const [showClientPhotoModal, setShowClientPhotoModal] = useState(false);
+
+  useEffect(() => {
+    if (!showClientPhotoModal) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowClientPhotoModal(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [showClientPhotoModal]);
 
   const getUrl = (att: { url?: string; thumbnails?: { full?: { url?: string }; large?: { url?: string } } }) =>
     att?.thumbnails?.full?.url ?? att?.thumbnails?.large?.url ?? att?.url ?? null;
@@ -260,27 +389,41 @@ export default function TreatmentRecommenderByTreatment({
   const combinedFindings = useMemo(() => {
     const fromClient = Array.from(detectedIssues);
     const fromFilter = filterState.findingsToAddress || [];
-    const set = new Set<string>([...fromClient, ...fromFilter]);
+    const fromConcerns = getFindingsFromConcerns(filterState.generalConcerns);
+    const set = new Set<string>([...fromClient, ...fromFilter, ...fromConcerns]);
     return Array.from(set);
-  }, [detectedIssues, filterState.findingsToAddress]);
+  }, [detectedIssues, filterState.findingsToAddress, filterState.generalConcerns]);
 
   const suggestedTreatments = useMemo(() => {
     const withGoals = getSuggestedTreatmentsForFindings(combinedFindings);
     const names = Array.from(new Set(withGoals.map((s) => s.treatment)));
-    return filterTreatmentsBySameDay(names, filterState.sameDayAddOn);
-  }, [combinedFindings, filterState.sameDayAddOn]);
+    const sameDay = filterTreatmentsBySameDay(names, filterState.sameDayAddOn);
+    const filtered = filterTreatmentsByRegion(
+      sameDay,
+      filterState.region,
+      (t) => getFindingsByAreaForTreatment(t).map((r) => r.area)
+    );
+    // Skincare first, then the rest in existing order
+    const skincare = filtered.filter((t) => t === "Skincare");
+    const rest = filtered.filter((t) => t !== "Skincare");
+    return [...skincare, ...rest];
+  }, [combinedFindings, filterState.sameDayAddOn, filterState.region]);
 
   const handleAddToPlanConfirm = async () => {
     if (!addToPlanForTreatment || !onAddToPlanDirect) return;
-    const region = addToPlanForTreatment.where.length > 0
-      ? addToPlanForTreatment.where.join(", ")
-      : "";
+    const isSkincare = addToPlanForTreatment.treatment === "Skincare";
+    const region = isSkincare
+      ? ""
+      : (addToPlanForTreatment.where.length > 0 ? addToPlanForTreatment.where.join(", ") : "");
+    const treatmentProduct = isSkincare
+      ? (addToPlanForTreatment.skincareWhat?.length ? addToPlanForTreatment.skincareWhat.join(", ") : addToPlanForTreatment.product?.trim() || undefined)
+      : (addToPlanForTreatment.product?.trim() || undefined);
     const prefill: TreatmentPlanPrefill = {
       interest: "",
       region,
       treatment: addToPlanForTreatment.treatment,
       timeline: addToPlanForTreatment.when,
-      treatmentProduct: addToPlanForTreatment.product?.trim() || undefined,
+      treatmentProduct,
       quantity: addToPlanForTreatment.quantity?.trim() || undefined,
       notes: addToPlanForTreatment.notes?.trim() || undefined,
     };
@@ -379,16 +522,55 @@ export default function TreatmentRecommenderByTreatment({
   const hasFront = frontPhotoUrl != null;
   const hasSide = sidePhotoUrl != null;
 
+  /** Plan items grouped by section (same order as treatment plan builder left column). */
+  const planItemsBySection = useMemo(() => {
+    const items = client.discussedItems ?? [];
+    const now: DiscussedItem[] = [];
+    const addNext: DiscussedItem[] = [];
+    const wishlist: DiscussedItem[] = [];
+    const completed: DiscussedItem[] = [];
+    for (const item of items) {
+      const t = item.timeline?.trim();
+      if (t === "Now") now.push(item);
+      else if (t === "Add next visit") addNext.push(item);
+      else if (t === "Completed") completed.push(item);
+      else wishlist.push(item);
+    }
+    const byTreatment = (a: DiscussedItem, b: DiscussedItem) =>
+      (a.treatment || "").localeCompare(b.treatment || "");
+    return {
+      Now: now.sort(byTreatment),
+      "Add next visit": addNext.sort(byTreatment),
+      Wishlist: wishlist.sort(byTreatment),
+      Completed: completed.sort(byTreatment),
+    };
+  }, [client.discussedItems]);
+
+  const planItemCount = (client.discussedItems ?? []).length;
+  const firstName = client.name?.trim().split(/\s+/)[0] || "Patient";
+
   return (
     <div className="treatment-recommender-by-treatment">
       <aside className="treatment-recommender-by-treatment__client-column">
-        <div className="treatment-recommender-by-treatment__client-photo-wrap">
+        <div
+          className={`treatment-recommender-by-treatment__client-photo-wrap ${currentClientPhotoUrl ? "treatment-recommender-by-treatment__client-photo-wrap--clickable" : ""}`}
+          role={currentClientPhotoUrl ? "button" : undefined}
+          tabIndex={currentClientPhotoUrl ? 0 : undefined}
+          onClick={() => currentClientPhotoUrl && setShowClientPhotoModal(true)}
+          onKeyDown={(e) => currentClientPhotoUrl && (e.key === "Enter" || e.key === " ") && setShowClientPhotoModal(true)}
+          title={currentClientPhotoUrl ? "Click to expand" : undefined}
+        >
           {currentClientPhotoUrl ? (
-            <img
-              src={currentClientPhotoUrl}
-              alt={`${client.name} – ${clientPhotoView}`}
-              className="treatment-recommender-by-treatment__client-photo"
-            />
+            <>
+              <img
+                src={currentClientPhotoUrl}
+                alt={`${client.name} – ${clientPhotoView}`}
+                className="treatment-recommender-by-treatment__client-photo"
+              />
+              <div className="treatment-recommender-by-treatment__client-photo-overlay">
+                Click to expand
+              </div>
+            </>
           ) : (
             <div className="treatment-recommender-by-treatment__client-photo-placeholder">
               No {clientPhotoView} photo
@@ -417,32 +599,84 @@ export default function TreatmentRecommenderByTreatment({
             Side
           </button>
         </div>
+
+        <div className="treatment-recommender-by-treatment__plan-section">
+          <h3 className="treatment-recommender-by-treatment__plan-title">
+            {firstName}&apos;s plan ({planItemCount} {planItemCount === 1 ? "item" : "items"})
+          </h3>
+          {planItemCount === 0 ? (
+            <p className="treatment-recommender-by-treatment__plan-empty">
+              No plan items yet.
+            </p>
+          ) : (
+            <div className="treatment-recommender-by-treatment__plan-list">
+              {PLAN_SECTIONS.map((sectionLabel) => {
+                const sectionItems = planItemsBySection[sectionLabel] ?? [];
+                if (sectionItems.length === 0) return null;
+                return (
+                  <div
+                    key={sectionLabel}
+                    className="treatment-recommender-by-treatment__plan-group"
+                  >
+                    <h4 className="treatment-recommender-by-treatment__plan-group-title">
+                      {sectionLabel}
+                    </h4>
+                    {sectionItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="treatment-recommender-by-treatment__plan-row"
+                        onClick={() => onOpenTreatmentPlanWithItem?.(item)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onOpenTreatmentPlanWithItem?.(item);
+                          }
+                        }}
+                        aria-label={`Edit ${getTreatmentDisplayName(item)} in plan`}
+                      >
+                        <span className="treatment-recommender-by-treatment__plan-row-treatment">
+                          {getTreatmentDisplayName(item)}
+                        </span>
+                        {formatTreatmentPlanRecordMetaLine(item) ? (
+                          <span className="treatment-recommender-by-treatment__plan-row-meta">
+                            {formatTreatmentPlanRecordMetaLine(item)}
+                          </span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {onOpenTreatmentPlan && (
+            <button
+              type="button"
+              className="treatment-recommender-by-treatment__plan-open-btn"
+              onClick={() => onOpenTreatmentPlan()}
+            >
+              {planItemCount === 0 ? "Open treatment plan" : "Open treatment plan"}
+            </button>
+          )}
+        </div>
       </aside>
 
       <div className="treatment-recommender-by-treatment__main">
-        <header className="treatment-recommender-by-treatment__header">
-          <button
-            type="button"
-            className="treatment-recommender-by-treatment__back"
-            onClick={onBack}
-          >
-            ← Back to client
-          </button>
-          <h1 className="treatment-recommender-by-treatment__title">
-            Treatment recommender (by treatment)
-          </h1>
-        </header>
-
         <div className="treatment-recommender-by-treatment__body">
         <TreatmentRecommenderFilters
           state={filterState}
           onStateChange={(next) => setFilterState((s) => ({ ...s, ...next }))}
         />
 
+        <h2 className="treatment-recommender-by-treatment__results-heading">
+          {suggestedTreatments.length} treatment option{suggestedTreatments.length !== 1 ? "s" : ""}
+        </h2>
+
         <div className="treatment-recommender-by-treatment__cards">
           {suggestedTreatments.length === 0 ? (
             <p className="treatment-recommender-by-treatment__empty">
-              Select "What are you here for?" and optionally findings to see suggested treatments.
+              No treatments match the current filters. Select &quot;What are you here for?&quot; and optionally findings, regions, or general concerns.
             </p>
           ) : (
             suggestedTreatments.map((treatment) => {
@@ -473,82 +707,95 @@ export default function TreatmentRecommenderByTreatment({
                   </div>
                 </div>
 
-                <div className="treatment-recommender-by-treatment__breakdown">
-                  <h3 className="treatment-recommender-by-treatment__breakdown-title">
-                    Feature breakdown
-                  </h3>
-                  {getBreakdownRowsForTreatment(treatment).map((row) => (
-                    <FeatureBreakdownRow
-                      key={row.label}
-                      label={row.label}
-                      issues={row.issues}
-                      detectedIssues={detectedIssues}
-                    />
-                  ))}
-                </div>
+                <FeatureBreakdownSection
+                  treatment={treatment}
+                  getBreakdownRowsForTreatment={getBreakdownRowsForTreatment}
+                  detectedIssues={detectedIssues}
+                />
 
                 <div className="treatment-recommender-by-treatment__card-actions">
                   <div className="treatment-recommender-by-treatment__add-section">
-                    {isTreatmentInPlan(treatment) ? (
+                    {isTreatmentInPlan(treatment) && addToPlanForTreatment?.treatment !== treatment ? (
                       <div className="treatment-recommender-by-treatment__added-state">
                         <p className="treatment-recommender-by-treatment__added-message">
                           Added to treatment plan
                         </p>
-                        {onOpenTreatmentPlanWithItem ? (
+                        {onAddToPlanDirect ? (
                           <button
                             type="button"
-                            className="treatment-recommender-by-treatment__add-details-btn"
-                            onClick={() => {
-                              const itemToEdit =
-                                lastAddedItem && lastAddedItem.treatment === treatment
-                                  ? lastAddedItem
-                                  : [...(client.discussedItems ?? [])].reverse().find((i) => i.treatment === treatment);
-                              if (itemToEdit) onOpenTreatmentPlanWithItem(itemToEdit);
-                              else if (onOpenTreatmentPlan) onOpenTreatmentPlan();
-                            }}
+                            className="treatment-recommender-by-treatment__add-btn treatment-recommender-by-treatment__add-btn--fit"
+                            onClick={() =>
+                              setAddToPlanForTreatment({
+                                treatment,
+                                where: [],
+                                skincareWhat: treatment === "Skincare" ? [] : undefined,
+                                when: TIMELINE_OPTIONS[0],
+                                detailsExpanded: false,
+                                product: "",
+                                quantity: "",
+                                notes: "",
+                              })
+                            }
                           >
-                            Add additional details
-                          </button>
-                        ) : onOpenTreatmentPlan ? (
-                          <button
-                            type="button"
-                            className="treatment-recommender-by-treatment__add-details-btn"
-                            onClick={() => onOpenTreatmentPlan()}
-                          >
-                            Add additional details
+                            Add to plan
                           </button>
                         ) : null}
                       </div>
                     ) : addToPlanForTreatment?.treatment === treatment ? (
                       <div className="treatment-recommender-by-treatment__add-form">
                         <div className="treatment-recommender-by-treatment__add-row">
-                          <span>Where:</span>
+                          <span>{treatment === "Skincare" ? "What:" : "Where:"}</span>
                           <div className="treatment-recommender-by-treatment__chips">
-                            {REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other").map((r) => (
-                              <button
-                                key={r}
-                                type="button"
-                                className={`treatment-recommender-by-treatment__chip ${
-                                  addToPlanForTreatment.where.includes(r)
-                                    ? "treatment-recommender-by-treatment__chip--selected"
-                                    : ""
-                                }`}
-                                onClick={() => {
-                                  setAddToPlanForTreatment((prev) =>
-                                    prev
-                                      ? {
-                                          ...prev,
-                                          where: prev.where.includes(r)
-                                            ? prev.where.filter((x) => x !== r)
-                                            : [...prev.where, r],
-                                        }
-                                      : null
+                            {treatment === "Skincare"
+                              ? SKINCARE_WHAT_OPTIONS.map((opt) => {
+                                  const selected = (addToPlanForTreatment.skincareWhat ?? []).includes(opt);
+                                  return (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      className={`treatment-recommender-by-treatment__chip ${
+                                        selected ? "treatment-recommender-by-treatment__chip--selected" : ""
+                                      }`}
+                                      onClick={() =>
+                                        setAddToPlanForTreatment((prev) => {
+                                          if (!prev) return null;
+                                          const current = prev.skincareWhat ?? [];
+                                          const next = current.includes(opt)
+                                            ? current.filter((x) => x !== opt)
+                                            : [...current, opt];
+                                          return { ...prev, skincareWhat: next };
+                                        })
+                                      }
+                                    >
+                                      {opt}
+                                    </button>
                                   );
-                                }}
-                              >
-                                {r}
-                              </button>
-                            ))}
+                                })
+                              : REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other").map((r) => (
+                                  <button
+                                    key={r}
+                                    type="button"
+                                    className={`treatment-recommender-by-treatment__chip ${
+                                      addToPlanForTreatment.where.includes(r)
+                                        ? "treatment-recommender-by-treatment__chip--selected"
+                                        : ""
+                                    }`}
+                                    onClick={() => {
+                                      setAddToPlanForTreatment((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              where: prev.where.includes(r)
+                                                ? prev.where.filter((x) => x !== r)
+                                                : [...prev.where, r],
+                                            }
+                                          : null
+                                      );
+                                    }}
+                                  >
+                                    {r}
+                                  </button>
+                                ))}
                           </div>
                         </div>
                         <div className="treatment-recommender-by-treatment__add-row">
@@ -646,6 +893,7 @@ export default function TreatmentRecommenderByTreatment({
                           setAddToPlanForTreatment({
                             treatment,
                             where: [],
+                            skincareWhat: treatment === "Skincare" ? [] : undefined,
                             when: TIMELINE_OPTIONS[0],
                             detailsExpanded: false,
                             product: "",
@@ -695,6 +943,64 @@ export default function TreatmentRecommenderByTreatment({
           }}
           planItems={client.discussedItems ?? []}
         />
+      )}
+
+      {showClientPhotoModal && (hasFront || hasSide) && (
+        <div
+          className="treatment-recommender-by-treatment__photo-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${client.name} – ${clientPhotoView} photo`}
+          onClick={() => setShowClientPhotoModal(false)}
+        >
+          <div
+            className="treatment-recommender-by-treatment__photo-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="treatment-recommender-by-treatment__photo-modal-img-wrap">
+              <button
+                type="button"
+                className="treatment-recommender-by-treatment__photo-modal-close"
+                onClick={() => setShowClientPhotoModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              {currentClientPhotoUrl && (
+                <img
+                  src={currentClientPhotoUrl}
+                  alt={`${client.name} – ${clientPhotoView}`}
+                  className="treatment-recommender-by-treatment__photo-modal-img"
+                />
+              )}
+            </div>
+            <div className="treatment-recommender-by-treatment__photo-modal-toggles">
+              <button
+                type="button"
+                className={`treatment-recommender-by-treatment__photo-modal-toggle ${
+                  clientPhotoView === "front" ? "treatment-recommender-by-treatment__photo-modal-toggle--active" : ""
+                }`}
+                onClick={() => setClientPhotoView("front")}
+                disabled={!hasFront}
+              >
+                Front
+              </button>
+              <button
+                type="button"
+                className={`treatment-recommender-by-treatment__photo-modal-toggle ${
+                  clientPhotoView === "side" ? "treatment-recommender-by-treatment__photo-modal-toggle--active" : ""
+                }`}
+                onClick={() => setClientPhotoView("side")}
+                disabled={!hasSide}
+              >
+                Side
+              </button>
+            </div>
+            <p className="treatment-recommender-by-treatment__photo-modal-caption">
+              {client.name} – {clientPhotoView}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

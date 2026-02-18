@@ -37,6 +37,37 @@
   gap: 12px;
 }
 
+.client-detail-panel-back {
+  align-self: flex-start;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary, #616161);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.client-detail-panel-back:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  color: var(--theme-text-primary, #212121);
+}
+
+.client-detail-panel-header-subtitle {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--theme-text-muted, #757575);
+  margin-left: 0;
+}
+
+.client-detail-panel-header-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .client-detail-panel-title {
   font-size: 20px;
   font-weight: 700;
@@ -63,13 +94,39 @@
   background: rgba(0, 0, 0, 0.05);
 }
 
-.client-detail-panel-body {
+/* Full-width scroll container so scrolling on left/right margins scrolls content, not the layer behind */
+.client-detail-panel-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  width: 100%;
+}
+
+.client-detail-panel-body {
   padding: 32px;
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* When showing treatment recommender: fill height so left column can stay fixed and right column scrolls */
+.client-detail-panel-body--recommender {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  max-width: none;
+}
+
+.client-detail-panel-body--recommender > .treatment-recommender-by-treatment,
+.client-detail-panel-body--recommender > .treatment-recommender-by-suggestion {
+  flex: 1;
+  min-height: 0;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 /* Left-align photo and contact info section in panel */
@@ -155,14 +212,7 @@
   margin: 0;
 }
 
-/* Header layout - name and last activity inline */
-.client-detail-panel-header-name-row {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
+/* Header layout - name, subtitle or last activity inline */
 .client-detail-panel-activity-inline {
   margin: 0;
 }

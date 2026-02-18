@@ -9,7 +9,7 @@ import { TREATMENT_META, SURGICAL_TREATMENTS } from "./constants";
 import { issueToSuggestionMap, getIssueArea } from "../../../utils/issueMapping";
 import { getTreatmentsForInterest } from "./utils";
 import { generateId } from "./utils";
-import { AIRTABLE_FIELD } from "./constants";
+import { AIRTABLE_FIELD, REGION_OPTIONS, TIMELINE_OPTIONS, SKINCARE_QUICK_ADD_WHAT_OPTIONS } from "./constants";
 import { SUGGESTION_TO_AREA, ALL_TREATMENT_INTERESTS } from "./suggestionsMapping";
 import { showToast, showError } from "../../../utils/toast";
 
@@ -63,6 +63,8 @@ interface TreatmentPhotosProps {
   onUpdate?: () => void | Promise<void>;
   /** When provided, "Add to plan" opens the treatment planning form prefilled instead of adding directly */
   onAddToPlanWithPrefill?: (prefilled: TreatmentPlanPrefill) => void;
+  /** When provided, "Add to plan" shows Where/When form and on confirm adds directly (no full modal) */
+  onAddToPlanDirect?: (prefill: TreatmentPlanPrefill) => void | Promise<void>;
   /** Current plan items – used to show "Added to plan" when this photo's treatment is already in the plan */
   planItems?: DiscussedItem[];
   /** When provided, use these photos instead of fetching (e.g. for /debug/treatment-examples) */
@@ -257,6 +259,7 @@ export default function TreatmentPhotos({
   onClose,
   onUpdate,
   onAddToPlanWithPrefill,
+  onAddToPlanDirect,
   planItems = [],
   demoPhotos,
 }: TreatmentPhotosProps) {
@@ -280,6 +283,15 @@ export default function TreatmentPhotos({
   );
   const [addingId, setAddingId] = useState<string | null>(null);
   const [interestDropdownOpen, setInterestDropdownOpen] = useState(false);
+  /** Inline Where/When form when adding this photo to plan (same UX as recommender) */
+  const [addToPlanForm, setAddToPlanForm] = useState<{
+    photo: TreatmentPhoto;
+    where: string[];
+    when: string;
+    product?: string;
+    quantity?: string;
+    notes?: string;
+  } | null>(null);
 
   // Client photo (front/side toggle)
   const [clientPhotoType, setClientPhotoType] = useState<"front" | "side">(
@@ -540,34 +552,75 @@ export default function TreatmentPhotos({
     return "Treatment example";
   }, []);
 
-  /** Add this photo to plan: either open planning form prefilled (if onAddToPlanWithPrefill) or add directly */
+  /** Open the inline Where/When form for adding this photo to plan */
+  const openAddToPlanForm = useCallback((photo: TreatmentPhoto) => {
+    setAddToPlanForm({
+      photo,
+      where: [],
+      when: "Wishlist",
+      product: "",
+      quantity: "",
+      notes: "",
+    });
+  }, []);
+
+  /** Build prefill from current add form or photo defaults */
+  const buildPrefillFromForm = useCallback(
+    (photo: TreatmentPhoto, form: { where: string[]; when: string; product?: string; quantity?: string; notes?: string }): TreatmentPlanPrefill => {
+      const rawTreatment = photo.generalTreatments[0] || photo.treatments[0] || "";
+      const normalizedTreatment = normalizeTreatment(rawTreatment) || rawTreatment || "Treatment";
+      const regionName = form.where.length > 0 ? form.where.join(", ") : (getDisplayAreaNames(photo.areaNames)[0] || filterRegion || effectiveRegion || "");
+      return {
+        interest: filterInterest || "",
+        region: regionName,
+        treatment: normalizedTreatment,
+        treatmentProduct: form.product?.trim() || photo.treatments[0]?.trim() || (rawTreatment !== normalizedTreatment ? rawTreatment : undefined),
+        findings: filterIssue ? [filterIssue] : issue ? [issue] : undefined,
+        timeline: form.when,
+        quantity: form.quantity?.trim() || undefined,
+        notes: form.notes?.trim() || undefined,
+      };
+    },
+    [filterInterest, filterIssue, filterRegion, issue, effectiveRegion]
+  );
+
+  /** Confirm add to plan from inline form */
+  const confirmAddToPlanForm = useCallback(
+    async () => {
+      if (!addToPlanForm || !client) return;
+      const prefill = buildPrefillFromForm(addToPlanForm.photo, addToPlanForm);
+      setAddingId(addToPlanForm.photo.id);
+      try {
+        if (onAddToPlanDirect) {
+          await onAddToPlanDirect(prefill);
+          onUpdate?.();
+          setAddToPlanForm(null);
+        } else if (onAddToPlanWithPrefill) {
+          onAddToPlanWithPrefill(prefill);
+          setAddToPlanForm(null);
+          setSelectedPhoto(null);
+          onClose?.();
+        }
+      } catch (e) {
+        showError(e instanceof Error ? e.message : "Failed to add to plan");
+      } finally {
+        setAddingId(null);
+      }
+    },
+    [addToPlanForm, client, buildPrefillFromForm, onAddToPlanDirect, onAddToPlanWithPrefill, onUpdate, onClose]
+  );
+
+  /** Add this photo to plan: with callback(s) show inline form; otherwise add directly (legacy) */
   const handleAddToPlan = useCallback(
     async (photo: TreatmentPhoto) => {
       if (!client) return;
-
-      const rawTreatment =
-        photo.generalTreatments[0] || photo.treatments[0] || "";
-      const normalizedTreatment = normalizeTreatment(rawTreatment) || rawTreatment || "Treatment";
-      const regionName =
-        getDisplayAreaNames(photo.areaNames)[0] || filterRegion || effectiveRegion || "";
-
-      if (onAddToPlanWithPrefill) {
-        const prefill: TreatmentPlanPrefill = {
-          interest: filterInterest || "",
-          region: regionName,
-          treatment: normalizedTreatment,
-          treatmentProduct:
-            photo.treatments[0]?.trim() ||
-            (rawTreatment !== normalizedTreatment ? rawTreatment : undefined),
-          findings: filterIssue ? [filterIssue] : issue ? [issue] : undefined,
-          timeline: "Wishlist",
-        };
-        onAddToPlanWithPrefill(prefill);
-        setSelectedPhoto(null);
-        onClose?.();
+      if (onAddToPlanDirect || onAddToPlanWithPrefill) {
+        openAddToPlanForm(photo);
         return;
       }
-
+      const rawTreatment = photo.generalTreatments[0] || photo.treatments[0] || "";
+      const normalizedTreatment = normalizeTreatment(rawTreatment) || rawTreatment || "Treatment";
+      const regionName = getDisplayAreaNames(photo.areaNames)[0] || filterRegion || effectiveRegion || "";
       if (!onUpdate) return;
       const newItem: DiscussedItem = {
         id: generateId(),
@@ -595,6 +648,7 @@ export default function TreatmentPhotos({
     [
       client,
       onUpdate,
+      onAddToPlanDirect,
       onAddToPlanWithPrefill,
       onClose,
       filterInterest,
@@ -602,6 +656,7 @@ export default function TreatmentPhotos({
       filterRegion,
       issue,
       effectiveRegion,
+      openAddToPlanForm,
     ]
   );
 
@@ -1208,30 +1263,171 @@ export default function TreatmentPhotos({
                     </div>
                   )}
                 </div>
-                {client && (onUpdate || onAddToPlanWithPrefill) && (
-                  <button
-                    type="button"
-                    className={`treatment-photo-detail-add-btn${
-                      isPhotoInPlan(selectedPhoto)
-                        ? " treatment-photo-detail-add-btn-added"
-                        : ""
-                    }`}
-                    onClick={() => !isPhotoInPlan(selectedPhoto) && handleAddToPlan(selectedPhoto)}
-                    disabled={
-                      addingId === selectedPhoto.id || isPhotoInPlan(selectedPhoto)
-                    }
-                    title={
-                      isPhotoInPlan(selectedPhoto)
-                        ? "This treatment is already in the plan"
-                        : "Open treatment planning form to add and complete details"
-                    }
-                  >
-                    {addingId === selectedPhoto.id
-                      ? "Adding…"
-                      : isPhotoInPlan(selectedPhoto)
-                        ? "Added to plan"
-                        : "Add to plan"}
-                  </button>
+                {client && (onUpdate || onAddToPlanWithPrefill || onAddToPlanDirect) && (
+                  addToPlanForm?.photo.id === selectedPhoto.id ? (
+                    <div className="treatment-photo-detail-add-form">
+                      <div className="treatment-photo-detail-add-row">
+                        <span>Where:</span>
+                        <div className="treatment-photo-detail-add-chips">
+                          {REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other").map((r) => (
+                            <button
+                              key={r}
+                              type="button"
+                              className={`treatment-photo-detail-add-chip ${
+                                addToPlanForm.where.includes(r) ? "treatment-photo-detail-add-chip--selected" : ""
+                              }`}
+                              onClick={() =>
+                                setAddToPlanForm((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        where: prev.where.includes(r)
+                                          ? prev.where.filter((x) => x !== r)
+                                          : [...prev.where, r],
+                                      }
+                                    : null
+                                )
+                              }
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {(() => {
+                        const rawTx = addToPlanForm.photo.generalTreatments[0] || addToPlanForm.photo.treatments[0] || "";
+                        const isSkincare = normalizeTreatment(rawTx)?.toLowerCase() === "skincare";
+                        if (!isSkincare) return null;
+                        return (
+                          <div className="treatment-photo-detail-add-row">
+                            <span>What:</span>
+                            <div className="treatment-photo-detail-add-chips">
+                              {SKINCARE_QUICK_ADD_WHAT_OPTIONS.map((opt) => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  className={`treatment-photo-detail-add-chip ${
+                                    addToPlanForm.product === opt ? "treatment-photo-detail-add-chip--selected" : ""
+                                  }`}
+                                  onClick={() =>
+                                    setAddToPlanForm((prev) =>
+                                      prev ? { ...prev, product: opt } : null
+                                    )
+                                  }
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <div className="treatment-photo-detail-add-row">
+                        <span>When:</span>
+                        <div className="treatment-photo-detail-add-chips">
+                          {TIMELINE_OPTIONS.filter((t) => t !== "Completed").map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              className={`treatment-photo-detail-add-chip ${
+                                addToPlanForm.when === t ? "treatment-photo-detail-add-chip--selected" : ""
+                              }`}
+                              onClick={() =>
+                                setAddToPlanForm((prev) => (prev ? { ...prev, when: t } : null))
+                              }
+                            >
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <details className="treatment-photo-detail-add-optional">
+                        <summary>Optional details</summary>
+                        <div className="treatment-photo-detail-add-optional-fields">
+                          <label>
+                            Product
+                            <input
+                              type="text"
+                              placeholder="e.g. Juvederm, Botox"
+                              value={addToPlanForm.product ?? ""}
+                              onChange={(e) =>
+                                setAddToPlanForm((prev) =>
+                                  prev ? { ...prev, product: e.target.value } : null
+                                )
+                              }
+                            />
+                          </label>
+                          <label>
+                            Quantity
+                            <input
+                              type="text"
+                              placeholder="e.g. 2"
+                              value={addToPlanForm.quantity ?? ""}
+                              onChange={(e) =>
+                                setAddToPlanForm((prev) =>
+                                  prev ? { ...prev, quantity: e.target.value } : null
+                                )
+                              }
+                            />
+                          </label>
+                          <label>
+                            Notes
+                            <textarea
+                              placeholder="Optional notes"
+                              rows={2}
+                              value={addToPlanForm.notes ?? ""}
+                              onChange={(e) =>
+                                setAddToPlanForm((prev) =>
+                                  prev ? { ...prev, notes: e.target.value } : null
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
+                      </details>
+                      <div className="treatment-photo-detail-add-actions">
+                        <button
+                          type="button"
+                          className="treatment-photo-detail-add-btn-confirm"
+                          onClick={() => confirmAddToPlanForm()}
+                          disabled={addingId === selectedPhoto.id}
+                        >
+                          {addingId === selectedPhoto.id ? "Adding…" : "Confirm"}
+                        </button>
+                        <button
+                          type="button"
+                          className="treatment-photo-detail-add-btn-cancel"
+                          onClick={() => setAddToPlanForm(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`treatment-photo-detail-add-btn${
+                        isPhotoInPlan(selectedPhoto)
+                          ? " treatment-photo-detail-add-btn-added"
+                          : ""
+                      }`}
+                      onClick={() => !isPhotoInPlan(selectedPhoto) && handleAddToPlan(selectedPhoto)}
+                      disabled={
+                        addingId === selectedPhoto.id || isPhotoInPlan(selectedPhoto)
+                      }
+                      title={
+                        isPhotoInPlan(selectedPhoto)
+                          ? "This treatment is already in the plan"
+                          : "Add to plan with Where and When"
+                      }
+                    >
+                      {addingId === selectedPhoto.id
+                        ? "Adding…"
+                        : isPhotoInPlan(selectedPhoto)
+                          ? "Added to plan"
+                          : "Add to plan"}
+                    </button>
+                  )
                 )}
               </div>
             </div>

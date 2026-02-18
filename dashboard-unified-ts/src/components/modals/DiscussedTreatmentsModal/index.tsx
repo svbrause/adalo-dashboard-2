@@ -308,17 +308,24 @@ export default function DiscussedTreatmentsModal({
   const addFormSectionRef = useRef<HTMLDivElement>(null);
 
   const treatmentsForTopic = useMemo(() => {
+    let list: string[];
     if (addMode === "finding" && selectedFindings.length > 0) {
       const treatments = new Set<string>();
       for (const finding of selectedFindings) {
         const mapped = getGoalRegionTreatmentsForFinding(finding);
         if (mapped) mapped.treatments.forEach((t) => treatments.add(t));
       }
-      return treatments.size > 0
-        ? Array.from(treatments)
-        : getTreatmentsForInterest(form.interest);
+      list =
+        treatments.size > 0
+          ? Array.from(treatments)
+          : getTreatmentsForInterest(form.interest);
+    } else {
+      list = getTreatmentsForInterest(form.interest);
     }
-    return getTreatmentsForInterest(form.interest);
+    // Skincare first, then the rest in stable order
+    const skincare = list.filter((t) => t === "Skincare");
+    const rest = list.filter((t) => t !== "Skincare");
+    return [...skincare, ...rest];
   }, [addMode, selectedFindings, form.interest]);
 
   /** Region options filtered by selected goal (or all when no goal) */
@@ -3623,7 +3630,7 @@ export default function DiscussedTreatmentsModal({
                           selectedFindings.length > 0) ? (
                           <div className="discussed-treatments-treatment-options-block">
                             <h3 className="discussed-treatments-form-title discussed-treatments-form-title-step2">
-                              Treatment options
+                              {treatmentsForTopic.length} treatment option{treatmentsForTopic.length !== 1 ? "s" : ""}
                             </h3>
                             <p className="discussed-treatments-form-hint discussed-treatments-treatments-subheading">
                               {addMode === "goal"

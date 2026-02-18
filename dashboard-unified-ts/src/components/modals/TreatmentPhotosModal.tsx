@@ -23,6 +23,8 @@ export interface TreatmentPhotosModalProps {
   onUpdate?: () => void | Promise<void>;
   /** When provided, "Add to plan" opens the treatment planning modal with form prefilled instead of adding directly */
   onAddToPlanWithPrefill?: (prefilled: TreatmentPlanPrefill) => void;
+  /** When provided, "Add to plan" shows Where/When form and on confirm adds directly (no full modal) */
+  onAddToPlanDirect?: (prefill: TreatmentPlanPrefill) => void | Promise<void>;
   /** Current plan items – for "Added to plan" state */
   planItems?: DiscussedItem[];
 }
@@ -37,6 +39,7 @@ export default function TreatmentPhotosModal({
   onClose,
   onUpdate,
   onAddToPlanWithPrefill,
+  onAddToPlanDirect,
   planItems = [],
 }: TreatmentPhotosModalProps) {
   return (
@@ -57,6 +60,7 @@ export default function TreatmentPhotosModal({
           onClose={onClose}
           onUpdate={onUpdate}
           onAddToPlanWithPrefill={onAddToPlanWithPrefill}
+          onAddToPlanDirect={onAddToPlanDirect}
           planItems={planItems}
         />
       </div>

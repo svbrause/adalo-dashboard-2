@@ -1,21 +1,9 @@
-// Contact history API service
+// Contact history API service – all calls go to ponce-patient-backend.vercel.app
 
 import { Client } from "../types";
+import { BACKEND_API_URL } from "./api";
 
-const USE_BACKEND_API =
-  typeof window !== "undefined"
-    ? (window as any).USE_BACKEND_API === true ||
-      import.meta.env.VITE_USE_BACKEND_API === "true"
-    : import.meta.env.VITE_USE_BACKEND_API === "true";
-
-const BACKEND_API_URL =
-  import.meta.env.VITE_BACKEND_API_URL ||
-  "https://ponce-patient-backend.vercel.app";
-const API_BASE_URL = USE_BACKEND_API
-  ? BACKEND_API_URL
-  : typeof window !== "undefined" && window.location
-    ? window.location.origin
-    : "";
+const API_BASE_URL = BACKEND_API_URL;
 
 interface ContactLogEntry {
   type: "call" | "email" | "text" | "meeting";
@@ -65,10 +53,7 @@ export async function saveContactLog(
     Date: new Date().toISOString(),
   };
 
-  const apiPath = USE_BACKEND_API
-    ? `/api/dashboard/contact-history`
-    : `/api/airtable-contact-history`;
-  const apiUrl = API_BASE_URL + apiPath;
+  const apiUrl = `${API_BASE_URL}/api/dashboard/contact-history`;
 
   const response = await fetch(apiUrl, {
     method: "POST",
@@ -115,17 +100,9 @@ export async function updateClientStatus(
   updateFields["Status"] = statusMap[newStatus] || newStatus;
   updateFields["Contacted"] = newStatus !== "new";
 
-  const apiPath = USE_BACKEND_API
-    ? `/api/dashboard/records/${encodeURIComponent(tableName)}/${client.id}`
-    : `/api/airtable-update-record`;
-  const apiUrl = USE_BACKEND_API
-    ? API_BASE_URL + apiPath
-    : API_BASE_URL + apiPath;
-
-  const method = USE_BACKEND_API ? "PATCH" : "PATCH";
-  const body = USE_BACKEND_API
-    ? JSON.stringify({ fields: updateFields })
-    : JSON.stringify({ tableName, recordId: client.id, fields: updateFields });
+  const apiUrl = `${API_BASE_URL}/api/dashboard/records/${encodeURIComponent(tableName)}/${client.id}`;
+  const method = "PATCH";
+  const body = JSON.stringify({ fields: updateFields });
 
   const response = await fetch(apiUrl, {
     method,
@@ -150,17 +127,9 @@ export async function archiveClient(
   const tableName = client.tableSource || "Web Popup Leads";
   const fields = { Archived: archived };
 
-  const apiPath = USE_BACKEND_API
-    ? `/api/dashboard/records/${encodeURIComponent(tableName)}/${client.id}`
-    : `/api/airtable-update-record`;
-  const apiUrl = USE_BACKEND_API
-    ? API_BASE_URL + apiPath
-    : API_BASE_URL + apiPath;
-
+  const apiUrl = `${API_BASE_URL}/api/dashboard/records/${encodeURIComponent(tableName)}/${client.id}`;
   const method = "PATCH";
-  const body = USE_BACKEND_API
-    ? JSON.stringify({ fields })
-    : JSON.stringify({ tableName, recordId: client.id, fields });
+  const body = JSON.stringify({ fields });
 
   const response = await fetch(apiUrl, {
     method,
@@ -187,17 +156,9 @@ export async function markOfferRedeemed(client: Client): Promise<void> {
   const tableName = client.tableSource || "Web Popup Leads";
   const fields = { "Offer Claimed": true };
 
-  const apiPath = USE_BACKEND_API
-    ? `/api/dashboard/records/${encodeURIComponent(tableName)}/${client.id}`
-    : `/api/airtable-update-record`;
-  const apiUrl = USE_BACKEND_API
-    ? API_BASE_URL + apiPath
-    : API_BASE_URL + apiPath;
-
+  const apiUrl = `${API_BASE_URL}/api/dashboard/records/${encodeURIComponent(tableName)}/${client.id}`;
   const method = "PATCH";
-  const body = USE_BACKEND_API
-    ? JSON.stringify({ fields })
-    : JSON.stringify({ tableName, recordId: client.id, fields });
+  const body = JSON.stringify({ fields });
 
   const response = await fetch(apiUrl, {
     method,

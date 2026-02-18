@@ -331,17 +331,33 @@ export default function ClientDetailModal({
       >
         <div className="modal-header">
           <div className="modal-header-info">
+            {recommenderMode && (
+              <button
+                type="button"
+                className="client-detail-modal-back"
+                onClick={() => setRecommenderMode(null)}
+              >
+                ← Back to client
+              </button>
+            )}
             <h2 className="modal-title">{client.name}</h2>
-            <div className="modal-header-activity-container">
-              <div className="modal-header-activity-badge">
-                <span className="modal-header-activity-label">
-                  Last Activity:
-                </span>
-                <span className="modal-header-activity-value">
-                  {lastActivityRelative}
-                </span>
+            {recommenderMode && (
+              <span className="client-detail-modal-header-subtitle">
+                Treatment recommender ({recommenderMode === "by-treatment" ? "by treatment" : "by suggestion"})
+              </span>
+            )}
+            {!recommenderMode && (
+              <div className="modal-header-activity-container">
+                <div className="modal-header-activity-badge">
+                  <span className="modal-header-activity-label">
+                    Last Activity:
+                  </span>
+                  <span className="modal-header-activity-value">
+                    {lastActivityRelative}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <button className="modal-close" onClick={onClose}>
             ×
@@ -1316,10 +1332,26 @@ export default function ClientDetailModal({
           interest={issuePhotosContext.interest}
           onClose={() => setIssuePhotosContext(null)}
           onUpdate={onUpdate}
-          onAddToPlanWithPrefill={(prefill) => {
+          onAddToPlanDirect={async (prefill) => {
+            const newItem: DiscussedItem = {
+              id: generateId(),
+              addedAt: new Date().toISOString(),
+              interest: prefill.interest?.trim() || undefined,
+              findings: prefill.findings?.length ? prefill.findings : undefined,
+              treatment: prefill.treatment?.trim() || "",
+              product: prefill.treatmentProduct?.trim() || undefined,
+              region: prefill.region?.trim() || undefined,
+              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+              quantity: prefill.quantity?.trim() || undefined,
+              notes: prefill.notes?.trim() || undefined,
+            };
+            const nextItems = [...(client.discussedItems || []), newItem];
+            await updateLeadRecord(client.id, client.tableSource, {
+              [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+            });
+            showToast("Added to treatment plan");
             setIssuePhotosContext(null);
-            setInitialAddFormPrefill(prefill);
-            setShowDiscussedTreatments(true);
+            onUpdate();
           }}
           planItems={client.discussedItems ?? []}
         />

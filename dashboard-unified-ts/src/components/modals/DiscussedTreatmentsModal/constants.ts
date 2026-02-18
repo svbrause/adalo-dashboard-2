@@ -815,6 +815,21 @@ export const TIMELINE_OPTIONS = ["Now", "Add next visit", "Wishlist", "Completed
 /** Plan sections in display order (Now top, Completed bottom). */
 export const PLAN_SECTIONS = ["Now", "Add next visit", "Wishlist", "Completed"] as const;
 
+/** Skincare "What" options for treatment explorer quick-add (product/type selector). */
+export const SKINCARE_QUICK_ADD_WHAT_OPTIONS = [
+  "Retinol",
+  "Vitamin C",
+  "SPF",
+  "Exosomes",
+  "Topical peptides",
+  "Moisturizer",
+  "Toner",
+  "Cleanser",
+  "Eye cream",
+  "Firming cream",
+  "Other",
+] as const;
+
 export const QUANTITY_QUICK_OPTIONS_DEFAULT = ["1", "2", "3", "4", "5"];
 export const QUANTITY_OPTIONS_FILLER = ["1", "2", "3", "4", "5"];
 export const QUANTITY_OPTIONS_TOX = ["20", "40", "60", "80", "100"];

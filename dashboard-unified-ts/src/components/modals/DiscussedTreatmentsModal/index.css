@@ -1989,15 +1989,20 @@
 
 .discussed-treatments-product-selected-other {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-top: 8px;
   margin-bottom: 4px;
+  min-height: 2.2em;
 }
 
 .discussed-treatments-product-selected-label {
   font-size: 13px;
   color: var(--theme-text-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 
 .discussed-treatments-product-change-btn {
@@ -2511,7 +2516,7 @@
   flex-direction: column;
   align-items: stretch;
   width: 100px;
-  min-height: 100px;
+  min-height: 124px;
   padding: 0;
   border-radius: 10px;
   border: 1.5px solid var(--theme-border);
@@ -2601,13 +2606,13 @@
 .discussed-treatments-product-carousel-item
   .discussed-treatments-product-carousel-label {
   flex: 1 1 auto;
-  padding: 6px 8px;
+  padding: 8px 8px;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-align: center;
-  line-height: 1.25;
+  line-height: 1.3;
   min-height: 0;
   font-size: 10px;
 }
@@ -3799,6 +3804,120 @@
 .treatment-photo-detail-add-btn-added:hover {
   background: rgba(34, 197, 94, 0.18);
   border-color: #22c55e;
+}
+
+/* Inline Where/When add-to-plan form (treatment explorer) */
+.treatment-photo-detail-add-form {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--theme-surface-elevated, #f8fafc);
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+}
+.treatment-photo-detail-add-row {
+  margin-bottom: 10px;
+}
+.treatment-photo-detail-add-row:last-of-type {
+  margin-bottom: 0;
+}
+.treatment-photo-detail-add-row > span {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  margin-bottom: 6px;
+}
+.treatment-photo-detail-add-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.treatment-photo-detail-add-chip {
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid var(--theme-border);
+  background: var(--theme-bg);
+  color: var(--theme-text);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.treatment-photo-detail-add-chip:hover {
+  background: var(--theme-surface-elevated);
+  border-color: var(--theme-text-muted);
+}
+.treatment-photo-detail-add-chip--selected {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #fff;
+}
+.treatment-photo-detail-add-optional {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.treatment-photo-detail-add-optional summary {
+  cursor: pointer;
+  color: var(--theme-text-muted);
+  font-weight: 500;
+}
+.treatment-photo-detail-add-optional-fields {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.treatment-photo-detail-add-optional-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--theme-text-muted);
+}
+.treatment-photo-detail-add-optional-fields input,
+.treatment-photo-detail-add-optional-fields textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--theme-bg);
+  color: var(--theme-text);
+}
+.treatment-photo-detail-add-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.treatment-photo-detail-add-btn-confirm {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #4f46e5;
+  background: #4f46e5;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.treatment-photo-detail-add-btn-confirm:hover:not(:disabled) {
+  background: #4338ca;
+  border-color: #4338ca;
+}
+.treatment-photo-detail-add-btn-confirm:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+.treatment-photo-detail-add-btn-cancel {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--theme-border);
+  background: transparent;
+  color: var(--theme-text);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.treatment-photo-detail-add-btn-cancel:hover {
+  background: var(--theme-surface-elevated);
 }
 
 /* Responsive adjustments */
