@@ -4,6 +4,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import { applyFilters, applySorting } from "../../utils/filtering";
 import { formatRelativeDate } from "../../utils/dateFormatting";
+import { formatPhoneDisplay } from "../../utils/validation";
 import { updateClientStatus } from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
 import { preloadVisiblePhotos } from "../../utils/photoLoading";
@@ -222,7 +223,7 @@ export default function KanbanView() {
                             <div className="lead-contact-info">
                               {client.phone && (
                                 <div className="lead-contact">
-                                  Phone: {client.phone}
+                                  Phone: {formatPhoneDisplay(client.phone)}
                                 </div>
                               )}
                               {client.email && (

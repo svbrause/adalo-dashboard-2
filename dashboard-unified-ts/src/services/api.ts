@@ -1,6 +1,8 @@
 // API service for fetching data from Airtable via backend (ponce-patient-backend.vercel.app)
 // All dashboard API calls go to the backend; no /api or relative routes.
 
+import type { Offer } from "../types";
+
 export const BACKEND_API_URL =
   import.meta.env.VITE_BACKEND_API_URL ||
   "https://ponce-patient-backend.vercel.app";
@@ -285,30 +287,40 @@ export async function updateLeadRecord(
 }
 
 /**
- * Send SMS notification
+ * Send SMS notification. Backend SMS Notifications table has: Phone Number, Message, Name.
  */
 export async function sendSMSNotification(
   phone: string,
   message: string,
-  leadId: string,
-  tableSource: string
+  name?: string
 ): Promise<boolean> {
   const apiUrl = `${API_BASE_URL}/api/dashboard/sms`;
+
+  const body: { phone: string; message: string; name?: string } = {
+    phone,
+    message,
+  };
+  if (name != null && name.trim() !== "") {
+    body.name = name.trim();
+  }
 
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      phone,
-      message,
-      leadId,
-      tableSource,
-    }),
+    body: JSON.stringify(body),
   });
 
-  return response.ok;
+  if (!response.ok) {
+    const errorData = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(
+      errorData.error?.message ||
+        errorData.message ||
+        "Failed to send SMS notification"
+    );
+  }
+  return true;
 }
 
 /**
@@ -365,6 +377,35 @@ export async function submitHelpRequest(
   });
 
   return response.ok;
+}
+
+/**
+ * Fetch offers from the dashboard offers API.
+ * Returns records shaped as Offer (id + flat fields).
+ */
+export async function fetchOffers(): Promise<Offer[]> {
+  const apiPath = "/api/dashboard/offers";
+  const apiUrl = API_BASE_URL + apiPath;
+  const response = await fetch(apiUrl);
+  if (!response.ok) {
+    const errorData = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(errorData.message || "Failed to fetch offers");
+  }
+  const data = await safeJsonParse(response);
+  const records = data.records || [];
+  return records.map((r: AirtableRecord) => {
+    const f = r.fields || {};
+    return {
+      id: r.id,
+      name: f.Name ?? f.name ?? "",
+      heading: f.Heading ?? f.heading ?? "",
+      details: f.Details ?? f.details ?? "",
+      availableUntil: f["Available Until"] ?? f.availableUntil ?? "",
+      redemptionPeriod: f["Redemption Period"] ?? f.redemptionPeriod ?? "",
+      treatmentFilter: f["Treatment Filter"] ?? f.treatmentFilter ?? "",
+      createdTime: r.createdTime,
+    };
+  });
 }
 
 /**

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Client } from '../../types';
 import { sendSMSNotification } from '../../services/api';
-import { isValidPhone, cleanPhoneNumber } from '../../utils/validation';
+import { isValidPhone, cleanPhoneNumber, formatPhoneDisplay } from '../../utils/validation';
 import { showToast, showError } from '../../utils/toast';
 import './SendSMSModal.css';
 
@@ -50,7 +50,7 @@ export default function SendSMSModal({ client, onClose, onSuccess }: SendSMSModa
     setSending(true);
     try {
       const cleanedPhone = cleanPhoneNumber(client.phone);
-      await sendSMSNotification(cleanedPhone, message, client.id, client.tableSource);
+      await sendSMSNotification(cleanedPhone, message, client.name || undefined);
       
       showToast(`SMS sent to ${client.name}`);
       onSuccess();
@@ -84,7 +84,7 @@ export default function SendSMSModal({ client, onClose, onSuccess }: SendSMSModa
               <label className="form-label">Phone Number</label>
               <div className="patient-info-box">
                 <div className="patient-info-value">
-                  {client.phone || 'N/A'}
+                  {client.phone ? formatPhoneDisplay(client.phone) : 'N/A'}
                 </div>
               </div>
               {errors.phone && <span className="field-error">{errors.phone}</span>}

@@ -25,10 +25,12 @@ export default function ShareAnalysisModal({
   onSuccess,
 }: ShareAnalysisModalProps) {
   const { provider } = useDashboard();
+  const defaultMessage =
+    `${formatProviderDisplayName(provider?.name) || "We"}: Your facial analysis results are ready! Access your personalized analysis and self-review at patients.ponce.ai. Log in with your email address to view your results.`;
   const [formData, setFormData] = useState({
     name: client.name || "",
     phone: client.phone || "",
-    message: "",
+    message: defaultMessage,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
@@ -44,11 +46,13 @@ export default function ShareAnalysisModal({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
+  // When provider loads/changes, set default message if still empty
   useEffect(() => {
-    // Set default message
     const providerName = formatProviderDisplayName(provider?.name) || "We";
-    const defaultMessage = `${providerName}: Your facial analysis results are ready! Access your personalized analysis and self-review at patients.ponce.ai. Log in with your email address to view your results.`;
-    setFormData((prev) => ({ ...prev, message: defaultMessage }));
+    const nextDefault = `${providerName}: Your facial analysis results are ready! Access your personalized analysis and self-review at patients.ponce.ai. Log in with your email address to view your results.`;
+    setFormData((prev) =>
+      prev.message.trim() === "" ? { ...prev, message: nextDefault } : prev
+    );
   }, [provider]);
 
   const handleSend = async () => {
@@ -82,8 +86,7 @@ export default function ShareAnalysisModal({
       await sendSMSNotification(
         cleanedPhone,
         finalMessage,
-        client.id,
-        client.tableSource,
+        formData.name.trim() || undefined,
       );
 
       showToast(`SMS notification sent to ${formData.name}`);

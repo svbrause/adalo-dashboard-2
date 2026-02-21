@@ -5,6 +5,7 @@ import { useDashboard } from "../../context/DashboardContext";
 import ClientDetailModal from "../modals/ClientDetailModal";
 import Pagination from "../common/Pagination";
 import { formatRelativeDate } from "../../utils/dateFormatting";
+import { formatPhoneDisplay } from "../../utils/validation";
 import { applyFilters, applySorting } from "../../utils/filtering";
 import "./ArchivedView.css";
 
@@ -81,7 +82,7 @@ export default function ArchivedView() {
                     >
                       <td>{client.name}</td>
                       <td>{client.email || "N/A"}</td>
-                      <td>{client.phone || "N/A"}</td>
+                      <td>{client.phone ? formatPhoneDisplay(client.phone) : "N/A"}</td>
                       <td>
                         <span className="status-badge status-badge-base status-badge-capitalize">
                           {client.status}

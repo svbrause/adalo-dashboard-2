@@ -8,6 +8,7 @@ import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import { getIssueArea } from "../../utils/issueMapping";
 import Pagination from "../common/Pagination";
 import { formatRelativeDate } from "../../utils/dateFormatting";
+import { formatPhoneDisplay } from "../../utils/validation";
 import {
   formatFacialStatusForDisplay,
   getFacialStatusColorForDisplay,
@@ -389,7 +390,7 @@ export default function FacialAnalysisView() {
                         {client.email || "No email"}
                       </div>
                       {client.phone && (
-                        <div className="facial-card-phone">{client.phone}</div>
+                        <div className="facial-card-phone">{formatPhoneDisplay(client.phone)}</div>
                       )}
                       <div className="facial-card-date">
                         {formatRelativeDate(cardDate)}

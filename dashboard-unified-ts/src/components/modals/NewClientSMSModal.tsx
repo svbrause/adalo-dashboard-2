@@ -100,8 +100,7 @@ export default function NewClientSMSModal({
       await sendSMSNotification(
         cleanedPhone,
         finalMessage,
-        "",
-        "Web Popup Leads",
+        formData.name.trim() || undefined,
       );
 
       showToast(`SMS notification sent to ${formData.name}`);

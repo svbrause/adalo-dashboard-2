@@ -138,6 +138,19 @@ export interface Client {
   /** Treatments/products discussed with patient in clinic (optional; persisted as "Treatments Discussed" in Airtable) */
   discussedItems?: DiscussedItem[];
   contactHistory: ContactHistoryEntry[];
+  /** When set, this client was consolidated from a Web Popup Lead (id) + Patient; UI shows one row. Updates/links use this client's id (Patient). */
+  linkedLeadId?: string;
+}
+
+export interface Offer {
+  id: string;
+  name: string;
+  heading: string;
+  details: string;
+  availableUntil: string;
+  redemptionPeriod: string;
+  treatmentFilter: string;
+  createdTime?: string;
 }
 
 export type ViewType =

@@ -22,7 +22,7 @@ import {
   getTreatmentDisplayName,
   formatTreatmentPlanRecordMetaLine,
 } from "../modals/DiscussedTreatmentsModal/utils";
-import { REGION_OPTIONS, TIMELINE_OPTIONS, PLAN_SECTIONS } from "../modals/DiscussedTreatmentsModal/constants";
+import { REGION_OPTIONS, TIMELINE_OPTIONS, PLAN_SECTIONS, LASER_DEVICES, TREATMENT_PRODUCT_OPTIONS } from "../modals/DiscussedTreatmentsModal/constants";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
 
@@ -46,6 +46,9 @@ const SKINCARE_WHAT_OPTIONS = [
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import "../modals/AnalysisOverviewModal.css";
 import "./TreatmentRecommenderByTreatment.css";
+
+/** Biostimulants before/after image for the treatment card. */
+import biostimulantsBeforeAfterUrl from "../../assets/images/Biostimulators-Before-and-After-With-Pictures-1.webp";
 
 /** Map Airtable record to TreatmentPhoto for card thumbnails. */
 function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
@@ -310,6 +313,10 @@ export default function TreatmentRecommenderByTreatment({
     where: string[];
     /** For Skincare: multi-select "What" options (e.g. Sunscreen, Moisturizer). */
     skincareWhat?: string[];
+    /** For Laser: multi-select "What" options (e.g. BBL, Moxi, Halo). */
+    laserWhat?: string[];
+    /** For Biostimulants: multi-select "What" options (e.g. Sculptra, Radiesse, Ellansé). */
+    biostimulantWhat?: string[];
     when: string;
     detailsExpanded: boolean;
     product?: string;
@@ -412,12 +419,18 @@ export default function TreatmentRecommenderByTreatment({
   const handleAddToPlanConfirm = async () => {
     if (!addToPlanForTreatment || !onAddToPlanDirect) return;
     const isSkincare = addToPlanForTreatment.treatment === "Skincare";
-    const region = isSkincare
+    const isLaser = addToPlanForTreatment.treatment === "Laser";
+    const isBiostimulants = addToPlanForTreatment.treatment === "Biostimulants";
+    const region = isSkincare || isLaser || isBiostimulants
       ? ""
       : (addToPlanForTreatment.where.length > 0 ? addToPlanForTreatment.where.join(", ") : "");
     const treatmentProduct = isSkincare
       ? (addToPlanForTreatment.skincareWhat?.length ? addToPlanForTreatment.skincareWhat.join(", ") : addToPlanForTreatment.product?.trim() || undefined)
-      : (addToPlanForTreatment.product?.trim() || undefined);
+      : isLaser
+        ? (addToPlanForTreatment.laserWhat?.length ? addToPlanForTreatment.laserWhat.join(", ") : addToPlanForTreatment.product?.trim() || undefined)
+        : isBiostimulants
+          ? (addToPlanForTreatment.biostimulantWhat?.length ? addToPlanForTreatment.biostimulantWhat.join(", ") : addToPlanForTreatment.product?.trim() || undefined)
+          : (addToPlanForTreatment.product?.trim() || undefined);
     const prefill: TreatmentPlanPrefill = {
       interest: "",
       region,
@@ -688,13 +701,21 @@ export default function TreatmentRecommenderByTreatment({
                 className="treatment-recommender-by-treatment__card"
               >
                 <div className="treatment-recommender-by-treatment__card-top">
-                  {cardPhoto && (
+                  {(cardPhoto || treatment === "Biostimulants") && (
                     <div className="treatment-recommender-by-treatment__card-photo-wrap">
-                      <img
-                        src={cardPhoto.thumbnailUrl || cardPhoto.photoUrl}
-                        alt=""
-                        className="treatment-recommender-by-treatment__card-photo"
-                      />
+                      {cardPhoto ? (
+                        <img
+                          src={cardPhoto.thumbnailUrl || cardPhoto.photoUrl}
+                          alt=""
+                          className="treatment-recommender-by-treatment__card-photo"
+                        />
+                      ) : (
+                        <img
+                          src={biostimulantsBeforeAfterUrl}
+                          alt="Biostimulants before and after"
+                          className="treatment-recommender-by-treatment__card-photo"
+                        />
+                      )}
                     </div>
                   )}
                   <div className="treatment-recommender-by-treatment__card-head">
@@ -729,6 +750,8 @@ export default function TreatmentRecommenderByTreatment({
                                 treatment,
                                 where: [],
                                 skincareWhat: treatment === "Skincare" ? [] : undefined,
+                                laserWhat: treatment === "Laser" ? [] : undefined,
+                                biostimulantWhat: treatment === "Biostimulants" ? [] : undefined,
                                 when: TIMELINE_OPTIONS[0],
                                 detailsExpanded: false,
                                 product: "",
@@ -744,7 +767,7 @@ export default function TreatmentRecommenderByTreatment({
                     ) : addToPlanForTreatment?.treatment === treatment ? (
                       <div className="treatment-recommender-by-treatment__add-form">
                         <div className="treatment-recommender-by-treatment__add-row">
-                          <span>{treatment === "Skincare" ? "What:" : "Where:"}</span>
+                          <span>{treatment === "Skincare" || treatment === "Laser" || treatment === "Biostimulants" ? "What:" : "Where:"}</span>
                           <div className="treatment-recommender-by-treatment__chips">
                             {treatment === "Skincare"
                               ? SKINCARE_WHAT_OPTIONS.map((opt) => {
@@ -771,7 +794,57 @@ export default function TreatmentRecommenderByTreatment({
                                     </button>
                                   );
                                 })
-                              : REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other").map((r) => (
+                              : treatment === "Laser"
+                                ? LASER_DEVICES.map((opt) => {
+                                    const selected = (addToPlanForTreatment.laserWhat ?? []).includes(opt);
+                                    return (
+                                      <button
+                                        key={opt}
+                                        type="button"
+                                        className={`treatment-recommender-by-treatment__chip ${
+                                          selected ? "treatment-recommender-by-treatment__chip--selected" : ""
+                                        }`}
+                                        onClick={() =>
+                                          setAddToPlanForTreatment((prev) => {
+                                            if (!prev) return null;
+                                            const current = prev.laserWhat ?? [];
+                                            const next = current.includes(opt)
+                                              ? current.filter((x) => x !== opt)
+                                              : [...current, opt];
+                                            return { ...prev, laserWhat: next };
+                                          })
+                                        }
+                                      >
+                                        {opt}
+                                      </button>
+                                    );
+                                  })
+                                : treatment === "Biostimulants"
+                                  ? (TREATMENT_PRODUCT_OPTIONS["Biostimulants"] ?? []).map((opt) => {
+                                      const selected = (addToPlanForTreatment.biostimulantWhat ?? []).includes(opt);
+                                      return (
+                                        <button
+                                          key={opt}
+                                          type="button"
+                                          className={`treatment-recommender-by-treatment__chip ${
+                                            selected ? "treatment-recommender-by-treatment__chip--selected" : ""
+                                          }`}
+                                          onClick={() =>
+                                            setAddToPlanForTreatment((prev) => {
+                                              if (!prev) return null;
+                                              const current = prev.biostimulantWhat ?? [];
+                                              const next = current.includes(opt)
+                                                ? current.filter((x) => x !== opt)
+                                                : [...current, opt];
+                                              return { ...prev, biostimulantWhat: next };
+                                            })
+                                          }
+                                        >
+                                          {opt}
+                                        </button>
+                                      );
+                                    })
+                                  : REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other").map((r) => (
                                   <button
                                     key={r}
                                     type="button"
@@ -894,6 +967,8 @@ export default function TreatmentRecommenderByTreatment({
                             treatment,
                             where: [],
                             skincareWhat: treatment === "Skincare" ? [] : undefined,
+                            laserWhat: treatment === "Laser" ? [] : undefined,
+                            biostimulantWhat: treatment === "Biostimulants" ? [] : undefined,
                             when: TIMELINE_OPTIONS[0],
                             detailsExpanded: false,
                             product: "",

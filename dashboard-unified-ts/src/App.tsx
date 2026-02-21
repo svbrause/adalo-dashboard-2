@@ -9,6 +9,7 @@ import DebugTreatmentExamplesPage from "./debug/DebugTreatmentExamplesPage";
 import DebugTreatmentPlanPage from "./debug/DebugTreatmentPlanPage";
 import DebugPatientIssuesPage from "./debug/DebugPatientIssuesPage";
 import DebugIndexPage from "./debug/DebugIndexPage";
+import DebugClientDetailPage from "./components/debug/DebugClientDetailPage";
 import "./styles/index.css";
 
 /** Detect debug route from pathname or ?debug= (no provider required). */
@@ -17,6 +18,7 @@ function getDebugRoute():
   | "treatment-examples"
   | "treatment-plan"
   | "patient-issues"
+  | "client-detail"
   | null {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
   const params = new URLSearchParams(window.location.search);
@@ -28,6 +30,7 @@ function getDebugRoute():
     return "treatment-plan";
   if (path === "/debug/patient-issues" || q === "patient-issues")
     return "patient-issues";
+  if (path === "/debug/client-detail" || q === "client-detail") return "client-detail";
   return null;
 }
 
@@ -76,6 +79,7 @@ function AppContent() {
     return <DebugTreatmentExamplesPage />;
   if (debugRoute === "treatment-plan") return <DebugTreatmentPlanPage />;
   if (debugRoute === "patient-issues") return <DebugPatientIssuesPage />;
+  if (debugRoute === "client-detail") return <DebugClientDetailPage />;
 
   if (isLoading) {
     return <div className="flex-center loading-screen">Loading...</div>;

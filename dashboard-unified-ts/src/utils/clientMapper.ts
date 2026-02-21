@@ -61,6 +61,32 @@ function formatPatientSource(sourceValue: string | null | undefined): string {
 }
 
 /**
+ * Get facial analysis status from record fields.
+ * Patients table may use "Pending/Opened" or other names; Web Popup Leads typically don't have this field.
+ */
+function getFacialAnalysisStatus(
+  fields: Record<string, any>,
+  tableName: string,
+): string | null {
+  if (tableName === "Patients") {
+    const candidates = [
+      "Pending/Opened",
+      "Facial Analysis Status",
+      "Analysis Status",
+      "Pending Opened",
+      "Status (from Analyses)",
+    ];
+    for (const key of candidates) {
+      const v = fields[key];
+      if (v != null && String(v).trim() !== "") return String(v).trim();
+    }
+  }
+  return fields["Pending/Opened"] != null && String(fields["Pending/Opened"]).trim() !== ""
+    ? String(fields["Pending/Opened"]).trim()
+    : null;
+}
+
+/**
  * Determine priority based on fields
  */
 function determinePriority(
@@ -217,7 +243,7 @@ export function mapRecordToClient(
     lastContact: null, // Will be set from Contact History
     isReal: true,
     tableSource: tableName as "Web Popup Leads" | "Patients",
-    facialAnalysisStatus: fields["Pending/Opened"] || null,
+    facialAnalysisStatus: getFacialAnalysisStatus(fields, tableName),
     frontPhoto: (() => {
       // Only Patients table has Front Photo field
       // Note: frontPhoto is typed as string | null but actually contains attachment array

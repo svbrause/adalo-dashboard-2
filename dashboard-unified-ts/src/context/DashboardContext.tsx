@@ -23,6 +23,7 @@ import {
   fetchProviderByCode,
 } from "../services/api";
 import { mapRecordToClient } from "../utils/clientMapper";
+import { mergeDuplicateLeadAndPatient } from "../utils/mergeLeadPatient";
 
 /** Provider codes that share one combined patient list (frontend merge, no backend change). */
 const MERGED_PROVIDER_CODES = ["TheTreatment250", "TheTreatment447"] as const;
@@ -267,6 +268,9 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
 
         let allClients = [...leadsClients, ...patientsClients];
 
+        // Consolidate same person as Web Popup Lead + Patient (e.g. Add Client then Scan In-Clinic) into one row
+        allClients = mergeDuplicateLeadAndPatient(allClients);
+
         if (historyResult) {
           const { leads: leadsHistory, patients: patientsHistory } =
             historyResult;
@@ -283,7 +287,11 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           );
 
           allClients = allClients.map((client) => {
-            const history = contactHistoryByLeadId[client.id] || [];
+            const patientHistory = contactHistoryByLeadId[client.id] || [];
+            const leadHistory = client.linkedLeadId
+              ? contactHistoryByLeadId[client.linkedLeadId] || []
+              : [];
+            const history = [...patientHistory, ...leadHistory];
             const sortedHistory = history.sort(
               (a: ContactHistoryEntry, b: ContactHistoryEntry) =>
                 new Date(b.date).getTime() - new Date(a.date).getTime(),

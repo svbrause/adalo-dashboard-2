@@ -8,7 +8,7 @@ import {
   getTelehealthScanLink,
   formatProviderDisplayName,
 } from "../../utils/providerHelpers";
-import { splitName, cleanPhoneNumber } from "../../utils/validation";
+import { splitName, cleanPhoneNumber, formatPhoneDisplay } from "../../utils/validation";
 import {
   mapAreasToFormFields,
   mapSkinComplaints,
@@ -94,8 +94,7 @@ export default function TelehealthSMSModal({
       await sendSMSNotification(
         cleanedPhone,
         finalMessage,
-        client.id,
-        client.tableSource,
+        client.name || undefined,
       );
 
       showToast(`SMS notification sent to ${client.name}`);
@@ -134,7 +133,7 @@ export default function TelehealthSMSModal({
                   <strong>Name:</strong> {client.name}
                 </div>
                 <div className="patient-info-row">
-                  <strong>Phone:</strong> {client.phone}
+                  <strong>Phone:</strong> {formatPhoneDisplay(client.phone)}
                 </div>
               </div>
             </div>

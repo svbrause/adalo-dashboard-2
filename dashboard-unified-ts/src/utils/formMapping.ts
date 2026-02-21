@@ -2,6 +2,28 @@
 
 import { Client } from '../types';
 
+/** Parse dateOfBirth for form params dateOf[month], dateOf[day], dateOf[year]. Handles ISO and MM/DD/YYYY. */
+export function parseDateOfBirthForForm(
+  dateOfBirth: string | null | undefined
+): { month: number; day: number; year: number } | null {
+  if (!dateOfBirth || typeof dateOfBirth !== 'string') return null;
+  const s = dateOfBirth.trim();
+  if (!s) return null;
+  // ISO: 1988-09-08 or 1988-09-08T...
+  const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return { year: parseInt(y!, 10), month: parseInt(m!, 10), day: parseInt(d!, 10) };
+  }
+  // MM/DD/YYYY or MM-DD-YYYY
+  const slashMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (slashMatch) {
+    const [, m, d, y] = slashMatch;
+    return { month: parseInt(m!, 10), day: parseInt(d!, 10), year: parseInt(y!, 10) };
+  }
+  return null;
+}
+
 // Valid form field options
 export const VALID_WHAT_AREAS = ['Face', 'Skin', 'Body', 'Wellness'];
 export const VALID_FACE_REGIONS = ['Eyebrows', 'Eyes', 'Cheeks', 'Nose', 'Lips', 'Face and neck aging', 'Ears', 'Jawline/chin'];

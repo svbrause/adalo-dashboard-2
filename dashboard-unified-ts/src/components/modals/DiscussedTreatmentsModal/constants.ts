@@ -402,6 +402,13 @@ export const TREATMENT_PRODUCT_OPTIONS: Record<string, string[]> = {
     "With growth factors / PRP",
     OTHER_PRODUCT_LABEL,
   ],
+  Biostimulants: [
+    "PLLA (e.g. Sculptra)",
+    "Calcium hydroxyapatite (e.g. Radiesse)",
+    "Polycaprolactone (e.g. Ellansé)",
+    "Other collagen stimulator",
+    OTHER_PRODUCT_LABEL,
+  ],
   Kybella: [
     "Kybella (deoxycholic acid)",
     "Other injectable",
@@ -546,7 +553,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["under eye hollow", "eyelid bag", "tear trough"],
     goal: "Rejuvenate Lower Eyelids",
     region: "Under eyes",
-    treatments: ["Filler"],
+    treatments: ["Filler", "Biostimulants"],
   },
   {
     keywords: ["under eye wrinkle"],
@@ -570,37 +577,37 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["mid cheek", "cheek flatten", "cheekbone"],
     goal: "Improve Cheek Definition",
     region: "Cheeks",
-    treatments: ["Filler"],
+    treatments: ["Filler", "Biostimulants"],
   },
   {
     keywords: ["nasolabial", "marionette", "smile line"],
     goal: "Shadow Correction",
     region: "Nasolabial",
-    treatments: ["Filler", "Laser", "Chemical Peel", "Microneedling"],
+    treatments: ["Filler", "Biostimulants", "Laser", "Chemical Peel", "Microneedling"],
   },
   {
     keywords: ["prejowl", "retruded chin", "chin"],
     goal: "Balance Jawline",
     region: "Jawline",
-    treatments: ["Filler"],
+    treatments: ["Filler", "Biostimulants"],
   },
   {
     keywords: ["jowl", "ill-defined jaw", "submental", "over-project"],
     goal: "Contour Jawline",
     region: "Jawline",
-    treatments: ["Filler", "Kybella", "Radiofrequency"],
+    treatments: ["Filler", "Biostimulants", "Kybella", "Radiofrequency"],
   },
   {
     keywords: ["temporal hollow"],
     goal: "Balance Forehead",
     region: "Forehead",
-    treatments: ["Filler"],
+    treatments: ["Filler", "Biostimulants"],
   },
   {
     keywords: ["platysmal", "loose neck", "neck"],
     goal: "Contour Neck",
     region: "Jawline",
-    treatments: ["Neurotoxin", "Kybella", "Radiofrequency"],
+    treatments: ["Neurotoxin", "Kybella", "Radiofrequency", "Biostimulants"],
   },
   {
     keywords: ["dark spot", "red spot"],
@@ -630,6 +637,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
       "Microneedling",
       "Filler",
       "Neurotoxin",
+      "Biostimulants",
     ],
   },
   {
@@ -642,7 +650,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["sagging", "laxity"],
     goal: "Tighten Skin Laxity",
     region: "Other",
-    treatments: ["Radiofrequency", "Laser"],
+    treatments: ["Radiofrequency", "Laser", "Biostimulants"],
   },
 ];
 
@@ -687,6 +695,7 @@ const ALL_TREATMENTS_RAW = [
   "Microneedling",
   "Filler",
   "Neurotoxin",
+  "Biostimulants",
   "Kybella",
   "Threadlift",
 ];
@@ -731,6 +740,11 @@ export const TREATMENT_META: Record<
     downtime: "None",
     priceRange: "$300–$600",
   },
+  Biostimulants: {
+    longevity: "18–24+ months",
+    downtime: "1–3 days",
+    priceRange: "$800–$1,500+",
+  },
   Kybella: {
     longevity: "Permanent",
     downtime: "3–7 days",
@@ -750,7 +764,7 @@ export const INTEREST_TO_TREATMENTS: {
 }[] = [
   {
     keywords: ["cheek", "contour", "definition"],
-    treatments: ["Skincare", "Filler"],
+    treatments: ["Skincare", "Filler", "Biostimulants"],
   },
   {
     keywords: ["eyelid", "upper eyelid", "lower eyelid", "rejuvenate"],
@@ -762,13 +776,13 @@ export const INTEREST_TO_TREATMENTS: {
   },
   {
     keywords: ["forehead"],
-    treatments: ["Skincare", "Neurotoxin", "Filler", "Laser"],
+    treatments: ["Skincare", "Neurotoxin", "Filler", "Laser", "Biostimulants"],
   },
   {
     keywords: ["jawline", "jaw"],
-    treatments: ["Skincare", "Filler", "Kybella"],
+    treatments: ["Skincare", "Filler", "Biostimulants", "Kybella"],
   },
-  { keywords: ["neck"], treatments: ["Skincare", "Kybella", "Radiofrequency"] },
+  { keywords: ["neck"], treatments: ["Skincare", "Kybella", "Radiofrequency", "Biostimulants"] },
   {
     keywords: ["lip", "lips", "hydrate", "balance lips"],
     treatments: ["Skincare", "Filler"],
@@ -780,11 +794,11 @@ export const INTEREST_TO_TREATMENTS: {
   },
   {
     keywords: ["laxity", "tighten", "sag"],
-    treatments: ["Skincare", "Radiofrequency"],
+    treatments: ["Skincare", "Radiofrequency", "Biostimulants"],
   },
   {
     keywords: ["shadow", "tear trough", "under eye"],
-    treatments: ["Skincare", "Filler"],
+    treatments: ["Skincare", "Filler", "Biostimulants"],
   },
   {
     keywords: ["scar", "fade", "line", "fine line", "smoothen"],
@@ -795,6 +809,7 @@ export const INTEREST_TO_TREATMENTS: {
       "Microneedling",
       "Filler",
       "Neurotoxin",
+      "Biostimulants",
     ],
   },
 ];
@@ -806,7 +821,10 @@ export const REGION_OPTIONS = [
   "Lips",
   "Cheeks",
   "Nasolabial",
+  "Marionette lines",
+  "Prejowl sulcus",
   "Jawline",
+  "Lower face",
   "Under eyes",
   "Multiple",
   "Other",

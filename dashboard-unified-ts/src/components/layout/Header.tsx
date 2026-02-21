@@ -69,8 +69,7 @@ export default function Header() {
       return;
     }
 
-    const providerName = formatProviderDisplayName(provider.name) || "We";
-    const formUrl = `${getJotformUrl(provider)}?provider=${encodeURIComponent(providerName)}&source=${encodeURIComponent("Provider Dashboard - In-Clinic Scan")}`;
+    const formUrl = getJotformUrl(provider);
     window.open(formUrl, "_blank");
     showToast("Opening scan form for in-clinic scan");
   };

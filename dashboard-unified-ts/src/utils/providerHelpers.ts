@@ -25,12 +25,15 @@ export function formatProviderDisplayName(
 export function getJotformUrl(provider: Provider | null): string {
   if (!provider) return "https://app.ponce.ai/face/default-clinic";
 
+  // Use Form Link from Providers table when set (used for in-clinic scan)
   const formLink =
     provider["Form Link"] ||
     provider.FormLink ||
     provider["Form link"] ||
     provider["form link"];
-  if (formLink) return formLink;
+  if (formLink && typeof formLink === "string" && formLink.trim()) {
+    return formLink.trim();
+  }
 
   return (
     provider.JotformURL ||

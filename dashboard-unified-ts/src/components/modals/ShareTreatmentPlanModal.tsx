@@ -121,8 +121,7 @@ export default function ShareTreatmentPlanModal({
       await sendSMSNotification(
         cleanPhoneNumber(formData.phone),
         formData.message,
-        client.id,
-        client.tableSource,
+        formData.name.trim() || undefined,
       );
       showToast(`SMS notification sent to ${formData.name}`);
       onSuccess();

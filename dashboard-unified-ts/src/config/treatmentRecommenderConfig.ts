@@ -95,7 +95,7 @@ export function getFindingsFromConcerns(concerns: GeneralConcern[]): string[] {
 }
 
 /** Same day / add-on: when Yes, only show treatments that can be done same day. */
-export const SAME_DAY_TREATMENTS = ["Skincare", "Neurotoxin", "Filler"] as const;
+export const SAME_DAY_TREATMENTS = ["Skincare", "Neurotoxin", "Filler", "Biostimulants"] as const;
 
 /** Region filter options (recommender-specific wording). */
 export const REGION_FILTER_OPTIONS = [

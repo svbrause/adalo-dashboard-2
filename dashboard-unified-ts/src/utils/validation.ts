@@ -65,3 +65,21 @@ export function cleanPhoneNumber(phone: string): string {
   if (!phone) return '';
   return phone.replace(/\D/g, '');
 }
+
+/**
+ * Format a phone string for display, e.g. "(914) 450-1678".
+ * Accepts raw digits, numbers (e.g. from Airtable), or already-formatted strings.
+ */
+export function formatPhoneDisplay(phone: string | number | null | undefined): string {
+  if (phone == null) return '';
+  const str = typeof phone === 'string' ? phone : String(phone);
+  if (!str.trim()) return '';
+  const digits = str.replace(/\D/g, '');
+  if (digits.length >= 6) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+  }
+  if (digits.length >= 3) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  }
+  return digits || str;
+}
