@@ -43,7 +43,7 @@ export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
     <div className="dashboard-wrapper">
       <Sidebar onLogout={onLogout} />
       <main className="main-content">
-        <Header />
+        <Header onLogout={onLogout} />
         <ViewControls />
         <DashboardViews />
       </main>

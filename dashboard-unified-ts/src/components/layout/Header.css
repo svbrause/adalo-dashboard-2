@@ -83,3 +83,31 @@
   background: #f5f5f5;
   transform: translateY(-1px);
 }
+
+/* Logout button: visible only on narrow/mobile so it’s reachable when sidebar is off-screen */
+.header-logout-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .header-logout-mobile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    color: var(--theme-text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-family: inherit;
+  }
+
+  .header-logout-mobile:hover {
+    background: var(--theme-nav-hover-bg, rgba(0, 0, 0, 0.05));
+    color: var(--theme-text-primary);
+  }
+}

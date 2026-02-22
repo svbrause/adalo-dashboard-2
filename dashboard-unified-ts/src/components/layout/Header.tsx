@@ -30,7 +30,11 @@ function isTheTreatmentProvider(provider: {
   return codeMatch || nameMatch;
 }
 
-export default function Header() {
+interface HeaderProps {
+  onLogout?: () => void;
+}
+
+export default function Header({ onLogout }: HeaderProps) {
   const { provider, refreshClients } = useDashboard();
   const [showAddClient, setShowAddClient] = useState(false);
   const [showScanDropdown, setShowScanDropdown] = useState(false);
@@ -85,6 +89,29 @@ export default function Header() {
           </p>
         </div>
         <div className="header-right">
+          {onLogout && (
+            <button
+              type="button"
+              className="header-logout-mobile"
+              onClick={onLogout}
+              title="Logout"
+              aria-label="Logout"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>Logout</span>
+            </button>
+          )}
           <div className="scan-client-dropdown" ref={dropdownRef}>
             <button
               className="btn-secondary scan-client-btn"
