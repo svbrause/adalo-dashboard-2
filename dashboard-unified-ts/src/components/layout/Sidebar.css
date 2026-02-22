@@ -1,4 +1,5 @@
 /* Sidebar Styles - extracted from main CSS */
+/* Use 100dvh so height matches visible viewport on mobile Safari (address bar doesn't push footer below fold) */
 
 .sidebar {
   position: fixed;
@@ -6,6 +7,9 @@
   top: 0;
   width: 240px;
   height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
   background: var(--theme-bg-card);
   border-right: 1px solid var(--theme-border);
   display: flex;
@@ -102,7 +106,9 @@
 }
 
 .sidebar-footer {
+  flex-shrink: 0;
   padding: 16px 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--theme-border);
 }
 
