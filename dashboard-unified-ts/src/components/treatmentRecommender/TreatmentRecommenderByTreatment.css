@@ -751,6 +751,56 @@
   color: #fff;
 }
 
+/* Notion-style: type to add custom option */
+.treatment-recommender-by-treatment__add-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-basis: 100%;
+  margin-left: 0;
+  margin-top: 4px;
+  justify-content: flex-start;
+}
+
+.treatment-recommender-by-treatment__custom-input {
+  flex: 1;
+  min-width: 120px;
+  max-width: 200px;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 6px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__custom-input::placeholder {
+  color: var(--theme-text-muted, #757575);
+}
+
+.treatment-recommender-by-treatment__custom-input:focus {
+  outline: none;
+  border-color: var(--theme-accent, #0d9488);
+}
+
+.treatment-recommender-by-treatment__custom-add-btn {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 6px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #212121);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.treatment-recommender-by-treatment__custom-add-btn:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  border-color: var(--theme-accent, #0d9488);
+  color: var(--theme-accent, #0d9488);
+}
+
 .treatment-recommender-by-treatment__add-actions {
   display: flex;
   gap: 8px;

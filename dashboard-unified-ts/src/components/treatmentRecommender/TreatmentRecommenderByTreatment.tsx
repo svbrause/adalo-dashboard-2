@@ -323,6 +323,8 @@ export default function TreatmentRecommenderByTreatment({
     quantity?: string;
     notes?: string;
   } | null>(null);
+  /** Notion-style: type to create a new option for Where/What. */
+  const [customOptionInput, setCustomOptionInput] = useState("");
   const [photoExplorerContext, setPhotoExplorerContext] = useState<{
     treatment: string;
     region?: string;
@@ -443,10 +445,36 @@ export default function TreatmentRecommenderByTreatment({
     try {
       const newItem = await onAddToPlanDirect(prefill);
       setAddToPlanForTreatment(null);
+      setCustomOptionInput("");
       if (newItem) setLastAddedItem(newItem);
     } catch {
       /* parent shows error */
     }
+  };
+
+  /** Notion-style: add a custom option (typed by user) to Where or What. */
+  const addCustomOption = () => {
+    const val = customOptionInput.trim();
+    if (!val || !addToPlanForTreatment) return;
+    const treatment = addToPlanForTreatment.treatment;
+    if (treatment === "Skincare") {
+      const current = addToPlanForTreatment.skincareWhat ?? [];
+      if (current.includes(val)) return;
+      setAddToPlanForTreatment((prev) => prev ? { ...prev, skincareWhat: [...current, val] } : null);
+    } else if (treatment === "Laser") {
+      const current = addToPlanForTreatment.laserWhat ?? [];
+      if (current.includes(val)) return;
+      setAddToPlanForTreatment((prev) => prev ? { ...prev, laserWhat: [...current, val] } : null);
+    } else if (treatment === "Biostimulants") {
+      const current = addToPlanForTreatment.biostimulantWhat ?? [];
+      if (current.includes(val)) return;
+      setAddToPlanForTreatment((prev) => prev ? { ...prev, biostimulantWhat: [...current, val] } : null);
+    } else {
+      const current = addToPlanForTreatment.where;
+      if (current.includes(val)) return;
+      setAddToPlanForTreatment((prev) => prev ? { ...prev, where: [...current, val] } : null);
+    }
+    setCustomOptionInput("");
   };
 
   /** Whether this treatment is already in the treatment plan (so we show "Added" and "Add additional details"). */
@@ -869,6 +897,100 @@ export default function TreatmentRecommenderByTreatment({
                                     {r}
                                   </button>
                                 ))}
+                            {/* Custom (user-typed) options; click chip to remove */}
+                            {treatment === "Skincare" &&
+                              (addToPlanForTreatment.skincareWhat ?? [])
+                                .filter((s) => !SKINCARE_WHAT_OPTIONS.includes(s))
+                                .map((customVal) => (
+                                  <button
+                                    key={customVal}
+                                    type="button"
+                                    className="treatment-recommender-by-treatment__chip treatment-recommender-by-treatment__chip--selected"
+                                    onClick={() =>
+                                      setAddToPlanForTreatment((prev) =>
+                                        prev ? { ...prev, skincareWhat: (prev.skincareWhat ?? []).filter((x) => x !== customVal) } : null
+                                      )
+                                    }
+                                  >
+                                    {customVal}
+                                  </button>
+                                ))}
+                            {treatment === "Laser" &&
+                              (addToPlanForTreatment.laserWhat ?? [])
+                                .filter((l) => !LASER_DEVICES.includes(l))
+                                .map((customVal) => (
+                                  <button
+                                    key={customVal}
+                                    type="button"
+                                    className="treatment-recommender-by-treatment__chip treatment-recommender-by-treatment__chip--selected"
+                                    onClick={() =>
+                                      setAddToPlanForTreatment((prev) =>
+                                        prev ? { ...prev, laserWhat: (prev.laserWhat ?? []).filter((x) => x !== customVal) } : null
+                                      )
+                                    }
+                                  >
+                                    {customVal}
+                                  </button>
+                                ))}
+                            {treatment === "Biostimulants" &&
+                              (addToPlanForTreatment.biostimulantWhat ?? [])
+                                .filter((b) => !(TREATMENT_PRODUCT_OPTIONS["Biostimulants"] ?? []).includes(b))
+                                .map((customVal) => (
+                                  <button
+                                    key={customVal}
+                                    type="button"
+                                    className="treatment-recommender-by-treatment__chip treatment-recommender-by-treatment__chip--selected"
+                                    onClick={() =>
+                                      setAddToPlanForTreatment((prev) =>
+                                        prev ? { ...prev, biostimulantWhat: (prev.biostimulantWhat ?? []).filter((x) => x !== customVal) } : null
+                                      )
+                                    }
+                                  >
+                                    {customVal}
+                                  </button>
+                                ))}
+                            {treatment !== "Skincare" &&
+                              treatment !== "Laser" &&
+                              treatment !== "Biostimulants" &&
+                              addToPlanForTreatment.where
+                                .filter((w) => !REGION_OPTIONS.includes(w))
+                                .map((customVal) => (
+                                  <button
+                                    key={customVal}
+                                    type="button"
+                                    className="treatment-recommender-by-treatment__chip treatment-recommender-by-treatment__chip--selected"
+                                    onClick={() =>
+                                      setAddToPlanForTreatment((prev) =>
+                                        prev ? { ...prev, where: prev.where.filter((x) => x !== customVal) } : null
+                                      )
+                                    }
+                                  >
+                                    {customVal}
+                                  </button>
+                                ))}
+                          </div>
+                          <div className="treatment-recommender-by-treatment__add-custom">
+                            <input
+                              type="text"
+                              className="treatment-recommender-by-treatment__custom-input"
+                              placeholder="Type to add option..."
+                              value={customOptionInput}
+                              onChange={(e) => setCustomOptionInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  addCustomOption();
+                                }
+                              }}
+                              aria-label="Add custom option"
+                            />
+                            <button
+                              type="button"
+                              className="treatment-recommender-by-treatment__custom-add-btn"
+                              onClick={addCustomOption}
+                            >
+                              Add
+                            </button>
                           </div>
                         </div>
                         <div className="treatment-recommender-by-treatment__add-row">
@@ -952,7 +1074,10 @@ export default function TreatmentRecommenderByTreatment({
                           <button
                             type="button"
                             className="treatment-recommender-by-treatment__cancel-btn"
-                            onClick={() => setAddToPlanForTreatment(null)}
+                            onClick={() => {
+                              setAddToPlanForTreatment(null);
+                              setCustomOptionInput("");
+                            }}
                           >
                             Cancel
                           </button>

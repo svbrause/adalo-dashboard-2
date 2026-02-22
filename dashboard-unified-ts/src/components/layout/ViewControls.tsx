@@ -50,8 +50,16 @@ export default function ViewControls() {
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
 
+  const isClientView =
+    currentView === "list" ||
+    currentView === "cards" ||
+    currentView === "kanban" ||
+    currentView === "facial-analysis" ||
+    currentView === "archived";
+
   return (
     <div className="view-controls-container">
+      {isClientView && (
       <div className="control-section view-toggle-section">
         <div className="view-toggle-buttons">
           <button
@@ -104,7 +112,9 @@ export default function ViewControls() {
           </button>
         </div>
       </div>
+      )}
 
+      {isClientView && (
       <div className="control-section search-section">
         <div className="search-box-main">
           <svg
@@ -127,7 +137,10 @@ export default function ViewControls() {
           />
         </div>
       </div>
+      )}
 
+      {isClientView && (
+      <>
       {/* Filter Section */}
       <div className="control-section filter-section">
         <button
@@ -360,6 +373,8 @@ export default function ViewControls() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

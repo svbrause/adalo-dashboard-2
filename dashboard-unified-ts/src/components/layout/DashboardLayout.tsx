@@ -10,6 +10,7 @@ import KanbanView from "../views/KanbanView";
 import ArchivedView from "../views/ArchivedView";
 import FacialAnalysisView from "../views/FacialAnalysisView";
 import OffersView from "../views/OffersView";
+import InboxView from "../views/InboxView";
 import "./DashboardLayout.css";
 
 interface DashboardLayoutProps {
@@ -26,6 +27,8 @@ function DashboardViews() {
       return <ArchivedView />;
     case "offers":
       return <OffersView />;
+    case "inbox":
+      return <InboxView />;
     case "facial-analysis":
     case "cards":
       return <FacialAnalysisView />;

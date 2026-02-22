@@ -61,9 +61,11 @@ export function splitName(fullName: string): { first: string; last: string } {
   return { first, last };
 }
 
-export function cleanPhoneNumber(phone: string): string {
-  if (!phone) return '';
-  return phone.replace(/\D/g, '');
+/** Accepts string, number (e.g. from Airtable), or null/undefined. Returns digits only. */
+export function cleanPhoneNumber(phone: string | number | null | undefined): string {
+  if (phone == null) return '';
+  const str = typeof phone === 'string' ? phone : String(phone);
+  return str.replace(/\D/g, '');
 }
 
 /**

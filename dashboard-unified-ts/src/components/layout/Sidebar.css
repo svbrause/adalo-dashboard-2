@@ -71,15 +71,26 @@
 }
 
 .nav-item.active {
-  background: var(--theme-nav-active-bg, rgba(0, 0, 0, 0.05));
-  color: var(--theme-text-primary);
-  border-left-color: var(--theme-nav-active-border, transparent);
+  background: var(--theme-accent);
+  color: #fff !important;
+  border-left-color: rgba(255, 255, 255, 0.4);
   font-weight: 600;
 }
 
-/* All Clients link: white text on active/blue background (override theme text color) */
-.nav-item--all-clients,
-.nav-item--all-clients:hover,
+.nav-item.active:hover {
+  background: var(--theme-accent-hover, var(--theme-accent));
+  color: #fff !important;
+}
+
+/* All Clients: gray when unselected (legible on light sidebar), white when selected */
+.nav-item--all-clients {
+  color: var(--theme-text-secondary, #6b7280);
+}
+
+.nav-item--all-clients:hover {
+  color: var(--theme-text-primary, #111827);
+}
+
 .nav-item--all-clients.active {
   color: #fff !important;
 }

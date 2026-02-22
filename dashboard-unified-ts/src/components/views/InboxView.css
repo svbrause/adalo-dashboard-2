@@ -1,0 +1,328 @@
+/* Inbox (Doctor Advice Requests) View */
+
+.inbox-view {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--theme-bg-gradient, #f5f5f5);
+  padding: 24px 32px;
+}
+
+.inbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.inbox-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--theme-text-primary, #212121);
+}
+
+.inbox-description {
+  margin: 0 0 20px;
+  font-size: 0.9375rem;
+  color: var(--theme-text-secondary, #616161);
+  max-width: 640px;
+}
+
+.inbox-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-text-secondary, #616161);
+  background: var(--theme-bg-card, #fff);
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.inbox-refresh-btn:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  border-color: var(--theme-accent, #0d9488);
+  color: var(--theme-accent, #0d9488);
+}
+
+.inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.inbox-card {
+  background: var(--theme-bg-card, #fff);
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.inbox-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--theme-border, #e8e8e8);
+}
+
+.inbox-card-date {
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted, #757575);
+}
+
+.inbox-card-duplicate-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--theme-accent, #367588);
+  background: var(--theme-nav-active-bg, #e6f3f7);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.inbox-card-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.inbox-card-photo-wrap {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--theme-bg-hover, #f0f0f0);
+  border: 1px solid var(--theme-border, #e8e8e8);
+}
+
+.inbox-card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inbox-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Contact section: heading = name, then phone/email + actions */
+.inbox-contact-section {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--theme-border, #e8e8e8);
+}
+
+.inbox-contact-heading {
+  margin: 0 0 10px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+}
+
+.inbox-contact-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inbox-contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9375rem;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.inbox-contact-phone {
+  font-weight: 500;
+}
+
+.inbox-contact-email {
+  color: var(--theme-text-secondary, #616161);
+}
+
+.inbox-contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inbox-action-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #212121);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.inbox-action-btn:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  border-color: var(--theme-accent, #367588);
+  color: var(--theme-accent, #367588);
+}
+
+.inbox-action-call,
+.inbox-action-sms,
+.inbox-action-email {
+  /* same as base */
+}
+
+.inbox-action-view {
+  margin-left: 4px;
+  border-color: var(--theme-accent, #367588);
+  color: var(--theme-accent, #367588);
+  background: transparent;
+}
+
+.inbox-action-view:hover {
+  background: var(--theme-nav-active-bg, #e6f3f7);
+  color: var(--theme-accent-hover, #2c5f6b);
+  border-color: var(--theme-accent-hover, #2c5f6b);
+}
+
+.inbox-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.inbox-detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.inbox-detail-row dt {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-text-muted, #757575);
+  min-width: 100px;
+}
+
+.inbox-detail-row dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--theme-text-primary, #212121);
+}
+
+.inbox-card-email {
+  color: var(--theme-accent, #0d9488);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.inbox-card-email:hover {
+  text-decoration: underline;
+}
+
+.inbox-card-source {
+  font-size: 0.875rem;
+  color: var(--theme-text-secondary, #616161);
+  background: var(--theme-bg-hover, #f0f0f0);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.inbox-interests {
+  margin-top: 12px;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+
+.inbox-interests-label {
+  font-weight: 600;
+  color: var(--theme-text-muted, #757575);
+  margin-right: 6px;
+}
+
+.inbox-interests-list {
+  color: var(--theme-text-secondary, #616161);
+}
+
+.inbox-card-note-block {
+  margin-top: 4px;
+}
+
+.inbox-card-note-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-text-muted, #757575);
+  margin-bottom: 6px;
+}
+
+.inbox-card-note {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--theme-text-secondary, #616161);
+  white-space: pre-wrap;
+  background: var(--theme-bg-hover, #f9f9f9);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border, #eee);
+}
+
+.inbox-card-note-empty {
+  color: var(--theme-text-muted, #757575);
+  font-style: italic;
+}
+
+.inbox-empty {
+  padding: 48px 24px;
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--theme-text-muted, #757575);
+  background: var(--theme-bg-card, #fff);
+  border: 1px dashed var(--theme-border, #e0e0e0);
+  border-radius: 12px;
+}
+
+.inbox-loading,
+.inbox-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: var(--theme-text-secondary, #616161);
+  gap: 16px;
+}
+
+.inbox-retry-btn {
+  padding: 8px 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: var(--theme-bg-card, #fff);
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.inbox-retry-btn:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  border-color: var(--theme-accent, #0d9488);
+  color: var(--theme-accent, #0d9488);
+}

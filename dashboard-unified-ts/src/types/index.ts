@@ -153,13 +153,24 @@ export interface Offer {
   createdTime?: string;
 }
 
+/** One row from the Doctor Advice Requests Airtable table (inbox). */
+export interface DoctorAdviceRequest {
+  id: string;
+  patientEmail: string;
+  patientNote: string;
+  source: string;
+  patientId?: string;
+  createdTime?: string;
+}
+
 export type ViewType =
   | "list"
   | "cards"
   | "kanban"
   | "facial-analysis"
   | "archived"
-  | "offers";
+  | "offers"
+  | "inbox";
 
 export interface FilterState {
   source: string;

@@ -1,7 +1,7 @@
 // API service for fetching data from Airtable via backend (ponce-patient-backend.vercel.app)
 // All dashboard API calls go to the backend; no /api or relative routes.
 
-import type { Offer } from "../types";
+import type { Offer, DoctorAdviceRequest } from "../types";
 
 export const BACKEND_API_URL =
   import.meta.env.VITE_BACKEND_API_URL ||
@@ -377,6 +377,35 @@ export async function submitHelpRequest(
   });
 
   return response.ok;
+}
+
+/**
+ * Fetch Doctor Advice Requests (inbox) from the dashboard API.
+ */
+export async function fetchDoctorAdviceRequests(): Promise<DoctorAdviceRequest[]> {
+  const apiUrl = `${API_BASE_URL}/api/dashboard/doctor-advice-requests`;
+  const response = await fetch(apiUrl);
+  if (!response.ok) {
+    const errorData = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(
+      errorData.error || errorData.message || "Failed to fetch doctor advice requests"
+    );
+  }
+  const data = await safeJsonParse(response);
+  const records = data.records || [];
+  return records.map((r: AirtableRecord) => {
+    const f = r.fields || {};
+    const patients = f.Patients ?? f.patients;
+    const patientId = Array.isArray(patients) && patients.length > 0 ? patients[0] : undefined;
+    return {
+      id: r.id,
+      patientEmail: f["Patient Email"] ?? f.patientEmail ?? "",
+      patientNote: f["Patient Note"] ?? f.patientNote ?? "",
+      source: f.source ?? f.Source ?? "",
+      patientId,
+      createdTime: r.createdTime,
+    };
+  });
 }
 
 /**
