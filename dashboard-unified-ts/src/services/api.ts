@@ -475,6 +475,75 @@ export async function createTreatmentRecommenderCustomOption(
 }
 
 /**
+ * Delete a treatment recommender option by record ID (so providers can remove defaults or custom options).
+ */
+export async function deleteTreatmentRecommenderOption(recordId: string): Promise<void> {
+  if (!recordId?.trim()) throw new Error("recordId is required");
+  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options/${encodeURIComponent(recordId.trim())}`;
+  const response = await fetch(apiUrl, { method: "DELETE", headers: { "Content-Type": "application/json" } });
+  if (!response.ok) {
+    const err = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(err.message || err.error?.message || "Failed to delete option");
+  }
+}
+
+/**
+ * Update a treatment recommender option's value (rename).
+ */
+export async function updateTreatmentRecommenderOption(
+  recordId: string,
+  value: string
+): Promise<TreatmentRecommenderCustomOption> {
+  const trimmed = value?.trim();
+  if (!recordId?.trim() || !trimmed) throw new Error("recordId and value are required");
+  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options/${encodeURIComponent(recordId.trim())}`;
+  const response = await fetch(apiUrl, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value: trimmed }),
+  });
+  if (!response.ok) {
+    const err = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(err.message || err.error?.message || "Failed to update option");
+  }
+  const data = await safeJsonParse(response);
+  const rec = data.record ?? data;
+  const f = rec?.fields ?? rec;
+  const rawType = String(f?.["Option Type"] ?? f?.optionType ?? rec?.optionType ?? "where").trim().toLowerCase().replace(/\s+/g, "_");
+  const optionType: TreatmentRecommenderOptionType =
+    rawType === "skincare_what" || rawType === "laser_what" || rawType === "biostimulant_what" ? rawType : "where";
+  return {
+    id: rec?.id ?? recordId,
+    optionType,
+    value: String(f?.Value ?? f?.value ?? rec?.value ?? trimmed).trim(),
+  };
+}
+
+/**
+ * Seed default treatment recommender options for a provider (inserts into Airtable; skips existing).
+ * Returns how many options were inserted.
+ */
+export async function seedTreatmentRecommenderOptions(
+  providerId: string,
+  options: Array<{ optionType: TreatmentRecommenderOptionType; value: string }>
+): Promise<{ inserted: number }> {
+  if (!providerId?.trim()) throw new Error("providerId is required");
+  if (!Array.isArray(options) || options.length === 0) throw new Error("options array is required");
+  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options/seed`;
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ providerId: providerId.trim(), options }),
+  });
+  if (!response.ok) {
+    const err = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(err.message || err.error?.message || "Failed to seed options");
+  }
+  const data = await safeJsonParse(response);
+  return { inserted: data.inserted ?? 0 };
+}
+
+/**
  * Fetch Doctor Advice Requests (inbox) from the dashboard API.
  */
 export async function fetchDoctorAdviceRequests(): Promise<DoctorAdviceRequest[]> {

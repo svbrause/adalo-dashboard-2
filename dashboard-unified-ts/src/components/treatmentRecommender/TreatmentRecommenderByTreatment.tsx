@@ -11,8 +11,12 @@ import {
   fetchTableRecords,
   fetchTreatmentRecommenderCustomOptions,
   createTreatmentRecommenderCustomOption,
+  deleteTreatmentRecommenderOption,
+  updateTreatmentRecommenderOption,
+  seedTreatmentRecommenderOptions,
   type TreatmentRecommenderOptionType,
 } from "../../services/api";
+import type { TreatmentRecommenderCustomOption } from "../../services/api";
 import type { AirtableRecord } from "../../services/api";
 import { normalizeIssue, scoreTier, tierColor, scoreIssues, CATEGORIES } from "../../config/analysisOverviewConfig";
 import {
@@ -29,28 +33,20 @@ import {
   getTreatmentDisplayName,
   formatTreatmentPlanRecordMetaLine,
 } from "../modals/DiscussedTreatmentsModal/utils";
-import { REGION_OPTIONS, TIMELINE_OPTIONS, PLAN_SECTIONS, LASER_DEVICES, TREATMENT_PRODUCT_OPTIONS } from "../modals/DiscussedTreatmentsModal/constants";
+import {
+  REGION_OPTIONS,
+  TIMELINE_OPTIONS,
+  PLAN_SECTIONS,
+  LASER_DEVICES,
+  TREATMENT_PRODUCT_OPTIONS,
+  getSkincareCarouselItems,
+  OTHER_PRODUCT_LABEL,
+  SKINCARE_CATEGORY_OPTIONS,
+} from "../modals/DiscussedTreatmentsModal/constants";
 import { showToast } from "../../utils/toast";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
 
-/** Skincare "What" options in by-treatment add form (replaces Where/region). */
-const SKINCARE_WHAT_OPTIONS = [
-  "Anti-aging cream",
-  "Moisturizer",
-  "Sunscreen",
-  "Vitamin C serum",
-  "HLA serum",
-  "Anti-aging serum",
-  "Anti-oxidants",
-  "Exfoliators",
-  "Cleansers",
-  "Toners/mists",
-  "Face masks",
-  "Retinols",
-  "Eye care",
-  "Lip care",
-];
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import "../modals/AnalysisOverviewModal.css";
 import "./TreatmentRecommenderByTreatment.css";
@@ -312,13 +308,10 @@ export default function TreatmentRecommenderByTreatment({
   treatmentPlanModalClosedRef,
 }: TreatmentRecommenderByTreatmentProps) {
   const { provider } = useDashboard();
-  /** Persisted custom options (Where / What) loaded from Airtable; merged with static options in the UI. */
-  const [customOptions, setCustomOptions] = useState<{
-    where: string[];
-    skincareWhat: string[];
-    laserWhat: string[];
-    biostimulantWhat: string[];
-  }>({ where: [], skincareWhat: [], laserWhat: [], biostimulantWhat: [] });
+  /** All options (defaults + custom) from Treatment Recommender Options table; used so providers can remove any option. */
+  const [optionRecords, setOptionRecords] = useState<TreatmentRecommenderCustomOption[]>([]);
+  /** Bump to refetch options after add/delete. */
+  const [optionRecordsVersion, setOptionRecordsVersion] = useState(0);
   /** Item we just added so we can open it for editing when user clicks "Add additional details". Cleared when modal closes. */
   const [lastAddedItem, setLastAddedItem] = useState<DiscussedItem | null>(null);
   const [filterState, setFilterState] = useState<TreatmentRecommenderFilterState>(
@@ -327,8 +320,10 @@ export default function TreatmentRecommenderByTreatment({
   const [addToPlanForTreatment, setAddToPlanForTreatment] = useState<{
     treatment: string;
     where: string[];
-    /** For Skincare: multi-select "What" options (e.g. Sunscreen, Moisturizer). */
+    /** For Skincare: multi-select "What" options (product names). */
     skincareWhat?: string[];
+    /** For Skincare: selected category labels to filter the product carousel. */
+    skincareCategoryFilter?: string[];
     /** For Laser: multi-select "What" options (e.g. BBL, Moxi, Halo). */
     laserWhat?: string[];
     /** For Biostimulants: multi-select "What" options (e.g. Sculptra, Radiesse, Ellansé). */
@@ -341,6 +336,16 @@ export default function TreatmentRecommenderByTreatment({
   } | null>(null);
   /** Notion-style: type to create a new option for Where/What. */
   const [customOptionInput, setCustomOptionInput] = useState("");
+  /** When set, show the Edit options modal for this treatment/optionType (iPad-friendly add/remove/rename). */
+  const [editOptionsContext, setEditOptionsContext] = useState<{
+    treatment: string;
+    optionType: TreatmentRecommenderOptionType;
+  } | null>(null);
+  /** In the Edit options modal: which record is being renamed (inline edit). */
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+  /** In the Edit options modal: new option input for Add. */
+  const [editModalNewOptionInput, setEditModalNewOptionInput] = useState("");
   const [photoExplorerContext, setPhotoExplorerContext] = useState<{
     treatment: string;
     region?: string;
@@ -359,6 +364,23 @@ export default function TreatmentRecommenderByTreatment({
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [showClientPhotoModal]);
+
+  useEffect(() => {
+    if (!editOptionsContext) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (editingRecordId) {
+          setEditingRecordId(null);
+          setEditingValue("");
+        } else {
+          setEditOptionsContext(null);
+          setEditModalNewOptionInput("");
+        }
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [editOptionsContext, editingRecordId]);
 
   const getUrl = (att: { url?: string; thumbnails?: { full?: { url?: string }; large?: { url?: string } } }) =>
     att?.thumbnails?.full?.url ?? att?.thumbnails?.large?.url ?? att?.url ?? null;
@@ -410,44 +432,120 @@ export default function TreatmentRecommenderByTreatment({
     if (!provider?.id) return;
     let mounted = true;
     fetchTreatmentRecommenderCustomOptions(provider.id)
-      .then((list) => {
+      .then(async (list) => {
         if (!mounted) return;
-        const where: string[] = [];
-        const skincareWhat: string[] = [];
-        const laserWhat: string[] = [];
-        const biostimulantWhat: string[] = [];
-        for (const o of list) {
-          if (o.optionType === "where") where.push(o.value);
-          else if (o.optionType === "skincare_what") skincareWhat.push(o.value);
-          else if (o.optionType === "laser_what") laserWhat.push(o.value);
-          else if (o.optionType === "biostimulant_what") biostimulantWhat.push(o.value);
+        if (list.length === 0) {
+          const skincareNames = getSkincareCarouselItems().map((i) => i.name);
+          const baseWhere = REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other");
+          const biostimulantList = TREATMENT_PRODUCT_OPTIONS["Biostimulants"] ?? [];
+          const seedOptions: Array<{ optionType: TreatmentRecommenderOptionType; value: string }> = [
+            ...baseWhere.map((v) => ({ optionType: "where" as const, value: v })),
+            ...skincareNames.map((v) => ({ optionType: "skincare_what" as const, value: v })),
+            ...LASER_DEVICES.map((v) => ({ optionType: "laser_what" as const, value: v })),
+            ...biostimulantList.map((v) => ({ optionType: "biostimulant_what" as const, value: v })),
+          ];
+          try {
+            await seedTreatmentRecommenderOptions(provider.id, seedOptions);
+            if (!mounted) return;
+            const refetched = await fetchTreatmentRecommenderCustomOptions(provider.id);
+            setOptionRecords(refetched);
+          } catch {
+            setOptionRecords(list);
+          }
+          return;
         }
-        setCustomOptions({ where, skincareWhat, laserWhat, biostimulantWhat });
+        setOptionRecords(list);
       })
-      .catch(() => {});
+      .catch(() => setOptionRecords([]));
     return () => { mounted = false; };
-  }, [provider?.id]);
+  }, [provider?.id, optionRecordsVersion]);
 
   const baseWhereOptions = useMemo(
     () => REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other"),
     []
   );
+  const whereOptionRecords = useMemo(
+    () => optionRecords.filter((o) => o.optionType === "where"),
+    [optionRecords]
+  );
   const whereOptions = useMemo(
-    () => [...baseWhereOptions, ...customOptions.where],
-    [baseWhereOptions, customOptions.where]
+    () => (whereOptionRecords.length > 0 ? whereOptionRecords.map((o) => o.value) : baseWhereOptions),
+    [whereOptionRecords, baseWhereOptions]
+  );
+
+  const skincareCarouselItems = useMemo(() => getSkincareCarouselItems(), []);
+  const skincareWhatOptionRecords = useMemo(
+    () => optionRecords.filter((o) => o.optionType === "skincare_what"),
+    [optionRecords]
   );
   const skincareWhatOptions = useMemo(
-    () => [...SKINCARE_WHAT_OPTIONS, ...customOptions.skincareWhat],
-    [customOptions.skincareWhat]
+    () =>
+      skincareWhatOptionRecords.length > 0
+        ? skincareWhatOptionRecords.map((o) => o.value)
+        : skincareCarouselItems.map((i) => i.name),
+    [skincareWhatOptionRecords, skincareCarouselItems]
+  );
+  /** Carousel items allowed by provider (from table when seeded, or full list when not yet). */
+  const skincareCarouselItemsAllowed = useMemo(
+    () => {
+      const set = new Set(skincareWhatOptions);
+      return skincareCarouselItems.filter((item) => set.has(item.name));
+    },
+    [skincareCarouselItems, skincareWhatOptions]
+  );
+
+  /** Carousel items to show: allowed list; when categories selected, show those products plus any already-selected so selections don’t disappear. */
+  const skincareCarouselItemsFiltered = useMemo(() => {
+    const categoryFilter = addToPlanForTreatment?.treatment === "Skincare" ? addToPlanForTreatment.skincareCategoryFilter : undefined;
+    const selectedNames = new Set(addToPlanForTreatment?.skincareWhat ?? []);
+    if (!categoryFilter?.length) {
+      // No category filter: show full allowed list (or full list if allowed is empty so carousel isn’t blank)
+      const base = skincareCarouselItemsAllowed.length > 0 ? skincareCarouselItemsAllowed : skincareCarouselItems;
+      return base;
+    }
+    const productSet = new Set<string>();
+    for (const label of categoryFilter) {
+      const cat = SKINCARE_CATEGORY_OPTIONS.find((c) => c.label === label);
+      if (cat) cat.products.forEach((p) => productSet.add(p));
+    }
+    const inCategory = skincareCarouselItemsAllowed.filter((item) => productSet.has(item.name));
+    const selectedStillAllowed = skincareCarouselItemsAllowed.filter((item) => selectedNames.has(item.name));
+    const combined = new Map<string, (typeof skincareCarouselItemsAllowed)[0]>();
+    [...inCategory, ...selectedStillAllowed].forEach((item) => combined.set(item.name, item));
+    return Array.from(combined.values());
+  }, [skincareCarouselItemsAllowed, skincareCarouselItems, addToPlanForTreatment?.treatment, addToPlanForTreatment?.skincareCategoryFilter, addToPlanForTreatment?.skincareWhat]);
+
+  const laserWhatOptionRecords = useMemo(
+    () => optionRecords.filter((o) => o.optionType === "laser_what"),
+    [optionRecords]
   );
   const laserWhatOptions = useMemo(
-    () => [...LASER_DEVICES, ...customOptions.laserWhat],
-    [customOptions.laserWhat]
+    () =>
+      laserWhatOptionRecords.length > 0
+        ? laserWhatOptionRecords.map((o) => o.value)
+        : [...LASER_DEVICES],
+    [laserWhatOptionRecords]
+  );
+
+  const biostimulantWhatOptionRecords = useMemo(
+    () => optionRecords.filter((o) => o.optionType === "biostimulant_what"),
+    [optionRecords]
   );
   const biostimulantWhatOptions = useMemo(
-    () => [...(TREATMENT_PRODUCT_OPTIONS["Biostimulants"] ?? []), ...customOptions.biostimulantWhat],
-    [customOptions.biostimulantWhat]
+    () =>
+      biostimulantWhatOptionRecords.length > 0
+        ? biostimulantWhatOptionRecords.map((o) => o.value)
+        : [...(TREATMENT_PRODUCT_OPTIONS["Biostimulants"] ?? [])],
+    [biostimulantWhatOptionRecords]
   );
+
+  const optionsFromTable = optionRecords.length > 0;
+
+  /** Option records for the current Edit options modal (by optionType). */
+  const editOptionRecords = useMemo(() => {
+    if (!editOptionsContext) return [];
+    return optionRecords.filter((o) => o.optionType === editOptionsContext.optionType);
+  }, [editOptionsContext, optionRecords]);
 
   const detectedIssues = useMemo(() => getDetectedIssues(client), [client]);
 
@@ -541,14 +639,7 @@ export default function TreatmentRecommenderByTreatment({
     if (provider?.id) {
       try {
         await createTreatmentRecommenderCustomOption(provider.id, optionType, val);
-        setCustomOptions((prev) => ({
-          ...prev,
-          [optionType === "skincare_what" ? "skincareWhat" : optionType === "laser_what" ? "laserWhat" : optionType === "biostimulant_what" ? "biostimulantWhat" : "where"]:
-            optionType === "skincare_what" ? [...prev.skincareWhat, val]
-            : optionType === "laser_what" ? [...prev.laserWhat, val]
-            : optionType === "biostimulant_what" ? [...prev.biostimulantWhat, val]
-            : [...prev.where, val],
-        }));
+        setOptionRecordsVersion((v) => v + 1);
       } catch {
         showToast("Option added here; could not save for future use.");
       }
@@ -856,6 +947,7 @@ export default function TreatmentRecommenderByTreatment({
                                 treatment,
                                 where: [],
                                 skincareWhat: treatment === "Skincare" ? [] : undefined,
+                                skincareCategoryFilter: treatment === "Skincare" ? [] : undefined,
                                 laserWhat: treatment === "Laser" ? [] : undefined,
                                 biostimulantWhat: treatment === "Biostimulants" ? [] : undefined,
                                 when: TIMELINE_OPTIONS[0],
@@ -872,15 +964,16 @@ export default function TreatmentRecommenderByTreatment({
                       </div>
                     ) : addToPlanForTreatment?.treatment === treatment ? (
                       <div className="treatment-recommender-by-treatment__add-form">
-                        <div className="treatment-recommender-by-treatment__add-row">
-                          <span>{treatment === "Skincare" || treatment === "Laser" || treatment === "Biostimulants" ? "What:" : "Where:"}</span>
-                          <div className="treatment-recommender-by-treatment__chips">
-                            {treatment === "Skincare"
-                              ? skincareWhatOptions.map((opt) => {
-                                  const selected = (addToPlanForTreatment.skincareWhat ?? []).includes(opt);
+                        {treatment === "Skincare" && (
+                          <>
+                            <div className="treatment-recommender-by-treatment__add-row">
+                              <span>Category (optional):</span>
+                              <div className="treatment-recommender-by-treatment__chips">
+                                {SKINCARE_CATEGORY_OPTIONS.map((cat) => {
+                                  const selected = (addToPlanForTreatment.skincareCategoryFilter ?? []).includes(cat.label);
                                   return (
                                     <button
-                                      key={opt}
+                                      key={cat.label}
                                       type="button"
                                       className={`treatment-recommender-by-treatment__chip ${
                                         selected ? "treatment-recommender-by-treatment__chip--selected" : ""
@@ -888,24 +981,91 @@ export default function TreatmentRecommenderByTreatment({
                                       onClick={() =>
                                         setAddToPlanForTreatment((prev) => {
                                           if (!prev) return null;
-                                          const current = prev.skincareWhat ?? [];
-                                          const next = current.includes(opt)
-                                            ? current.filter((x) => x !== opt)
-                                            : [...current, opt];
-                                          return { ...prev, skincareWhat: next };
+                                          const current = prev.skincareCategoryFilter ?? [];
+                                          const next = selected
+                                            ? current.filter((x) => x !== cat.label)
+                                            : [...current, cat.label];
+                                          return { ...prev, skincareCategoryFilter: next };
                                         })
                                       }
                                     >
-                                      {opt}
+                                      <span className="treatment-recommender-by-treatment__chip-label">{cat.label}</span>
+                                      {selected && <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>}
                                     </button>
                                   );
-                                })
-                              : treatment === "Laser"
-                                ? laserWhatOptions.map((opt) => {
-                                    const selected = (addToPlanForTreatment.laserWhat ?? []).includes(opt);
+                                })}
+                              </div>
+                            </div>
+                            <div className="treatment-recommender-by-treatment__add-row treatment-recommender-by-treatment__add-row--full">
+                              <h3 className="treatment-recommender-by-treatment__products-heading">Products</h3>
+                              <div className="treatment-recommender-by-treatment__skincare-carousel-wrap">
+                                <div
+                                  className="discussed-treatments-product-carousel"
+                                  role="group"
+                                  aria-label="Select skincare products (multiple)"
+                                >
+                                  <div className="discussed-treatments-product-carousel-track">
+                                  {skincareCarouselItemsFiltered.map((item) => {
+                                    const selected = (addToPlanForTreatment.skincareWhat ?? []).includes(item.name);
                                     return (
                                       <button
-                                        key={opt}
+                                        key={item.name}
+                                        type="button"
+                                        className={`discussed-treatments-product-carousel-item ${
+                                          selected ? "selected" : ""
+                                        } ${item.name === OTHER_PRODUCT_LABEL ? "other-chip" : ""}`}
+                                        onClick={() =>
+                                          setAddToPlanForTreatment((prev) => {
+                                            if (!prev) return null;
+                                            const current = prev.skincareWhat ?? [];
+                                            const next = current.includes(item.name)
+                                              ? current.filter((x) => x !== item.name)
+                                              : [...current, item.name];
+                                            return { ...prev, skincareWhat: next };
+                                          })
+                                        }
+                                        title={selected ? `Remove ${item.name}` : `Add ${item.name}`}
+                                        aria-label={selected ? `Remove ${item.name}` : `Add ${item.name}`}
+                                      >
+                                        {selected && (
+                                          <span className="treatment-recommender-by-treatment__carousel-remove" aria-hidden title="Remove">
+                                            ×
+                                          </span>
+                                        )}
+                                        <div className="discussed-treatments-product-carousel-image" aria-hidden>
+                                          {item.imageUrl ? (
+                                            <img
+                                              src={item.imageUrl}
+                                              alt=""
+                                              loading="lazy"
+                                              className="discussed-treatments-product-carousel-img"
+                                            />
+                                          ) : null}
+                                        </div>
+                                        <span className="discussed-treatments-product-carousel-label">
+                                          {item.name}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {treatment !== "Skincare" && (
+                          <div className="treatment-recommender-by-treatment__add-row">
+                            <span>{treatment === "Laser" || treatment === "Biostimulants" ? "What:" : "Where:"}</span>
+                            <div className="treatment-recommender-by-treatment__chips">
+                              {treatment === "Laser"
+                                ? (optionsFromTable ? laserWhatOptionRecords : laserWhatOptions.map((v) => ({ id: "", value: v }))).map((rec) => {
+                                    const opt = rec.value;
+                                    const selected = (addToPlanForTreatment.laserWhat ?? []).includes(opt);
+                                    const recordId = rec.id || null;
+                                    return (
+                                      <button
+                                        key={recordId ? String(recordId) : opt}
                                         type="button"
                                         className={`treatment-recommender-by-treatment__chip ${
                                           selected ? "treatment-recommender-by-treatment__chip--selected" : ""
@@ -920,17 +1080,22 @@ export default function TreatmentRecommenderByTreatment({
                                             return { ...prev, laserWhat: next };
                                           })
                                         }
+                                        title={selected ? `Remove ${opt}` : `Add ${opt}`}
+                                        aria-label={selected ? `Remove ${opt}` : `Add ${opt}`}
                                       >
-                                        {opt}
+                                        <span className="treatment-recommender-by-treatment__chip-label">{opt}</span>
+                                        {selected && <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>}
                                       </button>
                                     );
                                   })
                                 : treatment === "Biostimulants"
-                                  ? biostimulantWhatOptions.map((opt) => {
+                                  ? (optionsFromTable ? biostimulantWhatOptionRecords : biostimulantWhatOptions.map((v) => ({ id: "", value: v }))).map((rec) => {
+                                      const opt = rec.value;
                                       const selected = (addToPlanForTreatment.biostimulantWhat ?? []).includes(opt);
+                                      const recordId = rec.id || null;
                                       return (
                                         <button
-                                          key={opt}
+                                          key={recordId ? String(recordId) : opt}
                                           type="button"
                                           className={`treatment-recommender-by-treatment__chip ${
                                             selected ? "treatment-recommender-by-treatment__chip--selected" : ""
@@ -945,36 +1110,47 @@ export default function TreatmentRecommenderByTreatment({
                                               return { ...prev, biostimulantWhat: next };
                                             })
                                           }
+                                          title={selected ? `Remove ${opt}` : `Add ${opt}`}
+                                          aria-label={selected ? `Remove ${opt}` : `Add ${opt}`}
                                         >
-                                          {opt}
+                                          <span className="treatment-recommender-by-treatment__chip-label">{opt}</span>
+                                          {selected && <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>}
                                         </button>
                                       );
                                     })
-                                  : whereOptions.map((r) => (
-                                  <button
-                                    key={r}
-                                    type="button"
-                                    className={`treatment-recommender-by-treatment__chip ${
-                                      addToPlanForTreatment.where.includes(r)
-                                        ? "treatment-recommender-by-treatment__chip--selected"
-                                        : ""
-                                    }`}
-                                    onClick={() => {
-                                      setAddToPlanForTreatment((prev) =>
-                                        prev
-                                          ? {
-                                              ...prev,
-                                              where: prev.where.includes(r)
-                                                ? prev.where.filter((x) => x !== r)
-                                                : [...prev.where, r],
-                                            }
-                                          : null
+                                  : (optionsFromTable ? whereOptionRecords : whereOptions.map((v) => ({ id: "", value: v }))).map((rec) => {
+                                      const r = rec.value;
+                                      const whereSelected = addToPlanForTreatment.where.includes(r);
+                                      const recordId = rec.id || null;
+                                      return (
+                                        <button
+                                          key={recordId ? String(recordId) : r}
+                                          type="button"
+                                          className={`treatment-recommender-by-treatment__chip ${
+                                            whereSelected
+                                              ? "treatment-recommender-by-treatment__chip--selected"
+                                              : ""
+                                          }`}
+                                          onClick={() => {
+                                            setAddToPlanForTreatment((prev) =>
+                                              prev
+                                                ? {
+                                                    ...prev,
+                                                    where: prev.where.includes(r)
+                                                      ? prev.where.filter((x) => x !== r)
+                                                      : [...prev.where, r],
+                                                  }
+                                                : null
+                                            );
+                                          }}
+                                          title={whereSelected ? `Remove ${r}` : `Add ${r}`}
+                                          aria-label={whereSelected ? `Remove ${r}` : `Add ${r}`}
+                                        >
+                                          <span className="treatment-recommender-by-treatment__chip-label">{r}</span>
+                                          {whereSelected && <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>}
+                                        </button>
                                       );
-                                    }}
-                                  >
-                                    {r}
-                                  </button>
-                                ))}
+                                    })}
                             {/* Custom (user-typed) options; click chip to remove */}
                             {treatment === "Skincare" &&
                               (addToPlanForTreatment.skincareWhat ?? [])
@@ -989,8 +1165,11 @@ export default function TreatmentRecommenderByTreatment({
                                         prev ? { ...prev, skincareWhat: (prev.skincareWhat ?? []).filter((x) => x !== customVal) } : null
                                       )
                                     }
+                                    title={`Remove ${customVal}`}
+                                    aria-label={`Remove ${customVal}`}
                                   >
-                                    {customVal}
+                                    <span className="treatment-recommender-by-treatment__chip-label">{customVal}</span>
+                                    <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>
                                   </button>
                                 ))}
                             {treatment === "Laser" &&
@@ -1006,8 +1185,11 @@ export default function TreatmentRecommenderByTreatment({
                                         prev ? { ...prev, laserWhat: (prev.laserWhat ?? []).filter((x) => x !== customVal) } : null
                                       )
                                     }
+                                    title={`Remove ${customVal}`}
+                                    aria-label={`Remove ${customVal}`}
                                   >
-                                    {customVal}
+                                    <span className="treatment-recommender-by-treatment__chip-label">{customVal}</span>
+                                    <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>
                                   </button>
                                 ))}
                             {treatment === "Biostimulants" &&
@@ -1023,8 +1205,11 @@ export default function TreatmentRecommenderByTreatment({
                                         prev ? { ...prev, biostimulantWhat: (prev.biostimulantWhat ?? []).filter((x) => x !== customVal) } : null
                                       )
                                     }
+                                    title={`Remove ${customVal}`}
+                                    aria-label={`Remove ${customVal}`}
                                   >
-                                    {customVal}
+                                    <span className="treatment-recommender-by-treatment__chip-label">{customVal}</span>
+                                    <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>
                                   </button>
                                 ))}
                             {treatment !== "Skincare" &&
@@ -1042,11 +1227,45 @@ export default function TreatmentRecommenderByTreatment({
                                         prev ? { ...prev, where: prev.where.filter((x) => x !== customVal) } : null
                                       )
                                     }
+                                    title={`Remove ${customVal}`}
+                                    aria-label={`Remove ${customVal}`}
                                   >
-                                    {customVal}
+                                    <span className="treatment-recommender-by-treatment__chip-label">{customVal}</span>
+                                    <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>
                                   </button>
                                 ))}
+                            </div>
                           </div>
+                        )}
+                        {optionsFromTable && (
+                          <div className="treatment-recommender-by-treatment__add-row treatment-recommender-by-treatment__add-row--edit-options">
+                            <button
+                              type="button"
+                              className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--subtle"
+                                onClick={() => {
+                                  setEditingRecordId(null);
+                                  setEditingValue("");
+                                  setEditModalNewOptionInput("");
+                                  setEditOptionsContext({
+                                    treatment: addToPlanForTreatment.treatment,
+                                    optionType:
+                                      treatment === "Skincare"
+                                        ? "skincare_what"
+                                        : treatment === "Laser"
+                                          ? "laser_what"
+                                          : treatment === "Biostimulants"
+                                            ? "biostimulant_what"
+                                            : "where",
+                                  });
+                                }}
+                              >
+                                Edit options
+                              </button>
+                            </div>
+                          )}
+                          <p className="treatment-recommender-by-treatment__add-hint" aria-live="polite">
+                            Click to add; click a selected item (×) to remove it.
+                          </p>
                           <div className="treatment-recommender-by-treatment__add-custom">
                             <input
                               type="text"
@@ -1070,7 +1289,6 @@ export default function TreatmentRecommenderByTreatment({
                               Add
                             </button>
                           </div>
-                        </div>
                         <div className="treatment-recommender-by-treatment__add-row">
                           <span>When:</span>
                           <div className="treatment-recommender-by-treatment__chips">
@@ -1170,6 +1388,7 @@ export default function TreatmentRecommenderByTreatment({
                             treatment,
                             where: [],
                             skincareWhat: treatment === "Skincare" ? [] : undefined,
+                            skincareCategoryFilter: treatment === "Skincare" ? [] : undefined,
                             laserWhat: treatment === "Laser" ? [] : undefined,
                             biostimulantWhat: treatment === "Biostimulants" ? [] : undefined,
                             when: TIMELINE_OPTIONS[0],
@@ -1221,6 +1440,170 @@ export default function TreatmentRecommenderByTreatment({
           }}
           planItems={client.discussedItems ?? []}
         />
+      )}
+
+      {editOptionsContext && provider?.id && (
+        <div
+          className="treatment-recommender-by-treatment__edit-options-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-options-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setEditOptionsContext(null);
+              setEditingRecordId(null);
+              setEditModalNewOptionInput("");
+            }
+          }}
+        >
+          <div
+            className="treatment-recommender-by-treatment__edit-options-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="edit-options-title" className="treatment-recommender-by-treatment__edit-options-title">
+              Edit {editOptionsContext.treatment} options
+            </h2>
+            <p className="treatment-recommender-by-treatment__edit-options-hint">
+              Rename, add, or remove options. Changes apply to this provider only.
+            </p>
+            <ul className="treatment-recommender-by-treatment__edit-options-list">
+              {editOptionRecords.map((rec) => (
+                <li key={rec.id} className="treatment-recommender-by-treatment__edit-options-row">
+                  {editingRecordId === rec.id ? (
+                    <>
+                      <input
+                        type="text"
+                        className="treatment-recommender-by-treatment__edit-options-input"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            updateTreatmentRecommenderOption(rec.id, editingValue)
+                              .then(() => {
+                                setOptionRecordsVersion((v) => v + 1);
+                                setEditingRecordId(null);
+                                setEditingValue("");
+                              })
+                              .catch(() => showToast("Could not update"));
+                          }
+                          if (e.key === "Escape") {
+                            setEditingRecordId(null);
+                            setEditingValue("");
+                          }
+                        }}
+                        autoFocus
+                        aria-label="New name"
+                      />
+                      <button
+                        type="button"
+                        className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--primary"
+                        onClick={() =>
+                          updateTreatmentRecommenderOption(rec.id, editingValue)
+                            .then(() => {
+                              setOptionRecordsVersion((v) => v + 1);
+                              setEditingRecordId(null);
+                              setEditingValue("");
+                            })
+                            .catch(() => showToast("Could not update"))
+                        }
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="treatment-recommender-by-treatment__edit-options-btn"
+                        onClick={() => {
+                          setEditingRecordId(null);
+                          setEditingValue("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="treatment-recommender-by-treatment__edit-options-label">{rec.value}</span>
+                      <button
+                        type="button"
+                        className="treatment-recommender-by-treatment__edit-options-btn"
+                        onClick={() => {
+                          setEditingRecordId(rec.id);
+                          setEditingValue(rec.value);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--danger"
+                        onClick={() =>
+                          deleteTreatmentRecommenderOption(rec.id)
+                            .then(() => setOptionRecordsVersion((v) => v + 1))
+                            .catch(() => showToast("Could not remove"))
+                        }
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="treatment-recommender-by-treatment__edit-options-add">
+              <input
+                type="text"
+                className="treatment-recommender-by-treatment__edit-options-input"
+                placeholder="New option name"
+                value={editModalNewOptionInput}
+                onChange={(e) => setEditModalNewOptionInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const val = editModalNewOptionInput.trim();
+                    if (!val) return;
+                    createTreatmentRecommenderCustomOption(provider.id, editOptionsContext.optionType, val)
+                      .then(() => {
+                        setOptionRecordsVersion((v) => v + 1);
+                        setEditModalNewOptionInput("");
+                      })
+                      .catch(() => showToast("Could not add"));
+                  }
+                }}
+                aria-label="New option name"
+              />
+              <button
+                type="button"
+                className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--primary"
+                onClick={() => {
+                  const val = editModalNewOptionInput.trim();
+                  if (!val) return;
+                  createTreatmentRecommenderCustomOption(provider.id, editOptionsContext.optionType, val)
+                    .then(() => {
+                      setOptionRecordsVersion((v) => v + 1);
+                      setEditModalNewOptionInput("");
+                    })
+                    .catch(() => showToast("Could not add"));
+                }}
+              >
+                Add
+              </button>
+            </div>
+            <div className="treatment-recommender-by-treatment__edit-options-actions">
+              <button
+                type="button"
+                className="treatment-recommender-by-treatment__edit-options-done"
+                onClick={() => {
+                  setEditOptionsContext(null);
+                  setEditingRecordId(null);
+                  setEditModalNewOptionInput("");
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showClientPhotoModal && (hasFront || hasSide) && (

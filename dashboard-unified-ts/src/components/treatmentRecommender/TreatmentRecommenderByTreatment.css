@@ -717,13 +717,241 @@
   min-width: 48px;
 }
 
+/* Full-width row (e.g. skincare product carousel) – spans full width of the panel */
+.treatment-recommender-by-treatment__add-row--full {
+  flex-basis: 100%;
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.treatment-recommender-by-treatment__add-row--full .treatment-recommender-by-treatment__skincare-carousel-wrap {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Wrapper so skincare carousel scrolls horizontally inside its container (not the whole page) */
+.treatment-recommender-by-treatment__skincare-carousel-wrap {
+  flex-basis: 100%;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  margin-left: 0;
+}
+
+/* Skincare product carousel (same as treatment plan modal – boutique products with images) */
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-top: 8px;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel::-webkit-scrollbar {
+  height: 6px;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel::-webkit-scrollbar-thumb {
+  background: var(--theme-border, #e5e7eb);
+  border-radius: 3px;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-track {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 4px 0 8px 0;
+  min-width: min-content;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100px;
+  min-height: 124px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--theme-border, #e8e8e8);
+  background: var(--theme-bg-card, #fff);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--theme-text-primary, #212121);
+  transition: border-color 0.15s ease, background 0.15s ease;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item .discussed-treatments-product-carousel-image {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 60px;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(145deg, var(--theme-border, #e5e7eb) 0%, rgba(0, 0, 0, 0.06) 100%);
+  border: none;
+  border-bottom: 1px solid var(--theme-border, #e8e8e8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--theme-text-muted, #757575);
+  overflow: hidden;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item .discussed-treatments-product-carousel-image::before {
+  content: "◆";
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item .discussed-treatments-product-carousel-image:has(.discussed-treatments-product-carousel-img)::before {
+  display: none;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item .discussed-treatments-product-carousel-image .discussed-treatments-product-carousel-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item.selected .discussed-treatments-product-carousel-image {
+  border-color: rgba(79, 70, 229, 0.3);
+  background: linear-gradient(145deg, rgba(79, 70, 229, 0.12) 0%, rgba(79, 70, 229, 0.06) 100%);
+  color: #4f46e5;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item .discussed-treatments-product-carousel-label {
+  flex: 1 1 auto;
+  padding: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.3;
+  min-height: 0;
+  font-size: 10px;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item.selected {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.2);
+  color: #3730a3;
+}
+
+.treatment-recommender-by-treatment__carousel-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 1.125rem;
+  line-height: 1;
+  font-weight: 600;
+  color: #4f46e5;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(79, 70, 229, 0.4);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+.treatment-recommender-by-treatment .discussed-treatments-product-carousel-item.selected:hover .treatment-recommender-by-treatment__carousel-remove {
+  background: #fff;
+  border-color: #4f46e5;
+}
+
+/* Remove-from-list (minus) on carousel cards – provider can remove option from their list */
+.treatment-recommender-by-treatment__carousel-remove-from-list {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--theme-text-muted, #757575);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--theme-border, #e8e8e8);
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.15s, color 0.15s;
+}
+
+.treatment-recommender-by-treatment__carousel-remove-from-list:hover {
+  background: #fff;
+  color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Remove-from-list on chips */
+.treatment-recommender-by-treatment__chip-remove-from-list {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--theme-text-muted, #757575);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.treatment-recommender-by-treatment__chip-remove-from-list:hover {
+  background: rgba(185, 28, 28, 0.15);
+  color: #b91c1c;
+}
+
+.treatment-recommender-by-treatment__chip--selected .treatment-recommender-by-treatment__chip-remove-from-list:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
 .treatment-recommender-by-treatment__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
+/* Allow chips container to shrink when it contains the skincare carousel so carousel scrolls inside */
+.treatment-recommender-by-treatment__chips:has(.treatment-recommender-by-treatment__skincare-carousel-wrap) {
+  min-width: 0;
+  flex: 1 1 0%;
+}
+
 .treatment-recommender-by-treatment__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   font-size: 0.8125rem;
   border: 1px solid var(--theme-border, #e0e0e0);
@@ -732,6 +960,241 @@
   color: var(--theme-text-primary, #212121);
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
+}
+
+.treatment-recommender-by-treatment__chip-label {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__chip-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin: -2px -2px -2px 2px;
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 600;
+  opacity: 0.9;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.treatment-recommender-by-treatment__chip-remove:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.treatment-recommender-by-treatment__chip--selected .treatment-recommender-by-treatment__chip-remove:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.treatment-recommender-by-treatment__add-hint {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-muted, #757575);
+  flex-basis: 100%;
+}
+
+/* Products section heading (Skincare carousel) */
+.treatment-recommender-by-treatment__products-heading {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--theme-text-secondary, #616161);
+  flex-basis: 100%;
+}
+
+/* Edit options row – compact so it doesn’t compete with main actions */
+.treatment-recommender-by-treatment__add-row--edit-options {
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+/* Edit options button – opens modal for add/remove/rename (iPad-friendly); default prominent */
+.treatment-recommender-by-treatment__edit-options-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 18px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--theme-text-secondary, #616161);
+  background: var(--theme-bg-card, #fff);
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+/* Subtle variant – link-style, less prominent */
+.treatment-recommender-by-treatment__edit-options-btn--subtle {
+  min-height: 0;
+  min-width: 0;
+  padding: 4px 0;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--theme-text-muted, #757575);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.treatment-recommender-by-treatment__edit-options-btn:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  border-color: var(--theme-border-strong, #ccc);
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__edit-options-btn--subtle:hover {
+  background: transparent;
+  color: var(--theme-text-secondary, #616161);
+}
+
+/* Edit options modal – large tap targets for iPad */
+.treatment-recommender-by-treatment__edit-options-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.treatment-recommender-by-treatment__edit-options-panel {
+  background: var(--theme-bg-card, #fff);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.treatment-recommender-by-treatment__edit-options-title {
+  margin: 0;
+  padding: 20px 20px 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__edit-options-hint {
+  margin: 0 20px 16px;
+  font-size: 0.875rem;
+  color: var(--theme-text-muted, #757575);
+}
+
+.treatment-recommender-by-treatment__edit-options-list {
+  margin: 0;
+  padding: 0 20px;
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.treatment-recommender-by-treatment__edit-options-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--theme-border, #eee);
+}
+
+.treatment-recommender-by-treatment__edit-options-row:last-child {
+  border-bottom: none;
+}
+
+.treatment-recommender-by-treatment__edit-options-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9375rem;
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__edit-options-input {
+  flex: 1;
+  min-width: 120px;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__edit-options-row .treatment-recommender-by-treatment__edit-options-btn {
+  flex-shrink: 0;
+}
+
+.treatment-recommender-by-treatment__edit-options-btn--primary {
+  background: var(--theme-accent, #0d9488);
+  border-color: var(--theme-accent, #0d9488);
+  color: #fff;
+}
+
+.treatment-recommender-by-treatment__edit-options-btn--primary:hover {
+  background: var(--theme-accent-hover, #0f766e);
+  border-color: var(--theme-accent-hover, #0f766e);
+  color: #fff;
+}
+
+.treatment-recommender-by-treatment__edit-options-btn--danger {
+  color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.treatment-recommender-by-treatment__edit-options-btn--danger:hover {
+  background: rgba(185, 28, 28, 0.1);
+  color: #b91c1c;
+}
+
+.treatment-recommender-by-treatment__edit-options-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 20px;
+  border-top: 1px solid var(--theme-border, #eee);
+}
+
+.treatment-recommender-by-treatment__edit-options-add .treatment-recommender-by-treatment__edit-options-input {
+  min-width: 160px;
+}
+
+.treatment-recommender-by-treatment__edit-options-actions {
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--theme-border, #eee);
+}
+
+.treatment-recommender-by-treatment__edit-options-done {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--theme-accent, #0d9488);
+  background: transparent;
+  border: 2px solid var(--theme-accent, #0d9488);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.treatment-recommender-by-treatment__edit-options-done:hover {
+  background: var(--theme-accent, #0d9488);
+  color: #fff;
 }
 
 .treatment-recommender-by-treatment__chip:hover {
