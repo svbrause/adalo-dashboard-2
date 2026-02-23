@@ -4,8 +4,15 @@
  */
 
 import { useMemo, useState, useEffect } from "react";
+import { useDashboard } from "../../context/DashboardContext";
 import { Client, TreatmentPhoto, DiscussedItem } from "../../types";
-import { fetchTreatmentPhotos, fetchTableRecords } from "../../services/api";
+import {
+  fetchTreatmentPhotos,
+  fetchTableRecords,
+  fetchTreatmentRecommenderCustomOptions,
+  createTreatmentRecommenderCustomOption,
+  type TreatmentRecommenderOptionType,
+} from "../../services/api";
 import type { AirtableRecord } from "../../services/api";
 import { normalizeIssue, scoreTier, tierColor, scoreIssues, CATEGORIES } from "../../config/analysisOverviewConfig";
 import {
@@ -23,6 +30,7 @@ import {
   formatTreatmentPlanRecordMetaLine,
 } from "../modals/DiscussedTreatmentsModal/utils";
 import { REGION_OPTIONS, TIMELINE_OPTIONS, PLAN_SECTIONS, LASER_DEVICES, TREATMENT_PRODUCT_OPTIONS } from "../modals/DiscussedTreatmentsModal/constants";
+import { showToast } from "../../utils/toast";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
 
@@ -303,6 +311,14 @@ export default function TreatmentRecommenderByTreatment({
   onOpenTreatmentPlanWithItem,
   treatmentPlanModalClosedRef,
 }: TreatmentRecommenderByTreatmentProps) {
+  const { provider } = useDashboard();
+  /** Persisted custom options (Where / What) loaded from Airtable; merged with static options in the UI. */
+  const [customOptions, setCustomOptions] = useState<{
+    where: string[];
+    skincareWhat: string[];
+    laserWhat: string[];
+    biostimulantWhat: string[];
+  }>({ where: [], skincareWhat: [], laserWhat: [], biostimulantWhat: [] });
   /** Item we just added so we can open it for editing when user clicks "Add additional details". Cleared when modal closes. */
   const [lastAddedItem, setLastAddedItem] = useState<DiscussedItem | null>(null);
   const [filterState, setFilterState] = useState<TreatmentRecommenderFilterState>(
@@ -390,6 +406,49 @@ export default function TreatmentRecommenderByTreatment({
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    if (!provider?.id) return;
+    let mounted = true;
+    fetchTreatmentRecommenderCustomOptions(provider.id)
+      .then((list) => {
+        if (!mounted) return;
+        const where: string[] = [];
+        const skincareWhat: string[] = [];
+        const laserWhat: string[] = [];
+        const biostimulantWhat: string[] = [];
+        for (const o of list) {
+          if (o.optionType === "where") where.push(o.value);
+          else if (o.optionType === "skincare_what") skincareWhat.push(o.value);
+          else if (o.optionType === "laser_what") laserWhat.push(o.value);
+          else if (o.optionType === "biostimulant_what") biostimulantWhat.push(o.value);
+        }
+        setCustomOptions({ where, skincareWhat, laserWhat, biostimulantWhat });
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [provider?.id]);
+
+  const baseWhereOptions = useMemo(
+    () => REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other"),
+    []
+  );
+  const whereOptions = useMemo(
+    () => [...baseWhereOptions, ...customOptions.where],
+    [baseWhereOptions, customOptions.where]
+  );
+  const skincareWhatOptions = useMemo(
+    () => [...SKINCARE_WHAT_OPTIONS, ...customOptions.skincareWhat],
+    [customOptions.skincareWhat]
+  );
+  const laserWhatOptions = useMemo(
+    () => [...LASER_DEVICES, ...customOptions.laserWhat],
+    [customOptions.laserWhat]
+  );
+  const biostimulantWhatOptions = useMemo(
+    () => [...(TREATMENT_PRODUCT_OPTIONS["Biostimulants"] ?? []), ...customOptions.biostimulantWhat],
+    [customOptions.biostimulantWhat]
+  );
+
   const detectedIssues = useMemo(() => getDetectedIssues(client), [client]);
 
   const getPhotosForTreatment = (treatmentName: string): TreatmentPhoto[] =>
@@ -452,22 +511,26 @@ export default function TreatmentRecommenderByTreatment({
     }
   };
 
-  /** Notion-style: add a custom option (typed by user) to Where or What. */
-  const addCustomOption = () => {
+  /** Notion-style: add a custom option (typed by user) to Where or What; persist to Airtable when provider is set. */
+  const addCustomOption = async () => {
     const val = customOptionInput.trim();
     if (!val || !addToPlanForTreatment) return;
     const treatment = addToPlanForTreatment.treatment;
+    let optionType: TreatmentRecommenderOptionType = "where";
     if (treatment === "Skincare") {
       const current = addToPlanForTreatment.skincareWhat ?? [];
       if (current.includes(val)) return;
+      optionType = "skincare_what";
       setAddToPlanForTreatment((prev) => prev ? { ...prev, skincareWhat: [...current, val] } : null);
     } else if (treatment === "Laser") {
       const current = addToPlanForTreatment.laserWhat ?? [];
       if (current.includes(val)) return;
+      optionType = "laser_what";
       setAddToPlanForTreatment((prev) => prev ? { ...prev, laserWhat: [...current, val] } : null);
     } else if (treatment === "Biostimulants") {
       const current = addToPlanForTreatment.biostimulantWhat ?? [];
       if (current.includes(val)) return;
+      optionType = "biostimulant_what";
       setAddToPlanForTreatment((prev) => prev ? { ...prev, biostimulantWhat: [...current, val] } : null);
     } else {
       const current = addToPlanForTreatment.where;
@@ -475,6 +538,21 @@ export default function TreatmentRecommenderByTreatment({
       setAddToPlanForTreatment((prev) => prev ? { ...prev, where: [...current, val] } : null);
     }
     setCustomOptionInput("");
+    if (provider?.id) {
+      try {
+        await createTreatmentRecommenderCustomOption(provider.id, optionType, val);
+        setCustomOptions((prev) => ({
+          ...prev,
+          [optionType === "skincare_what" ? "skincareWhat" : optionType === "laser_what" ? "laserWhat" : optionType === "biostimulant_what" ? "biostimulantWhat" : "where"]:
+            optionType === "skincare_what" ? [...prev.skincareWhat, val]
+            : optionType === "laser_what" ? [...prev.laserWhat, val]
+            : optionType === "biostimulant_what" ? [...prev.biostimulantWhat, val]
+            : [...prev.where, val],
+        }));
+      } catch {
+        showToast("Option added here; could not save for future use.");
+      }
+    }
   };
 
   /** Whether this treatment is already in the treatment plan (so we show "Added" and "Add additional details"). */
@@ -798,7 +876,7 @@ export default function TreatmentRecommenderByTreatment({
                           <span>{treatment === "Skincare" || treatment === "Laser" || treatment === "Biostimulants" ? "What:" : "Where:"}</span>
                           <div className="treatment-recommender-by-treatment__chips">
                             {treatment === "Skincare"
-                              ? SKINCARE_WHAT_OPTIONS.map((opt) => {
+                              ? skincareWhatOptions.map((opt) => {
                                   const selected = (addToPlanForTreatment.skincareWhat ?? []).includes(opt);
                                   return (
                                     <button
@@ -823,7 +901,7 @@ export default function TreatmentRecommenderByTreatment({
                                   );
                                 })
                               : treatment === "Laser"
-                                ? LASER_DEVICES.map((opt) => {
+                                ? laserWhatOptions.map((opt) => {
                                     const selected = (addToPlanForTreatment.laserWhat ?? []).includes(opt);
                                     return (
                                       <button
@@ -848,7 +926,7 @@ export default function TreatmentRecommenderByTreatment({
                                     );
                                   })
                                 : treatment === "Biostimulants"
-                                  ? (TREATMENT_PRODUCT_OPTIONS["Biostimulants"] ?? []).map((opt) => {
+                                  ? biostimulantWhatOptions.map((opt) => {
                                       const selected = (addToPlanForTreatment.biostimulantWhat ?? []).includes(opt);
                                       return (
                                         <button
@@ -872,7 +950,7 @@ export default function TreatmentRecommenderByTreatment({
                                         </button>
                                       );
                                     })
-                                  : REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other").map((r) => (
+                                  : whereOptions.map((r) => (
                                   <button
                                     key={r}
                                     type="button"
@@ -900,7 +978,7 @@ export default function TreatmentRecommenderByTreatment({
                             {/* Custom (user-typed) options; click chip to remove */}
                             {treatment === "Skincare" &&
                               (addToPlanForTreatment.skincareWhat ?? [])
-                                .filter((s) => !SKINCARE_WHAT_OPTIONS.includes(s))
+                                .filter((s) => !skincareWhatOptions.includes(s))
                                 .map((customVal) => (
                                   <button
                                     key={customVal}
@@ -917,7 +995,7 @@ export default function TreatmentRecommenderByTreatment({
                                 ))}
                             {treatment === "Laser" &&
                               (addToPlanForTreatment.laserWhat ?? [])
-                                .filter((l) => !LASER_DEVICES.includes(l))
+                                .filter((l) => !laserWhatOptions.includes(l))
                                 .map((customVal) => (
                                   <button
                                     key={customVal}
@@ -934,7 +1012,7 @@ export default function TreatmentRecommenderByTreatment({
                                 ))}
                             {treatment === "Biostimulants" &&
                               (addToPlanForTreatment.biostimulantWhat ?? [])
-                                .filter((b) => !(TREATMENT_PRODUCT_OPTIONS["Biostimulants"] ?? []).includes(b))
+                                .filter((b) => !biostimulantWhatOptions.includes(b))
                                 .map((customVal) => (
                                   <button
                                     key={customVal}
@@ -953,7 +1031,7 @@ export default function TreatmentRecommenderByTreatment({
                               treatment !== "Laser" &&
                               treatment !== "Biostimulants" &&
                               addToPlanForTreatment.where
-                                .filter((w) => !REGION_OPTIONS.includes(w))
+                                .filter((w) => !whereOptions.includes(w))
                                 .map((customVal) => (
                                   <button
                                     key={customVal}

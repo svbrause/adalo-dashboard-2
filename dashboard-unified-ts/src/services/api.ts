@@ -379,6 +379,101 @@ export async function submitHelpRequest(
   return response.ok;
 }
 
+/* ========== Treatment Recommender custom options (persisted in Airtable) ========== */
+
+/** Option type for the treatment recommender "Where" / "What" add-to-plan form. */
+export type TreatmentRecommenderOptionType =
+  | "where"
+  | "skincare_what"
+  | "laser_what"
+  | "biostimulant_what";
+
+export interface TreatmentRecommenderCustomOption {
+  id: string;
+  optionType: TreatmentRecommenderOptionType;
+  value: string;
+}
+
+/**
+ * Fetch custom options for the treatment recommender (Where / What chips).
+ * Stored in Airtable; returned options are merged with static options in the UI.
+ */
+export async function fetchTreatmentRecommenderCustomOptions(
+  providerId: string
+): Promise<TreatmentRecommenderCustomOption[]> {
+  if (!providerId?.trim()) return [];
+  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options?providerId=${encodeURIComponent(providerId.trim())}`;
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const err = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(
+      err.message || err.error?.message || "Failed to fetch recommender options"
+    );
+  }
+  const data = await safeJsonParse(response);
+  const records = data.records ?? data.options ?? [];
+  const normalizedType = (raw: string): TreatmentRecommenderOptionType => {
+    const t = String(raw).trim().toLowerCase().replace(/\s+/g, "_");
+    if (t === "skincare_what" || t === "laser_what" || t === "biostimulant_what") return t;
+    return "where";
+  };
+  return (Array.isArray(records) ? records : []).map((r: AirtableRecord | TreatmentRecommenderCustomOption) => {
+    if ("optionType" in r && "value" in r) {
+      return { id: (r as TreatmentRecommenderCustomOption).id, optionType: normalizedType((r as TreatmentRecommenderCustomOption).optionType), value: (r as TreatmentRecommenderCustomOption).value };
+    }
+    const f = (r as AirtableRecord).fields || {};
+    return {
+      id: (r as AirtableRecord).id,
+      optionType: normalizedType(f["Option Type"] ?? f.optionType ?? "where"),
+      value: String(f["Value"] ?? f.value ?? "").trim(),
+    };
+  }).filter((o: TreatmentRecommenderCustomOption) => o.value.length > 0);
+}
+
+/**
+ * Create a custom option and persist it in Airtable so it appears for future sessions.
+ */
+export async function createTreatmentRecommenderCustomOption(
+  providerId: string,
+  optionType: TreatmentRecommenderOptionType,
+  value: string
+): Promise<TreatmentRecommenderCustomOption> {
+  const trimmed = value?.trim();
+  if (!trimmed || !providerId?.trim()) {
+    throw new Error("Provider and option value are required");
+  }
+  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options`;
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      providerId: providerId.trim(),
+      optionType,
+      value: trimmed,
+    }),
+  });
+  if (!response.ok) {
+    const err = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(
+      err.message || err.error?.message || "Failed to add option"
+    );
+  }
+  const data = await safeJsonParse(response);
+  const rec = data.record ?? data;
+  const f = rec?.fields ?? rec;
+  if (rec?.id && (f?.Value ?? f?.value ?? rec?.value)) {
+    return {
+      id: rec.id,
+      optionType: (f["Option Type"] ?? f.optionType ?? rec.optionType ?? optionType) as TreatmentRecommenderOptionType,
+      value: String(f["Value"] ?? f.value ?? rec.value ?? trimmed).trim(),
+    };
+  }
+  return { id: rec?.id ?? crypto.randomUUID(), optionType, value: trimmed };
+}
+
 /**
  * Fetch Doctor Advice Requests (inbox) from the dashboard API.
  */
