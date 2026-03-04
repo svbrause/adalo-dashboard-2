@@ -48,6 +48,7 @@ function mergeLeadAndPatient(lead: Client, patient: Client): Client {
     skinComplaints: prefer(patient.skinComplaints, lead.skinComplaints),
     processedAreasOfInterest: prefer(patient.processedAreasOfInterest, lead.processedAreasOfInterest),
     frontPhoto: patient.frontPhoto ?? lead.frontPhoto,
+    skincareQuiz: patient.skincareQuiz ?? lead.skincareQuiz ?? undefined,
   };
 }
 

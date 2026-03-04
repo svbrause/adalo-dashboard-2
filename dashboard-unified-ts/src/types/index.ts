@@ -108,7 +108,7 @@ export interface Client {
   photosViewed: number;
   treatmentsViewed: string[];
   source: string;
-  status: "new" | "contacted" | "requested-consult" | "scheduled" | "converted";
+  status: "new" | "contacted" | "requested-consult" | "scheduled" | "converted" | "current-client";
   priority: "high" | "medium" | "low";
   createdAt: string;
   notes: string;
@@ -129,6 +129,8 @@ export interface Client {
   areasOfInterestFromForm: string;
   archived: boolean;
   offerClaimed: boolean;
+  /** Whether the $50 coupon was earned (e.g. completed online treatment finder). When undefined, treated as true for Web Popup Leads. */
+  offerEarned?: boolean;
   /** Offer/coupon expiration date (e.g. $50 off). ISO date string or null. */
   offerExpirationDate: string | null;
   /** Patients: Location name from Boulevard Appointments (from Form Submissions) */
@@ -140,6 +142,41 @@ export interface Client {
   contactHistory: ContactHistoryEntry[];
   /** When set, this client was consolidated from a Web Popup Lead (id) + Patient; UI shows one row. Updates/links use this client's id (Patient). */
   linkedLeadId?: string;
+  /** Skincare quiz result (from "Skincare Quiz" long text field in Airtable – JSON). Same field name in Patients and Web Popup Leads. */
+  skincareQuiz?: SkincareQuizData | null;
+  /** Wellness quiz result (from "Wellness Quiz" long text field in Airtable – JSON). Peptide/treatment suggestions from Dr Reddy offerings. */
+  wellnessQuiz?: WellnessQuizData | null;
+}
+
+/**
+ * Stored in Airtable "Wellness Quiz" long text field (JSON).
+ * Suggested treatments are resolved from wellnessQuiz.ts by suggestedTreatmentIds.
+ */
+export interface WellnessQuizData {
+  version: 1;
+  completedAt: string;
+  answers: Record<string, number | number[]>;
+  suggestedTreatmentIds: string[];
+}
+
+/**
+ * Stored in Airtable "Skincare Quiz" long text field (JSON).
+ * Use in both Patients and Web Popup Leads so any user can complete the quiz.
+ */
+export interface SkincareQuizData {
+  version: 1;
+  /** When the quiz was completed (ISO date string). */
+  completedAt: string;
+  /** Question id → selected answer index (0-based). */
+  answers: Record<string, number>;
+  /** Computed gemstone skin type from quiz scoring (e.g. opal, pearl, quartz). */
+  result: "opal" | "pearl" | "jade" | "quartz" | "amber" | "moonstone" | "turquoise" | "diamond";
+  /** Recommended product names (optional; can be recomputed from result via getRecommendedProductsForSkinType). */
+  recommendedProductNames?: string[];
+  /** Human-readable result label (e.g. "Normal with sensitive tendency"). */
+  resultLabel?: string;
+  /** Longer description for the result; may include secondary tendency advice. */
+  resultDescription?: string;
 }
 
 export interface Offer {
@@ -170,7 +207,8 @@ export type ViewType =
   | "facial-analysis"
   | "archived"
   | "offers"
-  | "inbox";
+  | "inbox"
+  | "sms-history";
 
 export interface FilterState {
   source: string;

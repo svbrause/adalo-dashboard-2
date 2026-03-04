@@ -1,15 +1,51 @@
 // Utility to map Airtable records to Client format
 
-import { Client, AirtableRecord, DiscussedItem } from "../types";
+import { Client, AirtableRecord, DiscussedItem, SkincareQuizData } from "../types";
+
+/** Parse "Skincare Quiz" long text field (JSON) from Airtable fields. Exported for use when fetching quiz fields separately. */
+export function parseSkincareQuizFromFields(fields: Record<string, unknown>): SkincareQuizData | undefined {
+  const raw = (fields["Skincare Quiz"] ?? fields["Skincare quiz"] ?? null) as string | null;
+  if (!raw || typeof raw !== "string" || !raw.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const o = parsed as Record<string, unknown>;
+    if (o.version !== 1 || typeof o.completedAt !== "string") return undefined;
+    if (!o.answers || typeof o.answers !== "object") return undefined;
+    const validResults: string[] = ["opal", "pearl", "jade", "quartz", "amber", "moonstone", "turquoise", "diamond"];
+    if (typeof o.result !== "string" || !validResults.includes(o.result)) return undefined;
+    return {
+      version: 1 as const,
+      completedAt: o.completedAt,
+      answers: o.answers as Record<string, number>,
+      result: o.result as SkincareQuizData["result"],
+      recommendedProductNames: Array.isArray(o.recommendedProductNames)
+        ? o.recommendedProductNames.filter((x): x is string => typeof x === "string")
+        : undefined,
+      resultLabel: typeof o.resultLabel === "string" ? o.resultLabel : undefined,
+      resultDescription: typeof o.resultDescription === "string" ? o.resultDescription : undefined,
+    };
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Map Airtable status field to dashboard status
  */
 function mapAirtableStatus(
   fields: Record<string, any>,
-): "new" | "contacted" | "requested-consult" | "scheduled" | "converted" {
+): "new" | "contacted" | "requested-consult" | "scheduled" | "converted" | "current-client" {
   const status = (fields["Status"] || "").toLowerCase();
 
+  if (
+    status.includes("current client") ||
+    status.includes("current patient") ||
+    status.includes("current-client") ||
+    status.includes("current-patient")
+  ) {
+    return "current-client";
+  }
   if (
     status.includes("converted") ||
     status.includes("booked") ||
@@ -60,9 +96,13 @@ function formatPatientSource(sourceValue: string | null | undefined): string {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+/** Sentinel value for Web Popup Leads with no facial analysis; display as "—" instead of "Pending". */
+export const WEB_POPUP_LEAD_NO_ANALYSIS_STATUS = "n/a";
+
 /**
  * Get facial analysis status from record fields.
  * Patients table may use "Pending/Opened" or other names; Web Popup Leads typically don't have this field.
+ * For Web Popup Leads with no status field, returns WEB_POPUP_LEAD_NO_ANALYSIS_STATUS so the UI shows "—" instead of "Pending".
  */
 function getFacialAnalysisStatus(
   fields: Record<string, any>,
@@ -81,9 +121,10 @@ function getFacialAnalysisStatus(
       if (v != null && String(v).trim() !== "") return String(v).trim();
     }
   }
-  return fields["Pending/Opened"] != null && String(fields["Pending/Opened"]).trim() !== ""
-    ? String(fields["Pending/Opened"]).trim()
-    : null;
+  const raw = fields["Pending/Opened"];
+  if (raw != null && String(raw).trim() !== "") return String(raw).trim();
+  if (tableName === "Web Popup Leads") return WEB_POPUP_LEAD_NO_ANALYSIS_STATUS;
+  return null;
 }
 
 /**
@@ -149,7 +190,7 @@ export function mapRecordToClient(
     dateOfBirth:
       tableName === "Patients"
         ? fields["Birthday (from Form Submissions)"] || null
-        : null,
+        : fields["Date of Birth"] || null,
     goals:
       tableName === "Patients"
         ? Array.isArray(fields["Name (from Interest Items)"])
@@ -221,16 +262,16 @@ export function mapRecordToClient(
           : 0,
     treatmentsViewed: [],
     source: (() => {
+      const sourceValue =
+        fields["Source"] || fields["source"] || fields["SOURCE"] || "";
+      const raw = String(sourceValue).trim();
       if (tableName === "Web Popup Leads") {
-        return "Website";
+        if (!raw) return "Website";
+        return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
       } else if (tableName === "Patients") {
-        // Use Source field from Patients table and format it
-        // Try multiple possible field name variations
-        const sourceValue =
-          fields["Source"] || fields["source"] || fields["SOURCE"] || "";
-        return formatPatientSource(sourceValue);
+        return formatPatientSource(raw || undefined);
       } else {
-        return fields["Source"] || "AI Consult";
+        return raw || "AI Consult";
       }
     })(),
     status: mapAirtableStatus(fields),
@@ -317,6 +358,10 @@ export function mapRecordToClient(
         : "",
     archived: fields["Archived"] || false,
     offerClaimed: fields["Offer Claimed"] || false,
+    offerEarned:
+      fields["Offer Earned"] === undefined
+        ? undefined
+        : Boolean(fields["Offer Earned"]),
     offerExpirationDate:
       fields["Offer Expiration"] ||
       fields["Offer Expiration Date"] ||
@@ -358,6 +403,29 @@ export function mapRecordToClient(
       }
     })(),
     contactHistory: [],
+    skincareQuiz: parseSkincareQuizFromFields(fields as Record<string, unknown>),
+    wellnessQuiz: (() => {
+      const raw = fields["Wellness Quiz"] ?? fields["Wellness quiz"] ?? null;
+      if (!raw || typeof raw !== "string" || !raw.trim()) return undefined;
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== "object") return undefined;
+        const o = parsed as Record<string, unknown>;
+        if (o.version !== 1 || typeof o.completedAt !== "string") return undefined;
+        if (!o.answers || typeof o.answers !== "object") return undefined;
+        const ids = Array.isArray(o.suggestedTreatmentIds)
+          ? o.suggestedTreatmentIds.filter((x): x is string => typeof x === "string")
+          : [];
+        return {
+          version: 1 as const,
+          completedAt: o.completedAt,
+          answers: o.answers as Record<string, number | number[]>,
+          suggestedTreatmentIds: ids,
+        };
+      } catch {
+        return undefined;
+      }
+    })(),
   };
 
   return client;

@@ -1,0 +1,139 @@
+/* Checkout modal – separate screen from treatment plan popup */
+
+.treatment-plan-checkout-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.treatment-plan-checkout-modal-content {
+  background: var(--theme-bg-card, #fff);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  max-width: 520px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.treatment-plan-checkout-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 16px 24px;
+  border-bottom: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+}
+
+.treatment-plan-checkout-modal-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.treatment-plan-checkout-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0;
+}
+
+.treatment-plan-checkout-modal-subtitle {
+  font-size: 13px;
+  color: var(--theme-text-muted);
+  margin: 0;
+}
+
+.treatment-plan-checkout-modal-close {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--theme-text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.treatment-plan-checkout-modal-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--theme-text-primary);
+}
+
+.treatment-plan-checkout-modal-body {
+  padding: 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Hero strip – soft gradient band for visual appeal */
+.treatment-plan-checkout-hero {
+  height: 72px;
+  width: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(99, 102, 241, 0.18) 0%,
+    rgba(139, 92, 246, 0.1) 40%,
+    rgba(79, 70, 229, 0.08) 100%
+  );
+  flex-shrink: 0;
+}
+
+.treatment-plan-checkout-modal-body .treatment-plan-checkout {
+  padding: 20px 24px 24px;
+}
+
+.treatment-plan-checkout-modal-empty {
+  font-size: 14px;
+  color: var(--theme-text-muted);
+  margin: 0;
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.treatment-plan-checkout-modal-actions {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+  background: var(--theme-bg-card, #fff);
+}
+
+.treatment-plan-checkout-modal-total-slot {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Summary (subtotals + total) in footer: solid background */
+.treatment-plan-checkout-modal-actions .treatment-plan-checkout-summary {
+  width: 100%;
+  margin: 0;
+}
+
+.treatment-plan-checkout-modal-actions .treatment-plan-checkout-total {
+  background: var(--theme-bg-elevated, #f8f9fc);
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+  margin: 0;
+  margin-top: 4px;
+  box-shadow: none;
+}
+
+/* Reuse checkout block styles inside modal (slightly tighter in modal) */
+.treatment-plan-checkout-modal-body .treatment-plan-checkout {
+  margin-top: 0;
+}
+

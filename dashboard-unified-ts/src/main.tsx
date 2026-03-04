@@ -4,6 +4,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import posthog from "posthog-js";
 import App from "./App";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // All API calls go through the secure backend proxy
 // Frontend doesn't need any Airtable configuration - backend handles everything
@@ -37,6 +38,8 @@ if (posthogKey) {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

@@ -37,8 +37,8 @@ export default function KanbanView() {
   }, [clients, filters, searchQuery, sort]);
 
   const statuses: Array<
-    "new" | "contacted" | "requested-consult" | "scheduled" | "converted"
-  > = ["new", "contacted", "requested-consult", "scheduled", "converted"];
+    "new" | "contacted" | "requested-consult" | "scheduled" | "converted" | "current-client"
+  > = ["new", "contacted", "requested-consult", "scheduled", "converted", "current-client"];
 
   const getClientsByStatus = (status: (typeof statuses)[0]) => {
     return processedClients.filter((client) => client.status === status);
@@ -132,6 +132,7 @@ export default function KanbanView() {
         "requested-consult": "Requested Consult",
         scheduled: "Consultation Scheduled",
         converted: "Converted",
+        "current-client": "Current Client",
       };
       showToast(`Moved ${client.name} to ${statusDisplayNames[newStatus]}`);
       refreshClients();
@@ -153,6 +154,7 @@ export default function KanbanView() {
             "requested-consult": "Requested Consult",
             scheduled: "Consultation Scheduled",
             converted: "Converted",
+            "current-client": "Current Client",
           };
 
           return (

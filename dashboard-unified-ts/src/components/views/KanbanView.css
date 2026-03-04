@@ -73,6 +73,10 @@
   background: #7b1fa2;
 }
 
+.column-dot.current-client {
+  background: #00695c;
+}
+
 .column-count {
   background: rgba(0, 0, 0, 0.05);
   padding: 2px 8px;

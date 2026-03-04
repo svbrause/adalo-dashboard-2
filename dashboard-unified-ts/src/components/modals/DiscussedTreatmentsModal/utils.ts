@@ -250,6 +250,14 @@ export function getTreatmentDisplayName(item: DiscussedItem): string {
   return (item.treatment || "").trim() || "—";
 }
 
+/** Display name for checkout: for Skincare with a product, show the product name (e.g. "SkinCeuticals C E Ferulic"); otherwise same as getTreatmentDisplayName. */
+export function getCheckoutDisplayName(item: DiscussedItem): string {
+  if ((item.treatment || "").trim() === "Skincare" && (item.product || "").trim()) {
+    return item.product!.trim();
+  }
+  return getTreatmentDisplayName(item);
+}
+
 /** Build metadata line only: area, product, quantity (no treatment name, no timeline — sections already group by timeline). */
 export function formatTreatmentPlanRecordMetaLine(item: DiscussedItem): string {
   const parts: string[] = [];

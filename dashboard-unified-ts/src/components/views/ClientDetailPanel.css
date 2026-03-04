@@ -225,6 +225,187 @@
   max-width: none; /* Take full width */
 }
 
+.client-detail-panel .detail-value-muted {
+  color: var(--theme-text-muted, #757575);
+  font-weight: 400;
+}
+
+.client-detail-panel .detail-section-date {
+  font-size: 13px;
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.client-detail-panel .detail-offer-claimed-box {
+  padding: 12px;
+  background: #f7f4f1;
+  border-radius: 8px;
+  border-left: 4px solid #7fa882;
+}
+
+.client-detail-panel .detail-offer-claimed-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-detail-panel .detail-offer-claimed-icon {
+  font-size: 18px;
+}
+
+.client-detail-panel .detail-offer-claimed-text {
+  color: #222222;
+  font-size: 13px;
+}
+
+.client-detail-panel .detail-offer-not-claimed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.client-detail-panel .detail-offer-not-claimed-text {
+  color: var(--theme-text-secondary, #555);
+  font-size: 14px;
+}
+
+/* $50 coupon white box */
+.client-detail-panel .detail-coupon-box {
+  background: #fff;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.client-detail-panel .detail-coupon-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--theme-text-primary, #111);
+}
+
+.client-detail-panel .detail-coupon-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.client-detail-panel .detail-coupon-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.client-detail-panel .detail-coupon-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-secondary, #555);
+  min-width: 56px;
+}
+
+.client-detail-panel .detail-coupon-value {
+  font-size: 14px;
+  color: var(--theme-text-primary, #111);
+}
+
+.client-detail-panel .detail-coupon-claimed-yes {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.client-detail-panel .detail-coupon-claimed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.client-detail-panel .detail-coupon-row-inline {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.client-detail-panel .detail-coupon-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 100px;
+}
+
+.client-detail-panel .detail-coupon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.client-detail-panel .detail-coupon-badge--yes {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.client-detail-panel .detail-coupon-badge--no {
+  background: #f5f5f5;
+  color: #616161;
+  border: 1px solid #e0e0e0;
+}
+
+.client-detail-panel .detail-coupon-check {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.client-detail-panel .detail-coupon-x {
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.client-detail-panel .detail-coupon-claimed-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.client-detail-panel .detail-value-empty {
+  color: var(--theme-text-muted, #757575);
+  font-style: italic;
+}
+
+.client-detail-panel .link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--theme-accent, #1976d2);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.client-detail-panel .link-button:hover {
+  color: var(--theme-accent-hover, #1565c0);
+}
+
+.client-detail-panel .detail-value-with-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* Contact info with actions - side by side layout */
 .contact-info-with-actions {
   display: flex;
@@ -624,6 +805,227 @@
 
 .client-detail-panel .redeemed-offers-mark-btn {
   margin-top: 4px;
+}
+
+.client-detail-panel .detail-section-skin-analysis,
+.client-detail-panel .detail-section-wellness-quiz .wellness-quiz-treatment-list {
+  margin-top: 16px;
+}
+
+.client-detail-panel .detail-section-wellness-quiz {
+  border-top: 2px solid var(--theme-border);
+  padding-top: 20px;
+  margin-top: 20px;
+  background: #fafafa;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid var(--theme-accent);
+}
+
+.client-detail-panel .detail-section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-detail-panel .skin-analysis-header {
+  align-items: center;
+}
+
+.client-detail-panel .skin-analysis-result-badge {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-text-secondary);
+  margin-left: 8px;
+}
+
+.client-detail-panel .skin-analysis-description {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  color: var(--theme-text-secondary);
+  line-height: 1.45;
+}
+
+.client-detail-panel .wellness-quiz-summary {
+  margin-top: 8px;
+  font-size: 0.875rem;
+  color: var(--theme-text-secondary);
+}
+
+.client-detail-panel .wellness-quiz-summary-label {
+  font-weight: 500;
+  color: var(--theme-text-muted);
+}
+
+.client-detail-panel .skin-analysis-details {
+  margin-top: 12px;
+}
+
+.client-detail-panel .skin-analysis-summary {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #1a1a1a);
+  margin-bottom: 8px;
+}
+
+.client-detail-panel .skin-analysis-summary-gemstone,
+.client-detail-panel .skin-analysis-summary-type {
+  font-weight: 700;
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
+.client-detail-panel .skin-analysis-products {
+  margin-top: 12px;
+}
+
+.client-detail-panel .skin-analysis-products-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-muted, #757575);
+  margin-bottom: 8px;
+}
+
+.client-detail-panel .skin-analysis-product-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.client-detail-panel .skin-analysis-product-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #fff;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--theme-text-primary, #212121);
+  font-size: 0.75rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.client-detail-panel .skin-analysis-product-chip:hover {
+  border-color: var(--theme-accent, #1976d2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.client-detail-panel .skin-analysis-product-chip-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.client-detail-panel .skin-analysis-product-chip-placeholder {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--theme-bg-subtle, #f0f0f0);
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  color: var(--theme-text-muted, #757575);
+}
+
+.client-detail-panel .skin-analysis-product-chip-name {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-detail-panel .skin-analysis-result-description {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+  line-height: 1.5;
+}
+
+.client-detail-panel .skin-analysis-product-count {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted);
+  font-style: italic;
+}
+
+.client-detail-panel .skin-analysis-score-bars {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.client-detail-panel .skin-analysis-score-bars-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-muted);
+  margin-bottom: 2px;
+}
+
+.client-detail-panel .skin-analysis-score-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.client-detail-panel .skin-analysis-score-label {
+  flex: 0 0 10rem;
+  color: var(--theme-text-secondary);
+}
+
+.client-detail-panel .skin-analysis-score-tag {
+  font-size: 0.6875rem;
+  color: var(--theme-text-muted);
+  font-weight: 500;
+}
+
+.client-detail-panel .skin-analysis-score-bar-wrap {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  background: var(--theme-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.client-detail-panel .skin-analysis-score-bar {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 3px;
+  background: var(--theme-text-muted);
+  transition: width 0.2s ease;
+}
+
+.client-detail-panel .skin-analysis-score-bar-primary {
+  background: var(--theme-accent);
+}
+
+.client-detail-panel .skin-analysis-score-bar-secondary {
+  background: var(--theme-text-secondary);
+}
+
+.client-detail-panel .skin-analysis-score-value {
+  flex: 0 0 1.25rem;
+  text-align: right;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--theme-text-muted);
+}
+
+.client-detail-panel .skin-analysis-quiz-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {

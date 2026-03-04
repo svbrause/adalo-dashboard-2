@@ -8,7 +8,7 @@ import {
   getTelehealthScanLink,
   formatProviderDisplayName,
 } from "../../utils/providerHelpers";
-import { splitName, cleanPhoneNumber, formatPhoneDisplay } from "../../utils/validation";
+import { splitName, cleanPhoneNumber, formatPhoneDisplay, formatPhoneInput, isValidPhone } from "../../utils/validation";
 import {
   mapAreasToFormFields,
   mapSkinComplaints,
@@ -28,9 +28,16 @@ export default function TelehealthSMSModal({
   onSuccess,
 }: TelehealthSMSModalProps) {
   const { provider } = useDashboard();
+  const [phone, setPhone] = useState(() =>
+    client.phone ? formatPhoneDisplay(client.phone) : ""
+  );
   const [message, setMessage] = useState("");
   const [smsLink, setSmsLink] = useState("");
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    setPhone(client.phone ? formatPhoneDisplay(client.phone) : "");
+  }, [client.phone]);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -44,14 +51,15 @@ export default function TelehealthSMSModal({
   }, [onClose]);
 
   useEffect(() => {
-    // Build default message
     const providerName = formatProviderDisplayName(provider?.name) || "We";
     const defaultMessage = `${providerName}: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the 5-min at-home AI facial scan prior to your next appointment and earn $50 off any new treatments you discover:`;
     setMessage(defaultMessage);
+  }, [client, provider]);
 
-    // Build prefill URL
+  useEffect(() => {
+    const providerName = formatProviderDisplayName(provider?.name) || "We";
     const { first, last } = splitName(client.name);
-    const phoneNumber = cleanPhoneNumber(client.phone);
+    const phoneNumber = cleanPhoneNumber(phone);
     const { whatAreas, faceRegions } = mapAreasToFormFields(client);
     const skinComplaints = mapSkinComplaints(client);
 
@@ -78,18 +86,23 @@ export default function TelehealthSMSModal({
 
     const link = getTelehealthScanLink(provider);
     setSmsLink(`${link}?${params.join("&")}`);
-  }, [client, provider]);
+  }, [client, provider, phone]);
 
   const handleSend = async () => {
     if (!message.trim()) {
       showError("Please enter a message");
       return;
     }
+    const phoneStr = String(phone ?? "").trim();
+    if (!phoneStr || !isValidPhone(phoneStr)) {
+      showError("A valid phone number is required to send SMS");
+      return;
+    }
 
     setSending(true);
     try {
       const finalMessage = `${message} ${smsLink}`;
-      const cleanedPhone = client.phone.replace(/\D/g, "");
+      const cleanedPhone = cleanPhoneNumber(phoneStr);
 
       await sendSMSNotification(
         cleanedPhone,
@@ -127,15 +140,28 @@ export default function TelehealthSMSModal({
         <div className="modal-body">
           <div className="form-container">
             <div className="form-group">
-              <label className="form-label">Patient Information</label>
+              <label className="form-label">Patient</label>
               <div className="patient-info-box">
                 <div className="patient-info-row">
                   <strong>Name:</strong> {client.name}
                 </div>
-                <div className="patient-info-row">
-                  <strong>Phone:</strong> {formatPhoneDisplay(client.phone)}
-                </div>
               </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="telehealth-sms-phone" className="form-label">Phone Number *</label>
+              <input
+                type="tel"
+                id="telehealth-sms-phone"
+                required
+                placeholder="(555) 555-5555"
+                value={phone}
+                onInput={(e) => {
+                  formatPhoneInput(e.target as HTMLInputElement);
+                  setPhone((e.target as HTMLInputElement).value);
+                }}
+                onChange={(e) => setPhone(e.target.value)}
+                className="form-input-base"
+              />
             </div>
 
             <div className="form-group form-group-spacing-lg">
@@ -170,7 +196,12 @@ export default function TelehealthSMSModal({
               type="button"
               className="btn-primary"
               onClick={handleSend}
-              disabled={sending || !message.trim()}
+              disabled={
+                sending ||
+                !message.trim() ||
+                !phone.trim() ||
+                !isValidPhone(String(phone).trim())
+              }
             >
               {sending ? (
                 <>

@@ -787,6 +787,9 @@ body.theme-warm .column-dot.contacted {
 .column-dot.converted {
   background: #2e7d32;
 }
+.column-dot.current-client {
+  background: #00695c;
+}
 
 .column-count {
   background: rgba(0, 0, 0, 0.05);
@@ -1142,6 +1145,11 @@ body.theme-warm .kanban-cards.drag-over {
 .status-badge.converted {
   background: #2e7d32;
   color: white;
+}
+
+.status-badge.current-client {
+  background: #e0f2f1;
+  color: #00695c;
 }
 
 .facial-analysis-date {

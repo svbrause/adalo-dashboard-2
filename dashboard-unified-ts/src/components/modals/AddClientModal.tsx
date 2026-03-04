@@ -27,7 +27,7 @@ export default function AddClientModal({
     name: "",
     email: "",
     phone: "",
-    age: "",
+    dateOfBirth: "",
     zipCode: "",
     source: "Walk-in",
     notes: "",
@@ -79,11 +79,10 @@ export default function AddClientModal({
     setLoading(true);
 
     try {
-      const fields = {
+      const fields: Record<string, unknown> = {
         Name: formData.name.trim(),
         "Email Address": formData.email.trim(),
         "Phone Number": formData.phone ? formData.phone.replace(/\D/g, "") : "",
-        Age: formData.age ? parseInt(formData.age, 10) : null,
         "Zip Code": formData.zipCode || null,
         Source: formData.source,
         Notes: formData.notes.trim() || "",
@@ -92,6 +91,9 @@ export default function AddClientModal({
         // Link to provider if providerId is available
         ...(providerId ? { Providers: [providerId] } : {}),
       };
+      if (formData.dateOfBirth.trim()) {
+        fields["Date of Birth"] = formData.dateOfBirth.trim();
+      }
 
       await createLeadRecord("Web Popup Leads", fields);
       showToast(`Added ${formData.name} as a new lead!`);
@@ -181,21 +183,19 @@ export default function AddClientModal({
 
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="new-lead-age">Age</label>
+                <label htmlFor="new-lead-dob">Date of Birth</label>
                 <input
-                  type="number"
-                  id="new-lead-age"
-                  min="18"
-                  max="100"
-                  placeholder="Enter age"
-                  value={formData.age}
+                  type="date"
+                  id="new-lead-dob"
+                  placeholder="YYYY-MM-DD"
+                  value={formData.dateOfBirth}
                   onChange={(e) =>
-                    setFormData({ ...formData, age: e.target.value })
+                    setFormData({ ...formData, dateOfBirth: e.target.value })
                   }
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="new-lead-zipcode">Zip Code</label>
+                <label htmlFor="new-lead-zipcode">Zip Code (optional)</label>
                 <input
                   type="text"
                   id="new-lead-zipcode"

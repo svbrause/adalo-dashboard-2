@@ -10,6 +10,8 @@ import DebugTreatmentPlanPage from "./debug/DebugTreatmentPlanPage";
 import DebugPatientIssuesPage from "./debug/DebugPatientIssuesPage";
 import DebugIndexPage from "./debug/DebugIndexPage";
 import DebugClientDetailPage from "./components/debug/DebugClientDetailPage";
+import SkinQuizStandalonePage from "./components/pages/SkinQuizStandalonePage";
+import { isSkinQuizStandalonePath } from "./utils/skinQuizLink";
 import "./styles/index.css";
 
 /** Detect debug route from pathname or ?debug= (no provider required). */
@@ -72,6 +74,11 @@ function AppContent() {
       setProvider(null);
     }
   };
+
+  // Public standalone skin quiz (unique link from SMS) – no login
+  if (isSkinQuizStandalonePath()) {
+    return <SkinQuizStandalonePage />;
+  }
 
   // Debug pages: same components as dashboard, dummy data, no login
   if (debugRoute === "index") return <DebugIndexPage />;

@@ -9,6 +9,7 @@ import {
   isValidPhone,
   formatPhoneInput,
   cleanPhoneNumber,
+  formatPhoneDisplay,
 } from "../../utils/validation";
 import { showToast, showError } from "../../utils/toast";
 import "./ShareAnalysisModal.css";
@@ -29,11 +30,20 @@ export default function ShareAnalysisModal({
     `${formatProviderDisplayName(provider?.name) || "We"}: Your facial analysis results are ready! Access your personalized analysis and self-review at patients.ponce.ai. Log in with your email address to view your results.`;
   const [formData, setFormData] = useState({
     name: client.name || "",
-    phone: client.phone || "",
+    phone: client.phone ? formatPhoneDisplay(client.phone) : "",
     message: defaultMessage,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
+
+  // Sync name/phone from client when they change (e.g. different client or async load)
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      name: client.name || prev.name,
+      phone: client.phone ? formatPhoneDisplay(client.phone) : prev.phone,
+    }));
+  }, [client.name, client.phone]);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -57,18 +67,19 @@ export default function ShareAnalysisModal({
 
   const handleSend = async () => {
     setErrors({});
+    const phoneStr = String(formData.phone ?? "").trim();
 
     if (!formData.name.trim()) {
       setErrors({ name: "Name is required" });
       return;
     }
 
-    if (!formData.phone.trim()) {
+    if (!phoneStr) {
       setErrors({ phone: "Phone number is required" });
       return;
     }
 
-    if (!isValidPhone(formData.phone)) {
+    if (!isValidPhone(phoneStr)) {
       setErrors({ phone: "Please enter a valid phone number" });
       return;
     }
@@ -81,7 +92,7 @@ export default function ShareAnalysisModal({
     setSending(true);
     try {
       const finalMessage = formData.message;
-      const cleanedPhone = cleanPhoneNumber(formData.phone);
+      const cleanedPhone = cleanPhoneNumber(phoneStr);
 
       await sendSMSNotification(
         cleanedPhone,
@@ -222,7 +233,13 @@ export default function ShareAnalysisModal({
               type="button"
               className="btn-primary"
               onClick={handleSend}
-              disabled={sending}
+              disabled={
+                sending ||
+                !formData.name.trim() ||
+                !formData.phone.trim() ||
+                !isValidPhone(String(formData.phone).trim()) ||
+                !formData.message.trim()
+              }
             >
               {sending ? (
                 <>

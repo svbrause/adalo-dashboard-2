@@ -133,8 +133,22 @@ export default function ViewControls() {
             placeholder="Search by name, email, or phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input-main"
+            className={`search-input-main${searchQuery.trim() ? " search-input-main--has-clear" : ""}`}
           />
+          {searchQuery.trim() ? (
+            <button
+              type="button"
+              className="search-clear-btn"
+              onClick={() => setSearchQuery("")}
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          ) : null}
         </div>
       </div>
       )}
@@ -252,6 +266,7 @@ export default function ViewControls() {
                 <option value="requested-consult">Requested Consult</option>
                 <option value="scheduled">Scheduled</option>
                 <option value="converted">Converted</option>
+                <option value="current-client">Current Client</option>
               </select>
             </div>
             {locationOptions.length > 0 && (

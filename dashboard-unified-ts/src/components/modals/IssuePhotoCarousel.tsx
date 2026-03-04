@@ -59,7 +59,7 @@ const ISSUE_TO_TREATMENT: Record<string, string[]> = {
   'under eye bags': ['Filler', 'Laser'],
   'dark circles': ['Filler', 'Skincare'],
   'acne': ['Chemical Peel', 'Laser', 'Skincare'],
-  'acne scars': ['Microneedling', 'Laser', 'Chemical Peel'],
+  'acne scars': ['Microneedling', 'Laser', 'Chemical Peel', 'PRP', 'PDGF'],
   'hyperpigmentation': ['Chemical Peel', 'Laser', 'Skincare'],
   'dark spots': ['Chemical Peel', 'Laser', 'Skincare'],
   'sun damage': ['Laser', 'Chemical Peel'],
@@ -70,7 +70,7 @@ const ISSUE_TO_TREATMENT: Record<string, string[]> = {
   'double chin': ['Filler', 'Laser'],
   'jowls': ['Filler', 'Laser', 'Microneedling'],
   'uneven skin tone': ['Chemical Peel', 'Laser', 'Skincare'],
-  'texture': ['Microneedling', 'Chemical Peel', 'Laser'],
+  'texture': ['Microneedling', 'Chemical Peel', 'Laser', 'PRP', 'PDGF'],
   'pores': ['Microneedling', 'Chemical Peel'],
   'droopy eyelids': ['Laser', 'Neurotoxin'],
 };

@@ -1,6 +1,6 @@
 // Treatment Photos Browser - Unified before/after photos for treatments (issue, interest, or treatment+region)
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { TreatmentPhoto, DiscussedItem } from "../../../types";
 import type { Client } from "../../../types";
 import { fetchTreatmentPhotos, AirtableRecord } from "../../../services/api";
@@ -28,7 +28,7 @@ const ISSUE_TO_TREATMENT: Record<string, string[]> = {
   "under eye bags": ["Filler", "Laser"],
   "dark circles": ["Filler", "Skincare"],
   acne: ["Chemical Peel", "Laser", "Skincare"],
-  "acne scars": ["Microneedling", "Laser", "Chemical Peel"],
+  "acne scars": ["Microneedling", "Laser", "Chemical Peel", "PRP", "PDGF"],
   hyperpigmentation: ["Chemical Peel", "Laser", "Skincare"],
   "dark spots": ["Chemical Peel", "Laser", "Skincare"],
   "sun damage": ["Laser", "Chemical Peel"],
@@ -39,7 +39,7 @@ const ISSUE_TO_TREATMENT: Record<string, string[]> = {
   "double chin": ["Filler", "Laser"],
   jowls: ["Filler", "Laser", "Microneedling"],
   "uneven skin tone": ["Chemical Peel", "Laser", "Skincare"],
-  texture: ["Microneedling", "Chemical Peel", "Laser"],
+  texture: ["Microneedling", "Chemical Peel", "Laser", "PRP", "PDGF"],
   pores: ["Microneedling", "Chemical Peel"],
   "droopy eyelids": ["Laser", "Neurotoxin"],
 };
@@ -293,12 +293,20 @@ export default function TreatmentPhotos({
     notes?: string;
   } | null>(null);
 
-  // Client photo (front/side toggle)
+  // Client photo (front/side toggle; side can be processed or unprocessed from form)
   const [clientPhotoType, setClientPhotoType] = useState<"front" | "side">(
     "front"
   );
+  type SidePhotoSource = "processed" | "unprocessedSide" | "unprocessedLeft";
+  const [sidePhotoSource, setSidePhotoSource] = useState<SidePhotoSource>("processed");
   const [clientFrontUrl, setClientFrontUrl] = useState<string | null>(null);
   const [clientSideUrl, setClientSideUrl] = useState<string | null>(null);
+  const [clientSideUnprocessedSideUrl, setClientSideUnprocessedSideUrl] = useState<string | null>(null);
+  const [clientSideUnprocessedLeftUrl, setClientSideUnprocessedLeftUrl] = useState<string | null>(null);
+  const [showSideSourceMenuCard, setShowSideSourceMenuCard] = useState(false);
+  const [showSideSourceMenuModal, setShowSideSourceMenuModal] = useState(false);
+  const sideSourceMenuCardRef = useRef<HTMLDivElement>(null);
+  const sideSourceMenuModalRef = useRef<HTMLDivElement>(null);
 
   const useDemo = Array.isArray(demoPhotos) && demoPhotos.length > 0;
 
@@ -461,32 +469,43 @@ export default function TreatmentPhotos({
     return { exactMatches: exact, closeMatches: close };
   }, [sortedPhotos, matchCriteriaTerms.length, getMatchType]);
 
-  // Load client front/side photo when client is provided
+  // Load client front/side photo (processed + unprocessed from form) when client is provided
   useEffect(() => {
     if (!client || client.tableSource !== "Patients") return;
+    const getUrl = (att: { thumbnails?: { full?: { url: string }; large?: { url: string } }; url?: string }) =>
+      att?.thumbnails?.full?.url || att?.thumbnails?.large?.url || att?.url || null;
     const loadClientPhotos = async () => {
       try {
         const records = await fetchTableRecords("Patients", {
           filterFormula: `RECORD_ID() = "${client.id}"`,
-          fields: ["Front Photo", "Side Photo"],
+          fields: [
+            "Front Photo",
+            "Side Photo",
+            "Side Photo (from Form Submissions)",
+            "Left Side Photo (from Form Submissions)",
+          ],
         });
         if (records.length > 0) {
-          const fields = records[0].fields;
+          const fields = records[0].fields as Record<string, unknown>;
           const front = fields["Front Photo"] || fields["Front photo"];
           const side = fields["Side Photo"] || fields["Side photo"];
           if (front && Array.isArray(front) && front.length > 0) {
-            const url =
-              front[0].thumbnails?.full?.url ||
-              front[0].thumbnails?.large?.url ||
-              front[0].url;
-            setClientFrontUrl(url || null);
+            setClientFrontUrl(getUrl(front[0] as { thumbnails?: { full?: { url: string }; large?: { url: string } }; url?: string }) || null);
           }
           if (side && Array.isArray(side) && side.length > 0) {
-            const url =
-              side[0].thumbnails?.full?.url ||
-              side[0].thumbnails?.large?.url ||
-              side[0].url;
-            setClientSideUrl(url || null);
+            setClientSideUrl(getUrl(side[0] as { thumbnails?: { full?: { url: string }; large?: { url: string } }; url?: string }) || null);
+          }
+          const unprocessedSide = fields["Side Photo (from Form Submissions)"];
+          const unprocessedLeft = fields["Left Side Photo (from Form Submissions)"];
+          if (unprocessedSide && Array.isArray(unprocessedSide) && unprocessedSide.length > 0) {
+            setClientSideUnprocessedSideUrl(getUrl((unprocessedSide as { thumbnails?: { full?: { url: string }; large?: { url: string } }; url?: string }[])[0]) || null);
+          } else {
+            setClientSideUnprocessedSideUrl(null);
+          }
+          if (unprocessedLeft && Array.isArray(unprocessedLeft) && unprocessedLeft.length > 0) {
+            setClientSideUnprocessedLeftUrl(getUrl((unprocessedLeft as { thumbnails?: { full?: { url: string }; large?: { url: string } }; url?: string }[])[0]) || null);
+          } else {
+            setClientSideUnprocessedLeftUrl(null);
           }
         }
       } catch {
@@ -495,6 +514,17 @@ export default function TreatmentPhotos({
     };
     loadClientPhotos();
   }, [client]);
+
+  // Default side source to first available (processed or unprocessed)
+  useEffect(() => {
+    if (sidePhotoSource === "processed" && !clientSideUrl && (clientSideUnprocessedSideUrl || clientSideUnprocessedLeftUrl)) {
+      setSidePhotoSource(clientSideUnprocessedSideUrl ? "unprocessedSide" : "unprocessedLeft");
+    } else if (sidePhotoSource === "unprocessedSide" && !clientSideUnprocessedSideUrl) {
+      setSidePhotoSource(clientSideUrl ? "processed" : clientSideUnprocessedLeftUrl ? "unprocessedLeft" : "processed");
+    } else if (sidePhotoSource === "unprocessedLeft" && !clientSideUnprocessedLeftUrl) {
+      setSidePhotoSource(clientSideUrl ? "processed" : clientSideUnprocessedSideUrl ? "unprocessedSide" : "processed");
+    }
+  }, [clientSideUrl, clientSideUnprocessedSideUrl, clientSideUnprocessedLeftUrl, sidePhotoSource]);
 
   useEffect(() => {
     if (interest) {
@@ -520,9 +550,47 @@ export default function TreatmentPhotos({
     if (selectedRegion !== undefined) setFilterRegion(selectedRegion);
   }, [selectedRegion]);
 
+  const currentSideUrl =
+    sidePhotoSource === "processed"
+      ? clientSideUrl
+      : sidePhotoSource === "unprocessedSide"
+        ? clientSideUnprocessedSideUrl
+        : clientSideUnprocessedLeftUrl;
   const clientPhotoUrl =
-    clientPhotoType === "front" ? clientFrontUrl : clientSideUrl;
-  const hasClientPhotos = !!(clientFrontUrl || clientSideUrl);
+    clientPhotoType === "front" ? clientFrontUrl : currentSideUrl;
+  const hasClientPhotos = !!(
+    clientFrontUrl ||
+    clientSideUrl ||
+    clientSideUnprocessedSideUrl ||
+    clientSideUnprocessedLeftUrl
+  );
+  const hasProcessedSide = clientSideUrl != null;
+  const hasUnprocessedSide = clientSideUnprocessedSideUrl != null;
+  const hasUnprocessedLeft = clientSideUnprocessedLeftUrl != null;
+  const hasMultipleSideOptions = [hasProcessedSide, hasUnprocessedSide, hasUnprocessedLeft].filter(Boolean).length > 1;
+
+  useEffect(() => {
+    if (!showSideSourceMenuCard) return;
+    const handleClick = (e: MouseEvent) => {
+      if (sideSourceMenuCardRef.current && !sideSourceMenuCardRef.current.contains(e.target as Node)) {
+        setShowSideSourceMenuCard(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showSideSourceMenuCard]);
+
+  useEffect(() => {
+    if (!showSideSourceMenuModal) return;
+    const handleClick = (e: MouseEvent) => {
+      if (sideSourceMenuModalRef.current && !sideSourceMenuModalRef.current.contains(e.target as Node)) {
+        setShowSideSourceMenuModal(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showSideSourceMenuModal]);
+
   const treatmentMeta = filterTreatment
     ? TREATMENT_META[filterTreatment]
     : undefined;
@@ -754,10 +822,60 @@ export default function TreatmentPhotos({
                         clientPhotoType === "side" ? " active" : ""
                       }`}
                       onClick={() => setClientPhotoType("side")}
-                      disabled={!clientSideUrl}
+                      disabled={!(clientSideUrl || clientSideUnprocessedSideUrl || clientSideUnprocessedLeftUrl)}
                     >
                       Side
                     </button>
+                    {clientPhotoType === "side" && hasMultipleSideOptions && (
+                      <div className="treatment-photos-side-source-wrap" ref={sideSourceMenuCardRef}>
+                        <button
+                          type="button"
+                          className="treatment-photos-side-source-edit-btn"
+                          onClick={() => setShowSideSourceMenuCard((v) => !v)}
+                          title="Choose side photo"
+                          aria-label="Choose which side photo to show"
+                          aria-expanded={showSideSourceMenuCard}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        {showSideSourceMenuCard && (
+                          <div className="treatment-photos-side-source-menu" role="menu">
+                            {hasProcessedSide && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={`treatment-photos-side-source-item${sidePhotoSource === "processed" ? " active" : ""}`}
+                                onClick={() => { setSidePhotoSource("processed"); setShowSideSourceMenuCard(false); }}
+                              >
+                                Processed
+                              </button>
+                            )}
+                            {hasUnprocessedSide && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={`treatment-photos-side-source-item${sidePhotoSource === "unprocessedSide" ? " active" : ""}`}
+                                onClick={() => { setSidePhotoSource("unprocessedSide"); setShowSideSourceMenuCard(false); }}
+                              >
+                                Original (right)
+                              </button>
+                            )}
+                            {hasUnprocessedLeft && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={`treatment-photos-side-source-item${sidePhotoSource === "unprocessedLeft" ? " active" : ""}`}
+                                onClick={() => { setSidePhotoSource("unprocessedLeft"); setShowSideSourceMenuCard(false); }}
+                              >
+                                Original (left)
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="treatment-photos-client-image-wrap">
                     <img
@@ -1160,7 +1278,7 @@ export default function TreatmentPhotos({
             </button>
             <div className="treatment-photo-detail-content treatment-photo-detail-side-by-side">
               {/* Client photo for comparison */}
-              {(clientFrontUrl || clientSideUrl) && (
+              {(clientFrontUrl || clientSideUrl || clientSideUnprocessedSideUrl || clientSideUnprocessedLeftUrl) && (
                 <div className="treatment-photo-detail-client">
                   <div className="treatment-photo-detail-client-header">
                     <span className="treatment-photo-detail-client-label">
@@ -1179,10 +1297,60 @@ export default function TreatmentPhotos({
                         type="button"
                         className={`treatment-photo-detail-toggle-btn${clientPhotoType === "side" ? " active" : ""}`}
                         onClick={() => setClientPhotoType("side")}
-                        disabled={!clientSideUrl}
+                        disabled={!(clientSideUrl || clientSideUnprocessedSideUrl || clientSideUnprocessedLeftUrl)}
                       >
                         Side
                       </button>
+                      {clientPhotoType === "side" && hasMultipleSideOptions && (
+                        <div className="treatment-photos-side-source-wrap" ref={sideSourceMenuModalRef}>
+                          <button
+                            type="button"
+                            className="treatment-photos-side-source-edit-btn treatment-photos-side-source-edit-btn--sm"
+                            onClick={() => setShowSideSourceMenuModal((v) => !v)}
+                            title="Choose side photo"
+                            aria-label="Choose which side photo to show"
+                            aria-expanded={showSideSourceMenuModal}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          {showSideSourceMenuModal && (
+                            <div className="treatment-photos-side-source-menu" role="menu">
+                              {hasProcessedSide && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className={`treatment-photos-side-source-item${sidePhotoSource === "processed" ? " active" : ""}`}
+                                  onClick={() => { setSidePhotoSource("processed"); setShowSideSourceMenuModal(false); }}
+                                >
+                                  Processed
+                                </button>
+                              )}
+                              {hasUnprocessedSide && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className={`treatment-photos-side-source-item${sidePhotoSource === "unprocessedSide" ? " active" : ""}`}
+                                  onClick={() => { setSidePhotoSource("unprocessedSide"); setShowSideSourceMenuModal(false); }}
+                                >
+                                  Original (right)
+                                </button>
+                              )}
+                              {hasUnprocessedLeft && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className={`treatment-photos-side-source-item${sidePhotoSource === "unprocessedLeft" ? " active" : ""}`}
+                                  onClick={() => { setSidePhotoSource("unprocessedLeft"); setShowSideSourceMenuModal(false); }}
+                                >
+                                  Original (left)
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <img

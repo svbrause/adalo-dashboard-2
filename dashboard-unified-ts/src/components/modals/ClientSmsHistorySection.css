@@ -1,0 +1,97 @@
+/* Client SMS History Section (client detail) – collapsible, messaging-app style */
+
+.detail-section-sms-history {
+  margin-top: 0;
+}
+
+.detail-section-sms-history .client-sms-history-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
+.detail-section-sms-history .client-sms-history-header-clickable {
+  cursor: pointer;
+  padding: 2px 0;
+  margin: -2px 0;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.detail-section-sms-history .client-sms-history-header-clickable:hover {
+  background: var(--theme-bg-hover, rgba(0, 0, 0, 0.04));
+}
+
+.detail-section-sms-history .client-sms-history-header .detail-section-title {
+  margin: 0;
+}
+
+.client-sms-history-summary {
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted, #757575);
+  font-weight: 400;
+}
+
+.client-sms-history-summary-muted {
+  color: var(--theme-text-muted, #9e9e9e);
+}
+
+.client-sms-history-chevron {
+  font-size: 0.625rem;
+  color: var(--theme-text-muted, #9e9e9e);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.detail-section-sms-history .client-sms-history-loading,
+.detail-section-sms-history .client-sms-history-empty {
+  margin: 10px 0 0;
+  font-size: 0.875rem;
+  color: var(--theme-text-muted, #757575);
+}
+
+/* Thread area – same feel as SmsHistoryView thread */
+.client-sms-history-thread {
+  margin-top: 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--theme-bg-messages, #f5f6f8);
+  border: 1px solid var(--theme-border, #e8e8e8);
+}
+
+.client-sms-history-messages {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Bubbles – match SmsHistoryView .sms-history-message-bubble */
+.client-sms-history-bubble {
+  max-width: 85%;
+  align-self: flex-start;
+  padding: 10px 14px;
+  background: var(--theme-bg-card, #fff);
+  border-radius: 12px 12px 12px 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.client-sms-history-bubble-text {
+  font-size: 0.9375rem;
+  color: var(--theme-text-primary, #212121);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.client-sms-history-bubble-time {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.6875rem;
+  color: var(--theme-text-muted, #9e9e9e);
+}

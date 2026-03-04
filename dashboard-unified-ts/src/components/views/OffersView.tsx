@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useDashboard } from '../../context/DashboardContext';
 import { fetchOffers } from '../../services/api';
 import { Offer } from '../../types';
 import OfferRequestModal from '../modals/OfferRequestModal';
@@ -7,19 +8,16 @@ import './OffersView.css';
 type OfferModalState = { open: false } | { open: true; mode: 'add' } | { open: true; mode: 'edit'; offer: Offer };
 
 export default function OffersView() {
+  const { provider } = useDashboard();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [offerModal, setOfferModal] = useState<OfferModalState>({ open: false });
 
-  useEffect(() => {
-    loadOffers();
-  }, []);
-
-  const loadOffers = async () => {
+  const loadOffers = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchOffers();
+      const data = await fetchOffers(provider?.id);
       setOffers(data);
       setError(null);
     } catch (err: unknown) {
@@ -28,7 +26,11 @@ export default function OffersView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [provider?.id]);
+
+  useEffect(() => {
+    loadOffers();
+  }, [loadOffers]);
 
   const handleAddOffer = () => {
     setOfferModal({ open: true, mode: 'add' });
@@ -124,7 +126,10 @@ export default function OffersView() {
 
       {offerModal.open && (
         <OfferRequestModal
-          onClose={() => setOfferModal({ open: false })}
+          onClose={() => {
+            setOfferModal({ open: false });
+            loadOffers();
+          }}
           mode={offerModal.mode}
           initialOffer={offerModal.mode === 'edit' ? offerModal.offer : null}
         />

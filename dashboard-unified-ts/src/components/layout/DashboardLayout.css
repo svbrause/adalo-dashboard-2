@@ -14,9 +14,24 @@
   margin-left: 240px;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow-x: hidden;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  transition: margin-left 0.2s ease;
+}
+
+.dashboard-wrapper--sidebar-collapsed .main-content {
+  margin-left: 76px;
+}
+
+/* Wrapper so views can fill remaining height and manage internal scroll (e.g. SMS messages) */
+.dashboard-views-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 
 @media (max-width: 768px) {

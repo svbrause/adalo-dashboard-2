@@ -1,6 +1,12 @@
 // Status formatting utilities
 
+import { WEB_POPUP_LEAD_NO_ANALYSIS_STATUS } from "./clientMapper";
+
 export function formatFacialStatus(status: string | null | undefined): string {
+  // Web Popup Leads with no analysis: show "Not started" instead of "Pending"
+  if (status === WEB_POPUP_LEAD_NO_ANALYSIS_STATUS) {
+    return "Not started";
+  }
   // Handle null, undefined, empty strings, or "not-started" - show as "Pending"
   if (
     !status ||
@@ -151,7 +157,7 @@ export function getFacialStatusBorderColor(status: string | null | undefined): s
 }
 
 export function getStatusBadgeColor(
-  status: "new" | "contacted" | "requested-consult" | "scheduled" | "converted",
+  status: "new" | "contacted" | "requested-consult" | "scheduled" | "converted" | "current-client",
 ): string {
   const colorMap = {
     new: "#E3F2FD", // Light blue
@@ -159,13 +165,14 @@ export function getStatusBadgeColor(
     "requested-consult": "#E8EAF6", // Light indigo
     scheduled: "#E8F5E9", // Light green
     converted: "#F3E5F5", // Light purple
+    "current-client": "#E0F2F1", // Light teal – existing patient, not new lead
   };
 
   return colorMap[status] || "#E0E0E0";
 }
 
 export function getStatusTextColor(
-  status: "new" | "contacted" | "requested-consult" | "scheduled" | "converted",
+  status: "new" | "contacted" | "requested-consult" | "scheduled" | "converted" | "current-client",
 ): string {
   const colorMap = {
     new: "#1976D2", // Blue
@@ -173,6 +180,7 @@ export function getStatusTextColor(
     "requested-consult": "#3949AB", // Indigo
     scheduled: "#388E3C", // Green
     converted: "#7B1FA2", // Purple
+    "current-client": "#00695C", // Teal
   };
 
   return colorMap[status] || "#666";

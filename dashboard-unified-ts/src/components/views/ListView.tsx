@@ -11,6 +11,7 @@ import {
   hasInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { applyFilters, applySorting } from "../../utils/filtering";
+import { updateClientStatus } from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
 import "./ListView.css";
 
@@ -65,9 +66,7 @@ export default function ListView() {
     if (!client) return;
 
     try {
-      const { updateClientStatus } =
-        await import("../../services/contactHistory");
-      await updateClientStatus(client, newStatus as any);
+      await updateClientStatus(client, newStatus as Parameters<typeof updateClientStatus>[1]);
       showToast(`Status updated to ${newStatus}`);
       refreshClients();
     } catch (error: any) {
@@ -246,6 +245,7 @@ export default function ListView() {
                         </option>
                         <option value="scheduled">Scheduled</option>
                         <option value="converted">Converted</option>
+                        <option value="current-client">Current Client</option>
                       </select>
                     </td>
                     <td className="text-sm text-muted">

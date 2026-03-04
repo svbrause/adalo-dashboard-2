@@ -1,4 +1,4 @@
-// Discussed Treatments Modal – header (title, subtitle, Treatment Explorer, Share, Close)
+// Discussed Treatments Modal – header (title, subtitle, Treatment Explorer, Checkout, Share, Close)
 
 interface DiscussedTreatmentsModalHeaderProps {
   clientName: string;
@@ -6,6 +6,10 @@ interface DiscussedTreatmentsModalHeaderProps {
   onClose: () => void;
   /** Open the treatment explorer photo gallery */
   onViewExamples?: () => void;
+  /** Open the checkout (price summary) modal; when set, Checkout button is shown when plan has items */
+  onCheckout?: () => void;
+  /** Whether the plan has items (show Checkout button) */
+  hasPlanItems?: boolean;
 }
 
 export default function DiscussedTreatmentsModalHeader({
@@ -13,6 +17,8 @@ export default function DiscussedTreatmentsModalHeader({
   onShare,
   onClose,
   onViewExamples,
+  onCheckout,
+  hasPlanItems,
 }: DiscussedTreatmentsModalHeaderProps) {
   return (
     <div className="modal-header discussed-treatments-modal-header">
@@ -31,6 +37,15 @@ export default function DiscussedTreatmentsModalHeader({
             onClick={onViewExamples}
           >
             Treatment Explorer
+          </button>
+        )}
+        {onCheckout && hasPlanItems && (
+          <button
+            type="button"
+            className="btn-secondary btn-sm"
+            onClick={onCheckout}
+          >
+            Checkout
           </button>
         )}
         <button

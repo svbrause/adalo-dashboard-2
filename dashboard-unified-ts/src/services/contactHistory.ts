@@ -83,7 +83,8 @@ export async function updateClientStatus(
     | "contacted"
     | "requested-consult"
     | "scheduled"
-    | "converted",
+    | "converted"
+    | "current-client",
 ): Promise<void> {
   const tableName = client.tableSource || "Web Popup Leads";
   const updateFields: Record<string, any> = {};
@@ -95,6 +96,7 @@ export async function updateClientStatus(
     "requested-consult": "Requested Consult",
     scheduled: "Scheduled",
     converted: "Converted",
+    "current-client": "Current Client",
   };
 
   updateFields["Status"] = statusMap[newStatus] || newStatus;

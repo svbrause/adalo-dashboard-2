@@ -5,7 +5,7 @@
  *
  * Run: node scripts/fetch-treatment-boutique-products.mjs
  *
- * Output: JSON array of { name, productUrl, imageUrl } for use in treatmentBoutiqueProducts.ts
+ * Output: JSON array of { name, productUrl, imageUrl, description?, price?, imageUrls? } for use in treatmentBoutiqueProducts.ts
  *
  * Manual alternative (if you need a one-off list without running the script):
  * 1. Open https://shop.getthetreatment.com/collections/all-products
@@ -58,13 +58,34 @@ function excludeProduct(product) {
   return false;
 }
 
+function stripHtml(html) {
+  if (!html || typeof html !== "string") return undefined;
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 800);
+}
+
 function toEntry(p) {
   const title = (p.title || "").trim();
   const handle = (p.handle || "").trim();
   const productUrl = handle ? `${BASE}/products/${handle}` : "";
-  const img = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
-  const imageUrl = img && img.src ? img.src : undefined;
-  return { name: title, productUrl: productUrl || undefined, imageUrl };
+  const images = Array.isArray(p.images) ? p.images : [];
+  const imageUrl = images[0]?.src ?? undefined;
+  const imageUrls = images.map((img) => img.src).filter(Boolean);
+  const description = stripHtml(p.body_html);
+  const price = p.variants?.[0]?.price
+    ? `$${Number(p.variants[0].price).toFixed(2)}`
+    : undefined;
+  return {
+    name: title,
+    productUrl: productUrl || undefined,
+    imageUrl,
+    ...(description && { description }),
+    ...(price && { price }),
+    ...(imageUrls.length > 0 && { imageUrls }),
+  };
 }
 
 async function main() {

@@ -1,7 +1,9 @@
 // API service for fetching data from Airtable via backend (ponce-patient-backend.vercel.app)
 // All dashboard API calls go to the backend; no /api or relative routes.
 
-import type { Offer, DoctorAdviceRequest } from "../types";
+import type { Offer, DoctorAdviceRequest, SkincareQuizData } from "../types";
+import { cleanPhoneNumber } from "../utils/validation";
+import { parseSkincareQuizFromFields } from "../utils/clientMapper";
 
 export const BACKEND_API_URL =
   import.meta.env.VITE_BACKEND_API_URL ||
@@ -164,6 +166,24 @@ export async function fetchTableRecords(
 }
 
 /**
+ * Fetch only the Skincare Quiz (and optionally Wellness Quiz) field for a record.
+ * Use when the list response may omit long-text fields; call when opening client detail.
+ */
+export async function fetchRecordQuizFields(
+  recordId: string,
+  tableName: "Patients" | "Web Popup Leads"
+): Promise<{ skincareQuiz?: SkincareQuizData }> {
+  const records = await fetchTableRecords(tableName, {
+    filterFormula: `RECORD_ID() = "${recordId.replace(/"/g, '\\"')}"`,
+    fields: ["Skincare Quiz"],
+  });
+  const fields = records[0]?.fields;
+  if (!fields) return {};
+  const skincareQuiz = parseSkincareQuizFromFields(fields as Record<string, unknown>);
+  return skincareQuiz != null ? { skincareQuiz } : {};
+}
+
+/**
  * Fetch contact history for clients
  */
 export async function fetchContactHistory(
@@ -284,6 +304,226 @@ export async function updateLeadRecord(
   });
 
   return response.ok;
+}
+
+/**
+ * Upload a patient photo (front or side) and return the public URL.
+ * Backend must implement POST /api/dashboard/upload-patient-photo (multipart: recordId, tableName, fieldName, file).
+ * If the backend returns 501, photo upload is not configured (use "Replace with URL" instead).
+ */
+export async function uploadPatientPhoto(
+  recordId: string,
+  tableName: string,
+  fieldName: "Front Photo" | "Side Photo",
+  file: File
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("recordId", recordId);
+  formData.append("tableName", tableName);
+  formData.append("fieldName", fieldName);
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/api/dashboard/upload-patient-photo`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (response.status === 501) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || "Photo upload is not configured on the server.");
+  }
+
+  if (response.status === 413) {
+    throw new Error(
+      "Photo is too large. The server rejected it (413). Use a smaller image (e.g. under 4 MB) or paste a URL instead."
+    );
+  }
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.message || err?.error || "Upload failed");
+  }
+
+  const data = (await response.json()) as { url?: string; message?: string };
+  if (!data?.url) {
+    const msg = data?.message?.trim();
+    throw new Error(
+      msg && /not configured|not implemented/i.test(msg)
+        ? "Photo upload is not configured on the server."
+        : "Server did not return a photo URL"
+    );
+  }
+  return { url: data.url };
+}
+
+/**
+ * Submit skin quiz from the public standalone page (patient fills quiz via unique link).
+ * Backend should implement POST /api/skin-quiz/submit to update the Airtable record
+ * (and optionally linked lead) without requiring dashboard auth.
+ */
+export async function submitSkinQuizFromLink(
+  recordId: string,
+  tableName: string,
+  payload: { version: 1; completedAt: string; answers: Record<string, number>; result: string; recommendedProductNames: string[]; resultLabel?: string; resultDescription?: string }
+): Promise<boolean> {
+  const apiUrl = `${API_BASE_URL}/api/skin-quiz/submit`;
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recordId, tableName, payload }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.message || "Failed to save quiz");
+  }
+  return true;
+}
+
+/** Payload shape returned from GET /api/skin-quiz/results (same as stored in Airtable). */
+export interface SkinQuizResultsPayload {
+  version: 1;
+  completedAt: string;
+  answers: Record<string, number>;
+  result: string;
+  recommendedProductNames: string[];
+  resultLabel?: string;
+  resultDescription?: string;
+}
+
+/**
+ * Fetch existing skin quiz results for a record (public standalone link).
+ * Used when the client opens the quiz link and has already completed the quiz – show results instead of the quiz.
+ * Returns null if no results or 404.
+ */
+export async function fetchSkinQuizResultsFromLink(
+  recordId: string,
+  tableName: string
+): Promise<SkinQuizResultsPayload | null> {
+  const params = new URLSearchParams({ recordId, tableName });
+  const apiUrl = `${API_BASE_URL}/api/skin-quiz/results?${params.toString()}`;
+  const response = await fetch(apiUrl);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.message || "Failed to load results");
+  }
+  const data = (await response.json()) as SkinQuizResultsPayload;
+  if (!data || data.version !== 1 || !data.answers || typeof data.result === "undefined") {
+    return null;
+  }
+  return data;
+}
+
+/** One SMS notification record (from GET /api/dashboard/sms-notifications). */
+export interface SmsNotificationRecord {
+  id: string;
+  createdTime?: string;
+  phone: string;
+  message: string;
+  name: string;
+}
+
+/** In-memory cache for SMS by phone so messages load instantly when reopening or after prefetch. */
+const SMS_CACHE_TTL_MS = 60_000; // 1 minute
+const smsCache = new Map<
+  string,
+  { data: SmsNotificationRecord[]; fetchedAt: number }
+>();
+
+function smsCacheKey(phone: string, limit?: number, offset?: number): string {
+  const normalized = cleanPhoneNumber(phone) || phone.trim();
+  const limitStr = limit != null ? String(limit) : "";
+  const offsetStr = offset != null ? String(offset) : "";
+  return `sms:${normalized}:${limitStr}:${offsetStr}`;
+}
+
+/**
+ * Fetch SMS notifications for the provider's clients (providerId) or for a single phone (phone).
+ * Cross-references by phone number with Patients and Web Popup Leads.
+ * Optional: limit, offset for pagination; search for server-side search by name/phone.
+ * Results for phone+limit+offset are cached so prefetched or repeated opens load instantly.
+ */
+export async function fetchSmsNotifications(options: {
+  providerId?: string;
+  phone?: string;
+  limit?: number;
+  offset?: number;
+  search?: string;
+}): Promise<SmsNotificationRecord[]> {
+  const phone = options.phone;
+  const cacheable =
+    phone &&
+    options.providerId == null &&
+    (options.search == null || options.search.trim() === "");
+  if (cacheable && phone) {
+    const key = smsCacheKey(
+      phone,
+      options.limit ?? 20,
+      options.offset ?? 0
+    );
+    const entry = smsCache.get(key);
+    if (
+      entry &&
+      entry.fetchedAt > Date.now() - SMS_CACHE_TTL_MS
+    ) {
+      return entry.data;
+    }
+  }
+
+  const params = new URLSearchParams();
+  if (options.providerId) params.set("providerId", options.providerId);
+  if (options.phone) params.set("phone", options.phone);
+  if (options.limit != null) params.set("limit", String(options.limit));
+  if (options.offset != null) params.set("offset", String(options.offset));
+  if (options.search != null && options.search.trim() !== "")
+    params.set("search", options.search.trim());
+  if (!params.toString()) return [];
+  const apiUrl = `${API_BASE_URL}/api/dashboard/sms-notifications?${params.toString()}`;
+  const response = await fetch(apiUrl);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.message || "Failed to fetch SMS notifications");
+  }
+  const data = (await response.json()) as { records?: SmsNotificationRecord[] };
+  const list = data.records ?? [];
+
+  if (cacheable && phone) {
+    const key = smsCacheKey(
+      phone,
+      options.limit ?? 20,
+      options.offset ?? 0
+    );
+    smsCache.set(key, { data: list, fetchedAt: Date.now() });
+  }
+
+  return list;
+}
+
+/**
+ * Prefetch the first page of SMS for a phone in the background.
+ * Call when a client is selected so the SMS popup opens with cached data if the user clicks Text.
+ */
+export function prefetchSmsForPhone(phone: string | number | null | undefined): void {
+  const p = phone != null ? String(phone).trim() : "";
+  if (!p) return;
+  fetchSmsNotifications({ phone: p, limit: 20, offset: 0 }).catch(() => {
+    // ignore errors; cache will be filled on next open
+  });
+}
+
+/**
+ * Invalidate cached SMS for a phone (e.g. after sending a new message) so the next load is fresh.
+ */
+export function invalidateSmsCache(phone?: string): void {
+  if (phone == null || phone === "") {
+    smsCache.clear();
+    return;
+  }
+  const normalized = cleanPhoneNumber(phone);
+  const prefix = `sms:${normalized}:`;
+  for (const key of Array.from(smsCache.keys())) {
+    if (key.startsWith(prefix)) smsCache.delete(key);
+  }
 }
 
 /**
@@ -574,31 +814,21 @@ export async function fetchDoctorAdviceRequests(): Promise<DoctorAdviceRequest[]
 
 /**
  * Fetch offers from the dashboard offers API.
- * Returns records shaped as Offer (id + flat fields).
+ * Backend GET /api/dashboard/offers reads from the Airtable Offers table and returns
+ * { success, records, count }. No provider filter is applied (Offers table has no provider link).
  */
-export async function fetchOffers(): Promise<Offer[]> {
-  const apiPath = "/api/dashboard/offers";
-  const apiUrl = API_BASE_URL + apiPath;
+export async function fetchOffers(_providerId?: string): Promise<Offer[]> {
+  const apiUrl = `${API_BASE_URL}/api/dashboard/offers`;
   const response = await fetch(apiUrl);
   if (!response.ok) {
     const errorData = await safeJsonParse(response).catch(() => ({}));
-    throw new Error(errorData.message || "Failed to fetch offers");
+    throw new Error(
+      errorData.message || errorData.error?.message || "Failed to fetch offers"
+    );
   }
   const data = await safeJsonParse(response);
   const records = data.records || [];
-  return records.map((r: AirtableRecord) => {
-    const f = r.fields || {};
-    return {
-      id: r.id,
-      name: f.Name ?? f.name ?? "",
-      heading: f.Heading ?? f.heading ?? "",
-      details: f.Details ?? f.details ?? "",
-      availableUntil: f["Available Until"] ?? f.availableUntil ?? "",
-      redemptionPeriod: f["Redemption Period"] ?? f.redemptionPeriod ?? "",
-      treatmentFilter: f["Treatment Filter"] ?? f.treatmentFilter ?? "",
-      createdTime: r.createdTime,
-    };
-  });
+  return records;
 }
 
 /**

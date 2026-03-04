@@ -1,0 +1,12 @@
+{
+  "name": "pipeline-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scheduled checks for full pipeline (Vercel, backend, GCP, etc.) with Slack alerts",
+  "main": "run.js",
+  "scripts": {
+    "run": "node run.js",
+    "run:gcp": "node run.js --gcp"
+  }
+}

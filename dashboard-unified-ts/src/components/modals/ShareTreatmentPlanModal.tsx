@@ -9,6 +9,7 @@ import {
   isValidPhone,
   formatPhoneInput,
   cleanPhoneNumber,
+  formatPhoneDisplay,
 } from "../../utils/validation";
 import { showToast, showError } from "../../utils/toast";
 import { getTreatmentDisplayName } from "./DiscussedTreatmentsModal/utils";
@@ -22,7 +23,10 @@ interface ShareTreatmentPlanModalProps {
   discussedItems?: DiscussedItem[] | null;
 }
 
-/** Build pre-filled message body that includes the actual plan items, grouped by timeline */
+const SKINCARE_SECTION_LABEL = "Skincare";
+const TIMELINE_SECTIONS = ["Now", "Add next visit", "Wishlist", "Completed"] as const;
+
+/** Build pre-filled message body that includes the actual plan items. Skincare in one section; others by timeline. */
 function buildTreatmentPlanMessageBody(
   providerName: string,
   items: DiscussedItem[]
@@ -30,19 +34,27 @@ function buildTreatmentPlanMessageBody(
   if (items.length === 0) {
     return `${providerName}: Your treatment plan is ready. Here's a summary of the treatments we discussed for you.`;
   }
-  const sections = ["Now", "Add next visit", "Wishlist", "Completed"] as const;
+  const skincareItems = items.filter((i) => i.treatment?.trim() === "Skincare");
+  const hasSkincare = skincareItems.length > 0;
+  const sectionOrder = hasSkincare
+    ? [SKINCARE_SECTION_LABEL, ...TIMELINE_SECTIONS]
+    : [...TIMELINE_SECTIONS];
   const lines: string[] = [
     `${providerName}: Your treatment plan is ready. Here's what we discussed:`,
     "",
   ];
-  for (const section of sections) {
-    const inSection = items.filter((item) => {
-      const t = (item.timeline ?? "").trim();
-      if (section === "Now") return t === "Now";
-      if (section === "Add next visit") return t === "Add next visit";
-      if (section === "Completed") return t === "Completed";
-      return t === "Wishlist" || !t;
-    });
+  for (const section of sectionOrder) {
+    const inSection =
+      section === SKINCARE_SECTION_LABEL
+        ? skincareItems
+        : items.filter((item) => {
+            if (item.treatment?.trim() === "Skincare") return false;
+            const t = (item.timeline ?? "").trim();
+            if (section === "Now") return t === "Now";
+            if (section === "Add next visit") return t === "Add next visit";
+            if (section === "Completed") return t === "Completed";
+            return t === "Wishlist" || !t;
+          });
     if (inSection.length === 0) continue;
     lines.push(`${section}:`);
     for (const item of inSection) {
@@ -75,7 +87,7 @@ export default function ShareTreatmentPlanModal({
   );
   const [formData, setFormData] = useState({
     name: client.name || "",
-    phone: client.phone || "",
+    phone: client.phone ? formatPhoneDisplay(client.phone) : "",
     message: defaultMessageBody,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -89,26 +101,27 @@ export default function ShareTreatmentPlanModal({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
-  // Sync name/phone from client when they change (e.g. different client)
+  // Sync name/phone from client when they change (e.g. different client or async load)
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
       name: client.name || prev.name,
-      phone: client.phone || prev.phone,
+      phone: client.phone ? formatPhoneDisplay(client.phone) : prev.phone,
     }));
   }, [client.name, client.phone]);
 
   const handleSend = async () => {
     setErrors({});
+    const phoneStr = String(formData.phone ?? "").trim();
     if (!formData.name.trim()) {
       setErrors({ name: "Name is required" });
       return;
     }
-    if (!formData.phone.trim()) {
+    if (!phoneStr) {
       setErrors({ phone: "Phone number is required" });
       return;
     }
-    if (!isValidPhone(formData.phone)) {
+    if (!isValidPhone(phoneStr)) {
       setErrors({ phone: "Please enter a valid phone number" });
       return;
     }
@@ -119,7 +132,7 @@ export default function ShareTreatmentPlanModal({
     setSending(true);
     try {
       await sendSMSNotification(
-        cleanPhoneNumber(formData.phone),
+        cleanPhoneNumber(phoneStr),
         formData.message,
         formData.name.trim() || undefined,
       );
@@ -242,7 +255,13 @@ export default function ShareTreatmentPlanModal({
               type="button"
               className="btn-primary"
               onClick={handleSend}
-              disabled={sending}
+              disabled={
+                sending ||
+                !formData.name.trim() ||
+                !formData.phone.trim() ||
+                !isValidPhone(String(formData.phone).trim()) ||
+                !formData.message.trim()
+              }
             >
               {sending ? (
                 <>

@@ -9,9 +9,11 @@ import "./Sidebar.css";
 
 interface SidebarProps {
   onLogout: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export default function Sidebar({ onLogout }: SidebarProps) {
+export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse }: SidebarProps) {
   const { provider, currentView, setCurrentView } = useDashboard();
   const [showHelpModal, setShowHelpModal] = useState(false);
 
@@ -47,7 +49,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
   const providerInitial = displayName?.charAt(0).toUpperCase() || "P";
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? "sidebar--collapsed" : ""}`}>
       <div className="sidebar-header">
         <div className="logo">
           {logoUrl ? (
@@ -74,6 +76,29 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             </div>
           )}
         </div>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <svg className="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                {/* >| expand */}
+                <path d="M10 8 L14 12 L10 16" />
+                <line x1="18" y1="4" x2="18" y2="20" />
+              </svg>
+            ) : (
+              <svg className="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                {/* <| collapse */}
+                <path d="M14 8 L10 12 L14 16" />
+                <line x1="18" y1="4" x2="18" y2="20" />
+              </svg>
+            )}
+          </button>
+        )}
       </div>
 
       <nav className="sidebar-nav">
@@ -102,7 +127,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             <line x1="3" y1="12" x2="3.01" y2="12"></line>
             <line x1="3" y1="18" x2="3.01" y2="18"></line>
           </svg>
-          All Clients
+          <span className="nav-item-label">All Clients</span>
         </a>
         {(provider?.code || "").trim().toLowerCase() === "lakeshore153" && (
           <>
@@ -126,17 +151,17 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
                 <line x1="7" y1="7" x2="7.01" y2="7"></line>
               </svg>
-              Offers
+              <span className="nav-item-label">Offers</span>
             </a>
           </>
         )}
         <div className="nav-divider"></div>
         <a
           href="#"
-          className={`nav-item ${currentView === "inbox" ? "active" : ""}`}
+          className={`nav-item ${currentView === "sms-history" ? "active" : ""}`}
           onClick={(e) => {
             e.preventDefault();
-            handleViewChange("inbox");
+            handleViewChange("sms-history");
           }}
         >
           <svg
@@ -147,10 +172,9 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             stroke="currentColor"
             strokeWidth="2"
           >
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-            <polyline points="22,6 12,13 2,6"></polyline>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
-          Inbox
+          <span className="nav-item-label">Text Messages</span>
         </a>
         <div className="nav-divider"></div>
         <a
@@ -173,7 +197,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
             <line x1="12" y1="22.08" x2="12" y2="12"></line>
           </svg>
-          Archived Clients
+          <span className="nav-item-label">Archived Clients</span>
         </a>
       </nav>
 
@@ -199,7 +223,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
-          Help
+          <span className="nav-item-label">Help</span>
         </a>
         <a
           href="#"
@@ -221,7 +245,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
           </svg>
-          Logout
+          <span className="nav-item-label">Logout</span>
         </a>
       </div>
 

@@ -8,10 +8,11 @@ import {
   getFacialStatusColorForDisplay,
   hasInterestedTreatments,
 } from "../../utils/statusFormatting";
-import { updateLeadRecord } from "../../services/api";
-import { archiveClient } from "../../services/contactHistory";
+import { updateLeadRecord, prefetchSmsForPhone, fetchRecordQuizFields } from "../../services/api";
+import { archiveClient, markOfferRedeemed } from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
 import ContactHistorySection from "../modals/ContactHistorySection";
+import ClientSmsPopupModal from "../modals/ClientSmsPopupModal";
 import AnalysisResultsSection from "../modals/AnalysisResultsSection";
 import TelehealthSMSModal from "../modals/TelehealthSMSModal";
 import ShareAnalysisModal from "../modals/ShareAnalysisModal";
@@ -20,18 +21,56 @@ import PhotoViewerModal from "../modals/PhotoViewerModal";
 import NewClientSMSModal from "../modals/NewClientSMSModal";
 import SendSMSModal from "../modals/SendSMSModal";
 import DiscussedTreatmentsModal from "../modals/DiscussedTreatmentsModal";
+import TreatmentPlanCheckoutModal, {
+  prefetchCheckoutImages,
+} from "../modals/TreatmentPlanCheckoutModal";
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
-import AnalysisOverviewModal, { type DetailView } from "../modals/AnalysisOverviewModal";
+import AnalysisOverviewModal, {
+  type DetailView,
+} from "../modals/AnalysisOverviewModal";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import TreatmentRecommenderByTreatment from "../treatmentRecommender/TreatmentRecommenderByTreatment";
 import TreatmentRecommenderBySuggestion from "../treatmentRecommender/TreatmentRecommenderBySuggestion";
-import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName, generateId } from "../modals/DiscussedTreatmentsModal/utils";
-import { PLAN_SECTIONS, AIRTABLE_FIELD } from "../modals/DiscussedTreatmentsModal/constants";
+import SkinTypeQuizModal from "../modals/SkinTypeQuizModal";
+import SkinQuizProductModal, {
+  type SkinQuizProduct,
+} from "../modals/SkinQuizProductModal";
+import WellnessQuizModal from "../modals/WellnessQuizModal";
+import WellnessQuizResultsCards from "../wellnessQuiz/WellnessQuizResultsCards";
+import {
+  getSuggestedWellnessTreatments,
+  getWellnessQuizResultsSMSMessage,
+  WELLNESS_QUIZ_ENABLED,
+} from "../../data/wellnessQuiz";
+import {
+  computeQuizScores,
+  SKIN_TYPE_DISPLAY_LABELS,
+  SKIN_TYPE_SCORE_ORDER,
+  GEMSTONE_BY_SKIN_TYPE,
+  RECOMMENDED_PRODUCT_REASONS,
+} from "../../data/skinTypeQuiz";
+import {
+  formatTreatmentPlanRecordMetaLine,
+  getTreatmentDisplayName,
+  generateId,
+} from "../modals/DiscussedTreatmentsModal/utils";
+import {
+  PLAN_SECTIONS,
+  SKINCARE_SECTION_LABEL,
+  AIRTABLE_FIELD,
+  getSkincareCarouselItems,
+} from "../modals/DiscussedTreatmentsModal/constants";
+import { getSkinQuizMessage } from "../../utils/skinQuizLink";
 import {
   getJotformUrl,
   formatProviderDisplayName,
 } from "../../utils/providerHelpers";
-import { splitName, cleanPhoneNumber, formatPhoneDisplay, formatPhoneInput } from "../../utils/validation";
+import {
+  splitName,
+  cleanPhoneNumber,
+  formatPhoneDisplay,
+  formatPhoneInput,
+} from "../../utils/validation";
 import {
   mapAreasToFormFields,
   parseDateOfBirthForForm,
@@ -58,7 +97,7 @@ export default function ClientDetailPanel({
   const { provider } = useDashboard();
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedClient, setEditedClient] = useState<Partial<Client> | null>(
-    null
+    null,
   );
   // Status state - kept for potential future use
   // const [status, setStatus] = useState<Client["status"]>("new");
@@ -67,25 +106,41 @@ export default function ClientDetailPanel({
   const [showShareTreatmentPlan, setShowShareTreatmentPlan] = useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [photoViewerType, setPhotoViewerType] = useState<"front" | "side">(
-    "front"
+    "front",
   );
   const [frontPhotoUrl, setFrontPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [showScanDropdown, setShowScanDropdown] = useState(false);
   const [showNewClientSMS, setShowNewClientSMS] = useState(false);
   const [showSendSMS, setShowSendSMS] = useState(false);
+  const [showSmsPopup, setShowSmsPopup] = useState(false);
+  const [smsInitialMessage, setSMSInitialMessage] = useState<string | null>(
+    null,
+  );
+  const [showSkinTypeQuiz, setShowSkinTypeQuiz] = useState(false);
+  const [showWellnessQuiz, setShowWellnessQuiz] = useState(false);
+  const [selectedSkinProduct, setSelectedSkinProduct] =
+    useState<SkinQuizProduct | null>(null);
   const [showDiscussedTreatments, setShowDiscussedTreatments] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [enrichedSkincareQuiz, setEnrichedSkincareQuiz] = useState<
+    Client["skincareQuiz"]
+  >(undefined);
   const [showAnalysisOverview, setShowAnalysisOverview] = useState(false);
-  const [returnToOverviewView, setReturnToOverviewView] = useState<DetailView | null>(null);
+  const [returnToOverviewView, setReturnToOverviewView] =
+    useState<DetailView | null>(null);
   const [initialAddFormPrefill, setInitialAddFormPrefill] =
     useState<TreatmentPlanPrefill | null>(null);
-  const [initialEditingItem, setInitialEditingItem] = useState<DiscussedItem | null>(null);
+  const [initialEditingItem, setInitialEditingItem] =
+    useState<DiscussedItem | null>(null);
   const [issuePhotosContext, setIssuePhotosContext] = useState<{
     issue?: string;
     region?: string;
     interest?: string;
   } | null>(null);
-  const [recommenderMode, setRecommenderMode] = useState<"by-treatment" | "by-suggestion" | null>(null);
+  const [recommenderMode, setRecommenderMode] = useState<
+    "by-treatment" | "by-suggestion" | null
+  >(null);
   const scanDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   /** Called when treatment plan modal closes so recommenders can clear "just added" state */
@@ -137,6 +192,41 @@ export default function ClientDetailPanel({
       }
     }
   }, [client]);
+
+  // Prefetch SMS for this client in the background so the Text popup opens with cached messages
+  useEffect(() => {
+    if (client?.phone) prefetchSmsForPhone(client.phone);
+  }, [client?.phone]);
+
+  // Prefetch checkout images when client has discussed items so Checkout opens with images ready
+  useEffect(() => {
+    if (client?.discussedItems && client.discussedItems.length > 0) {
+      prefetchCheckoutImages();
+    }
+  }, [client?.discussedItems?.length]);
+
+  // Load Skincare Quiz when list response didn't include it (e.g. backend omits long-text fields)
+  useEffect(() => {
+    if (
+      !client?.id ||
+      !client.tableSource ||
+      (client.skincareQuiz !== undefined && client.skincareQuiz !== null)
+    ) {
+      setEnrichedSkincareQuiz(undefined);
+      return;
+    }
+    let cancelled = false;
+    fetchRecordQuizFields(client.id, client.tableSource)
+      .then(({ skincareQuiz: quiz }) => {
+        if (!cancelled) setEnrichedSkincareQuiz(quiz ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setEnrichedSkincareQuiz(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client?.id, client?.tableSource, client?.skincareQuiz]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -200,11 +290,13 @@ export default function ClientDetailPanel({
 
   if (!client) return null;
 
+  const skincareQuiz = client.skincareQuiz ?? enrichedSkincareQuiz;
+
   const lastActivityRelative = client.lastContact
     ? formatRelativeDate(client.lastContact)
     : client.createdAt
-    ? formatRelativeDate(client.createdAt)
-    : "No activity yet";
+      ? formatRelativeDate(client.createdAt)
+      : "No activity yet";
 
   const handleSave = async () => {
     if (!editedClient || !client) return;
@@ -220,11 +312,15 @@ export default function ClientDetailPanel({
             : undefined,
         "Phone Number":
           client.tableSource === "Web Popup Leads"
-            ? (editedClient.phone ? cleanPhoneNumber(editedClient.phone) : undefined)
+            ? editedClient.phone
+              ? cleanPhoneNumber(editedClient.phone)
+              : undefined
             : undefined,
         "Patient Phone Number":
           client.tableSource === "Patients"
-            ? (editedClient.phone ? cleanPhoneNumber(editedClient.phone) : undefined)
+            ? editedClient.phone
+              ? cleanPhoneNumber(editedClient.phone)
+              : undefined
             : undefined,
         "Zip Code": editedClient.zipCode || null,
         Age: editedClient.age || null,
@@ -309,10 +405,13 @@ export default function ClientDetailPanel({
     else if (faceRegions.length > 0)
       params.push(`whatAre137=${encodeURIComponent("Face")}`);
     if (faceRegions.length > 0)
-      params.push(`whichRegions138=${encodeURIComponent(faceRegions.join(","))}`);
+      params.push(
+        `whichRegions138=${encodeURIComponent(faceRegions.join(","))}`,
+      );
 
     const baseUrl = getJotformUrl(provider);
-    const formUrl = params.length > 0 ? `${baseUrl}?${params.join("&")}` : baseUrl;
+    const formUrl =
+      params.length > 0 ? `${baseUrl}?${params.join("&")}` : baseUrl;
     window.open(formUrl, "_blank");
   };
 
@@ -344,8 +443,8 @@ export default function ClientDetailPanel({
         client.concernsExplored.length > 0
           ? client.concernsExplored.join(", ")
           : typeof client.concernsExplored === "string"
-          ? (client.concernsExplored as string).trim()
-          : String(client.concernsExplored || ""))) ||
+            ? (client.concernsExplored as string).trim()
+            : String(client.concernsExplored || ""))) ||
       client.offerClaimed);
 
   const facialAnalysisFormHasData =
@@ -403,832 +502,1278 @@ export default function ClientDetailPanel({
               )}
             </div>
           </div>
-          <button className="client-detail-panel-close" onClick={onClose}>
+          <button
+            className="client-detail-panel-close"
+            onClick={recommenderMode ? () => setRecommenderMode(null) : onClose}
+            aria-label={recommenderMode ? "Back to client details" : "Close"}
+          >
             ×
           </button>
         </div>
 
         <div className="client-detail-panel-scroll">
-          <div className={`client-detail-panel-body${recommenderMode ? " client-detail-panel-body--recommender" : ""}`}>
-          {recommenderMode === "by-treatment" && client && (
-            <TreatmentRecommenderByTreatment
-              client={client}
-              onBack={() => setRecommenderMode(null)}
-              onUpdate={onUpdate}
-              onAddToPlanDirect={async (prefill) => {
-                const newItem: DiscussedItem = {
-                  id: generateId(),
-                  addedAt: new Date().toISOString(),
-                  interest: prefill.interest?.trim() || undefined,
-                  findings: prefill.findings?.length ? prefill.findings : undefined,
-                  treatment: prefill.treatment?.trim() || "",
-                  product: prefill.treatmentProduct?.trim() || undefined,
-                  region: prefill.region?.trim() || undefined,
-                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
-                  quantity: prefill.quantity?.trim() || undefined,
-                  notes: prefill.notes?.trim() || undefined,
-                };
-                const nextItems = [...(client.discussedItems || []), newItem];
-                try {
-                  await updateLeadRecord(client.id, client.tableSource, {
-                    [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-                  });
-                  showToast("Added to treatment plan");
-                  onUpdate();
-                  return newItem;
-                } catch (e) {
-                  showError(e instanceof Error ? e.message : "Failed to add to plan");
-                  throw e;
-                }
-              }}
-              onOpenTreatmentPlan={() => {
-                setShowDiscussedTreatments(true);
-                setInitialAddFormPrefill(null);
-                setInitialEditingItem(null);
-              }}
-              onOpenTreatmentPlanWithPrefill={(prefill) => {
-                setInitialAddFormPrefill(prefill);
-                setInitialEditingItem(null);
-                setShowDiscussedTreatments(true);
-              }}
-              onOpenTreatmentPlanWithItem={(item) => {
-                setInitialEditingItem(item);
-                setInitialAddFormPrefill(null);
-                setShowDiscussedTreatments(true);
-              }}
-              treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
-            />
-          )}
-          {recommenderMode === "by-suggestion" && client && (
-            <TreatmentRecommenderBySuggestion
-              client={client}
-              onBack={() => setRecommenderMode(null)}
-              onUpdate={onUpdate}
-              onAddToPlanDirect={async (prefill) => {
-                const newItem: DiscussedItem = {
-                  id: generateId(),
-                  addedAt: new Date().toISOString(),
-                  interest: prefill.interest?.trim() || undefined,
-                  findings: prefill.findings?.length ? prefill.findings : undefined,
-                  treatment: prefill.treatment?.trim() || "",
-                  product: prefill.treatmentProduct?.trim() || undefined,
-                  region: prefill.region?.trim() || undefined,
-                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
-                  quantity: prefill.quantity?.trim() || undefined,
-                  notes: prefill.notes?.trim() || undefined,
-                };
-                const nextItems = [...(client.discussedItems || []), newItem];
-                try {
-                  await updateLeadRecord(client.id, client.tableSource, {
-                    [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-                  });
-                  showToast("Added to treatment plan");
-                  onUpdate();
-                  return newItem;
-                } catch (e) {
-                  showError(e instanceof Error ? e.message : "Failed to add to plan");
-                  throw e;
-                }
-              }}
-              onOpenTreatmentPlan={() => {
-                setShowDiscussedTreatments(true);
-                setInitialAddFormPrefill(null);
-                setInitialEditingItem(null);
-              }}
-              onOpenTreatmentPlanWithPrefill={(prefill) => {
-                setInitialAddFormPrefill(prefill);
-                setInitialEditingItem(null);
-                setShowDiscussedTreatments(true);
-              }}
-              onOpenTreatmentPlanWithItem={(item) => {
-                setInitialEditingItem(item);
-                setInitialAddFormPrefill(null);
-                setShowDiscussedTreatments(true);
-              }}
-              treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
-            />
-          )}
-          {!recommenderMode ? (
-            <div className="client-detail-panel-main">
-          {/* Contact Information Section */}
           <div
-            className={`detail-section modal-contact-section ${
-              frontPhotoUrl ||
-              client.tableSource === "Patients" ||
-              client.tableSource === "Web Popup Leads"
-                ? "modal-header-with-photo"
-                : "modal-contact-section-base"
-            }`}
+            className={`client-detail-panel-body${recommenderMode ? " client-detail-panel-body--recommender" : ""}`}
           >
-            {frontPhotoUrl && (
-              <div
-                className="modal-photo-container modal-photo-container-clickable"
-                onClick={() => {
-                  setPhotoViewerType("front");
-                  setShowPhotoViewer(true);
+            {recommenderMode === "by-treatment" && client && (
+              <TreatmentRecommenderByTreatment
+                client={client}
+                onBack={() => setRecommenderMode(null)}
+                onUpdate={onUpdate}
+                onAddToPlanDirect={async (prefill) => {
+                  const newItem: DiscussedItem = {
+                    id: generateId(),
+                    addedAt: new Date().toISOString(),
+                    interest: prefill.interest?.trim() || undefined,
+                    findings: prefill.findings?.length
+                      ? prefill.findings
+                      : undefined,
+                    treatment: prefill.treatment?.trim() || "",
+                    product: prefill.treatmentProduct?.trim() || undefined,
+                    region: prefill.region?.trim() || undefined,
+                    timeline: (prefill.timeline?.trim() ||
+                      "Wishlist") as string,
+                    quantity: prefill.quantity?.trim() || undefined,
+                    notes: prefill.notes?.trim() || undefined,
+                  };
+                  const nextItems = [...(client.discussedItems || []), newItem];
+                  try {
+                    await updateLeadRecord(client.id, client.tableSource, {
+                      [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+                    });
+                    showToast("Added to treatment plan");
+                    onUpdate();
+                    return newItem;
+                  } catch (e) {
+                    showError(
+                      e instanceof Error ? e.message : "Failed to add to plan",
+                    );
+                    throw e;
+                  }
                 }}
-                title="Click to view photos"
-              >
-                <img
-                  src={frontPhotoUrl}
-                  alt={client.name}
-                  className="modal-photo"
-                  loading="eager"
-                />
-                <div className="modal-photo-overlay">Click to view</div>
-              </div>
+                onOpenTreatmentPlan={() => {
+                  setShowDiscussedTreatments(true);
+                  setInitialAddFormPrefill(null);
+                  setInitialEditingItem(null);
+                }}
+                onOpenCheckout={() => setShowCheckoutModal(true)}
+                onOpenTreatmentPlanWithPrefill={(prefill) => {
+                  setInitialAddFormPrefill(prefill);
+                  setInitialEditingItem(null);
+                  setShowDiscussedTreatments(true);
+                }}
+                onOpenTreatmentPlanWithItem={(item) => {
+                  setInitialEditingItem(item);
+                  setInitialAddFormPrefill(null);
+                  setShowDiscussedTreatments(true);
+                }}
+                onRemovePlanItem={async (itemId) => {
+                  const nextItems = (client.discussedItems || []).filter(
+                    (i) => i.id !== itemId,
+                  );
+                  try {
+                    await updateLeadRecord(client.id, client.tableSource, {
+                      [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+                    });
+                    showToast("Removed from plan");
+                    onUpdate();
+                  } catch (e) {
+                    showError(
+                      e instanceof Error ? e.message : "Failed to remove",
+                    );
+                  }
+                }}
+                treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
+              />
             )}
-            {photoLoading && !frontPhotoUrl && (
-              <div className="modal-photo-container modal-photo-loading">
-                <div className="modal-photo-loading-text">Loading photo...</div>
-              </div>
+            {recommenderMode === "by-suggestion" && client && (
+              <TreatmentRecommenderBySuggestion
+                client={client}
+                onBack={() => setRecommenderMode(null)}
+                onUpdate={onUpdate}
+                onAddToPlanDirect={async (prefill) => {
+                  const newItem: DiscussedItem = {
+                    id: generateId(),
+                    addedAt: new Date().toISOString(),
+                    interest: prefill.interest?.trim() || undefined,
+                    findings: prefill.findings?.length
+                      ? prefill.findings
+                      : undefined,
+                    treatment: prefill.treatment?.trim() || "",
+                    product: prefill.treatmentProduct?.trim() || undefined,
+                    region: prefill.region?.trim() || undefined,
+                    timeline: (prefill.timeline?.trim() ||
+                      "Wishlist") as string,
+                    quantity: prefill.quantity?.trim() || undefined,
+                    notes: prefill.notes?.trim() || undefined,
+                  };
+                  const nextItems = [...(client.discussedItems || []), newItem];
+                  try {
+                    await updateLeadRecord(client.id, client.tableSource, {
+                      [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+                    });
+                    showToast("Added to treatment plan");
+                    onUpdate();
+                    return newItem;
+                  } catch (e) {
+                    showError(
+                      e instanceof Error ? e.message : "Failed to add to plan",
+                    );
+                    throw e;
+                  }
+                }}
+                onOpenTreatmentPlan={() => {
+                  setShowDiscussedTreatments(true);
+                  setInitialAddFormPrefill(null);
+                  setInitialEditingItem(null);
+                }}
+                onOpenTreatmentPlanWithPrefill={(prefill) => {
+                  setInitialAddFormPrefill(prefill);
+                  setInitialEditingItem(null);
+                  setShowDiscussedTreatments(true);
+                }}
+                onOpenTreatmentPlanWithItem={(item) => {
+                  setInitialEditingItem(item);
+                  setInitialAddFormPrefill(null);
+                  setShowDiscussedTreatments(true);
+                }}
+                treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
+              />
             )}
-            {!frontPhotoUrl &&
-              !photoLoading &&
-              client.tableSource === "Patients" && (
-                <div className="modal-photo-placeholder modal-photo-placeholder-wrapper">
-                  <div className="photo-placeholder-container">
-                    <svg
-                      width="80"
-                      height="80"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#999"
-                      strokeWidth="1.5"
-                      className="photo-placeholder-icon"
+            {!recommenderMode ? (
+              <div className="client-detail-panel-main">
+                {/* Contact Information Section */}
+                <div
+                  className={`detail-section modal-contact-section ${
+                    frontPhotoUrl ||
+                    client.tableSource === "Patients" ||
+                    client.tableSource === "Web Popup Leads"
+                      ? "modal-header-with-photo"
+                      : "modal-contact-section-base"
+                  }`}
+                >
+                  {frontPhotoUrl && (
+                    <div
+                      className="modal-photo-container modal-photo-container-clickable"
+                      onClick={() => {
+                        setPhotoViewerType("front");
+                        setShowPhotoViewer(true);
+                      }}
+                      title="Click to view photos"
                     >
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    <p className="photo-placeholder-text">
-                      {client.facialAnalysisStatus &&
-                      client.facialAnalysisStatus.toLowerCase().trim() ===
-                        "pending"
-                        ? "Photo will become available once the analysis is complete."
-                        : "No profile photo available. Share the facial analysis link to help this patient complete their analysis."}
-                    </p>
-                    {(!client.facialAnalysisStatus ||
-                      client.facialAnalysisStatus.toLowerCase().trim() !==
-                        "pending") && (
+                      <img
+                        src={frontPhotoUrl}
+                        alt={client.name}
+                        className="modal-photo"
+                        loading="eager"
+                      />
+                      <div className="modal-photo-overlay">Click to view</div>
+                    </div>
+                  )}
+                  {photoLoading && !frontPhotoUrl && (
+                    <div className="modal-photo-container modal-photo-loading">
+                      <div className="modal-photo-loading-text">
+                        Loading photo...
+                      </div>
+                    </div>
+                  )}
+                  {!frontPhotoUrl &&
+                    !photoLoading &&
+                    client.tableSource === "Patients" && (
+                      <div className="modal-photo-placeholder modal-photo-placeholder-wrapper">
+                        <div className="photo-placeholder-container">
+                          <svg
+                            width="80"
+                            height="80"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#999"
+                            strokeWidth="1.5"
+                            className="photo-placeholder-icon"
+                          >
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                          </svg>
+                          <p className="photo-placeholder-text">
+                            {client.facialAnalysisStatus &&
+                            client.facialAnalysisStatus.toLowerCase().trim() ===
+                              "pending"
+                              ? "Photo will become available once the analysis is complete."
+                              : "No profile photo available. Share the facial analysis link to help this patient complete their analysis."}
+                          </p>
+                          {(!client.facialAnalysisStatus ||
+                            client.facialAnalysisStatus.toLowerCase().trim() !==
+                              "pending") && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-sm photo-placeholder-button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowShareAnalysis(true);
+                              }}
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                                <polyline points="16 6 12 2 8 6"></polyline>
+                                <line x1="12" y1="2" x2="12" y2="15"></line>
+                              </svg>
+                              Share Analysis
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  {!frontPhotoUrl &&
+                    !photoLoading &&
+                    client.tableSource === "Web Popup Leads" && (
+                      <div className="modal-photo-container">
+                        <div className="web-popup-photo-placeholder">
+                          <div className="web-popup-avatar">
+                            {client.name.charAt(0).toUpperCase()}
+                          </div>
+                          <p className="web-popup-placeholder-text">
+                            No profile photo available
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  <div className="detail-section-relative">
+                    {!isEditMode && (
                       <button
-                        type="button"
-                        className="btn-secondary btn-sm photo-placeholder-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowShareAnalysis(true);
-                        }}
+                        className="edit-toggle-btn"
+                        onClick={() => setIsEditMode(true)}
                       >
                         <svg
-                          width="14"
-                          height="14"
+                          width="18"
+                          height="18"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
                         >
-                          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                          <polyline points="16 6 12 2 8 6"></polyline>
-                          <line x1="12" y1="2" x2="12" y2="15"></line>
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
-                        Share Analysis
                       </button>
                     )}
-                  </div>
-                </div>
-              )}
-            {!frontPhotoUrl &&
-              !photoLoading &&
-              client.tableSource === "Web Popup Leads" && (
-                <div className="modal-photo-container">
-                  <div className="web-popup-photo-placeholder">
-                    <div className="web-popup-avatar">
-                      {client.name.charAt(0).toUpperCase()}
-                    </div>
-                    <p className="web-popup-placeholder-text">
-                      No profile photo available
-                    </p>
-                  </div>
-                </div>
-              )}
-            <div className="detail-section-relative">
-              {!isEditMode && (
-                <button
-                  className="edit-toggle-btn"
-                  onClick={() => setIsEditMode(true)}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                </button>
-              )}
-              <div className="contact-info-with-actions">
-                <div className="detail-grid">
-                  <div className="detail-item">
-                    <label>Email</label>
-                    {isEditMode ? (
-                      <input
-                        type="email"
-                        value={editedClient?.email || ""}
-                        onChange={(e) =>
-                          setEditedClient({
-                            ...editedClient,
-                            email: e.target.value,
-                          })
-                        }
-                        className="edit-input"
-                      />
-                    ) : (
-                      <div className="detail-value">
-                        {client.email || "N/A"}
-                      </div>
-                    )}
-                  </div>
-                  {client.phone && (
-                    <div className="detail-item">
-                      <label>Phone</label>
-                      {isEditMode ? (
-                        <input
-                          type="tel"
-                          value={editedClient?.phone ?? ""}
-                          onInput={(e) => {
-                            const input = e.target as HTMLInputElement;
-                            formatPhoneInput(input);
-                            setEditedClient({
-                              ...editedClient,
-                              phone: input.value,
-                            });
-                          }}
-                          className="edit-input"
-                        />
-                      ) : (
-                        <div className="detail-value">{formatPhoneDisplay(client.phone)}</div>
-                      )}
-                    </div>
-                  )}
-                  {client.ageRange && (
-                    <div className="detail-item">
-                      <label>Age Range</label>
-                      <div className="detail-value">{client.ageRange}</div>
-                    </div>
-                  )}
-                  {client.age && !client.ageRange && (
-                    <div className="detail-item">
-                      <label>Age</label>
-                      <div className="detail-value">{client.age} years old</div>
-                    </div>
-                  )}
-                  {client.dateOfBirth && (
-                    <div className="detail-item">
-                      <label>Date of Birth</label>
-                      <div className="detail-value">
-                        {formatDate(client.dateOfBirth)}
-                      </div>
-                    </div>
-                  )}
-                  {client.source && (
-                    <div className="detail-item">
-                      <label>Source</label>
-                      {isEditMode ? (
-                        <select
-                          value={editedClient?.source || ""}
-                          onChange={(e) =>
-                            setEditedClient({
-                              ...editedClient,
-                              source: e.target.value,
-                            })
-                          }
-                          className="edit-input"
-                        >
-                          <option value="Walk-in">Walk-in</option>
-                          <option value="Phone Call">Phone Call</option>
-                          <option value="Referral">Referral</option>
-                          <option value="Social Media">Social Media</option>
-                          <option value="Website">Website</option>
-                          <option value="AI Consult">AI Consult Tool</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      ) : (
-                        <div className="detail-value">{client.source}</div>
-                      )}
-                    </div>
-                  )}
-                  {client.tableSource === "Patients" &&
-                    (client.locationName || client.appointmentStaffName) && (
-                      <>
-                        {client.locationName && (
-                          <div className="detail-item">
-                            <label>Location</label>
+                    <div className="contact-info-with-actions">
+                      <div className="detail-grid">
+                        <div className="detail-item">
+                          <label>Email</label>
+                          {isEditMode ? (
+                            <input
+                              type="email"
+                              value={editedClient?.email || ""}
+                              onChange={(e) =>
+                                setEditedClient({
+                                  ...editedClient,
+                                  email: e.target.value,
+                                })
+                              }
+                              className="edit-input"
+                            />
+                          ) : (
                             <div className="detail-value">
-                              {client.locationName}
+                              {client.email || "N/A"}
+                            </div>
+                          )}
+                        </div>
+                        {client.phone && (
+                          <div className="detail-item">
+                            <label>Phone</label>
+                            {isEditMode ? (
+                              <input
+                                type="tel"
+                                value={editedClient?.phone ?? ""}
+                                onInput={(e) => {
+                                  const input = e.target as HTMLInputElement;
+                                  formatPhoneInput(input);
+                                  setEditedClient({
+                                    ...editedClient,
+                                    phone: input.value,
+                                  });
+                                }}
+                                className="edit-input"
+                              />
+                            ) : (
+                              <div className="detail-value">
+                                {formatPhoneDisplay(client.phone)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {client.ageRange && (
+                          <div className="detail-item">
+                            <label>Age Range</label>
+                            <div className="detail-value">
+                              {client.ageRange}
                             </div>
                           </div>
                         )}
-                        {client.appointmentStaffName && (
+                        {client.age && !client.ageRange && (
                           <div className="detail-item">
-                            <label>Provider name</label>
+                            <label>Age</label>
                             <div className="detail-value">
-                              {formatProviderDisplayName(
-                                client.appointmentStaffName
-                              )}
+                              {client.age} years old
                             </div>
                           </div>
                         )}
-                      </>
-                    )}
-                  {client.zipCode && (
-                    <div className="detail-item">
-                      <label>Zip Code</label>
-                      {isEditMode ? (
-                        <input
-                          type="text"
-                          value={editedClient?.zipCode || ""}
-                          maxLength={5}
-                          onInput={(e) => {
-                            formatZipCodeInput(e.target as HTMLInputElement);
-                            setEditedClient({
-                              ...editedClient,
-                              zipCode: (e.target as HTMLInputElement).value,
-                            });
-                          }}
-                          onChange={(e) => {
-                            setEditedClient({
-                              ...editedClient,
-                              zipCode: e.target.value,
-                            });
-                          }}
-                          className="edit-input"
-                        />
-                      ) : (
-                        <div className="detail-value">{client.zipCode}</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              {!isEditMode && (
-                <div className="contact-actions-bar">
-                  <div className="contact-actions-heading">Contact</div>
-                  <div className="contact-actions-buttons">
-                    <button
-                      className="btn-secondary btn-sm"
-                      onClick={handleCall}
-                      disabled={!client.phone}
-                    >
-                      Call
-                    </button>
-                    <button
-                      className="btn-secondary btn-sm"
-                      onClick={handleEmail}
-                      disabled={!client.email}
-                    >
-                      Email
-                    </button>
-                    <button
-                      className="btn-secondary btn-sm"
-                      onClick={() => setShowSendSMS(true)}
-                      disabled={!client.phone}
-                    >
-                      SMS
-                    </button>
-                  </div>
-                </div>
-              )}
-              {isEditMode && (
-                <div className="edit-actions">
-                  <button
-                    className="btn-secondary btn-sm"
-                    onClick={handleCancel}
-                  >
-                    Cancel
-                  </button>
-                  <button className="btn-primary btn-sm" onClick={handleSave}>
-                    Save Changes
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Web Popup Leads Form Section */}
-          {webPopupFormHasData && (
-            <div className="detail-section detail-section-with-border">
-              <div className="detail-section-title detail-section-title-flex">
-                <span>Online Treatment Finder</span>
-              </div>
-
-              {((typeof client.concerns === "string" &&
-                client.concerns.trim()) ||
-                (Array.isArray(client.concerns) &&
-                  client.concerns.length > 0) ||
-                (client.areas && client.areas.length > 0)) && (
-                <div className="detail-grid-custom">
-                  {((typeof client.concerns === "string" &&
-                    client.concerns.trim()) ||
-                    (Array.isArray(client.concerns) &&
-                      client.concerns.length > 0)) && (
-                    <div>
-                      <div className="detail-label">Concerns</div>
-                      <div className="detail-tags-container">
-                        {(typeof client.concerns === "string"
-                          ? client.concerns
-                              .split(",")
-                              .map((c) => c.trim())
-                              .filter((c) => c)
-                          : Array.isArray(client.concerns)
-                          ? client.concerns
-                          : []
-                        ).map((c, i) => (
-                          <span key={i} className="detail-tag">
-                            {c}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {client.areas && client.areas.length > 0 && (
-                    <div>
-                      <div className="detail-label">Focus Areas</div>
-                      <div className="detail-tags-container">
-                        {(Array.isArray(client.areas)
-                          ? client.areas
-                          : [client.areas]
-                        ).map((a, i) => (
-                          <span key={i} className="detail-tag">
-                            {a}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {(client.skinType ||
-                client.skinTone ||
-                client.ethnicBackground) && (
-                <div className="detail-section-spacing">
-                  <div className="detail-label">Demographics</div>
-                  <div className="detail-grid detail-grid-demographics">
-                    {client.skinType && (
-                      <div className="detail-item">
-                        <label className="detail-label-small">Skin Type</label>
-                        <div className="detail-value detail-value-small">
-                          {client.skinType && client.skinType.length > 0
-                            ? client.skinType.charAt(0).toUpperCase() +
-                              client.skinType.slice(1)
-                            : client.skinType}
-                        </div>
-                      </div>
-                    )}
-                    {client.skinTone && (
-                      <div className="detail-item">
-                        <label className="detail-label-small">Skin Tone</label>
-                        <div className="detail-value detail-value-small">
-                          {client.skinTone && client.skinTone.length > 0
-                            ? client.skinTone.charAt(0).toUpperCase() +
-                              client.skinTone.slice(1)
-                            : client.skinTone}
-                        </div>
-                      </div>
-                    )}
-                    {client.ethnicBackground && (
-                      <div className="detail-item">
-                        <label className="detail-label-small">
-                          Ethnic Background
-                        </label>
-                        <div className="detail-value detail-value-small">
-                          {client.ethnicBackground &&
-                          client.ethnicBackground.length > 0
-                            ? client.ethnicBackground.charAt(0).toUpperCase() +
-                              client.ethnicBackground.slice(1)
-                            : client.ethnicBackground}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {client.aestheticGoals &&
-                (typeof client.aestheticGoals === "string"
-                  ? client.aestheticGoals.trim()
-                  : String(client.aestheticGoals).trim()) &&
-                client.tableSource === "Web Popup Leads" && (
-                  <div className="detail-section-spacing">
-                    <div className="detail-label">Patient Goals</div>
-                    <div className="detail-goals-box">
-                      "{client.aestheticGoals}"
-                    </div>
-                  </div>
-                )}
-
-              {client.offerClaimed && (
-                <div className="detail-section-spacing">
-                  <div className="detail-label">Offer Status</div>
-                  <div className="detail-offer-claimed-box">
-                    <div className="detail-offer-claimed-content">
-                      <span className="detail-offer-claimed-icon">✓</span>
-                      <strong className="detail-offer-claimed-text">
-                        $50 Off Offer Claimed
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Facial Analysis Section */}
-          <div className="detail-section detail-section-facial-analysis">
-            <div className="detail-section-header-flex">
-              <div className="detail-section-title detail-section-title-inline detail-section-title-facial">
-                <div className="facial-analysis-heading-row">
-                  <span>Facial Analysis</span>
-                  {facialAnalysisFormHasData && client.facialAnalysisStatus && (
-                    <span
-                      className="status-badge detail-status-badge-dynamic"
-                      style={{
-                        background: getFacialStatusColorForDisplay(
-                          client.facialAnalysisStatus,
-                          hasInterestedTreatments(client)
-                        ),
-                      }}
-                    >
-                      {formatFacialStatusForDisplay(
-                        client.facialAnalysisStatus,
-                        hasInterestedTreatments(client)
-                      )}
-                    </span>
-                  )}
-                </div>
-                {client.tableSource === "Patients" &&
-                  facialAnalysisFormHasData &&
-                  client.createdAt && (
-                    <span className="facial-analysis-date">
-                      Analysis date: {formatDate(client.createdAt)}
-                    </span>
-                  )}
-              </div>
-              <div className="detail-actions-inline">
-                {facialAnalysisFormHasData && (
-                  <>
-                    <button
-                      type="button"
-                      className="btn-secondary btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAnalysisOverview(true);
-                      }}
-                    >
-                      Overview
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-secondary btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowShareAnalysis(true);
-                      }}
-                    >
-                      Share with Patient
-                    </button>
-                  </>
-                )}
-                {hasWebPopupForm && (
-                  <div className="scan-client-dropdown" ref={scanDropdownRef}>
-                    <button
-                      className="btn-secondary btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowScanDropdown(!showScanDropdown);
-                      }}
-                    >
-                      Scan Patient
-                    </button>
-                    {showScanDropdown && (
-                      <div className="scan-client-dropdown-menu">
-                        <button
-                          className="scan-client-option"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleScanInClinic();
-                          }}
-                        >
-                          Scan In-Clinic
-                        </button>
-                        <button
-                          className="scan-client-option"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowScanDropdown(false);
-                            setShowNewClientSMS(true);
-                          }}
-                        >
-                          Scan At Home
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            {facialAnalysisFormHasData ? (
-              <AnalysisResultsSection
-                client={client}
-                onViewExamples={(issue, region) =>
-                  setIssuePhotosContext({ issue, region })
-                }
-                onTreatmentInterestClick={(interest) =>
-                  setIssuePhotosContext({ interest })
-                }
-              />
-            ) : (
-              <div className="detail-empty-state">
-                {hasWebPopupForm ? (
-                  <div className="detail-empty-state-text">
-                    Request a facial analysis scan for this client using the
-                    "Scan Patient" button above.
-                  </div>
-                ) : (
-                  <div className="detail-empty-center">
-                    This patient has not completed the Facial Analysis form.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Treatments discussed in clinic (in reference to analysis findings & interests) */}
-            <div className="discussed-treatments-in-facial-section">
-              <div className="discussed-treatments-in-facial-title-row">
-                <div className="discussed-treatments-in-facial-heading-block">
-                  <span className="discussed-treatments-in-facial-heading">
-                    Treatment plan
-                  </span>
-                  <span className="discussed-treatments-in-facial-subheading">
-                    In reference to analysis findings & interests
-                  </span>
-                </div>
-                <div className="discussed-treatments-in-facial-actions">
-                  {facialAnalysisFormHasData && (
-                    <>
-                      <button
-                        type="button"
-                        className="btn-secondary btn-sm"
-                        onClick={() => setShowShareTreatmentPlan(true)}
-                      >
-                        Share with Patient
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-secondary btn-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRecommenderMode("by-treatment");
-                        }}
-                      >
-                        Treatment Recommender
-                      </button>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    className="btn-secondary btn-sm"
-                    onClick={() => setShowDiscussedTreatments(true)}
-                  >
-                    {client.discussedItems && client.discussedItems.length > 0
-                      ? "Manage"
-                      : "Add"}
-                  </button>
-                </div>
-              </div>
-              <div className="discussed-treatments-in-facial-summary-row">
-                {client.discussedItems && client.discussedItems.length > 0 ? (
-                  <div className="discussed-treatments-plan-sections-outer">
-                    {PLAN_SECTIONS.map((sectionLabel) => {
-                        const sectionItems = (client.discussedItems || [])
-                          .filter((item) => {
-                            const t = item.timeline?.trim();
-                            if (sectionLabel === "Now") return t === "Now";
-                            if (sectionLabel === "Add next visit")
-                              return t === "Add next visit";
-                            if (sectionLabel === "Completed") return t === "Completed";
-                            return t === "Wishlist" || !t; // Wishlist or empty
-                          })
-                          .sort((a, b) =>
-                            (a.treatment || "").localeCompare(b.treatment || "")
-                          );
-                        if (sectionItems.length === 0) return null;
-                        return (
-                          <div
-                            key={sectionLabel}
-                            className="discussed-treatments-plan-section-outer"
-                          >
-                            <h4 className="discussed-treatments-plan-section-title-outer">
-                              {sectionLabel}
-                            </h4>
-                            <div className="discussed-treatments-records-list-outer">
-                              {sectionItems.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta"
-                                >
-                                  <div className="discussed-treatments-record-treatment-heading-outer">
-                                    {getTreatmentDisplayName(item)}
+                        {client.dateOfBirth && (
+                          <div className="detail-item">
+                            <label>Date of Birth</label>
+                            <div className="detail-value">
+                              {formatDate(client.dateOfBirth)}
+                            </div>
+                          </div>
+                        )}
+                        {client.source && (
+                          <div className="detail-item">
+                            <label>Source</label>
+                            {isEditMode ? (
+                              <select
+                                value={editedClient?.source || ""}
+                                onChange={(e) =>
+                                  setEditedClient({
+                                    ...editedClient,
+                                    source: e.target.value,
+                                  })
+                                }
+                                className="edit-input"
+                              >
+                                <option value="Walk-in">Walk-in</option>
+                                <option value="Phone Call">Phone Call</option>
+                                <option value="Referral">Referral</option>
+                                <option value="Social Media">
+                                  Social Media
+                                </option>
+                                <option value="Website">Website</option>
+                                <option value="AI Consult">
+                                  AI Consult Tool
+                                </option>
+                                <option value="Other">Other</option>
+                              </select>
+                            ) : (
+                              <div className="detail-value">
+                                {client.source}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {client.tableSource === "Patients" &&
+                          (client.locationName ||
+                            client.appointmentStaffName) && (
+                            <>
+                              {client.locationName && (
+                                <div className="detail-item">
+                                  <label>Location</label>
+                                  <div className="detail-value">
+                                    {client.locationName}
                                   </div>
-                                  {formatTreatmentPlanRecordMetaLine(item) ? (
-                                    <div className="discussed-treatments-record-meta-line-outer">
-                                      {formatTreatmentPlanRecordMetaLine(item)}
-                                    </div>
-                                  ) : null}
                                 </div>
-                              ))}
-                            </div>
+                              )}
+                              {client.appointmentStaffName && (
+                                <div className="detail-item">
+                                  <label>Provider name</label>
+                                  <div className="detail-value">
+                                    {formatProviderDisplayName(
+                                      client.appointmentStaffName,
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        {client.zipCode && (
+                          <div className="detail-item">
+                            <label>Zip Code</label>
+                            {isEditMode ? (
+                              <input
+                                type="text"
+                                value={editedClient?.zipCode || ""}
+                                maxLength={5}
+                                onInput={(e) => {
+                                  formatZipCodeInput(
+                                    e.target as HTMLInputElement,
+                                  );
+                                  setEditedClient({
+                                    ...editedClient,
+                                    zipCode: (e.target as HTMLInputElement)
+                                      .value,
+                                  });
+                                }}
+                                onChange={(e) => {
+                                  setEditedClient({
+                                    ...editedClient,
+                                    zipCode: e.target.value,
+                                  });
+                                }}
+                                className="edit-input"
+                              />
+                            ) : (
+                              <div className="detail-value">
+                                {client.zipCode}
+                              </div>
+                            )}
                           </div>
-                        );
-                      }
+                        )}
+                      </div>
+                    </div>
+                    {!isEditMode && (
+                      <div className="contact-actions-bar">
+                        <div className="contact-actions-heading">Contact</div>
+                        <div className="contact-actions-buttons">
+                          <button
+                            className="btn-secondary btn-sm"
+                            onClick={handleCall}
+                            disabled={!client.phone}
+                          >
+                            Call
+                          </button>
+                          <button
+                            className="btn-secondary btn-sm"
+                            onClick={handleEmail}
+                            disabled={!client.email}
+                          >
+                            Email
+                          </button>
+                          <button
+                            className="btn-secondary btn-sm"
+                            onClick={() => setShowSmsPopup(true)}
+                            disabled={!client.phone}
+                          >
+                            Messages
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {isEditMode && (
+                      <div className="edit-actions">
+                        <button
+                          className="btn-secondary btn-sm"
+                          onClick={handleCancel}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="btn-primary btn-sm"
+                          onClick={handleSave}
+                        >
+                          Save Changes
+                        </button>
+                      </div>
                     )}
                   </div>
-                ) : (
-                  <span className="discussed-treatments-in-facial-summary">
-                    None
-                  </span>
+                </div>
+
+                {/* Online Treatment Finder – Web Popup Leads */}
+                {hasWebPopupForm && (
+                  <div className="detail-section detail-section-with-border">
+                    <div className="detail-section-title detail-section-title-flex">
+                      <span>Online Treatment Finder</span>
+                      {client.createdAt && (
+                        <span className="detail-value-muted detail-section-date">
+                          Completed {formatDate(client.createdAt)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* $50 coupon – white box with Earned / Claimed side by side, checkbox-style Yes/No */}
+                    <div className="detail-section-spacing">
+                      <div className="detail-coupon-box">
+                        <h4 className="detail-coupon-title">$50 coupon</h4>
+                        <div className="detail-coupon-row-inline">
+                          <div className="detail-coupon-cell">
+                            <span className="detail-coupon-label">Earned</span>
+                            <span
+                              className={`detail-coupon-badge ${
+                                client.offerEarned !== false
+                                  ? "detail-coupon-badge--yes"
+                                  : "detail-coupon-badge--no"
+                              }`}
+                              aria-label={client.offerEarned !== false ? "Earned: Yes" : "Earned: No"}
+                            >
+                              {client.offerEarned !== false ? (
+                                <>
+                                  <span className="detail-coupon-check" aria-hidden>✓</span>
+                                  <span>Yes</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="detail-coupon-x" aria-hidden>✗</span>
+                                  <span>No</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+                          <div className="detail-coupon-cell">
+                            <span className="detail-coupon-label">Claimed</span>
+                            {client.offerClaimed ? (
+                              <span
+                                className="detail-coupon-badge detail-coupon-badge--yes"
+                                aria-label="Claimed: Yes"
+                              >
+                                <span className="detail-coupon-check" aria-hidden>✓</span>
+                                <span>Yes</span>
+                              </span>
+                            ) : (
+                              <div className="detail-coupon-claimed-wrap">
+                                <span
+                                  className="detail-coupon-badge detail-coupon-badge--no"
+                                  aria-label="Claimed: No"
+                                >
+                                  <span className="detail-coupon-x" aria-hidden>✗</span>
+                                  <span>No</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  className="btn-secondary btn-sm"
+                                  onClick={async () => {
+                                    try {
+                                      await markOfferRedeemed(client);
+                                      showToast("Coupon marked as redeemed");
+                                      onUpdate();
+                                    } catch (e) {
+                                      showError(
+                                        e instanceof Error ? e.message : "Failed to mark as redeemed",
+                                      );
+                                    }
+                                  }}
+                                >
+                                  Mark as redeemed
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="detail-grid-custom">
+                      <div>
+                        <div className="detail-label">Concerns</div>
+                        <div className="detail-tags-container">
+                          {(() => {
+                            const list: string[] =
+                              typeof client.concerns === "string"
+                                ? client.concerns
+                                    .split(",")
+                                    .map((c) => c.trim())
+                                    .filter(Boolean)
+                                : Array.isArray(client.concerns)
+                                  ? client.concerns.filter(
+                                      (c): c is string => typeof c === "string",
+                                    )
+                                  : [];
+                            return list.length > 0 ? (
+                              list.map((c, i) => (
+                                <span key={i} className="detail-tag">
+                                  {c}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="detail-value-empty">N/A</span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="detail-label">Focus Areas</div>
+                        <div className="detail-tags-container">
+                          {client.areas && client.areas.length > 0 ? (
+                            (Array.isArray(client.areas)
+                              ? client.areas
+                              : [client.areas]
+                            ).map((a, i) => (
+                              <span key={i} className="detail-tag">
+                                {String(a).replace(/\+/g, " ")}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="detail-value-empty">N/A</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="detail-section-spacing">
+                      <div className="detail-label">Demographics</div>
+                      <div className="detail-grid detail-grid-demographics">
+                        <div className="detail-item">
+                          <label className="detail-label-small">
+                            Skin Type
+                          </label>
+                          <div className="detail-value detail-value-small">
+                            {client.skinType && String(client.skinType).trim()
+                              ? client.skinType.length > 0
+                                ? client.skinType.charAt(0).toUpperCase() +
+                                  client.skinType.slice(1)
+                                : client.skinType
+                              : "N/A"}
+                          </div>
+                        </div>
+                        <div className="detail-item">
+                          <label className="detail-label-small">
+                            Skin Tone
+                          </label>
+                          <div className="detail-value detail-value-small">
+                            {client.skinTone && String(client.skinTone).trim()
+                              ? client.skinTone.length > 0
+                                ? client.skinTone.charAt(0).toUpperCase() +
+                                  client.skinTone.slice(1)
+                                : client.skinTone
+                              : "N/A"}
+                          </div>
+                        </div>
+                        <div className="detail-item">
+                          <label className="detail-label-small">
+                            Ethnic Background
+                          </label>
+                          <div className="detail-value detail-value-small">
+                            {client.ethnicBackground &&
+                            String(client.ethnicBackground).trim()
+                              ? client.ethnicBackground.length > 0
+                                ? client.ethnicBackground
+                                    .charAt(0)
+                                    .toUpperCase() +
+                                  client.ethnicBackground.slice(1)
+                                : client.ethnicBackground
+                              : "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </div>
-            </div>
-          </div>
 
-          {/* Appointment Info */}
-          {client.appointmentDate && (
-            <div className="detail-section detail-section-contact-history">
-              <div className="detail-section-title">Appointment</div>
-              <div className="detail-value">
-                {formatDate(client.appointmentDate)}
-              </div>
-            </div>
-          )}
+                {/* Facial Analysis Section */}
+                <div className="detail-section detail-section-facial-analysis">
+                  <div className="detail-section-header-flex">
+                    <div className="detail-section-title detail-section-title-inline detail-section-title-facial">
+                      <div className="facial-analysis-heading-row">
+                        <span>Facial Analysis</span>
+                        {facialAnalysisFormHasData &&
+                          client.facialAnalysisStatus && (
+                            <span
+                              className="status-badge detail-status-badge-dynamic"
+                              style={{
+                                background: getFacialStatusColorForDisplay(
+                                  client.facialAnalysisStatus,
+                                  hasInterestedTreatments(client),
+                                ),
+                              }}
+                            >
+                              {formatFacialStatusForDisplay(
+                                client.facialAnalysisStatus,
+                                hasInterestedTreatments(client),
+                              )}
+                            </span>
+                          )}
+                      </div>
+                      {client.tableSource === "Patients" &&
+                        facialAnalysisFormHasData &&
+                        client.createdAt && (
+                          <span className="facial-analysis-date">
+                            Analysis date: {formatDate(client.createdAt)}
+                          </span>
+                        )}
+                    </div>
+                    <div className="detail-actions-inline">
+                      {facialAnalysisFormHasData && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowAnalysisOverview(true);
+                            }}
+                          >
+                            Analysis Overview
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowShareAnalysis(true);
+                            }}
+                          >
+                            Share with Patient
+                          </button>
+                        </>
+                      )}
+                      {hasWebPopupForm && (
+                        <div
+                          className="scan-client-dropdown"
+                          ref={scanDropdownRef}
+                        >
+                          <button
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowScanDropdown(!showScanDropdown);
+                            }}
+                          >
+                            Scan Patient
+                          </button>
+                          {showScanDropdown && (
+                            <div className="scan-client-dropdown-menu">
+                              <button
+                                className="scan-client-option"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleScanInClinic();
+                                }}
+                              >
+                                Scan In-Clinic
+                              </button>
+                              <button
+                                className="scan-client-option"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowScanDropdown(false);
+                                  setShowNewClientSMS(true);
+                                }}
+                              >
+                                Scan At Home
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {facialAnalysisFormHasData ? (
+                    <AnalysisResultsSection
+                      client={client}
+                      onViewExamples={(issue, region) =>
+                        setIssuePhotosContext({ issue, region })
+                      }
+                      onTreatmentInterestClick={(interest) =>
+                        setIssuePhotosContext({ interest })
+                      }
+                    />
+                  ) : (
+                    <div className="detail-empty-state">
+                      {hasWebPopupForm ? (
+                        <div className="detail-empty-state-text">
+                          Request a facial analysis scan for this client using
+                          the "Scan Patient" button above.
+                        </div>
+                      ) : (
+                        <div className="detail-empty-center">
+                          This patient has not completed the Facial Analysis
+                          form.
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-          {/* Conversion Details */}
-          {client.status === "converted" &&
-            (client.treatmentReceived || client.revenue) && (
-              <div className="detail-section detail-section-contact-history">
-                <div className="detail-section-title">Conversion Details</div>
-                <div className="detail-grid">
-                  {client.treatmentReceived && (
-                    <div className="detail-item">
-                      <label>Treatment</label>
-                      <div className="detail-value">
-                        {client.treatmentReceived}
+                  {/* Treatments discussed in clinic (in reference to analysis findings & interests) */}
+                  <div className="discussed-treatments-in-facial-section">
+                    <div className="discussed-treatments-in-facial-title-row">
+                      <div className="discussed-treatments-in-facial-heading-block">
+                        <span className="discussed-treatments-in-facial-heading">
+                          Treatment plan
+                        </span>
+                        <span className="discussed-treatments-in-facial-subheading">
+                          In reference to analysis findings & interests
+                        </span>
+                      </div>
+                      <div className="discussed-treatments-in-facial-actions">
+                        {facialAnalysisFormHasData && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={() => setShowShareTreatmentPlan(true)}
+                          >
+                            Share with Patient
+                          </button>
+                        )}
+                        {(facialAnalysisFormHasData || webPopupFormHasData) && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRecommenderMode("by-treatment");
+                            }}
+                          >
+                            Treatment Recommender
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={() => setShowDiscussedTreatments(true)}
+                        >
+                          {client.discussedItems &&
+                          client.discussedItems.length > 0
+                            ? "Manage"
+                            : "Add"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="discussed-treatments-in-facial-summary-row">
+                      {client.discussedItems &&
+                      client.discussedItems.length > 0 ? (
+                        <div className="discussed-treatments-plan-sections-outer">
+                          {(() => {
+                            const items = client.discussedItems || [];
+                            const skincareItems = items
+                              .filter((i) => i.treatment?.trim() === "Skincare")
+                              .sort((a, b) =>
+                                (a.product || "").localeCompare(
+                                  b.product || "",
+                                ),
+                              );
+                            const hasSkincare = skincareItems.length > 0;
+                            const sectionLabels = hasSkincare
+                              ? [SKINCARE_SECTION_LABEL, ...PLAN_SECTIONS]
+                              : [...PLAN_SECTIONS];
+                            return sectionLabels.map((sectionLabel) => {
+                              const sectionItems =
+                                sectionLabel === SKINCARE_SECTION_LABEL
+                                  ? skincareItems
+                                  : (client.discussedItems || [])
+                                      .filter((item) => {
+                                        if (
+                                          item.treatment?.trim() === "Skincare"
+                                        )
+                                          return false;
+                                        const t = item.timeline?.trim();
+                                        if (sectionLabel === "Now")
+                                          return t === "Now";
+                                        if (sectionLabel === "Add next visit")
+                                          return t === "Add next visit";
+                                        if (sectionLabel === "Completed")
+                                          return t === "Completed";
+                                        return t === "Wishlist" || !t;
+                                      })
+                                      .sort((a, b) =>
+                                        (a.treatment || "").localeCompare(
+                                          b.treatment || "",
+                                        ),
+                                      );
+                              if (sectionItems.length === 0) return null;
+                              return (
+                                <div
+                                  key={sectionLabel}
+                                  className="discussed-treatments-plan-section-outer"
+                                >
+                                  <h4 className="discussed-treatments-plan-section-title-outer">
+                                    {sectionLabel}
+                                  </h4>
+                                  <div className="discussed-treatments-records-list-outer">
+                                    {sectionItems.map((item) => (
+                                      <div
+                                        key={item.id}
+                                        className="discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta"
+                                      >
+                                        <div className="discussed-treatments-record-treatment-heading-outer">
+                                          {getTreatmentDisplayName(item)}
+                                        </div>
+                                        {formatTreatmentPlanRecordMetaLine(
+                                          item,
+                                        ) ? (
+                                          <div className="discussed-treatments-record-meta-line-outer">
+                                            {formatTreatmentPlanRecordMetaLine(
+                                              item,
+                                            )}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      ) : (
+                        <span className="discussed-treatments-in-facial-summary">
+                          None
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skin Quiz Section */}
+                <div className="detail-section detail-section-skin-analysis">
+                  <div className="detail-section-header-flex skin-analysis-header">
+                    <div className="detail-section-title detail-section-title-inline skin-analysis-heading-block">
+                      <span>Skin Quiz</span>
+                      {skincareQuiz?.completedAt && (
+                        <span className="skin-analysis-result-badge detail-value-muted">
+                          · {formatDate(skincareQuiz.completedAt)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="skin-analysis-quiz-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() => setShowSkinTypeQuiz(true)}
+                      >
+                        {skincareQuiz ? "View Results" : "Take now"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() => {
+                          setSMSInitialMessage(getSkinQuizMessage(client));
+                          setShowSendSMS(true);
+                        }}
+                        disabled={!client.phone && !client.email}
+                        title={
+                          client.phone
+                            ? "Send quiz link via SMS"
+                            : client.email
+                              ? "Send quiz link via email"
+                              : "Add phone or email to send to patient"
+                        }
+                      >
+                        Send to Patient
+                      </button>
+                    </div>
+                  </div>
+                  <p className="skin-analysis-description">
+                    {skincareQuiz
+                      ? "Skin type and product recommendations from the completed quiz."
+                      : "Complete the skin type quiz to get a personalized result and product recommendations for this client."}
+                  </p>
+                  {skincareQuiz && (
+                    <div className="skin-analysis-details">
+                      <div className="skin-analysis-summary">
+                        {skincareQuiz.result &&
+                        GEMSTONE_BY_SKIN_TYPE[skincareQuiz.result] ? (
+                          <span className="skin-analysis-summary-gemstone">
+                            {GEMSTONE_BY_SKIN_TYPE[skincareQuiz.result].name}{" "}
+                            💎{" "}
+                            {GEMSTONE_BY_SKIN_TYPE[skincareQuiz.result].tagline}
+                          </span>
+                        ) : (
+                          <span className="skin-analysis-summary-type">
+                            {skincareQuiz.resultLabel ??
+                              (skincareQuiz.result
+                                ? skincareQuiz.result
+                                    .charAt(0)
+                                    .toUpperCase() +
+                                  skincareQuiz.result.slice(1)
+                                : "Completed")}
+                          </span>
+                        )}
+                      </div>
+                      {skincareQuiz.resultDescription && (
+                        <p className="skin-analysis-result-description">
+                          {skincareQuiz.resultDescription}
+                        </p>
+                      )}
+                      {skincareQuiz.recommendedProductNames &&
+                        skincareQuiz.recommendedProductNames.length >
+                          0 &&
+                        (() => {
+                          const carouselItems = getSkincareCarouselItems();
+                          const products: SkinQuizProduct[] = client
+                            .skincareQuiz!.recommendedProductNames!.map(
+                              (name) => {
+                                const item = carouselItems.find(
+                                  (p) => p.name === name,
+                                );
+                                return item
+                                  ? {
+                                      name,
+                                      imageUrl: item.imageUrl,
+                                      productUrl: item.productUrl,
+                                      recommendedFor:
+                                        RECOMMENDED_PRODUCT_REASONS[name],
+                                      description: item.description,
+                                      price: item.price,
+                                      imageUrls: item.imageUrls,
+                                    }
+                                  : null;
+                              },
+                            )
+                            .filter(Boolean) as SkinQuizProduct[];
+                          return (
+                            <div className="skin-analysis-products">
+                              <span className="skin-analysis-products-label">
+                                Recommended products
+                              </span>
+                              <div className="skin-analysis-product-chips">
+                                {products.map((p, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    className="skin-analysis-product-chip"
+                                    onClick={() => setSelectedSkinProduct(p)}
+                                  >
+                                    {p.imageUrl ? (
+                                      <img
+                                        src={p.imageUrl}
+                                        alt=""
+                                        className="skin-analysis-product-chip-thumb"
+                                      />
+                                    ) : (
+                                      <span className="skin-analysis-product-chip-placeholder">
+                                        ◆
+                                      </span>
+                                    )}
+                                    <span className="skin-analysis-product-chip-name">
+                                      {p.name.split("|")[0]?.trim() ?? p.name}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      {skincareQuiz.answers &&
+                        Object.keys(skincareQuiz.answers).length > 0 &&
+                        (() => {
+                          const scores = computeQuizScores(
+                            skincareQuiz!.answers,
+                          );
+                          const maxScore = Math.max(
+                            ...Object.values(scores),
+                            1,
+                          );
+                          return (
+                            <div className="skin-analysis-score-bars">
+                              <span className="skin-analysis-score-bars-title">
+                                Score breakdown
+                              </span>
+                              {SKIN_TYPE_SCORE_ORDER.map((type) => {
+                                const value = scores[type] ?? 0;
+                                const pct =
+                                  maxScore > 0 ? (value / maxScore) * 100 : 0;
+                                const isPrimary = false;
+                                const isSecondary = false;
+                                return (
+                                  <div
+                                    key={type}
+                                    className="skin-analysis-score-row"
+                                  >
+                                    <span className="skin-analysis-score-label">
+                                      {SKIN_TYPE_DISPLAY_LABELS[type]}
+                                      {isPrimary && (
+                                        <span className="skin-analysis-score-tag">
+                                          {" "}
+                                          primary
+                                        </span>
+                                      )}
+                                      {isSecondary && (
+                                        <span className="skin-analysis-score-tag">
+                                          {" "}
+                                          tendency
+                                        </span>
+                                      )}
+                                    </span>
+                                    <div className="skin-analysis-score-bar-wrap">
+                                      <div
+                                        className={`skin-analysis-score-bar ${isPrimary ? "skin-analysis-score-bar-primary" : ""} ${isSecondary ? "skin-analysis-score-bar-secondary" : ""}`}
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </div>
+                                    <span className="skin-analysis-score-value">
+                                      {value}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Wellness Quiz Section (hidden when WELLNESS_QUIZ_ENABLED is false) */}
+                {WELLNESS_QUIZ_ENABLED && (
+                  <div className="detail-section detail-section-wellness-quiz">
+                    <div className="detail-section-header-flex">
+                      <div className="detail-section-title detail-section-title-inline">
+                        <span>Wellness Quiz</span>
+                        {client.wellnessQuiz && (
+                          <span className="detail-value-muted">
+                            {" "}
+                            · {
+                              client.wellnessQuiz.suggestedTreatmentIds.length
+                            }{" "}
+                            suggestion
+                            {client.wellnessQuiz.suggestedTreatmentIds
+                              .length !== 1
+                              ? "s"
+                              : ""}
+                            {client.wellnessQuiz.completedAt &&
+                              ` · ${formatDate(client.wellnessQuiz.completedAt)}`}
+                          </span>
+                        )}
+                      </div>
+                      <div className="detail-section-header-actions">
+                        {client.wellnessQuiz &&
+                          getSuggestedWellnessTreatments(client.wellnessQuiz)
+                            .length > 0 && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSMSInitialMessage(
+                                  getWellnessQuizResultsSMSMessage(
+                                    client.wellnessQuiz!,
+                                  ),
+                                );
+                                setShowSendSMS(true);
+                              }}
+                            >
+                              Send results via SMS
+                            </button>
+                          )}
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowWellnessQuiz(true);
+                          }}
+                        >
+                          {client.wellnessQuiz ? "View Results" : "Take now"}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="skin-analysis-description">
+                      {client.wellnessQuiz
+                        ? "Peptide and wellness treatment suggestions based on the completed quiz."
+                        : "Complete the wellness quiz to get personalized peptide/treatment suggestions from our offerings."}
+                    </p>
+                    {client.wellnessQuiz &&
+                      getSuggestedWellnessTreatments(client.wellnessQuiz)
+                        .length > 0 && (
+                        <WellnessQuizResultsCards
+                          suggestedTreatments={getSuggestedWellnessTreatments(
+                            client.wellnessQuiz,
+                          )}
+                          answers={client.wellnessQuiz.answers}
+                          onAddToPlan={async (prefill) => {
+                            const newItem: DiscussedItem = {
+                              id: generateId(),
+                              addedAt: new Date().toISOString(),
+                              interest: prefill.interest?.trim() || undefined,
+                              findings: prefill.findings?.length
+                                ? prefill.findings
+                                : undefined,
+                              treatment: prefill.treatment?.trim() || "",
+                              product:
+                                prefill.treatmentProduct?.trim() || undefined,
+                              region: prefill.region?.trim() || undefined,
+                              timeline: (prefill.timeline?.trim() ||
+                                "Wishlist") as string,
+                              quantity: prefill.quantity?.trim() || undefined,
+                              notes: prefill.notes?.trim() || undefined,
+                            };
+                            const nextItems = [
+                              ...(client.discussedItems || []),
+                              newItem,
+                            ];
+                            try {
+                              await updateLeadRecord(
+                                client.id,
+                                client.tableSource,
+                                {
+                                  [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+                                },
+                              );
+                              showToast("Added to treatment plan");
+                              onUpdate();
+                            } catch (e) {
+                              showError(
+                                e instanceof Error
+                                  ? e.message
+                                  : "Failed to add to plan",
+                              );
+                              throw e;
+                            }
+                          }}
+                        />
+                      )}
+                  </div>
+                )}
+
+                {/* Appointment Info */}
+                {client.appointmentDate && (
+                  <div className="detail-section detail-section-contact-history">
+                    <div className="detail-section-title">Appointment</div>
+                    <div className="detail-value">
+                      {formatDate(client.appointmentDate)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Conversion Details */}
+                {client.status === "converted" &&
+                  (client.treatmentReceived || client.revenue) && (
+                    <div className="detail-section detail-section-contact-history">
+                      <div className="detail-section-title">
+                        Conversion Details
+                      </div>
+                      <div className="detail-grid">
+                        {client.treatmentReceived && (
+                          <div className="detail-item">
+                            <label>Treatment</label>
+                            <div className="detail-value">
+                              {client.treatmentReceived}
+                            </div>
+                          </div>
+                        )}
+                        {client.revenue && (
+                          <div className="detail-item">
+                            <label>Revenue</label>
+                            <div className="detail-value detail-revenue-value">
+                              ${client.revenue.toLocaleString()}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
-                  {client.revenue && (
-                    <div className="detail-item">
-                      <label>Revenue</label>
-                      <div className="detail-value detail-revenue-value">
-                        ${client.revenue.toLocaleString()}
+
+                {/* Contact History */}
+                <ContactHistorySection client={client} onUpdate={onUpdate} />
+
+                {/* Archive Section */}
+                <div className="detail-section detail-section-archive">
+                  <div className="detail-archive-header">
+                    <div>
+                      <div className="detail-label detail-archive-label-large">
+                        Archive Client
+                      </div>
+                      <div className="detail-archive-description">
+                        Archive this client to remove it from active lists
                       </div>
                     </div>
-                  )}
+                    <button
+                      className={
+                        client.archived
+                          ? "btn-primary btn-sm archive-button"
+                          : "btn-secondary btn-sm archive-button"
+                      }
+                      onClick={handleArchive}
+                    >
+                      {client.archived ? "Unarchive" : "Archive"}
+                    </button>
+                  </div>
                 </div>
               </div>
-            )}
-
-          {/* Contact History */}
-          <ContactHistorySection client={client} onUpdate={onUpdate} />
-
-          {/* Archive Section */}
-          <div className="detail-section detail-section-archive">
-            <div className="detail-archive-header">
-              <div>
-                <div className="detail-label detail-archive-label-large">
-                  Archive Client
-                </div>
-                <div className="detail-archive-description">
-                  Archive this client to remove it from active lists
-                </div>
-              </div>
-              <button
-                className={
-                  client.archived
-                    ? "btn-primary btn-sm archive-button"
-                    : "btn-secondary btn-sm archive-button"
-                }
-                onClick={handleArchive}
-              >
-                {client.archived ? "Unarchive" : "Archive"}
-              </button>
-            </div>
-          </div>
-        </div>
-          ) : null}
+            ) : null}
           </div>
         </div>
       </div>
@@ -1286,6 +1831,7 @@ export default function ClientDetailPanel({
           client={client}
           initialPhotoType={photoViewerType}
           onClose={() => setShowPhotoViewer(false)}
+          onPhotoUpdated={onUpdate}
         />
       )}
       {showNewClientSMS && (
@@ -1297,14 +1843,127 @@ export default function ClientDetailPanel({
           }}
         />
       )}
+      {showSmsPopup && client && (
+        <ClientSmsPopupModal
+          client={client}
+          onClose={() => setShowSmsPopup(false)}
+          onSuccess={onUpdate}
+        />
+      )}
       {showSendSMS && client && (
         <SendSMSModal
           client={client}
-          onClose={() => setShowSendSMS(false)}
+          onClose={() => {
+            setShowSendSMS(false);
+            setSMSInitialMessage(null);
+          }}
           onSuccess={() => {
             setShowSendSMS(false);
+            setSMSInitialMessage(null);
             onUpdate();
           }}
+          initialMessage={smsInitialMessage ?? undefined}
+        />
+      )}
+      {showSkinTypeQuiz && client && (
+        <SkinTypeQuizModal
+          client={client}
+          onClose={() => setShowSkinTypeQuiz(false)}
+          onSuccess={onUpdate}
+          savedQuiz={skincareQuiz ?? undefined}
+          providerName={formatProviderDisplayName(provider?.name) || provider?.name}
+          onAddToPlan={async (prefill) => {
+            const newItem: DiscussedItem = {
+              id: generateId(),
+              addedAt: new Date().toISOString(),
+              interest: prefill.interest?.trim() || undefined,
+              findings: prefill.findings?.length ? prefill.findings : undefined,
+              treatment: prefill.treatment?.trim() || "",
+              product: prefill.treatmentProduct?.trim() || undefined,
+              region: prefill.region?.trim() || undefined,
+              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+              quantity: prefill.quantity?.trim() || undefined,
+              notes: prefill.notes?.trim() || undefined,
+            };
+            const nextItems = [...(client.discussedItems || []), newItem];
+            await updateLeadRecord(client.id, client.tableSource, {
+              [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+            });
+            showToast("Added to treatment plan");
+            onUpdate();
+          }}
+        />
+      )}
+      {selectedSkinProduct && client && (
+        <SkinQuizProductModal
+          product={selectedSkinProduct}
+          onClose={() => setSelectedSkinProduct(null)}
+          onAddToPlan={async (prefill) => {
+            const newItem: DiscussedItem = {
+              id: generateId(),
+              addedAt: new Date().toISOString(),
+              interest: prefill.interest?.trim() || undefined,
+              findings: prefill.findings?.length ? prefill.findings : undefined,
+              treatment: prefill.treatment?.trim() || "",
+              product: prefill.treatmentProduct?.trim() || undefined,
+              region: prefill.region?.trim() || undefined,
+              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+              quantity: prefill.quantity?.trim() || undefined,
+              notes: prefill.notes?.trim() || undefined,
+            };
+            const nextItems = [...(client.discussedItems || []), newItem];
+            await updateLeadRecord(client.id, client.tableSource, {
+              [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+            });
+            showToast("Added to treatment plan");
+            setSelectedSkinProduct(null);
+            onUpdate();
+          }}
+        />
+      )}
+      {WELLNESS_QUIZ_ENABLED && showWellnessQuiz && client && (
+        <WellnessQuizModal
+          client={client}
+          onClose={() => setShowWellnessQuiz(false)}
+          onSuccess={() => {
+            setShowWellnessQuiz(false);
+            onUpdate();
+          }}
+          savedQuiz={client.wellnessQuiz ?? undefined}
+          onAddToPlan={async (prefill) => {
+            const newItem: DiscussedItem = {
+              id: generateId(),
+              addedAt: new Date().toISOString(),
+              interest: prefill.interest?.trim() || undefined,
+              findings: prefill.findings?.length ? prefill.findings : undefined,
+              treatment: prefill.treatment?.trim() || "",
+              product: prefill.treatmentProduct?.trim() || undefined,
+              region: prefill.region?.trim() || undefined,
+              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+              quantity: prefill.quantity?.trim() || undefined,
+              notes: prefill.notes?.trim() || undefined,
+            };
+            const nextItems = [...(client.discussedItems || []), newItem];
+            try {
+              await updateLeadRecord(client.id, client.tableSource, {
+                [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+              });
+              showToast("Added to treatment plan");
+              onUpdate();
+            } catch (e) {
+              showError(
+                e instanceof Error ? e.message : "Failed to add to plan",
+              );
+              throw e;
+            }
+          }}
+        />
+      )}
+      {showCheckoutModal && client && (
+        <TreatmentPlanCheckoutModal
+          clientName={client.name ?? ""}
+          items={client.discussedItems ?? []}
+          onClose={() => setShowCheckoutModal(false)}
         />
       )}
       {showDiscussedTreatments && client && (

@@ -83,10 +83,6 @@ export default function Header({ onLogout }: HeaderProps) {
       <header className="main-header">
         <div className="header-left">
           <h2 className="page-title">{pageTitle}</h2>
-          <p className="page-subtitle">
-            Manage your prospective patients from first touch to booked
-            appointment
-          </p>
         </div>
         <div className="header-right">
           {onLogout && (

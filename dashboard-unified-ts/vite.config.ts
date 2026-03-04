@@ -10,6 +10,18 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    chunkSizeWarningLimit: 900,
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      include: ['src/data/skinTypeQuiz.ts', 'src/utils/skinQuizLink.ts'],
+      exclude: ['**/*.test.ts', '**/*.spec.ts', '**/types/**']
+    }
   }
 })

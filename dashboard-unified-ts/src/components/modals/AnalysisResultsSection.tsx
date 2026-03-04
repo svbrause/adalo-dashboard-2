@@ -63,6 +63,9 @@ export default function AnalysisResultsSection({
     });
   }
 
+  /** Decode URL-style plus signs to spaces for display (e.g. "Face+and+neck+aging" -> "Face and neck aging"). */
+  const decodeAreaForDisplay = (s: string) => String(s).replace(/\+/g, ' ');
+
   const processedAreas = client.processedAreasOfInterest
     ? (typeof client.processedAreasOfInterest === 'string' 
         ? client.processedAreasOfInterest.split(',').map(a => a.trim()).filter(a => a)
@@ -162,7 +165,7 @@ export default function AnalysisResultsSection({
                 onClick={() => onTreatmentInterestClick?.(issue)}
                 disabled={!onTreatmentInterestClick}
               >
-                {issue}
+                {decodeAreaForDisplay(issue)}
               </button>
             ))}
           </div>
@@ -175,7 +178,7 @@ export default function AnalysisResultsSection({
             Focus Areas
           </div>
           <div className="analysis-focus-areas-text">
-            {processedAreas.join(', ')}
+            {processedAreas.map(decodeAreaForDisplay).join(', ')}
           </div>
         </div>
       )}
@@ -223,7 +226,7 @@ export default function AnalysisResultsSection({
                 return (
                   <div key={area} className="analysis-area-card">
                     <h3 className="analysis-area-title">
-                      {area}
+                      {decodeAreaForDisplay(area)}
                       {isFocusArea && (
                         <span className="analysis-focus-badge">
                           Focus Area
@@ -240,7 +243,7 @@ export default function AnalysisResultsSection({
                             <span className="analysis-issue-bullet">•</span>
                             <div className="analysis-issue-content">
                               <div className="analysis-issue-header">
-                                <span className="analysis-issue-name">{issue}</span>
+                                <span className="analysis-issue-name">{decodeAreaForDisplay(issue)}</span>
                                 {isInterested && (
                                   <span className="analysis-interested-badge">
                                     Interested
@@ -258,7 +261,7 @@ export default function AnalysisResultsSection({
                                       onClick={() => onTreatmentInterestClick?.(interest)}
                                       disabled={!onTreatmentInterestClick}
                                     >
-                                      {interest}
+                                      {decodeAreaForDisplay(interest)}
                                     </button>
                                   ))}
                                 </div>
