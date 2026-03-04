@@ -10,7 +10,7 @@
 export type GeneralCategory =
   | "Skin Health"
   | "Volume Loss"
-  | "Proportions"
+  | "Structure"
   | "Skin Laxity"
   | "Excess Fat";
 
@@ -124,7 +124,7 @@ const SLUG_TO_MAPPING: Map<string, IssueConcernMapping> = (() => {
     { issue: "jowls", concernId: "skin-laxity", concernName: "Skin Laxity", generalCategory: "Skin Laxity", areas: ["Jawline"] },
     { issue: "lower-cheeks-volume-depletion", concernId: "volume-loss", concernName: "Volume Loss", generalCategory: "Volume Loss", areas: ["Cheeks"] },
     { issue: "prejowl-sulcus", concernId: "skin-laxity", concernName: "Skin Laxity", generalCategory: "Skin Laxity", areas: ["Jawline"] },
-    { issue: "brow-asymmetry", concernId: "facial-asymmetry", concernName: "Facial Asymmetry", generalCategory: "Proportions", areas: ["Forehead", "Eyes"] },
+    { issue: "brow-asymmetry", concernId: "facial-asymmetry", concernName: "Facial Asymmetry", generalCategory: "Structure", areas: ["Forehead", "Eyes"] },
     { issue: "brow-ptosis", concernId: "skin-laxity", concernName: "Skin Laxity", generalCategory: "Skin Laxity", areas: ["Forehead", "Eyes"] },
     { issue: "excess-upper-eyelid-skin", concernId: "skin-laxity", concernName: "Skin Laxity", generalCategory: "Skin Laxity", areas: ["Eyes"] },
     { issue: "excess-lower-eyelid-skin", concernId: "skin-laxity", concernName: "Skin Laxity", generalCategory: "Skin Laxity", areas: ["Eyes"] },
@@ -132,20 +132,20 @@ const SLUG_TO_MAPPING: Map<string, IssueConcernMapping> = (() => {
     { issue: "lower-eyelid-sag", concernId: "skin-laxity", concernName: "Skin Laxity", generalCategory: "Skin Laxity", areas: ["Eyes"] },
     { issue: "ill-defined-jawline", concernId: "skin-laxity", concernName: "Skin Laxity", generalCategory: "Skin Laxity", areas: ["Jawline"] },
     { issue: "ill-defined-jawline", concernId: "excess-fat", concernName: "Excess Fat", generalCategory: "Excess Fat", areas: ["Jawline"] },
-    { issue: "asymmetric-jawline", concernId: "facial-asymmetry", concernName: "Facial Asymmetry", generalCategory: "Proportions", areas: ["Jawline"] },
-    { issue: "masseter-hypertrophy", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Jawline"] },
-    { issue: "retruded-chin", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Chin"] },
-    { issue: "over-projected-chin", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Chin"] },
-    { issue: "asymmetric-chin", concernId: "facial-asymmetry", concernName: "Facial Asymmetry", generalCategory: "Proportions", areas: ["Chin"] },
-    { issue: "crooked-nose", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Nose"] },
-    { issue: "droopy-tip", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Nose"] },
-    { issue: "dorsal-hump", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Nose"] },
-    { issue: "tip-droop-when-smiling", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Nose"] },
-    { issue: "thin-lips", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Lips"] },
+    { issue: "asymmetric-jawline", concernId: "facial-asymmetry", concernName: "Facial Asymmetry", generalCategory: "Structure", areas: ["Jawline"] },
+    { issue: "masseter-hypertrophy", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Jawline"] },
+    { issue: "retruded-chin", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Chin"] },
+    { issue: "over-projected-chin", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Chin"] },
+    { issue: "asymmetric-chin", concernId: "facial-asymmetry", concernName: "Facial Asymmetry", generalCategory: "Structure", areas: ["Chin"] },
+    { issue: "crooked-nose", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Nose"] },
+    { issue: "droopy-tip", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Nose"] },
+    { issue: "dorsal-hump", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Nose"] },
+    { issue: "tip-droop-when-smiling", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Nose"] },
+    { issue: "thin-lips", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Lips"] },
     { issue: "lacking-philtral-column", concernId: "volume-loss", concernName: "Volume Loss", generalCategory: "Volume Loss", areas: ["Lips"] },
-    { issue: "long-philtral-column", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Proportions", areas: ["Lips"] },
+    { issue: "long-philtral-column", concernId: "facial-structure", concernName: "Facial Structure", generalCategory: "Structure", areas: ["Lips"] },
     { issue: "gummy-smile", concernId: "volume-loss", concernName: "Volume Loss", generalCategory: "Volume Loss", areas: ["Lips"] },
-    { issue: "asymmetric-lips", concernId: "facial-asymmetry", concernName: "Facial Asymmetry", generalCategory: "Proportions", areas: ["Lips"] },
+    { issue: "asymmetric-lips", concernId: "facial-asymmetry", concernName: "Facial Asymmetry", generalCategory: "Structure", areas: ["Lips"] },
     { issue: "dry-lips", concernId: "skin-texture", concernName: "Skin Texture", generalCategory: "Skin Health", areas: ["Lips"] },
     { issue: "lip-thinning-when-smiling", concernId: "volume-loss", concernName: "Volume Loss", generalCategory: "Volume Loss", areas: ["Lips"] },
   ];
@@ -219,7 +219,7 @@ export function getAreasForIssue(displayName: string): string[] {
 export const GENERAL_CATEGORIES: GeneralCategory[] = [
   "Skin Health",
   "Volume Loss",
-  "Proportions",
+  "Structure",
   "Skin Laxity",
   "Excess Fat",
 ];

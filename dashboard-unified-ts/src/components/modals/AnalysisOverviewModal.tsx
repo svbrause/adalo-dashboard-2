@@ -1375,7 +1375,7 @@ export default function AnalysisOverviewModal({
                 ? (detailView.name)
                 : showAreasPage
                   ? "All Areas"
-                  : "Aesthetic Analysis"}
+                  : "Facial Analysis"}
           </h2>
           <div className="analysis-overview-modal__header-actions">
             <button

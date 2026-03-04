@@ -7,13 +7,13 @@ export function formatFacialStatus(status: string | null | undefined): string {
   if (status === WEB_POPUP_LEAD_NO_ANALYSIS_STATUS) {
     return "Not started";
   }
-  // Handle null, undefined, empty strings, or "not-started" - show as "Pending"
-  if (
-    !status ||
-    (typeof status === "string" && status.trim() === "") ||
-    String(status).toLowerCase().trim() === "not-started"
-  ) {
+  // Handle null, undefined, or empty strings - show as "Pending"
+  if (!status || (typeof status === "string" && status.trim() === "")) {
     return "Pending";
+  }
+  // "not-started" shows as "Not started"
+  if (String(status).toLowerCase().trim() === "not-started") {
+    return "Not started";
   }
 
   const normalized = String(status).trim();
@@ -95,6 +95,9 @@ export function getFacialStatusColor(status: string | null | undefined): string 
   const formattedNormalized = formattedStatus.toLowerCase();
 
   // Map colors - use consistent colors everywhere
+  if (formattedNormalized === "not started") {
+    return "#E0E0E0"; // Gray for Not started
+  }
   if (
     normalized === "pending" ||
     normalized === "not-started" ||
@@ -130,6 +133,9 @@ export function getFacialStatusBorderColor(status: string | null | undefined): s
   const formattedNormalized = formattedStatus.toLowerCase();
 
   // Map to very pale, soft border colors - use same colors as getFacialStatusColor for consistency
+  if (formattedNormalized === "not started") {
+    return "#E0E0E0"; // Gray for Not started
+  }
   if (
     normalized === "pending" ||
     normalized === "not-started" ||

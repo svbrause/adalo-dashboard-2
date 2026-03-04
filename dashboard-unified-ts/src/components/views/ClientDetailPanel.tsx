@@ -8,8 +8,13 @@ import {
   getFacialStatusColorForDisplay,
   hasInterestedTreatments,
 } from "../../utils/statusFormatting";
+import { WEB_POPUP_LEAD_NO_ANALYSIS_STATUS } from "../../utils/clientMapper";
 import { updateLeadRecord, prefetchSmsForPhone, fetchRecordQuizFields } from "../../services/api";
-import { archiveClient, markOfferRedeemed } from "../../services/contactHistory";
+import {
+  archiveClient,
+  markOfferRedeemed,
+  updateClientStatus,
+} from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
 import ContactHistorySection from "../modals/ContactHistorySection";
 import ClientSmsPopupModal from "../modals/ClientSmsPopupModal";
@@ -99,8 +104,7 @@ export default function ClientDetailPanel({
   const [editedClient, setEditedClient] = useState<Partial<Client> | null>(
     null,
   );
-  // Status state - kept for potential future use
-  // const [status, setStatus] = useState<Client["status"]>("new");
+  const [status, setStatus] = useState<Client["status"]>("new");
   const [showTelehealthSMS, setShowTelehealthSMS] = useState(false);
   const [showShareAnalysis, setShowShareAnalysis] = useState(false);
   const [showShareTreatmentPlan, setShowShareTreatmentPlan] = useState(false);
@@ -152,7 +156,7 @@ export default function ClientDetailPanel({
         ...client,
         phone: client.phone ? formatPhoneDisplay(client.phone) : "",
       });
-      // setStatus(client.status);
+      setStatus(client.status);
 
       // Load front photo if available and should be loaded
       let photoUrl: string | null = null;
@@ -343,17 +347,16 @@ export default function ClientDetailPanel({
     setIsEditMode(false);
   };
 
-  // Status change handler - currently unused but kept for potential future use
-  // const handleStatusChange = async (newStatus: Client["status"]) => {
-  //   try {
-  //     await updateClientStatus(client, newStatus);
-  //     setStatus(newStatus);
-  //     showToast(`Status updated to ${newStatus}`);
-  //     onUpdate();
-  //   } catch (error: any) {
-  //     showError(error.message || "Failed to update status");
-  //   }
-  // };
+  const handleStatusChange = async (newStatus: Client["status"]) => {
+    try {
+      await updateClientStatus(client, newStatus);
+      setStatus(newStatus);
+      showToast(`Status updated to ${newStatus}`);
+      onUpdate();
+    } catch (error: any) {
+      showError(error.message || "Failed to update status");
+    }
+  };
 
   const handleArchive = async () => {
     const action = client.archived ? "unarchive" : "archive";
@@ -833,6 +836,31 @@ export default function ClientDetailPanel({
                             </div>
                           </div>
                         )}
+                        <div className="detail-item">
+                          <label>Status</label>
+                          <select
+                            value={status}
+                            onChange={(e) =>
+                              handleStatusChange(
+                                e.target.value as Client["status"],
+                              )
+                            }
+                            className="detail-status-select-full"
+                          >
+                            <option value="new">New Lead</option>
+                            <option value="contacted">Contacted</option>
+                            <option value="requested-consult">
+                              Requested Consult
+                            </option>
+                            <option value="scheduled">
+                              Consultation Scheduled
+                            </option>
+                            <option value="converted">Converted</option>
+                            <option value="current-client">
+                              Current Client
+                            </option>
+                          </select>
+                        </div>
                         {client.source && (
                           <div className="detail-item">
                             <label>Source</label>
@@ -1158,23 +1186,29 @@ export default function ClientDetailPanel({
                     <div className="detail-section-title detail-section-title-inline detail-section-title-facial">
                       <div className="facial-analysis-heading-row">
                         <span>Facial Analysis</span>
-                        {facialAnalysisFormHasData &&
-                          client.facialAnalysisStatus && (
+                        {(() => {
+                          const statusForDisplay =
+                            client.facialAnalysisStatus ??
+                            (client.tableSource === "Web Popup Leads"
+                              ? WEB_POPUP_LEAD_NO_ANALYSIS_STATUS
+                              : "not-started");
+                          return (
                             <span
                               className="status-badge detail-status-badge-dynamic"
                               style={{
                                 background: getFacialStatusColorForDisplay(
-                                  client.facialAnalysisStatus,
+                                  statusForDisplay,
                                   hasInterestedTreatments(client),
                                 ),
                               }}
                             >
                               {formatFacialStatusForDisplay(
-                                client.facialAnalysisStatus,
+                                statusForDisplay,
                                 hasInterestedTreatments(client),
                               )}
                             </span>
-                          )}
+                          );
+                        })()}
                       </div>
                       {client.tableSource === "Patients" &&
                         facialAnalysisFormHasData &&

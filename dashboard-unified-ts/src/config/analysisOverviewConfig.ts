@@ -116,7 +116,7 @@ export const CATEGORIES: CategoryDef[] = [
     ],
   },
   {
-    name: "Proportions",
+    name: "Structure",
     key: "proportions",
     description: "Assesses symmetry and balance of brow, jaw, nose, and lips",
     subScores: [

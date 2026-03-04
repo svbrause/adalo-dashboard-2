@@ -8,6 +8,7 @@ import {
   getFacialStatusColorForDisplay,
   hasInterestedTreatments,
 } from "../../utils/statusFormatting";
+import { WEB_POPUP_LEAD_NO_ANALYSIS_STATUS } from "../../utils/clientMapper";
 import { updateLeadRecord, fetchRecordQuizFields } from "../../services/api";
 import {
   archiveClient,
@@ -767,6 +768,27 @@ export default function ClientDetailModal({
                         </div>
                       </div>
                     )}
+                    <div className="detail-item">
+                      <label>Status</label>
+                      <select
+                        value={status}
+                        onChange={(e) =>
+                          handleStatusChange(e.target.value as Client["status"])
+                        }
+                        className="detail-status-select-full"
+                      >
+                        <option value="new">New Lead</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="requested-consult">
+                          Requested Consult
+                        </option>
+                        <option value="scheduled">
+                          Consultation Scheduled
+                        </option>
+                        <option value="converted">Converted</option>
+                        <option value="current-client">Current Client</option>
+                      </select>
+                    </div>
                     {client.source && (
                       <div className="detail-item">
                         <label>Source</label>
@@ -838,27 +860,6 @@ export default function ClientDetailModal({
                           {client.zipCode || "Not provided"}
                         </div>
                       )}
-                    </div>
-                    <div className="detail-item">
-                      <label>Status</label>
-                      <select
-                        value={status}
-                        onChange={(e) =>
-                          handleStatusChange(e.target.value as Client["status"])
-                        }
-                        className="detail-status-select-full"
-                      >
-                        <option value="new">New Lead</option>
-                        <option value="contacted">Contacted</option>
-                        <option value="requested-consult">
-                          Requested Consult
-                        </option>
-                        <option value="scheduled">
-                          Consultation Scheduled
-                        </option>
-                        <option value="converted">Converted</option>
-                        <option value="current-client">Current Client</option>
-                      </select>
                     </div>
                     <div className="detail-item">
                       <label>Last Activity</label>
@@ -1068,26 +1069,32 @@ export default function ClientDetailModal({
               <div className="detail-section detail-section-facial-analysis">
                 <div className="detail-section-header-flex">
                   <div className="detail-section-title detail-section-title-inline detail-section-title-facial">
-                    <div className="facial-analysis-heading-row">
-                      <span>Facial Analysis</span>
-                      {facialAnalysisFormHasData &&
-                        client.facialAnalysisStatus && (
-                          <span
-                            className="status-badge detail-status-badge-dynamic"
-                            style={{
-                              background: getFacialStatusColorForDisplay(
-                                client.facialAnalysisStatus,
+                      <div className="facial-analysis-heading-row">
+                        <span>Facial Analysis</span>
+                        {(() => {
+                          const statusForDisplay =
+                            client.facialAnalysisStatus ??
+                            (client.tableSource === "Web Popup Leads"
+                              ? WEB_POPUP_LEAD_NO_ANALYSIS_STATUS
+                              : "not-started");
+                          return (
+                            <span
+                              className="status-badge detail-status-badge-dynamic"
+                              style={{
+                                background: getFacialStatusColorForDisplay(
+                                  statusForDisplay,
+                                  hasInterestedTreatments(client),
+                                ),
+                              }}
+                            >
+                              {formatFacialStatusForDisplay(
+                                statusForDisplay,
                                 hasInterestedTreatments(client),
-                              ),
-                            }}
-                          >
-                            {formatFacialStatusForDisplay(
-                              client.facialAnalysisStatus,
-                              hasInterestedTreatments(client),
-                            )}
-                          </span>
-                        )}
-                    </div>
+                              )}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     {client.tableSource === "Patients" &&
                       facialAnalysisFormHasData &&
                       client.createdAt && (
