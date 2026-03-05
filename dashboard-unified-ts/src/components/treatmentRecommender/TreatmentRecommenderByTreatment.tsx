@@ -73,7 +73,7 @@ import "./TreatmentRecommenderByTreatment.css";
 import biostimulantsBeforeAfterUrl from "../../assets/images/Biostimulators-Before-and-After-With-Pictures-1.webp";
 
 /** Show the Checkout button in the plan sidebar. Enabled in local/dev (npm run dev); hidden in production. */
-const SHOW_CHECKOUT_BUTTON = true;
+const SHOW_CHECKOUT_BUTTON = import.meta.env.DEV;
 
 /** Map Airtable record to TreatmentPhoto for card thumbnails. */
 function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
@@ -1106,7 +1106,13 @@ export default function TreatmentRecommenderByTreatment({
                             className="treatment-recommender-by-treatment__plan-row-remove"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onRemovePlanItem(item.id);
+                              const name = getTreatmentDisplayName(item);
+                              const message = name
+                                ? `Remove "${name}" from the treatment plan?`
+                                : "Remove this item from the treatment plan?";
+                              if (window.confirm(message)) {
+                                onRemovePlanItem(item.id);
+                              }
                             }}
                             aria-label={`Remove ${getTreatmentDisplayName(item)} from plan`}
                             title="Remove from plan"
@@ -1139,7 +1145,7 @@ export default function TreatmentRecommenderByTreatment({
                   className="treatment-recommender-by-treatment__plan-checkout-btn"
                   onClick={() => onOpenCheckout()}
                 >
-                  Checkout
+                  Summary
                 </button>
               )}
             </div>

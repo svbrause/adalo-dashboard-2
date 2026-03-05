@@ -2021,6 +2021,23 @@ export default function ClientDetailPanel({
               );
             }
           }}
+          onUpdateItem={async (index, patch) => {
+            const current = client.discussedItems ?? [];
+            const nextItems = current.map((it, i) =>
+              i === index ? { ...it, ...patch } : it
+            );
+            try {
+              await updateLeadRecord(client.id, client.tableSource, {
+                [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+              });
+              showToast("Plan updated");
+              onUpdate();
+            } catch (e) {
+              showError(
+                e instanceof Error ? e.message : "Failed to update plan"
+              );
+            }
+          }}
         />
       )}
       {showDiscussedTreatments && client && (

@@ -6352,6 +6352,11 @@ export default function DiscussedTreatmentsModal({
             onRemoveItem={(_item, index) =>
               setItems((prev) => prev.filter((_, i) => i !== index))
             }
+            onUpdateItem={(index, patch) =>
+              setItems((prev) =>
+                prev.map((it, i) => (i === index ? { ...it, ...patch } : it))
+              )
+            }
           />
         )}
 

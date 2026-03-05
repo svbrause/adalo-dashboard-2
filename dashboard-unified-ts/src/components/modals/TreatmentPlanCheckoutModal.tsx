@@ -8,6 +8,7 @@ import TreatmentPlanCheckout from "./DiscussedTreatmentsModal/TreatmentPlanCheck
 import type { CheckoutLineItemDetail } from "../../data/treatmentPricing2025";
 import { formatPrice } from "../../data/treatmentPricing2025";
 import "./TreatmentPlanCheckoutModal.css";
+import "../treatmentRecommender/TreatmentRecommenderByTreatment.css";
 
 export interface TreatmentPlanCheckoutModalProps {
   clientName: string;
@@ -15,6 +16,8 @@ export interface TreatmentPlanCheckoutModalProps {
   onClose: () => void;
   /** When provided, each row shows a remove button; called with the item and its index in the list. */
   onRemoveItem?: (item: DiscussedItem, index: number) => void;
+  /** When provided, move-to-wishlist / move-to-now links are shown; called with index and partial item (e.g. { timeline }). */
+  onUpdateItem?: (index: number, patch: Partial<DiscussedItem>) => void;
 }
 
 /** Minimal map: Airtable record → photoUrl + treatment names for matching. */
@@ -29,17 +32,16 @@ function recordToPhotoForCheckout(record: AirtableRecord): {
   if (Array.isArray(photoAttachment) && photoAttachment.length > 0) {
     const att = photoAttachment[0];
     photoUrl =
-      att.thumbnails?.full?.url ||
-      att.thumbnails?.large?.url ||
-      att.url ||
-      "";
+      att.thumbnails?.full?.url || att.thumbnails?.large?.url || att.url || "";
   }
   const treatments = Array.isArray(fields["Name (from Treatments)"])
     ? fields["Name (from Treatments)"]
     : fields["Treatments"]
       ? [fields["Treatments"]]
       : [];
-  const generalTreatments = Array.isArray(fields["Name (from General Treatments)"])
+  const generalTreatments = Array.isArray(
+    fields["Name (from General Treatments)"],
+  )
     ? fields["Name (from General Treatments)"]
     : fields["General Treatments"]
       ? [fields["General Treatments"]]
@@ -61,7 +63,11 @@ function preloadCheckoutImages(urls: string[]): void {
 
 /** Cached treatment photos for checkout so prefetched data is ready when modal opens. */
 let checkoutTreatmentPhotosCache: {
-  photos: { photoUrl: string; treatments: string[]; generalTreatments: string[] }[];
+  photos: {
+    photoUrl: string;
+    treatments: string[];
+    generalTreatments: string[];
+  }[];
   timestamp: number;
 } | null = null;
 const CHECKOUT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
@@ -73,9 +79,13 @@ const CHECKOUT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
 export async function prefetchCheckoutImages(): Promise<void> {
   try {
     const records = await fetchTreatmentPhotos({ limit: 500 });
-    const photos = records.map(recordToPhotoForCheckout).filter((p) => p.photoUrl);
+    const photos = records
+      .map(recordToPhotoForCheckout)
+      .filter((p) => p.photoUrl);
     checkoutTreatmentPhotosCache = { photos, timestamp: Date.now() };
-    const skincareUrls = getSkincareCarouselItems().map((p) => p.imageUrl).filter(Boolean) as string[];
+    const skincareUrls = getSkincareCarouselItems()
+      .map((p) => p.imageUrl)
+      .filter(Boolean) as string[];
     preloadCheckoutImages([...photos.map((p) => p.photoUrl), ...skincareUrls]);
   } catch {
     // ignore
@@ -87,6 +97,7 @@ export default function TreatmentPlanCheckoutModal({
   items,
   onClose,
   onRemoveItem,
+  onUpdateItem,
 }: TreatmentPlanCheckoutModalProps) {
   const firstName = clientName?.trim().split(/\s+/)[0] || "Patient";
   const [quoteData, setQuoteData] = useState<{
@@ -95,6 +106,7 @@ export default function TreatmentPlanCheckoutModal({
     hasUnknownPrices: boolean;
   } | null>(null);
   const [showQuoteSheet, setShowQuoteSheet] = useState(false);
+  const [isMintMember, setIsMintMember] = useState(false);
   const [treatmentPhotos, setTreatmentPhotos] = useState<
     { photoUrl: string; treatments: string[]; generalTreatments: string[] }[]
   >([]);
@@ -102,7 +114,8 @@ export default function TreatmentPlanCheckoutModal({
   useEffect(() => {
     const cached =
       checkoutTreatmentPhotosCache &&
-      Date.now() - checkoutTreatmentPhotosCache.timestamp < CHECKOUT_CACHE_TTL_MS
+      Date.now() - checkoutTreatmentPhotosCache.timestamp <
+        CHECKOUT_CACHE_TTL_MS
         ? checkoutTreatmentPhotosCache.photos
         : null;
     if (cached?.length) setTreatmentPhotos(cached);
@@ -110,7 +123,9 @@ export default function TreatmentPlanCheckoutModal({
     fetchTreatmentPhotos({ limit: 500 })
       .then((records) => {
         if (cancelled) return;
-        const photos = records.map(recordToPhotoForCheckout).filter((p) => p.photoUrl);
+        const photos = records
+          .map(recordToPhotoForCheckout)
+          .filter((p) => p.photoUrl);
         setTreatmentPhotos(photos);
         checkoutTreatmentPhotosCache = { photos, timestamp: Date.now() };
       })
@@ -144,19 +159,23 @@ export default function TreatmentPlanCheckoutModal({
           (p) =>
             p.name.trim().toLowerCase() === q ||
             p.name.trim().toLowerCase().includes(q) ||
-            q.includes(p.name.trim().toLowerCase())
+            q.includes(p.name.trim().toLowerCase()),
         );
         if (found?.imageUrl) return found.imageUrl;
       }
       if (!treatment) return null;
       const match = treatmentPhotos.find(
         (p) =>
-          p.treatments.some((t) => t.trim().toLowerCase() === treatment.toLowerCase()) ||
-          p.generalTreatments.some((t) => t.trim().toLowerCase() === treatment.toLowerCase())
+          p.treatments.some(
+            (t) => t.trim().toLowerCase() === treatment.toLowerCase(),
+          ) ||
+          p.generalTreatments.some(
+            (t) => t.trim().toLowerCase() === treatment.toLowerCase(),
+          ),
       );
       return match?.photoUrl ?? null;
     },
-    [treatmentPhotos, skincareCarousel]
+    [treatmentPhotos, skincareCarousel],
   );
 
   return (
@@ -164,7 +183,7 @@ export default function TreatmentPlanCheckoutModal({
       className="treatment-plan-checkout-modal-overlay"
       onClick={onClose}
       role="dialog"
-      aria-label="Checkout – treatment plan price summary"
+      aria-label="Treatment Plan Summary"
     >
       <div
         className="treatment-plan-checkout-modal-content"
@@ -172,7 +191,9 @@ export default function TreatmentPlanCheckoutModal({
       >
         <div className="treatment-plan-checkout-modal-header">
           <div className="treatment-plan-checkout-modal-header-info">
-            <h2 className="treatment-plan-checkout-modal-title">Checkout</h2>
+            <h2 className="treatment-plan-checkout-modal-title">
+              Treatment Plan Summary
+            </h2>
             <p className="treatment-plan-checkout-modal-subtitle">
               Price summary for {firstName}&apos;s treatment plan
             </p>
@@ -184,7 +205,7 @@ export default function TreatmentPlanCheckoutModal({
                 className="treatment-plan-checkout-quote-btn"
                 onClick={() => setShowQuoteSheet(true)}
               >
-                Quote sheet
+                Visit Quote
               </button>
             )}
             <button
@@ -210,6 +231,9 @@ export default function TreatmentPlanCheckoutModal({
               totalSlotId="treatment-plan-checkout-modal-total-slot"
               onCheckoutDataChange={setQuoteData}
               onRemoveItem={onRemoveItem}
+              onUpdateItem={onUpdateItem}
+              isMintMember={isMintMember}
+              onMintMemberChange={setIsMintMember}
             />
           )}
         </div>
@@ -227,14 +251,14 @@ export default function TreatmentPlanCheckoutModal({
           className="treatment-plan-quote-sheet-overlay"
           onClick={() => setShowQuoteSheet(false)}
           role="dialog"
-          aria-label="Quote sheet – treatment summary for patient review"
+          aria-label="Visit quote – treatment summary for patient review"
         >
           <div
             className="treatment-plan-quote-sheet"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="treatment-plan-quote-sheet-header">
-              <h2 className="treatment-plan-quote-sheet-title">Treatment quote</h2>
+              <h2 className="treatment-plan-quote-sheet-title">Visit Quote</h2>
               <p className="treatment-plan-quote-sheet-subtitle">
                 For {clientName?.trim() || "Patient"} – review with patient
               </p>
@@ -252,13 +276,16 @@ export default function TreatmentPlanCheckoutModal({
                 <thead>
                   <tr>
                     <th className="treatment-plan-quote-sheet-th">Treatment</th>
-                    <th className="treatment-plan-quote-sheet-th treatment-plan-quote-sheet-th--right">Price</th>
+                    <th className="treatment-plan-quote-sheet-th treatment-plan-quote-sheet-th--right">
+                      Price
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {quoteData.lineItems.map((line, idx) => {
                     const isPerUnitBreakdown =
-                      line.displayPrice.includes(" × ") && line.displayPrice.includes(" = ");
+                      line.displayPrice.includes(" × ") &&
+                      line.displayPrice.includes(" = ");
                     const quotePrice = isPerUnitBreakdown
                       ? formatPrice(line.price)
                       : line.displayPrice;

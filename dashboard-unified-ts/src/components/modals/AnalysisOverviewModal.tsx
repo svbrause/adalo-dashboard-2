@@ -384,6 +384,11 @@ function TreatmentRowContent({
                 loading="lazy"
               />
               <span className="ao-detail__photo-single-label">Before/after example</span>
+              <span className="ao-detail__photo-expand" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              </span>
             </button>
           </div>
         ) : null}
@@ -437,8 +442,10 @@ function RadarChart({
   size?: number;
   animate: boolean;
 }) {
-  const cx = size / 2;
-  const cy = size / 2;
+  const padding = 44;
+  const svgSize = size + padding * 2;
+  const cx = svgSize / 2;
+  const cy = svgSize / 2;
   const r = size / 2 - 28;
   const n = data.length;
   if (n < 3) return null;
@@ -456,7 +463,7 @@ function RadarChart({
 
   return (
     <div className="ao-radar">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
         {/* Grid rings */}
         {rings.map((ringVal) => (
           <polygon
@@ -489,9 +496,9 @@ function RadarChart({
         {dataPoints.map((p, i) => (
           <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#3b82f6" style={{ transition: "all 0.6s ease-out" }} />
         ))}
-        {/* Labels */}
+        {/* Labels – placed outside polygon with room so they don't get cropped */}
         {data.map((d, i) => {
-          const p = pointAt(i, 118);
+          const p = pointAt(i, 112);
           return (
             <text
               key={d.name}
@@ -638,11 +645,6 @@ function AreaCard({
     >
       <div className="ao-modal-area-card__left">
         <span className="ao-modal-area-card__dot" style={{ background: color }} />
-        {area.hasInterest && (
-          <span className="ao-modal-area-card__star" aria-hidden>
-            ★
-          </span>
-        )}
         <span className="ao-modal-area-card__name">{area.name}</span>
       </div>
       <span className="ao-modal-area-card__chev" aria-hidden>→</span>
@@ -877,41 +879,32 @@ function CategoryDetailContent({
         ← Back to Overview
       </button>
 
-      <section className="ao-detail__hero">
-        <div className="ao-detail__hero-left">
-          <div className="ao-detail__hero-score-stack">
-            <span className="ao-detail__hero-score-number">{catResult.score}</span>
-            <span
-              className="ao-detail__hero-score-tier"
-              style={{ color: tierColor(catResult.tier) }}
-            >
-              {tierLabel(catResult.tier)}
-            </span>
+      <section className="ao-detail__hero ao-detail__hero--with-ai">
+        <div className="ao-detail__hero-gauge">
+          <ScoreGauge
+            score={catResult.score}
+            size={110}
+            strokeWidth={10}
+            animate={animate}
+            label={CATEGORIES.find(c => c.key === categoryKey)?.name ?? ""}
+          />
+        </div>
+        <div className="ao-detail__hero-ai">
+          <div className="ao-detail__ai-header">
+            <AILogo size={14} />
+            <span className="ao-detail__ai-label">Aesthetic Intelligence</span>
           </div>
-          <div className="ao-detail__hero-info">
-            <p className="ao-detail__desc">
-              {categoryDescription}
+          {aiCatLoading ? (
+            <div className="ao-ai-summary__loading">
+              <span className="ao-ai-summary__shimmer" />
+              <span className="ao-ai-summary__shimmer ao-ai-summary__shimmer--short" />
+            </div>
+          ) : (
+            <p className="ao-detail__ai-text">
+              <TypewriterText text={displayCatAssessment} speed={20} />
             </p>
-          </div>
+          )}
         </div>
-      </section>
-
-      {/* AI-powered insight section */}
-      <section className="ao-detail__ai-section">
-        <div className="ao-detail__ai-header">
-          <AILogo size={14} />
-          <span className="ao-detail__ai-label">Aesthetic Intelligence</span>
-        </div>
-        {aiCatLoading ? (
-          <div className="ao-ai-summary__loading">
-            <span className="ao-ai-summary__shimmer" />
-            <span className="ao-ai-summary__shimmer ao-ai-summary__shimmer--short" />
-          </div>
-        ) : (
-          <p className="ao-detail__ai-text">
-            <TypewriterText text={displayCatAssessment} speed={20} />
-          </p>
-        )}
       </section>
 
       {/* Sub-score breakdown with collapsible check/x pills */}
@@ -1064,44 +1057,32 @@ function AreaDetailContent({
         ← Back to Overview
       </button>
 
-      <section className="ao-detail__hero">
-        <div className="ao-detail__hero-left">
-          <div className="ao-detail__hero-score-stack">
-            <span className="ao-detail__hero-score-number">{areaResult.score}</span>
-            <span
-              className="ao-detail__hero-score-tier"
-              style={{ color: tierColor(areaResult.tier) }}
-            >
-              {tierLabel(areaResult.tier)}
-            </span>
+      <section className="ao-detail__hero ao-detail__hero--with-ai">
+        <div className="ao-detail__hero-gauge">
+          <ScoreGauge
+            score={areaResult.score}
+            size={110}
+            strokeWidth={10}
+            animate={true}
+            label={areaResult.name}
+          />
+        </div>
+        <div className="ao-detail__hero-ai">
+          <div className="ao-detail__ai-header">
+            <AILogo size={14} />
+            <span className="ao-detail__ai-label">Aesthetic Intelligence</span>
           </div>
-          <div className="ao-detail__hero-info">
-            {areaResult.hasInterest && (
-              <span className="ao-detail__focus-badge">★ Focus Area</span>
-            )}
-            <p className="ao-detail__desc">
-              {areaDescription}
+          {aiAreaLoading ? (
+            <div className="ao-ai-summary__loading">
+              <span className="ao-ai-summary__shimmer" />
+              <span className="ao-ai-summary__shimmer ao-ai-summary__shimmer--short" />
+            </div>
+          ) : (
+            <p className="ao-detail__ai-text">
+              <TypewriterText text={displayAreaAssessment} speed={20} />
             </p>
-          </div>
+          )}
         </div>
-      </section>
-
-      {/* AI-powered insight section */}
-      <section className="ao-detail__ai-section">
-        <div className="ao-detail__ai-header">
-          <AILogo size={14} />
-          <span className="ao-detail__ai-label">Aesthetic Intelligence</span>
-        </div>
-        {aiAreaLoading ? (
-          <div className="ao-ai-summary__loading">
-            <span className="ao-ai-summary__shimmer" />
-            <span className="ao-ai-summary__shimmer ao-ai-summary__shimmer--short" />
-          </div>
-        ) : (
-          <p className="ao-detail__ai-text">
-            <TypewriterText text={displayAreaAssessment} speed={20} />
-          </p>
-        )}
       </section>
 
       {/* Theme-based feature breakdown with check/x pills */}
@@ -1306,6 +1287,9 @@ export default function AnalysisOverviewModal({
 
   const focusAreas = areaResults
     .filter((a) => a.hasInterest)
+    .sort((a, b) => a.score - b.score);
+  const otherAreas = areaResults
+    .filter((a) => !a.hasInterest)
     .sort((a, b) => a.score - b.score);
   const focusCount = focusAreas.length;
 
@@ -1563,6 +1547,11 @@ export default function AnalysisOverviewModal({
                         className="analysis-overview-modal__client-photo"
                       />
                       <span className="analysis-overview-modal__photo-overlay">View</span>
+                      <span className="analysis-overview-modal__photo-expand" aria-hidden>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                        </svg>
+                      </span>
                     </div>
                   )}
                   <div className="analysis-overview-modal__score-block">
@@ -1614,9 +1603,28 @@ export default function AnalysisOverviewModal({
                 )}
               </section>
 
-              {/* Category sub-scores – horizontal row with visual connection to gauge */}
+              {/* Category sub-scores – circles for skin, volume, structure + cards */}
               <section className="analysis-overview-modal__categories">
                 <div className="analysis-overview-modal__cat-connector" />
+                <div className="analysis-overview-modal__cat-gauges">
+                  {categories.map((c) => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      className="analysis-overview-modal__cat-gauge-wrap"
+                      onClick={() => setDetailView({ type: "category", key: c.key })}
+                      aria-label={`${c.name} score ${c.score}`}
+                    >
+                      <ScoreGauge
+                        score={c.score}
+                        size={72}
+                        strokeWidth={6}
+                        animate={animate}
+                        label={c.name}
+                      />
+                    </button>
+                  ))}
+                </div>
                 <div className="analysis-overview-modal__cat-cards">
                   {categories.map((c) => (
                     <CategoryCard
@@ -1631,13 +1639,30 @@ export default function AnalysisOverviewModal({
                 </div>
               </section>
 
-              {/* Focus Areas (if any) */}
+              {/* Client's focus areas */}
               {focusAreas.length > 0 && (
                 <section className="analysis-overview-modal__areas">
                   <h3 className="analysis-overview-modal__area-group-title">
-                    <span className="analysis-overview-modal__area-group-icon" aria-hidden>★</span>
-                    Focus Areas
+                    Client&apos;s focus areas
                   </h3>
+                  <div className="analysis-overview-modal__area-dot-legend">
+                    <span className="analysis-overview-modal__area-legend-item">
+                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("excellent") }} />
+                      Excellent
+                    </span>
+                    <span className="analysis-overview-modal__area-legend-item">
+                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("good") }} />
+                      Very Good
+                    </span>
+                    <span className="analysis-overview-modal__area-legend-item">
+                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("moderate") }} />
+                      Good
+                    </span>
+                    <span className="analysis-overview-modal__area-legend-item">
+                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("attention") }} />
+                      Needs Attention
+                    </span>
+                  </div>
                   <div className="analysis-overview-modal__area-grid">
                     {focusAreas.map((a) => (
                       <AreaCard
@@ -1650,14 +1675,41 @@ export default function AnalysisOverviewModal({
                 </section>
               )}
 
-              {/* View All Areas link */}
-              <button
-                type="button"
-                className="analysis-overview-modal__view-all-areas"
-                onClick={() => setDetailView({ type: "areas" })}
-              >
-                View All Areas →
-              </button>
+              {/* Other areas */}
+              {otherAreas.length > 0 && (
+                <section className="analysis-overview-modal__areas">
+                  <h3 className="analysis-overview-modal__area-group-title">
+                    Other areas
+                  </h3>
+                  <div className="analysis-overview-modal__area-dot-legend">
+                    <span className="analysis-overview-modal__area-legend-item">
+                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("excellent") }} />
+                      Excellent
+                    </span>
+                    <span className="analysis-overview-modal__area-legend-item">
+                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("good") }} />
+                      Very Good
+                    </span>
+                    <span className="analysis-overview-modal__area-legend-item">
+                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("moderate") }} />
+                      Good
+                    </span>
+                    <span className="analysis-overview-modal__area-legend-item">
+                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("attention") }} />
+                      Needs Attention
+                    </span>
+                  </div>
+                  <div className="analysis-overview-modal__area-grid">
+                    {otherAreas.map((a) => (
+                      <AreaCard
+                        key={a.name}
+                        area={a}
+                        onExploreDetails={(name) => setDetailView({ type: "area", name })}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           )}
         </div>

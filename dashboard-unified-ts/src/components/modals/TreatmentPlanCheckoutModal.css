@@ -119,20 +119,62 @@
   gap: 2px;
 }
 
+.treatment-plan-checkout-main-cart {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.treatment-plan-checkout-plan-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--theme-text-primary, #212121);
+  letter-spacing: 0.02em;
+  margin: 0 0 12px 0;
+  padding: 0 8px 8px;
+  border-bottom: 2px solid var(--theme-border, rgba(0, 0, 0, 0.12));
+}
+
+.treatment-plan-checkout-left-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--theme-text-secondary, #616161);
+  margin: 0 0 6px 0;
+  padding: 0 8px;
+}
+
+.treatment-plan-checkout-main-cart .treatment-plan-checkout-left-section-title {
+  color: var(--theme-text-primary, #212121);
+}
+
+/* Wishlist section below main cart – strong visual separation */
+.treatment-plan-checkout-wishlist-section {
+  margin-top: 40px;
+  padding: 20px 12px 12px 12px;
+  padding-top: 24px;
+  border-top: 2px solid var(--theme-border, rgba(0, 0, 0, 0.15));
+  background: var(--theme-bg-elevated, #f8f9fc);
+  border-radius: 12px;
+}
+
+.treatment-plan-checkout-wishlist-section .treatment-plan-checkout-left-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--theme-text-primary, #212121);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  margin: 0 0 12px 0;
+  padding: 0 4px 8px 4px;
+  border-bottom: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+}
+
 .treatment-plan-checkout-left-section--wishlist {
   margin-top: 8px;
   padding-top: 10px;
   border-top: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
-}
-
-.treatment-plan-checkout-left-section-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--theme-text-muted);
-  margin: 0 0 4px 0;
-  padding: 0 8px;
 }
 
 .treatment-plan-checkout-left-section-list {
@@ -168,6 +210,129 @@
   text-align: center;
 }
 
+.treatment-plan-checkout-order-summary-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.treatment-plan-checkout-order-summary-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0 0 4px 0;
+}
+
+.treatment-plan-checkout-order-summary .treatment-plan-checkout-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.treatment-plan-checkout-mint-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--theme-text-primary);
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.treatment-plan-checkout-mint-line .treatment-plan-checkout-subtotal-value {
+  color: var(--theme-success, #059669);
+}
+
+.treatment-plan-checkout-when-one-click {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.treatment-plan-checkout-when-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.15));
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary);
+  cursor: pointer;
+}
+
+.treatment-plan-checkout-when-btn:hover {
+  background: var(--theme-bg-elevated, #f5f5f5);
+  border-color: var(--theme-accent, #6366f1);
+  color: var(--theme-accent, #6366f1);
+}
+
+/* Remove confirmation overlay */
+.treatment-plan-checkout-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10003;
+  padding: 24px;
+}
+
+.treatment-plan-checkout-confirm-card {
+  background: var(--theme-bg-card, #fff);
+  border-radius: 12px;
+  padding: 20px 24px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.treatment-plan-checkout-confirm-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--theme-text-primary);
+}
+
+.treatment-plan-checkout-confirm-message {
+  font-size: 14px;
+  color: var(--theme-text-secondary);
+  margin: 0 0 20px 0;
+}
+
+.treatment-plan-checkout-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.treatment-plan-checkout-confirm-cancel {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.2));
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary);
+  cursor: pointer;
+}
+
+.treatment-plan-checkout-confirm-cancel:hover {
+  background: var(--theme-bg-elevated, #f5f5f5);
+}
+
+.treatment-plan-checkout-confirm-remove {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #c23c3c;
+  color: #fff;
+  cursor: pointer;
+}
+
+.treatment-plan-checkout-confirm-remove:hover {
+  background: #a03030;
+}
+
 /* Compact list row (left panel) */
 .treatment-plan-checkout-row {
   display: flex;
@@ -177,7 +342,6 @@
   border-radius: 8px;
   border: none;
   background: transparent;
-  cursor: pointer;
   transition: background 0.12s;
   text-align: left;
   width: 100%;
@@ -214,7 +378,49 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 4px;
+}
+
+.treatment-plan-checkout-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.treatment-plan-checkout-row-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--theme-accent, #6366f1);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.treatment-plan-checkout-row-link:hover {
+  color: var(--theme-accent-hover, #4f46e5);
+}
+
+.treatment-plan-checkout-row-edit {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+}
+
+.treatment-plan-checkout-row-edit:hover {
+  color: var(--theme-accent, #6366f1);
+}
+
+.treatment-plan-checkout-inline-edit {
+  margin-top: 8px;
+  padding: 14px 16px;
+  background: var(--theme-bg-card, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.12));
 }
 
 .treatment-plan-checkout-row-label {
@@ -278,11 +484,18 @@
 
 .treatment-plan-checkout-row-wrap {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.treatment-plan-checkout-row-top {
+  display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.treatment-plan-checkout-row-wrap .treatment-plan-checkout-row {
+.treatment-plan-checkout-row-top .treatment-plan-checkout-row {
   flex: 1 1 auto;
   min-width: 0;
 }
