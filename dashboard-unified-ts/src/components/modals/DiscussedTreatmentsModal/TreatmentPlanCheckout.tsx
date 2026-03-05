@@ -182,7 +182,7 @@ export default function TreatmentPlanCheckout({
     };
   }, [carouselItems]);
 
-  const { lineItems, total, hasUnknownPrices } = getCheckoutSummaryWithSkus(
+  const { lineItems } = getCheckoutSummaryWithSkus(
     effectiveItems,
     (item) => getCheckoutDisplayName(item as DiscussedItem),
     getSkincareProductInfo
