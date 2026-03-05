@@ -174,7 +174,7 @@ export function getQuantityContext(treatment: string | undefined): {
     t === "dysport" ||
     t === "xeomin"
   ) {
-    return { unitLabel: "Units", options: QUANTITY_OPTIONS_TOX };
+    return { unitLabel: "Units (Botox/Dysport)", options: QUANTITY_OPTIONS_TOX };
   }
   if (
     t === "laser" ||

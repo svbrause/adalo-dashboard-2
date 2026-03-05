@@ -16,7 +16,7 @@
   background: var(--theme-bg-card, #fff);
   border-radius: 16px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  max-width: 520px;
+  max-width: 960px;
   width: 100%;
   max-height: 90vh;
   display: flex;
@@ -52,6 +52,13 @@
   margin: 0;
 }
 
+.treatment-plan-checkout-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .treatment-plan-checkout-modal-close {
   width: 32px;
   height: 32px;
@@ -75,9 +82,295 @@
 
 .treatment-plan-checkout-modal-body {
   padding: 0;
-  overflow-y: auto;
+  overflow: hidden;
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.treatment-plan-checkout-modal-two-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.treatment-plan-checkout-modal-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+  overflow: hidden;
+}
+
+.treatment-plan-checkout-modal-left-list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.treatment-plan-checkout-left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.treatment-plan-checkout-left-section--wishlist {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+}
+
+.treatment-plan-checkout-left-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--theme-text-muted);
+  margin: 0 0 4px 0;
+  padding: 0 8px;
+}
+
+.treatment-plan-checkout-left-section-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.treatment-plan-checkout-modal-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--theme-bg-elevated, #f8f9fc);
+}
+
+.treatment-plan-checkout-modal-right-inner {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding: 20px 24px;
+}
+
+.treatment-plan-checkout-modal-right-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  color: var(--theme-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Compact list row (left panel) */
+.treatment-plan-checkout-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s;
+  text-align: left;
+  width: 100%;
+}
+
+.treatment-plan-checkout-row-thumb {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--theme-bg-elevated, #f0f0f0);
+  flex-shrink: 0;
+}
+
+.treatment-plan-checkout-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.treatment-plan-checkout-row:hover {
+  background: rgba(79, 70, 229, 0.06);
+}
+
+.treatment-plan-checkout-row--selected {
+  background: rgba(79, 70, 229, 0.10);
+}
+
+.treatment-plan-checkout-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.treatment-plan-checkout-row-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.treatment-plan-checkout-row--selected .treatment-plan-checkout-row-label {
+  font-weight: 600;
+  color: var(--theme-accent, #6366f1);
+}
+
+.treatment-plan-checkout-row-meta {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+}
+
+.treatment-plan-checkout-row-price {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-secondary);
+  flex-shrink: 0;
+}
+
+.treatment-plan-checkout-row--selected .treatment-plan-checkout-row-price {
+  font-weight: 600;
+  color: var(--theme-accent, #6366f1);
+}
+
+.treatment-plan-checkout-row-remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--theme-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.treatment-plan-checkout-row-remove:hover {
+  background: rgba(200, 60, 60, 0.12);
+  color: #c23c3c;
+}
+
+.treatment-plan-checkout-row-remove:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(200, 60, 60, 0.3);
+}
+
+.treatment-plan-checkout-row-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.treatment-plan-checkout-row-wrap .treatment-plan-checkout-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Detail panel (right) – What / Where / When / Quantity */
+.treatment-plan-checkout-detail-section {
+  margin-bottom: 18px;
+}
+
+.treatment-plan-checkout-detail-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.treatment-plan-checkout-detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-muted);
+  margin: 0 0 6px 0;
+  display: block;
+}
+
+.treatment-plan-checkout-detail-value {
+  font-size: 14px;
+  color: var(--theme-text-primary);
+}
+
+.treatment-plan-checkout-detail-select {
+  width: 100%;
+  max-width: 280px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.15));
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary);
+  margin: 0;
+}
+
+.treatment-plan-checkout-detail-select:focus {
+  outline: none;
+  border-color: var(--theme-accent, #6366f1);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+/* Neurotoxin units: +/- stepper */
+.treatment-plan-checkout-units-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 8px;
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.15));
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--theme-bg-card, #fff);
+}
+
+.treatment-plan-checkout-units-stepper-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: var(--theme-bg-elevated, #f5f5f5);
+  color: var(--theme-text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.treatment-plan-checkout-units-stepper-btn:hover {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--theme-accent, #6366f1);
+}
+
+.treatment-plan-checkout-units-stepper-btn:active {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.treatment-plan-checkout-units-stepper-value {
+  min-width: 44px;
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  text-align: center;
 }
 
 /* Hero strip – soft gradient band for visual appeal */
@@ -108,6 +401,7 @@
 .treatment-plan-checkout-modal-actions {
   display: flex;
   align-items: center;
+  gap: 16px;
   padding: 16px 24px 20px;
   border-top: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
   background: var(--theme-bg-card, #fff);
@@ -116,6 +410,29 @@
 .treatment-plan-checkout-modal-total-slot {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.treatment-plan-checkout-quote-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-accent, #6366f1);
+  background: transparent;
+  border: 1px solid var(--theme-accent, #6366f1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.treatment-plan-checkout-quote-btn:hover {
+  background: var(--theme-accent, #6366f1);
+  color: #fff;
+}
+
+.treatment-plan-checkout-quote-btn:active {
+  transform: scale(0.98);
 }
 
 /* Summary (subtotals + total) in footer: solid background */
@@ -135,5 +452,147 @@
 /* Reuse checkout block styles inside modal (slightly tighter in modal) */
 .treatment-plan-checkout-modal-body .treatment-plan-checkout {
   margin-top: 0;
+}
+
+/* Quote sheet overlay – treatment list for provider/patient review */
+.treatment-plan-quote-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10002;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.treatment-plan-quote-sheet {
+  background: var(--theme-bg-card, #fff);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  max-width: 520px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.treatment-plan-quote-sheet-header {
+  padding: 24px 56px 20px 28px;
+  border-bottom: 1px solid var(--theme-border, rgba(0, 0, 0, 0.08));
+  position: relative;
+  background: linear-gradient(to bottom, var(--theme-bg-elevated, #fafbfc), var(--theme-bg-card, #fff));
+}
+
+.treatment-plan-quote-sheet-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.treatment-plan-quote-sheet-subtitle {
+  font-size: 14px;
+  color: var(--theme-text-muted);
+  margin: 6px 0 0 0;
+}
+
+.treatment-plan-quote-sheet-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--theme-text-secondary);
+  font-size: 22px;
+  line-height: 1;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.treatment-plan-quote-sheet-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--theme-text-primary);
+}
+
+.treatment-plan-quote-sheet-body {
+  padding: 24px 28px 28px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.treatment-plan-quote-sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.treatment-plan-quote-sheet-th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 16px 12px 0;
+  border-bottom: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+}
+
+.treatment-plan-quote-sheet-th--right {
+  text-align: right;
+  padding-right: 0;
+  padding-left: 16px;
+}
+
+.treatment-plan-quote-sheet-td {
+  padding: 14px 16px 14px 0;
+  border-bottom: 1px solid var(--theme-border, rgba(0, 0, 0, 0.06));
+  color: var(--theme-text-primary);
+  font-weight: 500;
+}
+
+.treatment-plan-quote-sheet-td--right {
+  text-align: right;
+  padding-right: 0;
+  padding-left: 16px;
+  font-weight: 600;
+  color: var(--theme-accent, #6366f1);
+}
+
+.treatment-plan-quote-sheet-footer {
+  padding: 20px 28px 24px;
+  border-top: 2px solid var(--theme-accent, #6366f1);
+  background: linear-gradient(to top, rgba(99, 102, 241, 0.06), transparent);
+}
+
+.treatment-plan-quote-sheet-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.treatment-plan-quote-sheet-total-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.treatment-plan-quote-sheet-total-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--theme-accent, #6366f1);
+  letter-spacing: -0.02em;
 }
 

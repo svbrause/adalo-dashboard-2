@@ -69,6 +69,7 @@ import { getSkinQuizMessage } from "../../utils/skinQuizLink";
 import {
   getJotformUrl,
   formatProviderDisplayName,
+  isUniqueAestheticsProvider,
 } from "../../utils/providerHelpers";
 import {
   splitName,
@@ -1268,16 +1269,18 @@ export default function ClientDetailPanel({
                               >
                                 Scan In-Clinic
                               </button>
-                              <button
-                                className="scan-client-option"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowScanDropdown(false);
-                                  setShowNewClientSMS(true);
-                                }}
-                              >
-                                Scan At Home
-                              </button>
+                              {!isUniqueAestheticsProvider(provider) && (
+                                <button
+                                  className="scan-client-option"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowScanDropdown(false);
+                                    setShowNewClientSMS(true);
+                                  }}
+                                >
+                                  Scan At Home
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1440,6 +1443,8 @@ export default function ClientDetailPanel({
                   </div>
                 </div>
 
+                {!isUniqueAestheticsProvider(provider) && (
+                <>
                 {/* Skin Quiz Section */}
                 <div className="detail-section detail-section-skin-analysis">
                   <div className="detail-section-header-flex skin-analysis-header">
@@ -1629,6 +1634,8 @@ export default function ClientDetailPanel({
                     </div>
                   )}
                 </div>
+                </>
+                )}
 
                 {/* Wellness Quiz Section (hidden when WELLNESS_QUIZ_ENABLED is false) */}
                 {WELLNESS_QUIZ_ENABLED && (
@@ -1998,6 +2005,22 @@ export default function ClientDetailPanel({
           clientName={client.name ?? ""}
           items={client.discussedItems ?? []}
           onClose={() => setShowCheckoutModal(false)}
+          onRemoveItem={async (_item, index) => {
+            const nextItems = (client.discussedItems ?? []).filter(
+              (_, i) => i !== index
+            );
+            try {
+              await updateLeadRecord(client.id, client.tableSource, {
+                [AIRTABLE_FIELD]: JSON.stringify(nextItems),
+              });
+              showToast("Removed from plan");
+              onUpdate();
+            } catch (e) {
+              showError(
+                e instanceof Error ? e.message : "Failed to remove from plan"
+              );
+            }
+          }}
         />
       )}
       {showDiscussedTreatments && client && (

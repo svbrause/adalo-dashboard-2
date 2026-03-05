@@ -6349,6 +6349,9 @@ export default function DiscussedTreatmentsModal({
             clientName={client.name ?? ""}
             items={items}
             onClose={() => setShowCheckoutModal(false)}
+            onRemoveItem={(_item, index) =>
+              setItems((prev) => prev.filter((_, i) => i !== index))
+            }
           />
         )}
 

@@ -2,6 +2,25 @@
 
 import { Provider } from "../types";
 
+/** Name fragment that identifies Unique Aesthetics (e.g. "Unique Aesthetics & Wellness"). */
+const UNIQUE_AESTHETICS_NAME_FRAGMENT = "unique aesthetics";
+/** Login code for Unique Aesthetics (Providers table). */
+const UNIQUE_AESTHETICS_CODE = "unique2321";
+
+/**
+ * True when the logged-in provider is Unique Aesthetics (by display name or code).
+ * Used to hide Scan At Home and Skin Quiz for this provider.
+ */
+export function isUniqueAestheticsProvider(provider: Provider | null): boolean {
+  if (!provider) return false;
+  const displayName = formatProviderDisplayName(provider.name).trim().toLowerCase();
+  const rawName = (provider.name || "").trim().toLowerCase();
+  const code = (provider.code || "").trim().toLowerCase();
+  const nameContains = displayName.includes(UNIQUE_AESTHETICS_NAME_FRAGMENT) ||
+    rawName.includes(UNIQUE_AESTHETICS_NAME_FRAGMENT);
+  return code === UNIQUE_AESTHETICS_CODE || nameContains;
+}
+
 /**
  * Format provider name for display. If the name contains commas (e.g. "Amy,Amy Calo,Calo"),
  * use the segment before the first comma as first name and after the last comma as last name.

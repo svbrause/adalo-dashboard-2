@@ -5,12 +5,16 @@ import type { DiscussedItem } from "../../types";
 import { fetchTreatmentPhotos, type AirtableRecord } from "../../services/api";
 import { getSkincareCarouselItems } from "./DiscussedTreatmentsModal/constants";
 import TreatmentPlanCheckout from "./DiscussedTreatmentsModal/TreatmentPlanCheckout";
+import type { CheckoutLineItemDetail } from "../../data/treatmentPricing2025";
+import { formatPrice } from "../../data/treatmentPricing2025";
 import "./TreatmentPlanCheckoutModal.css";
 
 export interface TreatmentPlanCheckoutModalProps {
   clientName: string;
   items: DiscussedItem[];
   onClose: () => void;
+  /** When provided, each row shows a remove button; called with the item and its index in the list. */
+  onRemoveItem?: (item: DiscussedItem, index: number) => void;
 }
 
 /** Minimal map: Airtable record → photoUrl + treatment names for matching. */
@@ -82,8 +86,15 @@ export default function TreatmentPlanCheckoutModal({
   clientName,
   items,
   onClose,
+  onRemoveItem,
 }: TreatmentPlanCheckoutModalProps) {
   const firstName = clientName?.trim().split(/\s+/)[0] || "Patient";
+  const [quoteData, setQuoteData] = useState<{
+    lineItems: CheckoutLineItemDetail[];
+    total: number;
+    hasUnknownPrices: boolean;
+  } | null>(null);
+  const [showQuoteSheet, setShowQuoteSheet] = useState(false);
   const [treatmentPhotos, setTreatmentPhotos] = useState<
     { photoUrl: string; treatments: string[]; generalTreatments: string[] }[]
   >([]);
@@ -166,14 +177,25 @@ export default function TreatmentPlanCheckoutModal({
               Price summary for {firstName}&apos;s treatment plan
             </p>
           </div>
-          <button
-            type="button"
-            className="treatment-plan-checkout-modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            ×
-          </button>
+          <div className="treatment-plan-checkout-modal-header-actions">
+            {quoteData && quoteData.lineItems.length > 0 && (
+              <button
+                type="button"
+                className="treatment-plan-checkout-quote-btn"
+                onClick={() => setShowQuoteSheet(true)}
+              >
+                Quote sheet
+              </button>
+            )}
+            <button
+              type="button"
+              className="treatment-plan-checkout-modal-close"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
         </div>
         <div className="treatment-plan-checkout-modal-body">
           {items.length === 0 ? (
@@ -186,6 +208,8 @@ export default function TreatmentPlanCheckoutModal({
               items={items}
               getPhotoForItem={getPhotoForItem}
               totalSlotId="treatment-plan-checkout-modal-total-slot"
+              onCheckoutDataChange={setQuoteData}
+              onRemoveItem={onRemoveItem}
             />
           )}
         </div>
@@ -197,6 +221,76 @@ export default function TreatmentPlanCheckoutModal({
           />
         </div>
       </div>
+
+      {showQuoteSheet && quoteData && (
+        <div
+          className="treatment-plan-quote-sheet-overlay"
+          onClick={() => setShowQuoteSheet(false)}
+          role="dialog"
+          aria-label="Quote sheet – treatment summary for patient review"
+        >
+          <div
+            className="treatment-plan-quote-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="treatment-plan-quote-sheet-header">
+              <h2 className="treatment-plan-quote-sheet-title">Treatment quote</h2>
+              <p className="treatment-plan-quote-sheet-subtitle">
+                For {clientName?.trim() || "Patient"} – review with patient
+              </p>
+              <button
+                type="button"
+                className="treatment-plan-quote-sheet-close"
+                onClick={() => setShowQuoteSheet(false)}
+                aria-label="Close quote sheet"
+              >
+                ×
+              </button>
+            </div>
+            <div className="treatment-plan-quote-sheet-body">
+              <table className="treatment-plan-quote-sheet-table">
+                <thead>
+                  <tr>
+                    <th className="treatment-plan-quote-sheet-th">Treatment</th>
+                    <th className="treatment-plan-quote-sheet-th treatment-plan-quote-sheet-th--right">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quoteData.lineItems.map((line, idx) => {
+                    const isPerUnitBreakdown =
+                      line.displayPrice.includes(" × ") && line.displayPrice.includes(" = ");
+                    const quotePrice = isPerUnitBreakdown
+                      ? formatPrice(line.price)
+                      : line.displayPrice;
+                    return (
+                      <tr key={idx}>
+                        <td className="treatment-plan-quote-sheet-td">
+                          {line.skuName ?? line.label}
+                        </td>
+                        <td className="treatment-plan-quote-sheet-td treatment-plan-quote-sheet-td--right">
+                          {quotePrice}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="treatment-plan-quote-sheet-footer">
+              <div className="treatment-plan-quote-sheet-total-row">
+                <span className="treatment-plan-quote-sheet-total-label">
+                  {quoteData.hasUnknownPrices ? "Estimated total" : "Total"}
+                </span>
+                <span className="treatment-plan-quote-sheet-total-value">
+                  {quoteData.hasUnknownPrices && quoteData.total === 0
+                    ? "—"
+                    : formatPrice(quoteData.total)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

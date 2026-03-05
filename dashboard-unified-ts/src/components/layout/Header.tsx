@@ -7,6 +7,7 @@ import NewClientSMSModal from "../modals/NewClientSMSModal";
 import {
   getJotformUrl,
   formatProviderDisplayName,
+  isUniqueAestheticsProvider,
 } from "../../utils/providerHelpers";
 import { showToast } from "../../utils/toast";
 import "./Header.css";
@@ -123,15 +124,17 @@ export default function Header({ onLogout }: HeaderProps) {
                 >
                   Scan In-Clinic
                 </button>
-                <button
-                  className="scan-client-option"
-                  onClick={() => {
-                    setShowScanDropdown(false);
-                    setShowNewClientSMS(true);
-                  }}
-                >
-                  Scan At Home
-                </button>
+                {!isUniqueAestheticsProvider(provider) && (
+                  <button
+                    className="scan-client-option"
+                    onClick={() => {
+                      setShowScanDropdown(false);
+                      setShowNewClientSMS(true);
+                    }}
+                  >
+                    Scan At Home
+                  </button>
+                )}
               </div>
             )}
           </div>

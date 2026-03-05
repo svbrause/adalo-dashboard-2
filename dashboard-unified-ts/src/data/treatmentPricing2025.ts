@@ -725,9 +725,22 @@ export function getCheckoutSummaryWithSkus(
         match.isPerUnit && match.quantity != null && match.unitPrice != null
           ? `${match.quantity} × ${formatPrice(match.unitPrice)} = ${formatPrice(match.totalPrice)}`
           : formatPrice(match.totalPrice);
+      const isPerUnitNeuro =
+        match.isPerUnit && /1-Unit|Unit/i.test(match.sku.name);
+      const region = (item.region ?? "").trim();
+      const neuroBrand = match.sku.name.includes("Dysport")
+        ? "Dysport"
+        : match.sku.name.includes("Botox")
+          ? "Botox"
+          : (item.treatment ?? "Neurotoxin").trim();
+      const skuName = isPerUnitNeuro
+        ? region
+          ? `${neuroBrand} to ${region}`
+          : neuroBrand
+        : match.sku.name;
       lineItems.push({
         label,
-        skuName: match.sku.name,
+        skuName,
         skuNote: match.sku.note,
         price: match.totalPrice,
         displayPrice,

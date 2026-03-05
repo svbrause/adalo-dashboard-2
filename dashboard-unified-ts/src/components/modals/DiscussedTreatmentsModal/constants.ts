@@ -947,6 +947,12 @@ export const REGION_OPTIONS = [
 /** Where options for Microneedling on the treatment recommender (Face / Neck / Chest only). */
 export const REGION_OPTIONS_MICRONEEDLING = ["Face", "Neck", "Chest"] as const;
 
+/** Where options for Laser, Microneedling, Chemical Peel in checkout (broad areas, not specific face areas). */
+export const CHECKOUT_REGION_OPTIONS_BROAD = ["Face", "Neck", "Chest"] as const;
+
+/** Treatments that use broad Face/Neck/Chest region in checkout instead of REGION_OPTIONS. */
+export const TREATMENTS_WITH_BROAD_REGION = ["Laser", "Microneedling", "Chemical Peel"] as const;
+
 /** Type options for Microneedling on the treatment recommender (PRP, TCA, TXA, etc.). */
 export const MICRONEEDLING_TYPE_OPTIONS = [
   "PRP",
@@ -966,6 +972,15 @@ export const MICRONEEDLING_TYPE_OPTIONS = [
   "PRFM",
   OTHER_PRODUCT_LABEL,
 ] as const;
+
+/** Treatment type options for checkout right panel. Microneedling = same as recommender (PRP, TCA, PRFM, etc.); others match price list or recommender. */
+export const CHECKOUT_TREATMENT_TYPE_OPTIONS: Record<string, string[]> = {
+  Laser: [...LASER_DEVICES],
+  Microneedling: [...MICRONEEDLING_TYPE_OPTIONS],
+  Biostimulants: ["Radiesse", "Sculptra", "Skinvive", "Skinvive II"],
+  "Chemical Peel": [...(TREATMENT_PRODUCT_OPTIONS["Chemical Peel"] ?? [])],
+};
+
 export const TIMELINE_OPTIONS = [
   "Now",
   "Add next visit",
@@ -1001,7 +1016,8 @@ export const SKINCARE_QUICK_ADD_WHAT_OPTIONS = [
 
 export const QUANTITY_QUICK_OPTIONS_DEFAULT = ["1", "2", "3", "4", "5"];
 export const QUANTITY_OPTIONS_FILLER = ["1", "2", "3", "4", "5"];
-export const QUANTITY_OPTIONS_TOX = ["20", "40", "60", "80", "100"];
+/** Neurotoxin unit options: common dosing (10 single area, 35 typical multi-area, 50–80 full face). Includes default 35. */
+export const QUANTITY_OPTIONS_TOX = ["10", "20", "35", "40", "50", "60", "80", "100"];
 
 export const QUANTITY_UNIT_OPTIONS = [
   "Syringes",

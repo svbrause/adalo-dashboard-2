@@ -263,12 +263,12 @@ export const SKIN_TYPE_QUIZ: SkinTypeQuizData = {
       id: "q16",
       title: "Pigmentation",
       section: "pigmentation",
-      question: "When you tan:",
+      question: "When your skin is exposed to the sun, what usually happens?",
       answers: [
-        { label: "You burn and develop uneven pigmentation", points: 1 },
-        { label: "You tan unevenly with some spots", points: 2 },
-        { label: "You tan fairly evenly", points: 3 },
-        { label: "You tan very evenly without spots", points: 4 },
+        { label: "You burn and peel without developing much of a tan", points: 1 },
+        { label: "You burn first, then fade into a light tan", points: 2 },
+        { label: "You may burn slightly, then develop a tan soon after", points: 3 },
+        { label: "You tan evenly without burning", points: 4 },
       ],
     },
   ],
@@ -360,14 +360,222 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
   opal: {
     am: [
       {
-        label: "Simply Clean or Gentle Cleanser",
+        label: "Simply Clean (gentle gel cleanser for oily skin)",
+        productNames: [
+          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
+        ],
+      },
+      {
+        label: "Phloretin CF vs. Silymarin Discoloration Defense (target hyperpigmentation)",
+        productNames: [
+          "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
+          "SkinCeuticals Silymarin CF | Antioxidant Serum for Oily & Acne-Prone Skin",
+          "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
+        ],
+      },
+      {
+        label: "Phyto Corrective Gel (calms redness, lightweight hydration)",
+        productNames: [
+          "SkinCeuticals Phyto Corrective Gel | Soothing Hydrating Serum for Redness & Sensitive Skin",
+        ],
+      },
+      {
+        label: "On the Daily SPF 45 vs. Let's Get Physical Tinted SPF 44",
+        productNames: [
+          "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+          "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
+        ],
+      },
+    ],
+    pm: [
+      {
+        label: "Simply Clean (consider LHA cleanser a few times a week)",
+        productNames: [
+          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
+          "SkinCeuticals LHA Cleanser | Exfoliating Face Wash for Acne-Prone & Congested Skin",
+        ],
+      },
+      {
+        label: "P-Tiox (anti-wrinkle + antioxidant)",
+        productNames: [
+          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+        ],
+      },
+      {
+        label: "Blemish + Age Defense (targets acne + aging)",
+        productNames: [
+          "SkinCeuticals Blemish + Age Defense | Targeted Serum for Acne and Signs of Aging",
+        ],
+      },
+      {
+        label: "Retinol 0.3 if well-tolerated; if not, consider Glycolic 10",
+        productNames: [
+          "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+          "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
+        ],
+      },
+      {
+        label: "RGN-6 vs. AGE serum",
+        productNames: [
+          "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
+          "SkinCeuticals A.G.E. Interrupter Advanced | Anti-Aging Cream for Wrinkles & Loss of Firmness",
+        ],
+      },
+      {
+        label: "AGE Advanced Eye",
+        productNames: [
+          "SkinCeuticals A.G.E. Advanced Eye Cream | Nourishing Pre-Cleanse for Radiant, Balanced Skin Anti-Aging Treatment for Wrinkles & Puffiness",
+        ],
+      },
+    ],
+  },
+  pearl: {
+    am: [
+      {
+        label: "Simply Clean",
+        productNames: [
+          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
+        ],
+      },
+      {
+        label: "Phloretin CF",
+        productNames: [
+          "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
+        ],
+      },
+      {
+        label: "Phyto Corrective Gel",
+        productNames: [
+          "SkinCeuticals Phyto Corrective Gel | Soothing Hydrating Serum for Redness & Sensitive Skin",
+        ],
+      },
+      {
+        label: "P-Tiox",
+        productNames: [
+          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+        ],
+      },
+      {
+        label: "On the Daily SPF 45 vs. Let's Get Physical Tinted SPF 44",
+        productNames: [
+          "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+          "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
+        ],
+      },
+    ],
+    pm: [
+      {
+        label: "Simply Clean",
+        productNames: [
+          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
+        ],
+      },
+      {
+        label: "Phyto Corrective Gel",
+        productNames: [
+          "SkinCeuticals Phyto Corrective Gel | Soothing Hydrating Serum for Redness & Sensitive Skin",
+        ],
+      },
+      {
+        label: "P-Tiox",
+        productNames: [
+          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+        ],
+      },
+      {
+        label: "Retinol 0.3 if tolerated vs. Glycolic 10",
+        productNames: [
+          "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+          "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
+        ],
+      },
+      {
+        label: "Daily Moisture (lightweight hydration) or RGN-6",
+        productNames: [
+          "SkinCeuticals Daily Moisture | Lightweight Hydrating Moisturizer for All Skin Types",
+          "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
+        ],
+      },
+    ],
+  },
+  jade: {
+    am: [
+      {
+        label: "Simply Clean (gel cleanser for oily/resistant)",
+        productNames: [
+          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
+        ],
+      },
+      {
+        label: "Silymarin CF (antioxidant + oil control)",
+        productNames: [
+          "SkinCeuticals Silymarin CF | Antioxidant Serum for Oily & Acne-Prone Skin",
+        ],
+      },
+      {
+        label: "Discoloration Defense",
+        productNames: [
+          "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
+        ],
+      },
+      {
+        label: "Blemish + Age Defense",
+        productNames: [
+          "SkinCeuticals Blemish + Age Defense | Targeted Serum for Acne and Signs of Aging",
+        ],
+      },
+      {
+        label: "On the Daily SPF 45 vs. Let's Get Physical Tinted SPF 44",
+        productNames: [
+          "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+          "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
+        ],
+      },
+    ],
+    pm: [
+      {
+        label: "LHA Cleanser",
+        productNames: [
+          "SkinCeuticals LHA Cleanser | Exfoliating Face Wash for Acne-Prone & Congested Skin",
+        ],
+      },
+      {
+        label: "P-Tiox",
+        productNames: [
+          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+        ],
+      },
+      {
+        label: "Retinol",
+        productNames: [
+          "SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+        ],
+      },
+      {
+        label: "RGN-6",
+        productNames: [
+          "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
+        ],
+      },
+    ],
+    optional: {
+      label: "Glycolic 10 Renew Overnight 1–2×/week",
+      productNames: [
+        "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
+      ],
+    },
+  },
+  quartz: {
+    am: [
+      {
+        label: "Simply Clean vs. Gentle Cleanser",
         productNames: [
           "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
           "SkinCeuticals Gentle Cleanser | Soothing Cream Cleanser for Dry & Sensitive Skin",
         ],
       },
       {
-        label: "Phloretin CF or Silymarin CF",
+        label: "Phloretin CF vs. Silymarin CF",
         productNames: [
           "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
           "SkinCeuticals Silymarin CF | Antioxidant Serum for Oily & Acne-Prone Skin",
@@ -386,7 +594,7 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
         ],
       },
       {
-        label: "On The Daily SPF 45 or Let's Get Physical Tinted SPF 44",
+        label: "On the Daily SPF 45 vs. Let's Get Physical Tinted SPF 44",
         productNames: [
           "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
           "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
@@ -395,7 +603,7 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
     ],
     pm: [
       {
-        label: "Simply Clean or LHA Cleanser",
+        label: "Simply Clean vs. LHA Cleanser",
         productNames: [
           "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
           "SkinCeuticals LHA Cleanser | Exfoliating Face Wash for Acne-Prone & Congested Skin",
@@ -427,209 +635,6 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
       ],
     },
   },
-  pearl: {
-    am: [
-      {
-        label: "Simply Clean",
-        productNames: [
-          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
-        ],
-      },
-      {
-        label: "Hyaluronic Acid Intensifier",
-        productNames: [
-          "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
-        ],
-      },
-      {
-        label: "Hydrating B5 Gel",
-        productNames: [
-          "SkinCeuticals Hydrating B5 Gel | Lightweight Moisturizer with Vitamin B5 for Deep Skin Hydration",
-        ],
-      },
-      {
-        label: "Triple Lipid Restore or Emollience",
-        productNames: [
-          "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
-          "SkinCeuticals Emollience | Hydrating Moisturizer for Normal to Dry Skin",
-        ],
-      },
-      {
-        label: "On The Daily SPF 45",
-        productNames: [
-          "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
-        ],
-      },
-    ],
-    pm: [
-      {
-        label: "Replenishing Cleanser or Gentle Cleanser",
-        productNames: [
-          "SkinCeuticals Replenishing Cleanser | Hydrating Face Wash for Dry & Sensitive Skin",
-          "SkinCeuticals Gentle Cleanser | Soothing Cream Cleanser for Dry & Sensitive Skin",
-        ],
-      },
-      {
-        label: "Daily Ceramide Comfort",
-        productNames: [
-          "GM Collin Daily Ceramide Comfort | Nourishing Skin Barrier Capsules for Hydration & Repair (20 Ct.)",
-        ],
-      },
-      {
-        label: "Hydrating B5 Gel",
-        productNames: [
-          "SkinCeuticals Hydrating B5 Gel | Lightweight Moisturizer with Vitamin B5 for Deep Skin Hydration",
-        ],
-      },
-      {
-        label: "Renew Overnight or Hydra Balm",
-        productNames: [
-          "SkinCeuticals Renew Overnight | Intensive Night Cream for Dry & Dehydrated Skin",
-          "SkinCeuticals Hydra Balm | Intensive Moisturizing Balm for Compromised, Dry & Dehydrated Skin",
-        ],
-      },
-    ],
-    optional: {
-      label: "Hydrating B5 Mask 1–2×/week",
-      productNames: [
-        "SkinCeuticals Hydrating B5 Mask | Nourishing Face Mask with Vitamin B5 for Intense Moisture",
-      ],
-    },
-  },
-  jade: {
-    am: [
-      {
-        label: "Simply Clean (gel cleanser for oily/resistant)",
-        productNames: [
-          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
-        ],
-      },
-      {
-        label: "Silymarin CF",
-        productNames: [
-          "SkinCeuticals Silymarin CF | Antioxidant Serum for Oily & Acne-Prone Skin",
-        ],
-      },
-      {
-        label: "Discoloration Defense",
-        productNames: [
-          "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
-        ],
-      },
-      {
-        label: "Blemish + Age Defense",
-        productNames: [
-          "SkinCeuticals Blemish + Age Defense | Targeted Serum for Acne and Signs of Aging",
-        ],
-      },
-      {
-        label: "On The Daily SPF 45 or Let's Get Physical Tinted SPF 44",
-        productNames: [
-          "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
-          "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
-        ],
-      },
-    ],
-    pm: [
-      {
-        label: "LHA Cleanser",
-        productNames: [
-          "SkinCeuticals LHA Cleanser | Exfoliating Face Wash for Acne-Prone & Congested Skin",
-        ],
-      },
-      {
-        label: "P-Tiox",
-        productNames: [
-          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
-        ],
-      },
-      {
-        label: "Retinol",
-        productNames: [
-          "SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal",
-        ],
-      },
-      {
-        label: "RGN-6",
-        productNames: [],
-      },
-    ],
-    optional: {
-      label: "Glycolic 10 Renew Overnight 1–2×/week",
-      productNames: [
-        "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
-      ],
-    },
-  },
-  quartz: {
-    am: [
-      {
-        label: "Simply Clean or Gentle Cleanser",
-        productNames: [
-          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
-        ],
-      },
-      {
-        label: "C E Ferulic or P-Tiox",
-        productNames: [
-          "SkinCeuticals C E Ferulic | Antioxidant Vitamin C Serum for Brightening & Anti-Aging",
-          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
-        ],
-      },
-      {
-        label: "Hydrating B5 Gel",
-        productNames: [
-          "SkinCeuticals Hydrating B5 Gel | Lightweight Moisturizer with Vitamin B5 for Deep Skin Hydration",
-        ],
-      },
-      {
-        label: "Daily Moisture",
-        productNames: [
-          "SkinCeuticals Daily Moisture | Lightweight Hydrating Moisturizer for All Skin Types",
-        ],
-      },
-      {
-        label: "On The Daily SPF 45 or Let's Get Physical Tinted SPF 44",
-        productNames: [
-          "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
-          "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
-        ],
-      },
-    ],
-    pm: [
-      {
-        label: "Simply Clean",
-        productNames: [
-          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
-        ],
-      },
-      {
-        label: "P-Tiox",
-        productNames: [
-          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
-        ],
-      },
-      {
-        label: "Hydrating B5 Gel",
-        productNames: [
-          "SkinCeuticals Hydrating B5 Gel | Lightweight Moisturizer with Vitamin B5 for Deep Skin Hydration",
-        ],
-      },
-      {
-        label: "Daily Moisture",
-        productNames: [
-          "SkinCeuticals Daily Moisture | Lightweight Hydrating Moisturizer for All Skin Types",
-        ],
-      },
-    ],
-    optional: {
-      label: "Retinol 0.3 or 0.5 2–3×/week",
-      productNames: [
-        "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal",
-        "SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal",
-      ],
-    },
-  },
   amber: {
     am: [
       {
@@ -657,7 +662,7 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
         ],
       },
       {
-        label: "On The Daily SPF 45 or Let's Get Physical Tinted SPF 44",
+        label: "On the Daily SPF 45 vs. Let's Get Physical Tinted SPF 44",
         productNames: [
           "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
           "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
@@ -672,27 +677,30 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
         ],
       },
       {
-        label: "P-Tiox (if tolerated) or Cell Cycle Catalyst",
+        label: "P-Tiox (if tolerated) vs. Cell Cycle Catalyst",
         productNames: [
           "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+          "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal",
         ],
       },
       {
-        label: "HA Intensifier or AGE Interrupter",
+        label: "HA Intensifier vs. AGE Interrupter Serum",
         productNames: [
           "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
+          "SkinCeuticals A.G.E. Interrupter Advanced | Anti-Aging Cream for Wrinkles & Loss of Firmness",
         ],
       },
       {
-        label: "Phyto Corrective Gel (if redness)",
+        label: "Phyto Corrective Gel if redness",
         productNames: [
           "SkinCeuticals Phyto Corrective Gel | Soothing Hydrating Serum for Redness & Sensitive Skin",
         ],
       },
       {
-        label: "Triple Lipid Restore 2:4:2 or AGE Interrupter Advanced",
+        label: "Triple Lipid Restore 2:4:2 vs. AGE Interrupter Advanced",
         productNames: [
           "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
+          "SkinCeuticals A.G.E. Interrupter Advanced | Anti-Aging Cream for Wrinkles & Loss of Firmness",
         ],
       },
     ],
@@ -703,7 +711,6 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
         label: "Gentle Cleanser",
         productNames: [
           "SkinCeuticals Gentle Cleanser | Soothing Cream Cleanser for Dry & Sensitive Skin",
-          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
         ],
       },
       {
@@ -719,13 +726,14 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
         ],
       },
       {
-        label: "P-Tiox (if tolerated) or Cell Cycle Catalyst",
+        label: "P-Tiox (if tolerated) vs. Cell Cycle Catalyst",
         productNames: [
           "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+          "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal",
         ],
       },
       {
-        label: "On The Daily SPF 45 or Let's Get Physical Tinted SPF 44",
+        label: "On the Daily SPF 45 vs. Let's Get Physical Tinted SPF 44",
         productNames: [
           "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
           "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
@@ -752,14 +760,16 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
         ],
       },
       {
-        label: "P-Tiox (if tolerated) or Cell Cycle Catalyst",
+        label: "P-Tiox (if tolerated) vs. Cell Cycle Catalyst",
         productNames: [
           "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+          "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal",
         ],
       },
       {
-        label: "GM Collins Rosa Sea Moisturizer or Emollience",
+        label: "GM Collin Rosa Sea Gel-Cream vs. Emollience",
         productNames: [
+          "GM Collin Rosa Sea Gel-Cream | Soothing Moisturizer for Redness & Inflammation",
           "SkinCeuticals Emollience | Hydrating Moisturizer for Normal to Dry Skin",
         ],
       },
@@ -767,33 +777,133 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
   },
   turquoise: {
     am: [
-      { label: "Replenishing Cleanser", productNames: ["SkinCeuticals Replenishing Cleanser | Hydrating Face Wash for Dry & Sensitive Skin"] },
-      { label: "Phloretin CF", productNames: ["SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone"] },
-      { label: "Discoloration Defense", productNames: ["SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone"] },
-      { label: "P-Tiox", productNames: ["SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair"] },
-      { label: "On The Daily SPF 45 or Let's Get Physical Tinted SPF 44", productNames: ["The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection", "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection"] },
+      {
+        label: "Replenishing Cleanser (hydrating gel-cream)",
+        productNames: [
+          "SkinCeuticals Replenishing Cleanser | Hydrating Face Wash for Dry & Sensitive Skin",
+        ],
+      },
+      {
+        label: "Phloretin CF",
+        productNames: [
+          "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
+        ],
+      },
+      {
+        label: "Discoloration Defense",
+        productNames: [
+          "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
+        ],
+      },
+      {
+        label: "Metacell Renewal B3",
+        productNames: [
+          "SkinCeuticals Metacell Renewal B3 | Brightening & Anti-Aging Serum with Vitamin B3",
+        ],
+      },
+      {
+        label: "On the Daily SPF 45 vs. Let's Get Physical Tinted SPF 44",
+        productNames: [
+          "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+          "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
+        ],
+      },
     ],
     pm: [
-      { label: "Replenishing Cleanser", productNames: ["SkinCeuticals Replenishing Cleanser | Hydrating Face Wash for Dry & Sensitive Skin"] },
-      { label: "P-Tiox", productNames: ["SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair"] },
-      { label: "HA Intensifier", productNames: ["SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin"] },
-      { label: "Triple Lipid Restore 2:4:2 or RGN-6", productNames: ["SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration"] },
+      {
+        label: "Replenishing Cleanser",
+        productNames: [
+          "SkinCeuticals Replenishing Cleanser | Hydrating Face Wash for Dry & Sensitive Skin",
+        ],
+      },
+      {
+        label: "P-Tiox vs. Cell Cycle Catalyst",
+        productNames: [
+          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+          "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal",
+        ],
+      },
+      {
+        label: "HA Intensifier vs. Retexturizing Activator",
+        productNames: [
+          "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
+          "SkinCeuticals Retexturing Activator | Exfoliating Serum for Smoother, Refined Skin Texture",
+        ],
+      },
+      {
+        label: "Triple Lipid Restore 2:4:2 vs. RGN-6",
+        productNames: [
+          "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
+          "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
+        ],
+      },
     ],
   },
   diamond: {
     am: [
-      { label: "Simply Clean Cleanser", productNames: ["SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types"] },
-      { label: "CE Ferulic", productNames: ["SkinCeuticals C E Ferulic | Antioxidant Vitamin C Serum for Brightening & Anti-Aging"] },
-      { label: "P-Tiox", productNames: ["SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair"] },
-      { label: "HA Intensifier", productNames: ["SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin"] },
-      { label: "On The Daily SPF 45 or Let's Get Physical Tinted SPF 44", productNames: ["The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection", "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection"] },
+      {
+        label: "Simply Clean Cleanser",
+        productNames: [
+          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
+        ],
+      },
+      {
+        label: "CE Ferulic",
+        productNames: [
+          "SkinCeuticals C E Ferulic | Antioxidant Vitamin C Serum for Brightening & Anti-Aging",
+        ],
+      },
+      {
+        label: "P-Tiox",
+        productNames: [
+          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+        ],
+      },
+      {
+        label: "HA Intensifier",
+        productNames: [
+          "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
+        ],
+      },
+      {
+        label: "On the Daily SPF 45 vs. Let's Get Physical Tinted SPF 44",
+        productNames: [
+          "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+          "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
+        ],
+      },
     ],
     pm: [
-      { label: "Simply Clean Cleanser", productNames: ["SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types"] },
-      { label: "Retinol 0.5", productNames: ["SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal"] },
-      { label: "P-Tiox", productNames: ["SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair"] },
-      { label: "HA Intensifier", productNames: ["SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin"] },
-      { label: "Triple Lipid Restore 2:4:2", productNames: ["SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration"] },
+      {
+        label: "Simply Clean Cleanser",
+        productNames: [
+          "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
+        ],
+      },
+      {
+        label: "Retinol 0.5",
+        productNames: [
+          "SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+        ],
+      },
+      {
+        label: "P-Tiox",
+        productNames: [
+          "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+        ],
+      },
+      {
+        label: "HA Intensifier",
+        productNames: [
+          "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
+        ],
+      },
+      {
+        label: "Triple Lipid Restore 2:4:2",
+        productNames: [
+          "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
+        ],
+      },
     ],
   },
 };
@@ -806,7 +916,7 @@ export const TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE: Record<
   opal: {
     heading: "Reactive, breakout-prone, with stubborn pigmentation",
     items: [
-      "BBL/Moxi – For pigmentation and redness (laser consultation will determine which is best)",
+      "BBL/Moxi – For pigmentation and redness (laser consultation will determine which is best for your skin)",
       "PRFM Injections – Healing and collagen support",
       "Cosmelan Peel – For deeper pigment correction",
       "Sweating Treatment with Botox – Helps manage oil and sweat",
@@ -817,7 +927,7 @@ export const TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE: Record<
     items: [
       "PRFM Injections – Regenerates skin and improves barrier",
       "Sweating Treatment with Botox – Controls oil and sweat",
-      "Sofwave/Ultherapy – Tightening treatment with no downtime",
+      "Sofwave / Ultherapy – Tightening treatment with no downtime",
       "Fillers – For contour and volume",
       "Microneedling – Collagen stimulation and textural improvement",
     ],
@@ -827,7 +937,7 @@ export const TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE: Record<
     items: [
       "Cosmelan Peel – Corrects stubborn pigmentation",
       "BBL/Moxi – Brightens and evens tone (laser consultation will determine best option)",
-      "Sofwave/Ultherapy – Firms and stimulates collagen",
+      "Sofwave / Ultherapy – Firms and stimulates collagen",
       "Sculptra – Long-term collagen stimulation",
       "Dermasweep – Gently exfoliates and radiates",
     ],
@@ -835,7 +945,7 @@ export const TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE: Record<
   quartz: {
     heading: "Balanced, clear skin — ideal for advanced rejuvenation",
     items: [
-      "Sofwave/Ultherapy – Tightens and improves skin quality",
+      "Sofwave / Ultherapy – Tightens and improves skin quality",
       "Sculptra – Collagen and structural support",
       "Fillers – For contour and volume",
       "PRFM Microneedling – Collagen stimulation and textural improvement with brightening benefits",
@@ -983,6 +1093,12 @@ export const SKIN_TYPE_TO_PRODUCTS: Record<GemstoneId, string[]> = {
     "SkinCeuticals Phyto Corrective Gel | Soothing Hydrating Serum for Redness & Sensitive Skin",
     "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
     "SkinCeuticals Blemish + Age Defense | Targeted Serum for Acne and Signs of Aging",
+    "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+    "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
+    "SkinCeuticals LHA Cleanser | Exfoliating Face Wash for Acne-Prone & Congested Skin",
+    "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
+    "SkinCeuticals A.G.E. Interrupter Advanced | Anti-Aging Cream for Wrinkles & Loss of Firmness",
+    "SkinCeuticals A.G.E. Advanced Eye Cream | Nourishing Pre-Cleanse for Radiant, Balanced Skin Anti-Aging Treatment for Wrinkles & Puffiness",
     "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
     "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
   ],
@@ -991,8 +1107,12 @@ export const SKIN_TYPE_TO_PRODUCTS: Record<GemstoneId, string[]> = {
     "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
     "SkinCeuticals Phyto Corrective Gel | Soothing Hydrating Serum for Redness & Sensitive Skin",
     "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
-    "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+    "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+    "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
     "SkinCeuticals Daily Moisture | Lightweight Hydrating Moisturizer for All Skin Types",
+    "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
+    "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+    "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
   ],
   jade: [
     "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
@@ -1002,7 +1122,10 @@ export const SKIN_TYPE_TO_PRODUCTS: Record<GemstoneId, string[]> = {
     "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
     "SkinCeuticals LHA Cleanser | Exfoliating Face Wash for Acne-Prone & Congested Skin",
     "SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal",
+    "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
+    "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
     "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+    "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
   ],
   quartz: [
     "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
@@ -1013,7 +1136,10 @@ export const SKIN_TYPE_TO_PRODUCTS: Record<GemstoneId, string[]> = {
     "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
     "SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal",
     "SkinCeuticals Daily Moisture | Lightweight Hydrating Moisturizer for All Skin Types",
+    "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
+    "SkinCeuticals LHA Cleanser | Exfoliating Face Wash for Acne-Prone & Congested Skin",
     "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+    "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
   ],
   amber: [
     "SkinCeuticals Gentle Cleanser | Soothing Cream Cleanser for Dry & Sensitive Skin",
@@ -1021,27 +1147,38 @@ export const SKIN_TYPE_TO_PRODUCTS: Record<GemstoneId, string[]> = {
     "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
     "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
     "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+    "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal",
     "SkinCeuticals Phyto Corrective Gel | Soothing Hydrating Serum for Redness & Sensitive Skin",
     "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
+    "SkinCeuticals A.G.E. Interrupter Advanced | Anti-Aging Cream for Wrinkles & Loss of Firmness",
     "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+    "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
   ],
   moonstone: [
     "SkinCeuticals Gentle Cleanser | Soothing Cream Cleanser for Dry & Sensitive Skin",
     "SkinCeuticals Serum 10 AOX | Antioxidant Serum with 10% Vitamin C for Brightening & Protection",
     "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
     "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+    "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal",
     "SkinCeuticals Phyto A+ Brightening Treatment | Lightweight Gel Moisturizer for Dull, Uneven Skin",
+    "GM Collin Rosa Sea Gel-Cream | Soothing Moisturizer for Redness & Inflammation",
     "SkinCeuticals Emollience | Hydrating Moisturizer for Normal to Dry Skin",
     "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+    "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
   ],
   turquoise: [
     "SkinCeuticals Replenishing Cleanser | Hydrating Face Wash for Dry & Sensitive Skin",
     "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
     "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
+    "SkinCeuticals Metacell Renewal B3 | Brightening & Anti-Aging Serum with Vitamin B3",
     "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
+    "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal",
     "SkinCeuticals Hyaluronic Acid Intensifier | Multi-Glycan Hydrating Serum for Plump & Smooth Skin",
+    "SkinCeuticals Retexturing Activator | Exfoliating Serum for Smoother, Refined Skin Texture",
     "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
+    "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
     "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+    "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
   ],
   diamond: [
     "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
@@ -1051,6 +1188,7 @@ export const SKIN_TYPE_TO_PRODUCTS: Record<GemstoneId, string[]> = {
     "SkinCeuticals Retinol 0.5% | Anti-Aging Serum for Wrinkles & Skin Renewal",
     "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
     "The Treatment On The Daily SPF 45 | Lightweight Sunscreen for Daily Protection",
+    "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection",
   ],
 };
 
@@ -1115,6 +1253,24 @@ export const RECOMMENDED_PRODUCT_REASONS: Record<string, string> = {
     "Vitamin C brightening & protection",
   "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin":
     "Gentle exfoliation & radiance",
+  "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream":
+    "Regenerative anti-aging",
+  "SkinCeuticals A.G.E. Interrupter Advanced | Anti-Aging Cream for Wrinkles & Loss of Firmness":
+    "Anti-aging & firmness",
+  "SkinCeuticals A.G.E. Advanced Eye Cream | Nourishing Pre-Cleanse for Radiant, Balanced Skin Anti-Aging Treatment for Wrinkles & Puffiness":
+    "Eye area anti-aging",
+  "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal":
+    "Gentle retinol renewal",
+  "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal":
+    "Resurfacing & radiance",
+  "SkinCeuticals Metacell Renewal B3 | Brightening & Anti-Aging Serum with Vitamin B3":
+    "Brightening & renewal",
+  "SkinCeuticals Retexturing Activator | Exfoliating Serum for Smoother, Refined Skin Texture":
+    "Texture refinement",
+  "GM Collin Rosa Sea Gel-Cream | Soothing Moisturizer for Redness & Inflammation":
+    "Soothing & hydration",
+  "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection":
+    "Tinted sun protection",
 };
 
 /**
