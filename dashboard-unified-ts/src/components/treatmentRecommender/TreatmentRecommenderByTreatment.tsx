@@ -73,7 +73,7 @@ import "./TreatmentRecommenderByTreatment.css";
 import biostimulantsBeforeAfterUrl from "../../assets/images/Biostimulators-Before-and-After-With-Pictures-1.webp";
 
 /** Show the Checkout button in the plan sidebar. Enabled in local/dev (npm run dev); hidden in production. */
-const SHOW_CHECKOUT_BUTTON = import.meta.env.DEV;
+const SHOW_CHECKOUT_BUTTON = true;
 
 /** Map Airtable record to TreatmentPhoto for card thumbnails. */
 function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
