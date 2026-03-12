@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useDashboard } from "../../context/DashboardContext";
+import { isAddClientLead } from "../../utils/leadSource";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
 import "./ViewControls.css";
 
@@ -19,33 +20,45 @@ export default function ViewControls() {
     setPagination,
   } = useDashboard();
 
+  /** Clients for the current tab (All Clients = Patients + Add Client leads; Leads = Web Popup Leads not from Add Client) for filter options. */
+  const clientsForFilters = useMemo(() => {
+    if (currentView === "leads") {
+      return clients.filter(
+        (c) => c.tableSource === "Web Popup Leads" && !isAddClientLead(c)
+      );
+    }
+    return clients.filter(
+      (c) => c.tableSource === "Patients" || isAddClientLead(c)
+    );
+  }, [clients, currentView]);
+
   const locationOptions = useMemo(() => {
     const set = new Set<string>();
-    clients.forEach((c) => {
+    clientsForFilters.forEach((c) => {
       const loc = String(c.locationName ?? "").trim();
       if (loc) set.add(loc);
     });
     return Array.from(set).sort();
-  }, [clients]);
+  }, [clientsForFilters]);
 
   const providerOptions = useMemo(() => {
     const set = new Set<string>();
-    clients.forEach((c) => {
+    clientsForFilters.forEach((c) => {
       const name = String(c.appointmentStaffName ?? "").trim();
       if (name) set.add(formatProviderDisplayName(name));
     });
     return Array.from(set).sort();
-  }, [clients]);
+  }, [clientsForFilters]);
 
   /** Source filter options: all unique source values present in the current data (not hardcoded). */
   const sourceOptions = useMemo(() => {
     const set = new Set<string>();
-    clients.forEach((c) => {
+    clientsForFilters.forEach((c) => {
       const src = String(c.source ?? "").trim();
       if (src) set.add(src);
     });
     return Array.from(set).sort();
-  }, [clients]);
+  }, [clientsForFilters]);
 
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
@@ -55,11 +68,19 @@ export default function ViewControls() {
     currentView === "cards" ||
     currentView === "kanban" ||
     currentView === "facial-analysis" ||
+    currentView === "leads" ||
     currentView === "archived";
+
+  /** Show List/Cards toggle only on All Clients tab (not on Leads tab). */
+  const isAllClientsView =
+    currentView === "list" ||
+    currentView === "cards" ||
+    currentView === "kanban" ||
+    currentView === "facial-analysis";
 
   return (
     <div className="view-controls-container">
-      {isClientView && (
+      {isAllClientsView && (
       <div className="control-section view-toggle-section">
         <div className="view-toggle-buttons">
           <button

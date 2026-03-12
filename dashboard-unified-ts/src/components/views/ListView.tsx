@@ -11,6 +11,7 @@ import {
   hasInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { applyFilters, applySorting } from "../../utils/filtering";
+import { isAddClientLead } from "../../utils/leadSource";
 import { updateClientStatus } from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
 import "./ListView.css";
@@ -18,6 +19,7 @@ import "./ListView.css";
 export default function ListView() {
   const {
     clients,
+    currentView,
     searchQuery,
     loading,
     error,
@@ -32,19 +34,26 @@ export default function ListView() {
     (typeof clients)[0] | null
   >(null);
 
-  // Filter and sort clients
+  // Filter and sort: All Clients = Patients + Web Popup Leads with Source "Add Client"; Leads tab = other Web Popup Leads
   const processedClients = useMemo(() => {
-    // Filter out archived clients
     let filtered = clients.filter((client) => !client.archived);
+    if (currentView === "leads") {
+      filtered = filtered.filter(
+        (client) =>
+          client.tableSource === "Web Popup Leads" && !isAddClientLead(client)
+      );
+    } else {
+      filtered = filtered.filter(
+        (client) =>
+          client.tableSource === "Patients" || isAddClientLead(client)
+      );
+    }
 
-    // Apply filters
     filtered = applyFilters(filtered, filters, searchQuery);
-
-    // Apply sorting
     filtered = applySorting(filtered, sort);
 
     return filtered;
-  }, [clients, filters, searchQuery, sort]);
+  }, [clients, currentView, filters, searchQuery, sort]);
 
   // Paginate
   const paginatedClients = useMemo(() => {

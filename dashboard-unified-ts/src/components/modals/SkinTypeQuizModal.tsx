@@ -239,7 +239,8 @@ export default function SkinTypeQuizModal({
                 {GEMSTONE_BY_SKIN_TYPE[payload.result] && (
                   <div className="skin-type-quiz-gemstone-badge">
                     <span className="skin-type-quiz-gemstone-name">
-                      {GEMSTONE_BY_SKIN_TYPE[payload.result].name.toUpperCase()} 💎{" "}
+                      {GEMSTONE_BY_SKIN_TYPE[payload.result].name.toUpperCase()}{" "}
+                      {GEMSTONE_BY_SKIN_TYPE[payload.result].emoji}{" "}
                       {GEMSTONE_BY_SKIN_TYPE[payload.result].tagline}
                     </span>
                   </div>

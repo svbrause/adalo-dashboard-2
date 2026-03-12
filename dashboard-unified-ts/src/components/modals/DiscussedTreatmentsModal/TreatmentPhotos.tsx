@@ -1,6 +1,7 @@
 // Treatment Photos Browser - Unified before/after photos for treatments (issue, interest, or treatment+region)
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useDashboard } from "../../../context/DashboardContext";
 import type { TreatmentPhoto, DiscussedItem } from "../../../types";
 import type { Client } from "../../../types";
 import { fetchTreatmentPhotos, AirtableRecord } from "../../../services/api";
@@ -15,9 +16,9 @@ import { showToast, showError } from "../../../utils/toast";
 
 /** Map issue to treatment types for filtering (when opened from an issue) */
 const ISSUE_TO_TREATMENT: Record<string, string[]> = {
-  wrinkles: ["Neurotoxin", "Laser", "Chemical Peel"],
-  "fine lines": ["Neurotoxin", "Laser", "Skincare"],
-  "crow's feet": ["Neurotoxin", "Laser"],
+  wrinkles: ["Neurotoxin", "Energy Device", "Chemical Peel"],
+  "fine lines": ["Neurotoxin", "Energy Device", "Skincare"],
+  "crow's feet": ["Neurotoxin", "Energy Device"],
   "forehead lines": ["Neurotoxin"],
   "frown lines": ["Neurotoxin"],
   "volume loss": ["Filler"],
@@ -25,23 +26,23 @@ const ISSUE_TO_TREATMENT: Record<string, string[]> = {
   "thin lips": ["Filler"],
   "nasolabial folds": ["Filler"],
   "marionette lines": ["Filler"],
-  "under eye bags": ["Filler", "Laser"],
+  "under eye bags": ["Filler", "Energy Device"],
   "dark circles": ["Filler", "Skincare"],
-  acne: ["Chemical Peel", "Laser", "Skincare"],
-  "acne scars": ["Microneedling", "Laser", "Chemical Peel", "PRP", "PDGF"],
-  hyperpigmentation: ["Chemical Peel", "Laser", "Skincare"],
-  "dark spots": ["Chemical Peel", "Laser", "Skincare"],
-  "sun damage": ["Laser", "Chemical Peel"],
-  redness: ["Laser", "Skincare"],
-  rosacea: ["Laser", "Skincare"],
-  "skin laxity": ["Laser", "Microneedling"],
-  "sagging skin": ["Laser", "Microneedling"],
-  "double chin": ["Filler", "Laser"],
-  jowls: ["Filler", "Laser", "Microneedling"],
-  "uneven skin tone": ["Chemical Peel", "Laser", "Skincare"],
-  texture: ["Microneedling", "Chemical Peel", "Laser", "PRP", "PDGF"],
+  acne: ["Chemical Peel", "Energy Device", "Skincare"],
+  "acne scars": ["Microneedling", "Energy Device", "Chemical Peel", "PRP", "PDGF"],
+  hyperpigmentation: ["Chemical Peel", "Energy Device", "Skincare"],
+  "dark spots": ["Chemical Peel", "Energy Device", "Skincare"],
+  "sun damage": ["Energy Device", "Chemical Peel"],
+  redness: ["Energy Device", "Skincare"],
+  rosacea: ["Energy Device", "Skincare"],
+  "skin laxity": ["Energy Device", "Microneedling"],
+  "sagging skin": ["Energy Device", "Microneedling"],
+  "double chin": ["Filler", "Energy Device"],
+  jowls: ["Filler", "Energy Device", "Microneedling"],
+  "uneven skin tone": ["Chemical Peel", "Energy Device", "Skincare"],
+  texture: ["Microneedling", "Chemical Peel", "Energy Device", "PRP", "PDGF"],
   pores: ["Microneedling", "Chemical Peel"],
-  "droopy eyelids": ["Laser", "Neurotoxin"],
+  "droopy eyelids": ["Energy Device", "Neurotoxin"],
 };
 
 interface TreatmentPhotosProps {
@@ -75,7 +76,7 @@ interface TreatmentPhotosProps {
 export interface TreatmentPlanPrefill {
   interest: string;
   region: string;
-  /** Normalized treatment type (e.g. "Laser", "Filler") */
+  /** Normalized treatment type (e.g. "Energy Device", "Filler") */
   treatment: string;
   /** Specific product/device name if available (e.g. "Heat/Energy") */
   treatmentProduct?: string;
@@ -188,8 +189,8 @@ const REGION_CANONICAL = [
 
 /** Treatment name normalization: map various names to canonical display names. */
 const TREATMENT_NORMALIZATION: Record<string, string> = {
-  "heat/energy": "Laser",
-  "heat energy": "Laser",
+  "heat/energy": "Energy Device",
+  "heat energy": "Energy Device",
   "oral/topical": "Skincare",
   "topical/skincare": "Skincare",
   "topical skincare": "Skincare",
@@ -224,10 +225,10 @@ function getTreatmentOptionsFromPhotos(photos: TreatmentPhoto[]): string[] {
       if (normalized) set.add(normalized);
     }
   }
-  // Preferred order: Skincare, Laser, then alphabetical for the rest
+  // Preferred order: Skincare, Energy Device, then alphabetical for the rest
   const order = [
     "Skincare",
-    "Laser",
+    "Energy Device",
     "Filler",
     "Neurotoxin",
     "Microneedling",
@@ -263,6 +264,7 @@ export default function TreatmentPhotos({
   planItems = [],
   demoPhotos,
 }: TreatmentPhotosProps) {
+  const { provider } = useDashboard();
   const effectiveRegion = region || (issue ? getIssueArea(issue) : "");
 
   const [allPhotos, setAllPhotos] = useState<TreatmentPhoto[]>([]);
@@ -347,7 +349,7 @@ export default function TreatmentPhotos({
     if (interestOrIssue) {
       let allowedTreatments: string[] = [];
       if (filterInterest) {
-        allowedTreatments = getTreatmentsForInterest(filterInterest).map((t) => t.toLowerCase());
+        allowedTreatments = getTreatmentsForInterest(filterInterest, provider?.code).map((t) => t.toLowerCase());
       }
       if (filterIssue) {
         const issueLower = filterIssue.toLowerCase();
@@ -374,7 +376,7 @@ export default function TreatmentPhotos({
     }
 
     return base.filter((photo) => photoMatchesRegion(photo.areaNames, filterRegion));
-  }, [allPhotos, filterInterest, filterIssue, filterRegion]);
+  }, [allPhotos, filterInterest, filterIssue, filterRegion, provider?.code]);
 
   // Then apply treatment and region chip filters for final displayed list
   const photos = useMemo(() => {
@@ -600,10 +602,10 @@ export default function TreatmentPhotos({
     const fromPhotos = getTreatmentOptionsFromPhotos(photosAfterInterestAndIssue);
     if (!filterInterest) return fromPhotos;
     const forInterest = new Set(
-      getTreatmentsForInterest(filterInterest).map((t) => t.toLowerCase())
+      getTreatmentsForInterest(filterInterest, provider?.code).map((t) => t.toLowerCase())
     );
     return fromPhotos.filter((t) => forInterest.has(t.toLowerCase()));
-  }, [photosAfterInterestAndIssue, filterInterest]);
+  }, [photosAfterInterestAndIssue, filterInterest, provider?.code]);
   const regionOptions = useMemo(
     () => getRegionOptionsFromPhotos(allPhotos),
     [allPhotos]
@@ -1468,7 +1470,7 @@ export default function TreatmentPhotos({
                         if (!isSkincare) return null;
                         return (
                           <div className="treatment-photo-detail-add-row">
-                            <span>What:</span>
+                            <span>Type:</span>
                             <div className="treatment-photo-detail-add-chips">
                               {SKINCARE_QUICK_ADD_WHAT_OPTIONS.map((opt) => (
                                 <button

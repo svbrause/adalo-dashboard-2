@@ -331,19 +331,19 @@ export const SKIN_TYPE_DISPLAY_LABELS: Record<string, string> = {
   pigmentation: "Pigmentation",
 };
 
-/** Gemstone name and tagline for results hero (e.g. "Opal – Iridescent and reactive"). */
+/** Gemstone name, tagline, and emoji for results hero (matches updated_skin_quiz.md). */
 export const GEMSTONE_BY_SKIN_TYPE: Record<
   GemstoneId,
-  { name: string; tagline: string }
+  { name: string; tagline: string; emoji: string }
 > = {
-  opal: { name: "Opal", tagline: "Iridescent and reactive" },
-  pearl: { name: "Pearl", tagline: "Lustrous but delicate" },
-  jade: { name: "Jade", tagline: "Strong and precious, shows every mark" },
-  quartz: { name: "Quartz", tagline: "Clear and resilient" },
-  amber: { name: "Amber", tagline: "Warm golden treasure" },
-  moonstone: { name: "Moonstone", tagline: "Ethereal inner glow" },
-  turquoise: { name: "Turquoise", tagline: "Sacred weathered beauty" },
-  diamond: { name: "Diamond", tagline: "Rare perfect clarity" },
+  opal: { name: "Opal", tagline: "Iridescent and reactive", emoji: "✨" },
+  pearl: { name: "Pearl", tagline: "Lustrous but delicate", emoji: "🦪" },
+  jade: { name: "Jade", tagline: "Strong and precious, shows every mark", emoji: "💚" },
+  quartz: { name: "Quartz", tagline: "Clear and resilient", emoji: "💎" },
+  amber: { name: "Amber", tagline: "Warm golden treasure", emoji: "🧡" },
+  moonstone: { name: "Moonstone", tagline: "Ethereal inner glow", emoji: "🌙" },
+  turquoise: { name: "Turquoise", tagline: "Sacred weathered beauty", emoji: "💙" },
+  diamond: { name: "Diamond", tagline: "Rare perfect clarity", emoji: "💍" },
 };
 
 /** One step in a routine: label shown to user + full product names for lookup in boutique. */
@@ -366,10 +366,15 @@ export const ROUTINE_NOTES_BY_SKIN_TYPE: Record<
         ],
       },
       {
-        label: "Phloretin CF vs. Silymarin Discoloration Defense (target hyperpigmentation)",
+        label: "Phloretin CF (antioxidant + pigment) vs. Silymarin",
         productNames: [
           "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
           "SkinCeuticals Silymarin CF | Antioxidant Serum for Oily & Acne-Prone Skin",
+        ],
+      },
+      {
+        label: "Discoloration Defense (target hyperpigmentation)",
+        productNames: [
           "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
         ],
       },

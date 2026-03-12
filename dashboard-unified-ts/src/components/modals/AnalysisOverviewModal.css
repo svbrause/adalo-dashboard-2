@@ -147,7 +147,7 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.35);
-  border-radius: 50%;
+  border-radius: 16px;
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
@@ -180,7 +180,7 @@
   width: 160px;
   height: 160px;
   object-fit: cover;
-  border-radius: 50%;
+  border-radius: 16px;
   border: 2px solid var(--theme-border, #e8e8e8);
   background: var(--theme-bg-card, #fff);
   transition: transform 0.2s;
@@ -335,30 +335,26 @@
   border-radius: 1px;
 }
 
-.analysis-overview-modal__cat-gauges {
+/* Category columns – each circle above its card for clear integration */
+.analysis-overview-modal__cat-columns {
   display: flex;
   flex-direction: row;
-  justify-content: center;
-  gap: 20px;
+  gap: 12px;
   width: 100%;
-  margin-bottom: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
-.analysis-overview-modal__cat-gauge-wrap {
+.analysis-overview-modal__cat-column {
+  flex: 1 1 320px;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 12px;
-  transition: background 0.2s, transform 0.15s;
+  flex-direction: column;
+  align-items: stretch;
 }
 
-.analysis-overview-modal__cat-gauge-wrap:hover {
-  background: rgba(0, 0, 0, 0.04);
-  transform: scale(1.03);
+.analysis-overview-modal__cat-column .ao-modal-cat-card {
+  width: 100%;
 }
 
 /* Gauge */
@@ -375,6 +371,8 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 .ao-modal-gauge__value {
@@ -393,22 +391,31 @@
   margin-top: 2px;
   text-align: center;
   max-width: 70px;
+  line-height: 1.2;
+  word-break: break-word;
 }
 
-/* Category cards – horizontal row */
-.analysis-overview-modal__cat-cards {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  width: 100%;
+/* Category gauges (88px) – smaller type so score + label fit inside circle */
+.ao-modal-gauge--category .ao-modal-gauge__value {
+  font-size: 1.35rem;
+  font-weight: 800;
 }
 
-.analysis-overview-modal__cat-cards > .ao-modal-cat-card {
+.ao-modal-gauge--category .ao-modal-gauge__label {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  margin-top: 1px;
+  max-width: 56px;
+  line-height: 1.15;
+}
+
+/* Category cards – now inside columns */
+.analysis-overview-modal__cat-column > .ao-modal-cat-card {
   flex: 1;
   min-width: 0;
 }
 
-.analysis-overview-modal__cat-cards > .ao-modal-cat-card--open {
+.analysis-overview-modal__cat-column > .ao-modal-cat-card--open {
   flex: 2;
 }
 
@@ -441,9 +448,30 @@
 
 .ao-modal-cat-card__header-left {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
+  flex-wrap: wrap;
+}
+
+.ao-modal-cat-card__header-gauge {
+  flex-shrink: 0;
+}
+
+.ao-modal-cat-card__header-radar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ao-modal-cat-card__header-radar .ao-radar--compact {
+  line-height: 0;
+}
+
+.ao-modal-cat-card__header-radar .ao-radar--compact svg {
+  display: block;
 }
 
 .ao-modal-cat-card__name {
@@ -555,7 +583,7 @@
 }
 
 .analysis-overview-modal__area-group-title {
-  margin: 0 0 6px;
+  margin: 0 0 2px;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--theme-text-primary, #212121);
@@ -570,7 +598,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px 20px;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
   font-size: 0.6875rem;
   font-weight: 500;
   color: var(--theme-text-secondary, #616161);

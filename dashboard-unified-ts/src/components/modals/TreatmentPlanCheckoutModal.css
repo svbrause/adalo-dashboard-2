@@ -809,3 +809,18 @@
   letter-spacing: -0.02em;
 }
 
+.treatment-plan-quote-sheet-mint-line {
+  margin-bottom: 8px;
+}
+
+.treatment-plan-quote-sheet-mint-line .treatment-plan-quote-sheet-total-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.treatment-plan-quote-sheet-mint-line .treatment-plan-quote-sheet-total-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--theme-text-secondary);
+}
+

@@ -18,6 +18,8 @@ export interface TreatmentPlanCheckoutModalProps {
   onRemoveItem?: (item: DiscussedItem, index: number) => void;
   /** When provided, move-to-wishlist / move-to-now links are shown; called with index and partial item (e.g. { timeline }). */
   onUpdateItem?: (index: number, patch: Partial<DiscussedItem>) => void;
+  /** When set (e.g. TheTreatment250), treatment type options are restricted to those in the pricing sheet. */
+  providerCode?: string;
 }
 
 /** Minimal map: Airtable record → photoUrl + treatment names for matching. */
@@ -98,6 +100,7 @@ export default function TreatmentPlanCheckoutModal({
   onClose,
   onRemoveItem,
   onUpdateItem,
+  providerCode,
 }: TreatmentPlanCheckoutModalProps) {
   const firstName = clientName?.trim().split(/\s+/)[0] || "Patient";
   const [quoteData, setQuoteData] = useState<{
@@ -234,6 +237,7 @@ export default function TreatmentPlanCheckoutModal({
               onUpdateItem={onUpdateItem}
               isMintMember={isMintMember}
               onMintMemberChange={setIsMintMember}
+              providerCode={providerCode}
             />
           )}
         </div>
@@ -304,6 +308,16 @@ export default function TreatmentPlanCheckoutModal({
               </table>
             </div>
             <div className="treatment-plan-quote-sheet-footer">
+              {isMintMember && quoteData.total > 0 && (
+                <div className="treatment-plan-quote-sheet-total-row treatment-plan-quote-sheet-mint-line">
+                  <span className="treatment-plan-quote-sheet-total-label">
+                    Mint member 10% off
+                  </span>
+                  <span className="treatment-plan-quote-sheet-total-value">
+                    −{formatPrice(quoteData.total * 0.1)}
+                  </span>
+                </div>
+              )}
               <div className="treatment-plan-quote-sheet-total-row">
                 <span className="treatment-plan-quote-sheet-total-label">
                   {quoteData.hasUnknownPrices ? "Estimated total" : "Total"}
@@ -311,7 +325,11 @@ export default function TreatmentPlanCheckoutModal({
                 <span className="treatment-plan-quote-sheet-total-value">
                   {quoteData.hasUnknownPrices && quoteData.total === 0
                     ? "—"
-                    : formatPrice(quoteData.total)}
+                    : formatPrice(
+                        isMintMember && quoteData.total > 0
+                          ? quoteData.total - quoteData.total * 0.1
+                          : quoteData.total
+                      )}
                 </span>
               </div>
             </div>

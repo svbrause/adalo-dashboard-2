@@ -4,6 +4,7 @@
  */
 
 import { useMemo, useState, useEffect } from "react";
+import { useDashboard } from "../../context/DashboardContext";
 import { Client, DiscussedItem } from "../../types";
 import {
   fetchTableRecords,
@@ -164,6 +165,7 @@ export default function TreatmentRecommenderBySuggestion({
   onOpenTreatmentPlanWithItem,
   treatmentPlanModalClosedRef,
 }: TreatmentRecommenderBySuggestionProps) {
+  const { provider } = useDashboard();
   /** Item we just added so we can open it for editing when user clicks "Add additional details". Cleared when modal closes. */
   const [lastAddedItem, setLastAddedItem] = useState<DiscussedItem | null>(
     null,
@@ -233,14 +235,14 @@ export default function TreatmentRecommenderBySuggestion({
     }
     if (filterState.sameDayAddOn) {
       list = list.filter((name) => {
-        const treatments = getTreatmentsForInterest(name);
+        const treatments = getTreatmentsForInterest(name, provider?.code);
         return treatments.some((t) =>
           (SAME_DAY_TREATMENTS as readonly string[]).includes(t),
         );
       });
     }
     return list;
-  }, [filterState.region, filterState.sameDayAddOn, effectiveFindings]);
+  }, [filterState.region, filterState.sameDayAddOn, effectiveFindings, provider?.code]);
 
   /** When we have API cards, filter and sort them (focus first, then by name). Otherwise use static list. */
   const displayCards = useMemo(():
@@ -271,7 +273,7 @@ export default function TreatmentRecommenderBySuggestion({
     }
     if (filterState.sameDayAddOn) {
       list = list.filter((c) => {
-        const treatments = getTreatmentsForInterest(c.suggestionName);
+        const treatments = getTreatmentsForInterest(c.suggestionName, provider?.code);
         return treatments.some((t) =>
           (SAME_DAY_TREATMENTS as readonly string[]).includes(t),
         );
@@ -288,6 +290,7 @@ export default function TreatmentRecommenderBySuggestion({
     filterState.sameDayAddOn,
     effectiveFindings,
     staticSuggestionList,
+    provider?.code,
   ]);
 
   type CardViewItem =
@@ -317,7 +320,7 @@ export default function TreatmentRecommenderBySuggestion({
       region,
       treatment:
         (addToPlanForSuggestion.what?.trim() ||
-          getTreatmentsForInterest(addToPlanForSuggestion.suggestionName)[0]) ??
+          getTreatmentsForInterest(addToPlanForSuggestion.suggestionName, provider?.code)[0]) ??
         "",
       timeline: addToPlanForSuggestion.when,
       treatmentProduct: addToPlanForSuggestion.product?.trim() || undefined,
@@ -529,7 +532,7 @@ export default function TreatmentRecommenderBySuggestion({
                     · {
                       GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result].name
                     }{" "}
-                    💎{" "}
+                    {GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result].emoji}{" "}
                     {GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result].tagline}
                   </span>
                 )}
@@ -789,10 +792,11 @@ export default function TreatmentRecommenderBySuggestion({
                             suggestionName ? (
                             <div className="treatment-recommender-by-suggestion__add-form">
                               <div className="treatment-recommender-by-suggestion__add-row">
-                                <span>What:</span>
+                                <span>Type:</span>
                                 <div className="treatment-recommender-by-suggestion__chips">
                                   {getTreatmentsForInterest(
                                     addToPlanForSuggestion.suggestionName,
+                                    provider?.code,
                                   ).map((t) => (
                                     <button
                                       key={t}
@@ -960,7 +964,7 @@ export default function TreatmentRecommenderBySuggestion({
                               className="treatment-recommender-by-suggestion__add-btn"
                               onClick={() => {
                                 const treatments =
-                                  getTreatmentsForInterest(suggestionName);
+                                  getTreatmentsForInterest(suggestionName, provider?.code);
                                 setAddToPlanForSuggestion({
                                   suggestionName,
                                   what: treatments[0] ?? "",

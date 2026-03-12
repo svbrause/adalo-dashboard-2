@@ -1496,7 +1496,7 @@ export default function ClientDetailPanel({
                         GEMSTONE_BY_SKIN_TYPE[skincareQuiz.result] ? (
                           <span className="skin-analysis-summary-gemstone">
                             {GEMSTONE_BY_SKIN_TYPE[skincareQuiz.result].name}{" "}
-                            💎{" "}
+                            {GEMSTONE_BY_SKIN_TYPE[skincareQuiz.result].emoji}{" "}
                             {GEMSTONE_BY_SKIN_TYPE[skincareQuiz.result].tagline}
                           </span>
                         ) : (
@@ -2038,6 +2038,7 @@ export default function ClientDetailPanel({
               );
             }
           }}
+          providerCode={provider?.code}
         />
       )}
       {showDiscussedTreatments && client && (

@@ -12,7 +12,7 @@ export interface TreatmentPriceItem {
 /** Category used in the dashboard (maps to ALL_TREATMENTS). */
 export type DashboardTreatmentCategory =
   | "Skincare"
-  | "Laser"
+  | "Energy Device"
   | "Chemical Peel"
   | "Microneedling"
   | "Filler"
@@ -271,11 +271,11 @@ function getItemsForDashboardCategory(
       category === "Chemical Peel"
     ) {
       flat.push(...section.items);
-    } else if (section.category === "Laser" && category === "Laser") {
+    } else if (section.category === "Laser" && category === "Energy Device") {
       flat.push(...section.items);
-    } else if (section.category === "Sofwave" && category === "Laser") {
+    } else if (section.category === "Sofwave" && category === "Energy Device") {
       flat.push(...section.items);
-    } else if (section.category === "Ultherapy" && category === "Laser") {
+    } else if (section.category === "Ultherapy" && category === "Energy Device") {
       flat.push(...section.items);
     } else if (
       section.category === "Medical Spa" &&
@@ -371,10 +371,13 @@ export interface CategoryMeta {
   sessions?: string;
 }
 
+/** Provider code that must only see treatment options present in the 2025 price list. */
+export const PROVIDER_CODE_RESTRICTED_TO_PRICE_LIST = "TheTreatment250";
+
 /** Dashboard treatment category → price list section names (for SKU lookup). */
 const DASHBOARD_TO_PRICE_SECTIONS: Record<string, string[]> = {
   Skincare: ["Facial Services"],
-  Laser: ["Laser", "Sofwave", "Ultherapy"],
+  "Energy Device": ["Laser", "Sofwave", "Ultherapy"],
   "Chemical Peel": ["Chemical Peel"],
   Microneedling: ["Medical Spa"],
   Filler: ["Injectables"],
@@ -386,10 +389,164 @@ const DASHBOARD_TO_PRICE_SECTIONS: Record<string, string[]> = {
   PDGF: [],
 };
 
+/** Treatment categories that have at least one price list section (for provider-restricted views). */
+export const TREATMENT_CATEGORIES_IN_PRICE_LIST: DashboardTreatmentCategory[] = (
+  Object.entries(DASHBOARD_TO_PRICE_SECTIONS) as [DashboardTreatmentCategory, string[]][]
+)
+  .filter(([, sections]) => sections.length > 0)
+  .map(([cat]) => cat);
+
+/** True when the provider should only see options that exist in the 2025 pricing sheet. */
+export function isProviderRestrictedToPricingSheet(providerCode: string | undefined): boolean {
+  return (providerCode ?? "").trim().toLowerCase() === PROVIDER_CODE_RESTRICTED_TO_PRICE_LIST.toLowerCase();
+}
+
+/** Energy device type names from the 2025 price list (Laser, Sofwave, Ultherapy sections). Used as Type options for Energy Device category. */
+export function getEnergyDeviceTypesFromPriceList(): string[] {
+  const devices: string[] = [];
+  for (const section of TREATMENT_PRICE_LIST_2025) {
+    if (section.category === "Sofwave") {
+      devices.push("Sofwave");
+    } else if (section.category === "Ultherapy") {
+      devices.push("Ultherapy");
+    } else if (section.category === "Laser") {
+      const seen = new Set<string>();
+      for (const item of section.items) {
+        const n = item.name;
+        if (n.startsWith("Moxi") && !n.includes("BBL")) seen.add("Moxi");
+        else if (n.startsWith("BBL + Moxi") || n.includes("BBL + Moxi")) {
+          seen.add("Moxi + BBL");
+          seen.add("BBL (BroadBand Light)");
+        } else if (n.startsWith("BBL")) seen.add("BBL (BroadBand Light)");
+      }
+      if (seen.has("Moxi")) devices.push("Moxi");
+      if (seen.has("BBL (BroadBand Light)")) devices.push("BBL (BroadBand Light)");
+      if (seen.has("Moxi + BBL")) devices.push("Moxi + BBL");
+    }
+  }
+  return [...new Set(devices)];
+}
+
+function splitChemicalPeelTypeAndArea(name: string): { type: string; area: string | null } {
+  const raw = (name ?? "").trim();
+  if (!raw) return { type: "", area: null };
+  const parts = raw.split(" – ");
+  if (parts.length < 2) return { type: raw, area: null };
+  return { type: parts[0]!.trim(), area: parts.slice(1).join(" – ").trim() || null };
+}
+
+/** Chemical peel SKU names from the 2025 price list. */
+export function getChemicalPeelSkusFromPriceList(): string[] {
+  const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Chemical Peel");
+  if (!section) return [];
+  return section.items.map((i) => i.name);
+}
+
+/** Chemical peel type names from the 2025 price list (without area suffix). */
+export function getChemicalPeelTypesFromPriceList(): string[] {
+  const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Chemical Peel");
+  if (!section) return [];
+  const types = section.items.map((i) => splitChemicalPeelTypeAndArea(i.name).type).filter(Boolean);
+  return Array.from(new Set(types));
+}
+
+/** Chemical peel area names from the 2025 price list (e.g. Full Face, Full Back). */
+export function getChemicalPeelAreasFromPriceList(): string[] {
+  const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Chemical Peel");
+  if (!section) return [];
+  const areas = section.items
+    .map((i) => splitChemicalPeelTypeAndArea(i.name).area)
+    .filter((a): a is string => Boolean(a && a.trim()));
+  return Array.from(new Set(areas));
+}
+
+/** Keep CA/general options only: exclude Henderson rows and single-location-only rows (e.g. Claremont only, Newport only). */
+function isCaGeneralOption(item: TreatmentPriceItem): boolean {
+  const name = item.name ?? "";
+  const note = item.note ?? "";
+  if (name.includes("Henderson")) return false;
+  if (/only/i.test(note) && !/CA locations only|CA/i.test(note)) return false;
+  return true;
+}
+
+/** Microneedling/PRFM type names from the 2025 price list (Medical Spa section). Used as Type options for Microneedling so selection matches pricing. */
+export function getMicroneedlingTypesFromPriceList(): string[] {
+  const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Medical Spa");
+  if (!section) return [];
+  return section.items
+    .filter(
+      (i) =>
+        isCaGeneralOption(i) &&
+        (i.name.includes("Microneedling") || i.name.includes("PRFM"))
+    )
+    .map((i) => i.name);
+}
+
+/** Neurotoxin type names from the 2025 price list (Injectables: Botox, Dysport, Sweating). Used as Type options so selection matches pricing. */
+export function getNeurotoxinTypesFromPriceList(): string[] {
+  const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Injectables");
+  if (!section) return [];
+  const normalized = section.items
+    .filter(
+      (i) =>
+        isCaGeneralOption(i) &&
+        (i.name.includes("Botox") ||
+          i.name.includes("Dysport") ||
+          i.name.includes("Sweating"))
+    )
+    .map((i) => {
+      if (i.name.includes("Botox 1-Unit")) return "Botox";
+      if (i.name.includes("Dysport 1-Unit")) return "Dysport";
+      return i.name;
+    });
+  return Array.from(new Set(normalized));
+}
+
+/** Filler type names from the 2025 price list (Injectables: Filler, Voluma, Volux; Other Treatments: Filler Dissolver). Used as Type options so selection matches pricing. */
+export function getFillerTypesFromPriceList(): string[] {
+  const out: string[] = [];
+  for (const section of TREATMENT_PRICE_LIST_2025) {
+    if (section.category === "Injectables") {
+      section.items
+        .filter(
+          (i) =>
+            isCaGeneralOption(i) &&
+            (i.name.includes("Filler") ||
+              i.name.includes("Voluma") ||
+              i.name.includes("Volux"))
+        )
+        .forEach((i) => out.push(i.name));
+    } else if (section.category === "Other Treatments") {
+      section.items
+        .filter((i) => i.name.includes("Dissolver"))
+        .forEach((i) => out.push(i.name));
+    }
+  }
+  return out;
+}
+
+/** Biostimulants type names from the 2025 price list (Injectables: Radiesse, Sculptra, Skinvive). Type shows base name only; quantity (vials/syringes) is a separate field. */
+export function getBiostimulantsTypesFromPriceList(): string[] {
+  const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Injectables");
+  if (!section) return [];
+  const normalized: string[] = [];
+  for (const i of section.items) {
+    if (!isCaGeneralOption(i)) continue;
+    if (i.name.includes("Radiesse")) {
+      normalized.push("Radiesse");
+    } else if (i.name.includes("Sculptra")) {
+      normalized.push("Sculptra");
+    } else if (i.name.includes("Skinvive")) {
+      normalized.push(i.name); // Skinvive II, Skinvive III Add-On Syringe – no quantity variant
+    }
+  }
+  return Array.from(new Set(normalized));
+}
+
 /** Category meta for checkout display (longevity, recovery, sessions). */
 export const CHECKOUT_CATEGORY_META: Record<string, CategoryMeta> = {
   Skincare: { longevity: "Ongoing", downtime: "None", sessions: "Ongoing" },
-  Laser: { longevity: "6–12+ months", downtime: "3–7 days", sessions: "1–6" },
+  "Energy Device": { longevity: "6–12+ months", downtime: "3–7 days", sessions: "1–6" },
   "Chemical Peel": { longevity: "1–3 months", downtime: "3–7 days", sessions: "1–3" },
   Microneedling: { longevity: "2–4 months", downtime: "1–3 days", sessions: "1–5" },
   Filler: { longevity: "6–18 months", downtime: "1–2 days", sessions: "1–2" },
@@ -545,6 +702,42 @@ export function matchPlanItemToSku(
       unitPrice: chosen.price,
       quantity: effectiveQty,
     };
+  }
+
+  // Chemical Peel: when both type and area are selected, require both to match the SKU.
+  if (treatment === "Chemical Peel" && product && region) {
+    const byTypeAndArea = skus.find(
+      (s) => skuNameMatches(s.name, product) && skuNameMatches(s.name, region)
+    );
+    if (byTypeAndArea) return { sku: byTypeAndArea, totalPrice: byTypeAndArea.price };
+  }
+
+  // Biostimulants (Radiesse/Sculptra): type is base name only; quantity selects vial/syringe count SKU
+  if (treatment === "Biostimulants" && product) {
+    const bioQty = !Number.isNaN(qty) && qty > 0 ? qty : 1;
+    if (/radiesse/i.test(product)) {
+      const radiesseSkus = skus.filter((s) => s.name.includes("Radiesse"));
+      const exact =
+        bioQty === 1
+          ? radiesseSkus.find((s) => s.name === "Radiesse")
+          : radiesseSkus.find((s) => {
+              const m = s.name.match(/Radiesse\s*[–-]\s*(\d+)\s*Syringe/i);
+              return m && parseInt(m[1], 10) === bioQty;
+            });
+      if (exact) return { sku: exact, totalPrice: exact.price };
+    }
+    if (/sculptra/i.test(product)) {
+      const sculptraSkus = skus.filter((s) => s.name.includes("Sculptra"));
+      const exact = sculptraSkus.find((s) => {
+        const m = s.name.match(/Sculptra\s*[–-]\s*(\d+)\s*Vial/i);
+        return m && parseInt(m[1], 10) === bioQty;
+      });
+      if (exact) return { sku: exact, totalPrice: exact.price };
+      if (bioQty === 1) {
+        const one = sculptraSkus.find((s) => /Sculptra\s*[–-]\s*1\s*Vial/i.test(s.name));
+        if (one) return { sku: one, totalPrice: one.price };
+      }
+    }
   }
 
   // Try match by product then region

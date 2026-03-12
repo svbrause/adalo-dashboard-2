@@ -19,6 +19,8 @@ export interface SubScoreDef {
 
 export interface CategoryDef {
   name: string;
+  /** Label shown on overview (gauge + card), e.g. "Skin score". Falls back to name if omitted. */
+  scoreLabel?: string;
   key: string;
   description: string;
   subScores: SubScoreDef[];
@@ -34,6 +36,7 @@ export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
 export const CATEGORIES: CategoryDef[] = [
   {
     name: "Skin Health",
+    scoreLabel: "Skin score",
     key: "skinHealth",
     description: "Covers wrinkles, texture, pigmentation, and hydration",
     subScores: [
@@ -79,6 +82,7 @@ export const CATEGORIES: CategoryDef[] = [
   },
   {
     name: "Volume Loss",
+    scoreLabel: "Volume score",
     key: "volumeLoss",
     description: "Evaluates facial volume in the eye, cheek, neck, and lower face areas",
     subScores: [
@@ -117,6 +121,7 @@ export const CATEGORIES: CategoryDef[] = [
   },
   {
     name: "Structure",
+    scoreLabel: "Structure score",
     key: "proportions",
     description: "Assesses symmetry and balance of brow, jaw, nose, and lips",
     subScores: [
@@ -320,6 +325,8 @@ export interface SubScoreResult {
 
 export interface CategoryResult {
   name: string;
+  /** Label for overview display (gauge, card). */
+  scoreLabel: string;
   key: string;
   score: number;
   tier: ScoreTier;
@@ -348,6 +355,7 @@ export function computeCategories(
     );
     return {
       name: cat.name,
+      scoreLabel: cat.scoreLabel ?? cat.name,
       key: cat.key,
       score: avg,
       tier: scoreTier(avg),

@@ -11,9 +11,11 @@ import {
 import { getCheckoutDisplayName, getQuantityContext } from "./utils";
 import {
   getSkincareCarouselItems,
-  CHECKOUT_TREATMENT_TYPE_OPTIONS,
+  getCheckoutTreatmentTypeOptionsForProvider,
   CHECKOUT_REGION_OPTIONS_BROAD,
+  CHEMICAL_PEEL_AREA_OPTIONS,
   TREATMENTS_WITH_BROAD_REGION,
+  TREATMENTS_WITH_NO_REGION,
 } from "./constants";
 import { REGION_OPTIONS, TIMELINE_OPTIONS } from "./constants";
 import { RECOMMENDED_PRODUCT_REASONS } from "../../../data/skinTypeQuiz";
@@ -37,6 +39,8 @@ export interface TreatmentPlanCheckoutProps {
   /** When true, order summary shows Mint member 10% off and discounted total. */
   isMintMember?: boolean;
   onMintMemberChange?: (value: boolean) => void;
+  /** When set (e.g. TheTreatment250), treatment type options are restricted to those in the pricing sheet. */
+  providerCode?: string;
 }
 
 function matchSkincareProduct(
@@ -65,19 +69,24 @@ function matchSkincareProduct(
   return contains ?? null;
 }
 
-/** Options for quantity/sessions select by treatment type (same as elsewhere in app). */
+/** Options for quantity/sessions select by treatment type (same as elsewhere in app). Pass product for Biostimulants so unit pre-fills: Radiesse → Syringes, Sculptra → Vials. */
 function getQuantityOptionsForCheckout(
   treatment: string | undefined,
+  product?: string,
 ): { label: string; options: string[] } | null {
   const t = (treatment ?? "").trim();
   if (t === "Skincare") return null;
-  const result = getQuantityContext(treatment ?? "");
+  const result = getQuantityContext(treatment ?? "", product);
   return { label: result.unitLabel, options: result.options };
 }
 
-/** Options for Where dropdown: broad (Face/Neck/Chest) or specific (Forehead, etc.). */
+/** Options for Where dropdown: broad (Face/Neck/Chest) or specific (Forehead, etc.). Empty for treatments with no region (e.g. Chemical Peel = full face only). */
 function getRegionOptionsForTreatment(treatment: string): readonly string[] {
   const t = (treatment ?? "").trim();
+  if (TREATMENTS_WITH_NO_REGION.includes(t as (typeof TREATMENTS_WITH_NO_REGION)[number])) {
+    return [];
+  }
+  if (t === "Chemical Peel") return CHEMICAL_PEEL_AREA_OPTIONS;
   return TREATMENTS_WITH_BROAD_REGION.includes(
     t as (typeof TREATMENTS_WITH_BROAD_REGION)[number],
   )
@@ -165,7 +174,12 @@ export default function TreatmentPlanCheckout({
   onUpdateItem,
   isMintMember = false,
   onMintMemberChange,
+  providerCode,
 }: TreatmentPlanCheckoutProps) {
+  const checkoutTypeOptions = useMemo(
+    () => getCheckoutTreatmentTypeOptionsForProvider(providerCode),
+    [providerCode],
+  );
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overrideRegion, setOverrideRegion] = useState<Record<string, string>>(
     {},
@@ -499,7 +513,9 @@ export default function TreatmentPlanCheckout({
               }
               quantityOptions={getQuantityOptionsForCheckout(
                 editingItem.treatment,
+                editingItem.product ?? undefined,
               )}
+              checkoutTypeOptions={checkoutTypeOptions}
               onQuantityChange={(value) =>
                 setOverrides((prev) => ({ ...prev, [editingKey]: value }))
               }
@@ -683,6 +699,7 @@ function CheckoutDetailPanel({
   variant = "panel",
   onDone,
   onCancel,
+  checkoutTypeOptions,
 }: {
   line: CheckoutLineItemDetail;
   item: DiscussedItem;
@@ -700,13 +717,14 @@ function CheckoutDetailPanel({
   variant?: "panel" | "add-form";
   onDone?: () => void;
   onCancel?: () => void;
+  checkoutTypeOptions: Record<string, string[]>;
 }) {
   const isSkincare = (item.treatment ?? "").trim() === "Skincare";
   const recommendedFor = isSkincare
     ? getRecommendedForSkincare(item?.product ?? line.label ?? "")
     : null;
   const treatmentKey = (item.treatment ?? "").trim();
-  const typeOptions = CHECKOUT_TREATMENT_TYPE_OPTIONS[treatmentKey];
+  const typeOptions = checkoutTypeOptions[treatmentKey];
   const showTypeSelect = !isSkincare && typeOptions && typeOptions.length > 0;
   const regionOptions = getRegionOptionsForTreatment(item.treatment ?? "");
 
@@ -718,44 +736,120 @@ function CheckoutDetailPanel({
         className="treatment-recommender-by-treatment__add-form"
         aria-label="Edit item"
       >
-        {/* Laser / Biostimulants: "What" (type) chips only, like recommender */}
-        {(treatmentKey === "Laser" || treatmentKey === "Biostimulants") &&
-          showTypeSelect && (
-            <div className="treatment-recommender-by-treatment__add-row">
-              <span className="treatment-recommender-by-treatment__add-row-label">
-                What:
-              </span>
-              <div className="treatment-recommender-by-treatment__chips">
-                {typeOptions.map((opt) => {
-                  const currentWhat =
-                    getDisplayProductForTypeSelect(item.product, typeOptions) || "";
-                  const selected = currentWhat === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
-                      onClick={() => onProductChange(opt)}
-                      title={selected ? `Selected: ${opt}` : `Select ${opt}`}
-                      aria-label={selected ? `Selected: ${opt}` : `Select ${opt}`}
-                    >
-                      <span className="treatment-recommender-by-treatment__chip-label">
-                        {opt}
+        {/* Energy Device: Type chips only (no Where). */}
+        {treatmentKey === "Energy Device" && showTypeSelect && (
+          <div className="treatment-recommender-by-treatment__add-row">
+            <span className="treatment-recommender-by-treatment__add-row-label">
+              Type:
+            </span>
+            <div className="treatment-recommender-by-treatment__chips">
+              {typeOptions.map((opt) => {
+                const currentWhat =
+                  getDisplayProductForTypeSelect(item.product, typeOptions) || "";
+                const selected = currentWhat === opt;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                    onClick={() => onProductChange(opt)}
+                    title={selected ? `Selected: ${opt}` : `Select ${opt}`}
+                    aria-label={selected ? `Selected: ${opt}` : `Select ${opt}`}
+                  >
+                    <span className="treatment-recommender-by-treatment__chip-label">
+                      {opt}
+                    </span>
+                    {selected && (
+                      <span
+                        className="treatment-recommender-by-treatment__chip-remove"
+                        aria-hidden
+                      >
+                        ×
                       </span>
-                      {selected && (
-                        <span
-                          className="treatment-recommender-by-treatment__chip-remove"
-                          aria-hidden
-                        >
-                          ×
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
+        {/* Biostimulants: "Where" (area) then "Type", like Filler/Neurotoxin. */}
+        {treatmentKey === "Biostimulants" && !isSkincare && (
+          <>
+            {regionOptions.length > 0 && (
+              <div className="treatment-recommender-by-treatment__add-row">
+                <span className="treatment-recommender-by-treatment__add-row-label">
+                  Where:
+                </span>
+                <div className="treatment-recommender-by-treatment__chips">
+                  {regionOptions.map((r) => {
+                    const currentWhere =
+                      getDisplayRegionForCheckout(item.region, regionOptions) || "";
+                    const selected = currentWhere === r;
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                        onClick={() => onRegionChange(r)}
+                        title={selected ? `Selected: ${r}` : `Select ${r}`}
+                        aria-label={selected ? `Selected: ${r}` : `Select ${r}`}
+                      >
+                        <span className="treatment-recommender-by-treatment__chip-label">
+                          {r}
+                        </span>
+                        {selected && (
+                          <span
+                            className="treatment-recommender-by-treatment__chip-remove"
+                            aria-hidden
+                          >
+                            ×
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {showTypeSelect && (
+              <div className="treatment-recommender-by-treatment__add-row">
+                <span className="treatment-recommender-by-treatment__add-row-label">
+                  Type:
+                </span>
+                <div className="treatment-recommender-by-treatment__chips">
+                  {typeOptions.map((opt) => {
+                    const currentWhat =
+                      getDisplayProductForTypeSelect(item.product, typeOptions) || "";
+                    const selected = currentWhat === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                        onClick={() => onProductChange(opt)}
+                        title={selected ? `Selected: ${opt}` : `Select ${opt}`}
+                        aria-label={selected ? `Selected: ${opt}` : `Select ${opt}`}
+                      >
+                        <span className="treatment-recommender-by-treatment__chip-label">
+                          {opt}
+                        </span>
+                        {selected && (
+                          <span
+                            className="treatment-recommender-by-treatment__chip-remove"
+                            aria-hidden
+                          >
+                            ×
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
         {/* Microneedling: "Where" (region) then "Type" chips, like recommender */}
         {treatmentKey === "Microneedling" && !isSkincare && (
           <>
@@ -829,12 +923,13 @@ function CheckoutDetailPanel({
             </div>
           </>
         )}
-        {/* Other treatments: "Where" (region) chips; optional "What" (type) if type options exist */}
+        {/* Other treatments: "Where" (region) chips when options exist; optional "What" (type) if type options exist */}
         {!isSkincare &&
-          treatmentKey !== "Laser" &&
+          treatmentKey !== "Energy Device" &&
           treatmentKey !== "Biostimulants" &&
           treatmentKey !== "Microneedling" && (
             <>
+              {regionOptions.length > 0 && (
               <div className="treatment-recommender-by-treatment__add-row">
                 <span className="treatment-recommender-by-treatment__add-row-label">
                   Where:
@@ -869,10 +964,11 @@ function CheckoutDetailPanel({
                   })}
                 </div>
               </div>
+              )}
               {showTypeSelect && (
                 <div className="treatment-recommender-by-treatment__add-row">
                   <span className="treatment-recommender-by-treatment__add-row-label">
-                    What:
+                    Type:
                   </span>
                   <div className="treatment-recommender-by-treatment__chips">
                     {typeOptions.map((opt) => {
@@ -911,7 +1007,7 @@ function CheckoutDetailPanel({
         {isSkincare && (
           <div className="treatment-recommender-by-treatment__add-row">
             <span className="treatment-recommender-by-treatment__add-row-label">
-              What:
+                    Type:
             </span>
             <span
               style={{
@@ -1058,7 +1154,7 @@ function CheckoutDetailPanel({
           </p>
         )}
       </div>
-      {!isSkincare && (
+      {!isSkincare && regionOptions.length > 0 && (
         <div className="treatment-plan-checkout-detail-section">
           <label
             htmlFor={`checkout-where-${itemKey}`}

@@ -2,6 +2,7 @@
 // Supports drill-down into category detail and area detail views.
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import { useDashboard } from "../../context/DashboardContext";
 import { Client, TreatmentPhoto } from "../../types";
 import { fetchTreatmentPhotos, fetchTableRecords, fetchAIAssessment, fetchCategoryAssessment } from "../../services/api";
 import type { AirtableRecord } from "../../services/api";
@@ -103,12 +104,14 @@ function ScoreGauge({
   strokeWidth = 10,
   animate,
   label,
+  className,
 }: {
   score: number;
   size?: number;
   strokeWidth?: number;
   animate: boolean;
   label?: string;
+  className?: string;
 }) {
   const radius = (size - strokeWidth * 2) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -117,7 +120,7 @@ function ScoreGauge({
   const color = tierColor(scoreTier(score));
 
   return (
-    <div className="ao-modal-gauge" style={{ width: size, height: size }}>
+    <div className={`ao-modal-gauge ${className ?? ""}`.trim()} style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle
           cx={size / 2}
@@ -437,20 +440,24 @@ function RadarChart({
   data,
   size = 180,
   animate,
+  showLabels = true,
+  className,
 }: {
   data: { name: string; score: number }[];
   size?: number;
   animate: boolean;
+  showLabels?: boolean;
+  className?: string;
 }) {
-  const padding = 44;
+  const padding = showLabels ? 44 : Math.min(12, size / 6);
   const svgSize = size + padding * 2;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
-  const r = size / 2 - 28;
+  const r = size / 2 - (showLabels ? 28 : 8);
   const n = data.length;
   if (n < 3) return null;
   const angleStep = (2 * Math.PI) / n;
-  const rings = [25, 50, 75, 100];
+  const rings = showLabels ? [25, 50, 75, 100] : [50, 100];
 
   const pointAt = (i: number, val: number) => {
     const angle = -Math.PI / 2 + i * angleStep;
@@ -462,7 +469,7 @@ function RadarChart({
   const polygon = dataPoints.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
-    <div className="ao-radar">
+    <div className={`ao-radar ${className ?? ""}`.trim()}>
       <svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
         {/* Grid rings */}
         {rings.map((ringVal) => (
@@ -489,29 +496,30 @@ function RadarChart({
           points={polygon}
           fill="rgba(59,130,246,0.15)"
           stroke="#3b82f6"
-          strokeWidth="2"
+          strokeWidth={showLabels ? 2 : 1.5}
           style={{ transition: "all 0.6s ease-out" }}
         />
         {/* Data points */}
         {dataPoints.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#3b82f6" style={{ transition: "all 0.6s ease-out" }} />
+          <circle key={i} cx={p.x} cy={p.y} r={showLabels ? 3.5 : 2} fill="#3b82f6" style={{ transition: "all 0.6s ease-out" }} />
         ))}
-        {/* Labels – placed outside polygon with room so they don't get cropped */}
-        {data.map((d, i) => {
-          const p = pointAt(i, 112);
-          return (
-            <text
-              key={d.name}
-              x={p.x}
-              y={p.y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              className="ao-radar__label"
-            >
-              {d.name}
-            </text>
-          );
-        })}
+        {/* Labels – placed well outside polygon so they don't overlap the graph */}
+        {showLabels &&
+          data.map((d, i) => {
+            const p = pointAt(i, 132);
+            return (
+              <text
+                key={d.name}
+                x={p.x}
+                y={p.y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="ao-radar__label"
+              >
+                {d.name}
+              </text>
+            );
+          })}
       </svg>
     </div>
   );
@@ -563,7 +571,6 @@ function CategoryCard({
   animate: boolean;
   onExploreDetails: (categoryKey: string) => void;
 }) {
-  const color = tierColor(cat.tier);
   const desc = CATEGORY_DESCRIPTIONS[cat.key] || "";
 
   return (
@@ -574,17 +581,33 @@ function CategoryCard({
         className="ao-modal-cat-card__header"
         onClick={onToggle}
         type="button"
+        aria-expanded={isOpen}
+        aria-label={`${cat.scoreLabel}, ${cat.score}. ${isOpen ? "Collapse" : "Expand"} breakdown`}
       >
         <div className="ao-modal-cat-card__header-left">
-          <span className="ao-modal-cat-card__name">{cat.name}</span>
+          <div className="ao-modal-cat-card__header-gauge">
+            <ScoreGauge
+              score={cat.score}
+              size={88}
+              strokeWidth={7}
+              animate={animate}
+              label={cat.scoreLabel}
+              className="ao-modal-gauge--category"
+            />
+          </div>
+          {cat.subScores.length >= 3 && (
+            <div className="ao-modal-cat-card__header-radar" aria-hidden>
+              <RadarChart
+                data={cat.subScores.map((s) => ({ name: s.name, score: s.score }))}
+                size={70}
+                animate={animate}
+                showLabels={false}
+                className="ao-radar--compact"
+              />
+            </div>
+          )}
         </div>
         <div className="ao-modal-cat-card__right">
-          <span
-            className="ao-modal-cat-card__score"
-            style={{ background: color }}
-          >
-            {cat.score}
-          </span>
           <span className="ao-modal-cat-card__chev" aria-hidden>
             {isOpen ? "▲" : "▼"}
           </span>
@@ -787,6 +810,7 @@ function CategoryDetailContent({
   onAddToPlan,
   treatmentPhotos,
   treatmentPhotosLoading,
+  providerCode,
 }: {
   categoryKey: string;
   detectedIssues: Set<string>;
@@ -794,6 +818,7 @@ function CategoryDetailContent({
   onAddToPlan?: (prefill: TreatmentPlanPrefill) => void;
   treatmentPhotos: TreatmentPhoto[];
   treatmentPhotosLoading: boolean;
+  providerCode?: string;
 }) {
   const [animate, setAnimate] = useState(false);
   useEffect(() => {
@@ -816,8 +841,8 @@ function CategoryDetailContent({
   }, [catDef, detectedIssues]);
 
   const suggestedTreatments = useMemo(
-    () => getSuggestedTreatmentsForFindings(detectedIssueNames),
-    [detectedIssueNames]
+    () => getSuggestedTreatmentsForFindings(detectedIssueNames, providerCode),
+    [detectedIssueNames, providerCode]
   );
 
   if (!catDef || !catResult) {
@@ -886,7 +911,7 @@ function CategoryDetailContent({
             size={110}
             strokeWidth={10}
             animate={animate}
-            label={CATEGORIES.find(c => c.key === categoryKey)?.name ?? ""}
+            label={CATEGORIES.find(c => c.key === categoryKey)?.scoreLabel ?? CATEGORIES.find(c => c.key === categoryKey)?.name ?? ""}
           />
         </div>
         <div className="ao-detail__hero-ai">
@@ -968,6 +993,7 @@ function AreaDetailContent({
   onAddToPlan,
   treatmentPhotos,
   treatmentPhotosLoading,
+  providerCode,
 }: {
   areaName: string;
   detectedIssues: Set<string>;
@@ -976,6 +1002,7 @@ function AreaDetailContent({
   onAddToPlan?: (prefill: TreatmentPlanPrefill) => void;
   treatmentPhotos: TreatmentPhoto[];
   treatmentPhotosLoading: boolean;
+  providerCode?: string;
 }) {
   const areaResults = useMemo(
     () => computeAreas(detectedIssues, interestAreaNames),
@@ -996,8 +1023,8 @@ function AreaDetailContent({
   }, [areaDef, detectedIssues]);
 
   const suggestedTreatments = useMemo(
-    () => getSuggestedTreatmentsForFindings(detectedIssueNames),
-    [detectedIssueNames]
+    () => getSuggestedTreatmentsForFindings(detectedIssueNames, providerCode),
+    [detectedIssueNames, providerCode]
   );
 
   if (!areaDef || !areaResult) {
@@ -1187,6 +1214,7 @@ export default function AnalysisOverviewModal({
   onAddToPlan,
   initialDetailView,
 }: AnalysisOverviewModalProps) {
+  const { provider } = useDashboard();
   const [animate, setAnimate] = useState(false);
   const [detailView, setDetailView] = useState<DetailView>(null);
 
@@ -1336,7 +1364,10 @@ export default function AnalysisOverviewModal({
   const [aiSummaryOpen, setAiSummaryOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
-  const [openCategoryKey, setOpenCategoryKey] = useState<string | null>(null);
+  // Default: open first category so at least one radar is visible without clicks.
+  const [openCategoryKey, setOpenCategoryKey] = useState<string | null>(
+    CATEGORIES[0]?.key ?? null
+  );
 
   // Inline treatment plan handler – records additions without navigating away
   const handleInlineAddToPlan = (prefill: TreatmentPlanPrefill) => {
@@ -1354,7 +1385,7 @@ export default function AnalysisOverviewModal({
         <div className="analysis-overview-modal__header">
           <h2 id="ao-modal-title" className="analysis-overview-modal__title">
             {showCategoryDetail && detailView?.type === "category"
-              ? (categories.find((c) => c.key === detailView.key)?.name ?? detailView.key)
+              ? (categories.find((c) => c.key === detailView.key)?.scoreLabel ?? detailView.key)
               : showAreaDetail && detailView?.type === "area"
                 ? (detailView.name)
                 : showAreasPage
@@ -1395,6 +1426,7 @@ export default function AnalysisOverviewModal({
               onAddToPlan={handleInlineAddToPlan}
               treatmentPhotos={treatmentPhotos}
               treatmentPhotosLoading={treatmentPhotosLoading}
+              providerCode={provider?.code}
             />
           ) : showAreaDetail && detailView?.type === "area" ? (
             <AreaDetailContent
@@ -1405,6 +1437,7 @@ export default function AnalysisOverviewModal({
               onAddToPlan={handleInlineAddToPlan}
               treatmentPhotos={treatmentPhotos}
               treatmentPhotosLoading={treatmentPhotosLoading}
+              providerCode={provider?.code}
             />
           ) : showAreasPage ? (
             /* ===== All Areas inner page with face map ===== */
@@ -1603,38 +1636,19 @@ export default function AnalysisOverviewModal({
                 )}
               </section>
 
-              {/* Category sub-scores – circles for skin, volume, structure + cards */}
+              {/* Category sub-scores – circle inside each collapsible card */}
               <section className="analysis-overview-modal__categories">
-                <div className="analysis-overview-modal__cat-connector" />
-                <div className="analysis-overview-modal__cat-gauges">
+                <div className="analysis-overview-modal__cat-columns">
                   {categories.map((c) => (
-                    <button
-                      key={c.key}
-                      type="button"
-                      className="analysis-overview-modal__cat-gauge-wrap"
-                      onClick={() => setDetailView({ type: "category", key: c.key })}
-                      aria-label={`${c.name} score ${c.score}`}
-                    >
-                      <ScoreGauge
-                        score={c.score}
-                        size={72}
-                        strokeWidth={6}
+                    <div key={c.key} className="analysis-overview-modal__cat-column">
+                      <CategoryCard
+                        cat={c}
+                        isOpen={openCategoryKey === c.key}
+                        onToggle={() => setOpenCategoryKey(openCategoryKey === c.key ? null : c.key)}
                         animate={animate}
-                        label={c.name}
+                        onExploreDetails={(key) => setDetailView({ type: "category", key })}
                       />
-                    </button>
-                  ))}
-                </div>
-                <div className="analysis-overview-modal__cat-cards">
-                  {categories.map((c) => (
-                    <CategoryCard
-                      key={c.key}
-                      cat={c}
-                      isOpen={openCategoryKey === c.key}
-                      onToggle={() => setOpenCategoryKey(openCategoryKey === c.key ? null : c.key)}
-                      animate={animate}
-                      onExploreDetails={(key) => setDetailView({ type: "category", key })}
-                    />
+                    </div>
                   ))}
                 </div>
               </section>

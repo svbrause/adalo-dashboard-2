@@ -28,9 +28,10 @@ export default function KanbanView() {
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null);
   const [clientPhotos, setClientPhotos] = useState<Record<string, string>>({});
 
-  // Filter and sort clients
+  // Filter and sort clients (All Clients = Patients only; Leads tab would use ListView)
   const processedClients = useMemo(() => {
     let filtered = clients.filter((client) => !client.archived);
+    filtered = filtered.filter((client) => client.tableSource === "Patients");
     filtered = applyFilters(filtered, filters, searchQuery);
     filtered = applySorting(filtered, sort);
     return filtered;

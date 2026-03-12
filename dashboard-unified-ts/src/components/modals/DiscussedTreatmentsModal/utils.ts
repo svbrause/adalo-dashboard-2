@@ -14,10 +14,13 @@ import {
   TREATMENT_GOAL_ONLY,
   TREATMENT_PRODUCT_OPTIONS,
   OTHER_PRODUCT_LABEL,
-  ALL_TREATMENTS,
+  getTreatmentOptionsForProvider,
   QUANTITY_QUICK_OPTIONS_DEFAULT,
   QUANTITY_OPTIONS_FILLER,
   QUANTITY_OPTIONS_TOX,
+  QUANTITY_OPTIONS_BIOSTIMULANTS,
+  QUANTITY_OPTIONS_RADIESSE,
+  QUANTITY_OPTIONS_SCULPTRA,
 } from "./constants";
 
 export function getRecommendedProducts(
@@ -56,20 +59,25 @@ export function getGoalRegionTreatmentsForFinding(
 /**
  * Suggested treatments for a list of findings/issues (e.g. from analysis).
  * Returns deduplicated entries with goal, region, and an example finding for prefill.
- * Used by Analysis Overview category/area detail views.
+ * When providerCode is set and restricted to pricing sheet, only treatments in the price list are returned.
  */
-export function getSuggestedTreatmentsForFindings(findings: string[]): {
+export function getSuggestedTreatmentsForFindings(
+  findings: string[],
+  providerCode?: string | undefined,
+): {
   treatment: string;
   goal: string;
   region: string;
   exampleFinding: string;
 }[] {
+  const allowed = new Set(getTreatmentOptionsForProvider(providerCode));
   const seen = new Set<string>();
   const result: { treatment: string; goal: string; region: string; exampleFinding: string }[] = [];
   for (const finding of findings) {
     const mapped = getGoalRegionTreatmentsForFinding(finding);
     if (!mapped) continue;
     for (const treatment of mapped.treatments) {
+      if (!allowed.has(treatment)) continue;
       const key = `${treatment}|${mapped.goal}|${mapped.region}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -137,8 +145,13 @@ export function getGoalsAndRegionsForTreatment(treatment: string): {
   return { goals: Array.from(goals), regions: Array.from(regions) };
 }
 
-export function getTreatmentsForInterest(interest: string): string[] {
-  if (!interest || interest === OTHER_LABEL) return [...ALL_TREATMENTS];
+/** Suggested treatments for an interest/goal. When providerCode is set and restricted to pricing sheet, only returns treatments that exist in the price list. */
+export function getTreatmentsForInterest(
+  interest: string,
+  providerCode?: string | undefined,
+): string[] {
+  const allowed = getTreatmentOptionsForProvider(providerCode);
+  if (!interest || interest === OTHER_LABEL) return [...allowed];
   const lower = interest.toLowerCase();
   const matched = new Set<string>();
   for (const { keywords, treatments } of INTEREST_TO_TREATMENTS) {
@@ -146,10 +159,14 @@ export function getTreatmentsForInterest(interest: string): string[] {
       treatments.forEach((t) => matched.add(t));
     }
   }
-  return matched.size > 0 ? Array.from(matched) : [...ALL_TREATMENTS];
+  const base = matched.size > 0 ? Array.from(matched) : [...allowed];
+  return base.filter((t) => allowed.includes(t));
 }
 
-export function getQuantityContext(treatment: string | undefined): {
+export function getQuantityContext(
+  treatment: string | undefined,
+  product?: string,
+): {
   unitLabel: string;
   options: string[];
 } {
@@ -175,6 +192,16 @@ export function getQuantityContext(treatment: string | undefined): {
     t === "xeomin"
   ) {
     return { unitLabel: "Units (Botox/Dysport)", options: QUANTITY_OPTIONS_TOX };
+  }
+  if (t === "biostimulants" || t.includes("biostimulant")) {
+    const p = (product ?? "").trim().toLowerCase();
+    if (p.includes("radiesse")) {
+      return { unitLabel: "Syringes", options: [...QUANTITY_OPTIONS_RADIESSE] };
+    }
+    if (p.includes("sculptra")) {
+      return { unitLabel: "Vials", options: [...QUANTITY_OPTIONS_SCULPTRA] };
+    }
+    return { unitLabel: "Syringes / Vials", options: QUANTITY_OPTIONS_BIOSTIMULANTS };
   }
   if (
     t === "laser" ||

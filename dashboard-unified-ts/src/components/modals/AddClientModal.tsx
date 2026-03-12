@@ -2,6 +2,7 @@
 
 import { useState, FormEvent, useEffect } from "react";
 import { createLeadRecord } from "../../services/api";
+import { SOURCE_ADD_CLIENT } from "../../utils/leadSource";
 import {
   isValidEmail,
   isValidPhone,
@@ -29,7 +30,6 @@ export default function AddClientModal({
     phone: "",
     dateOfBirth: "",
     zipCode: "",
-    source: "Walk-in",
     notes: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -84,7 +84,7 @@ export default function AddClientModal({
         "Email Address": formData.email.trim(),
         "Phone Number": formData.phone ? formData.phone.replace(/\D/g, "") : "",
         "Zip Code": formData.zipCode || null,
-        Source: formData.source,
+        Source: SOURCE_ADD_CLIENT,
         Notes: formData.notes.trim() || "",
         Status: "New",
         Contacted: false,
@@ -216,27 +216,6 @@ export default function AddClientModal({
                 {errors.zipCode && (
                   <span className="field-error">{errors.zipCode}</span>
                 )}
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="new-lead-source">Source</label>
-                <select
-                  id="new-lead-source"
-                  value={formData.source}
-                  onChange={(e) =>
-                    setFormData({ ...formData, source: e.target.value })
-                  }
-                >
-                  <option value="Walk-in">Walk-in</option>
-                  <option value="Phone Call">Phone Call</option>
-                  <option value="Referral">Referral</option>
-                  <option value="Social Media">Social Media</option>
-                  <option value="Website">Website</option>
-                  <option value="AI Consult">AI Consult Tool</option>
-                  <option value="Other">Other</option>
-                </select>
               </div>
             </div>
 

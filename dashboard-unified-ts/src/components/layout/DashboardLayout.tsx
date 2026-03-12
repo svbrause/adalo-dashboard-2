@@ -25,6 +25,8 @@ function DashboardViews() {
   switch (currentView) {
     case "kanban":
       return <KanbanView />;
+    case "leads":
+      return <ListView />;
     case "archived":
       return <ArchivedView />;
     case "offers":
@@ -42,7 +44,7 @@ function DashboardViews() {
   }
 }
 
-const VIEWS_WITH_CONTROLS = ["list", "cards", "kanban", "facial-analysis", "archived"];
+const VIEWS_WITH_CONTROLS = ["list", "cards", "kanban", "facial-analysis", "leads", "archived"];
 
 export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
   const { currentView } = useDashboard();

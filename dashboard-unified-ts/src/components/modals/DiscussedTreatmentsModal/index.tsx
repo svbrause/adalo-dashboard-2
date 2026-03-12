@@ -16,11 +16,11 @@ import {
   OTHER_FINDING_LABEL,
   OTHER_PRODUCT_LABEL,
   SEE_ALL_OPTIONS_LABEL,
-  TREATMENT_PRODUCT_OPTIONS,
   TREATMENT_POSTCARE,
   ALL_INTEREST_OPTIONS,
-  ALL_TREATMENTS,
   OTHER_TREATMENT_LABEL,
+  getTreatmentOptionsForProvider,
+  getTreatmentProductOptionsForProvider,
   REGION_OPTIONS,
   TIMELINE_OPTIONS,
   PLAN_SECTIONS,
@@ -31,6 +31,7 @@ import {
   OTHER_RECURRING_LABEL,
   getSkincareCarouselItems,
 } from "./constants";
+import { useDashboard } from "../../../context/DashboardContext";
 import {
   getRecommendedProducts,
   getFindingsForTreatment,
@@ -68,6 +69,12 @@ export default function DiscussedTreatmentsModal({
   onClearInitialPrefill?: () => void;
   initialEditingItem?: DiscussedItem | null;
 }) {
+  const { provider } = useDashboard();
+  const treatmentOptions = useMemo(
+    () => getTreatmentOptionsForProvider(provider?.code),
+    [provider?.code],
+  );
+
   const [items, setItems] = useState<DiscussedItem[]>(
     client.discussedItems?.length ? [...client.discussedItems] : []
   );
@@ -129,7 +136,7 @@ export default function DiscussedTreatmentsModal({
     interest: "",
     /** When adding by goal: per-treatment selected detected issues (all relevant shown below treatment, selected by default) */
     selectedFindingsByTreatment: {} as Record<string, string[]>,
-    /** For Skincare/Laser: multi-select product names per treatment */
+    /** For Skincare/Energy Device: multi-select product names per treatment */
     selectedProductsByTreatment: {} as Record<string, string[]>,
     selectedTreatments: [] as string[],
     otherTreatment: "",
@@ -321,15 +328,15 @@ export default function DiscussedTreatmentsModal({
       list =
         treatments.size > 0
           ? Array.from(treatments)
-          : getTreatmentsForInterest(form.interest);
+          : getTreatmentsForInterest(form.interest, provider?.code);
     } else {
-      list = getTreatmentsForInterest(form.interest);
+      list = getTreatmentsForInterest(form.interest, provider?.code);
     }
     // Skincare first, then the rest in stable order
     const skincare = list.filter((t) => t === "Skincare");
     const rest = list.filter((t) => t !== "Skincare");
     return [...skincare, ...rest];
-  }, [addMode, selectedFindings, form.interest]);
+  }, [addMode, selectedFindings, form.interest, provider?.code]);
 
   /** Region options filtered by selected goal (or all when no goal) */
   /** When adding by treatment first: assessment findings grouped by area (replaces goal/region) */
@@ -860,7 +867,7 @@ export default function DiscussedTreatmentsModal({
         : form.region?.trim() || undefined;
     const timelineDefault = form.timeline?.trim() || "Wishlist";
     const productFor = (t: string): string | undefined => {
-      const opts = TREATMENT_PRODUCT_OPTIONS[t];
+      const opts = getTreatmentProductOptionsForProvider(provider?.code, t);
       if (!opts) return undefined;
       const sel =
         form.treatmentProducts[t] ??
@@ -1055,7 +1062,7 @@ export default function DiscussedTreatmentsModal({
       setAddMode("goal");
       const treatment = prefilled.treatment?.trim() || "";
       const productOpts = treatment
-        ? (TREATMENT_PRODUCT_OPTIONS[treatment] ?? [])
+        ? getTreatmentProductOptionsForProvider(provider?.code, treatment)
         : [];
       const productIsOption =
         prefilled.treatmentProduct &&
@@ -1094,7 +1101,7 @@ export default function DiscussedTreatmentsModal({
           },
           timeline: (prefilled.treatment?.trim() === "Skincare" ? TIMELINE_SKINCARE : prefilled.timeline) || "Wishlist",
           quantityUnit: treatment
-            ? getQuantityContext(treatment).unitLabel
+            ? getQuantityContext(treatment, prefilled.treatmentProduct ?? undefined).unitLabel
             : f.quantityUnit,
           quantity: prefilled.quantity ?? f.quantity,
           notes: prefilled.notes ?? f.notes,
@@ -1113,7 +1120,7 @@ export default function DiscussedTreatmentsModal({
       setInterestSearch(prefilled.interest || "");
       setShowFullInterestList(false);
     },
-    []
+    [provider?.code]
   );
 
   /** When opened with initial prefill (e.g. from Treatment Explorer in Client Detail), apply it and open add form */
@@ -1124,7 +1131,7 @@ export default function DiscussedTreatmentsModal({
     setAddMode("goal");
     const treatment = prefilled.treatment?.trim() || "";
     const productOpts = treatment
-      ? (TREATMENT_PRODUCT_OPTIONS[treatment] ?? [])
+      ? getTreatmentProductOptionsForProvider(provider?.code, treatment)
       : [];
     const productIsOption =
       prefilled.treatmentProduct &&
@@ -1162,7 +1169,7 @@ export default function DiscussedTreatmentsModal({
       },
       timeline: (prefilled.treatment?.trim() === "Skincare" ? TIMELINE_SKINCARE : prefilled.timeline) || "Wishlist",
       quantityUnit: treatment
-        ? getQuantityContext(treatment).unitLabel
+        ? getQuantityContext(treatment, prefilled.treatmentProduct ?? undefined).unitLabel
         : f.quantityUnit,
       quantity: prefilled.quantity ?? f.quantity,
       notes: prefilled.notes ?? f.notes,
@@ -1198,7 +1205,10 @@ export default function DiscussedTreatmentsModal({
     );
     setEditShowOptionalDetails(hasOptional);
     const qRaw = item.quantity?.trim() || "";
-    const qtyCtx = getQuantityContext(item.treatment?.trim());
+    const qtyCtx = getQuantityContext(
+      item.treatment?.trim(),
+      item.product ?? undefined,
+    );
     const parsed =
       /^(\d+)\s+(.+)$/.exec(qRaw) ||
       (qRaw && !/^\d+$/.test(qRaw) ? null : null);
@@ -1264,7 +1274,10 @@ export default function DiscussedTreatmentsModal({
     );
     setEditShowOptionalDetails(hasOptional);
     const qRaw = item.quantity?.trim() || "";
-    const qtyCtx = getQuantityContext(item.treatment?.trim());
+    const qtyCtx = getQuantityContext(
+      item.treatment?.trim(),
+      item.product ?? undefined,
+    );
     const parsed =
       /^(\d+)\s+(.+)$/.exec(qRaw) ||
       (qRaw && !/^\d+$/.test(qRaw) ? null : null);
@@ -1602,7 +1615,7 @@ export default function DiscussedTreatmentsModal({
                           role="group"
                           aria-label="Treatments"
                         >
-                          {ALL_TREATMENTS.map((name) => (
+                          {treatmentOptions.map((name) => (
                             <button
                               key={name}
                               type="button"
@@ -1625,7 +1638,7 @@ export default function DiscussedTreatmentsModal({
                             className={`discussed-treatments-topic-chip other-chip ${
                               editForm.treatment &&
                               (editForm.treatment === OTHER_TREATMENT_LABEL ||
-                                !ALL_TREATMENTS.includes(editForm.treatment))
+                                !treatmentOptions.includes(editForm.treatment))
                                 ? "selected"
                                 : ""
                             }`}
@@ -1634,7 +1647,7 @@ export default function DiscussedTreatmentsModal({
                                 ...f,
                                 treatment:
                                   f.treatment &&
-                                  !ALL_TREATMENTS.includes(f.treatment)
+                                  !treatmentOptions.includes(f.treatment)
                                     ? f.treatment
                                     : OTHER_TREATMENT_LABEL,
                               }))
@@ -1645,7 +1658,7 @@ export default function DiscussedTreatmentsModal({
                         </div>
                         {editForm.treatment &&
                           (editForm.treatment === OTHER_TREATMENT_LABEL ||
-                            !ALL_TREATMENTS.includes(editForm.treatment)) && (
+                            !treatmentOptions.includes(editForm.treatment)) && (
                             <div className="discussed-treatments-other-treatment-by-tx">
                               <div className="discussed-treatments-other-treatment-by-tx-label">
                                 Treatment name
@@ -1673,15 +1686,15 @@ export default function DiscussedTreatmentsModal({
                           )}
                       </div>
 
-                      {/* Product/Type – carousel for Skincare/Laser, chips for others (same as add form) */}
+                      {/* Product/Type – carousel for Skincare/Energy Device, chips for others (same as add form) */}
                       {editForm.treatment &&
-                        ALL_TREATMENTS.includes(editForm.treatment) &&
-                        (TREATMENT_PRODUCT_OPTIONS[editForm.treatment]
+                        treatmentOptions.includes(editForm.treatment) &&
+                        (getTreatmentProductOptionsForProvider(provider?.code, editForm.treatment)
                           ?.length ?? 0) > 0 &&
                         (() => {
                           const treatment = editForm.treatment;
                           const opts =
-                            TREATMENT_PRODUCT_OPTIONS[treatment] ?? [];
+                            getTreatmentProductOptionsForProvider(provider?.code, treatment);
                           const fullList = opts.filter(
                             (p) => p !== OTHER_PRODUCT_LABEL
                           );
@@ -1951,7 +1964,8 @@ export default function DiscussedTreatmentsModal({
                           <div className="discussed-treatments-prefill-rows">
                             {(() => {
                               const qtyCtx = getQuantityContext(
-                                editForm.treatment
+                                editForm.treatment,
+                                editForm.product || undefined,
                               );
                               const displayUnit =
                                 editForm.quantityUnit || qtyCtx.unitLabel;
@@ -2709,7 +2723,7 @@ export default function DiscussedTreatmentsModal({
                                 role="group"
                                 aria-label="Treatments"
                               >
-                                {ALL_TREATMENTS.map((name) => (
+                                {treatmentOptions.map((name) => (
                                   <button
                                     key={name}
                                     type="button"
@@ -2772,12 +2786,12 @@ export default function DiscussedTreatmentsModal({
                             {selectedTreatmentFirst &&
                               selectedTreatmentFirst !==
                                 OTHER_TREATMENT_LABEL &&
-                              (TREATMENT_PRODUCT_OPTIONS[selectedTreatmentFirst]
+                              (getTreatmentProductOptionsForProvider(provider?.code, selectedTreatmentFirst)
                                 ?.length ?? 0) > 0 &&
                               (() => {
                                 const treatment = selectedTreatmentFirst;
                                 const opts =
-                                  TREATMENT_PRODUCT_OPTIONS[treatment] ?? [];
+                                  getTreatmentProductOptionsForProvider(provider?.code, treatment);
                                 const fullList = opts.filter(
                                   (p) => p !== OTHER_PRODUCT_LABEL
                                 );
@@ -2915,7 +2929,7 @@ export default function DiscussedTreatmentsModal({
                                           </div>
                                         </div>
                                       ) : (
-                                        /* Laser, Filler, Neurotoxin, Chemical Peel, etc.: show full type list as chips (single-select) */
+                                        /* Energy Device, Filler, Neurotoxin, Chemical Peel, etc.: show full type list as chips (single-select) */
                                         <div
                                           className="discussed-treatments-product-carousel"
                                           role="group"
@@ -3755,14 +3769,11 @@ export default function DiscussedTreatmentsModal({
                                         OTHER_TREATMENT_LABEL &&
                                       (() => {
                                         const name = form.selectedTreatments[0];
+                                        const optsForName = getTreatmentProductOptionsForProvider(provider?.code, name);
                                         const hasProductOptions =
-                                          (TREATMENT_PRODUCT_OPTIONS[name]
-                                            ?.length ?? 0) > 0;
+                                          (optsForName?.length ?? 0) > 0;
                                         const treatment = name;
-                                        const opts =
-                                          TREATMENT_PRODUCT_OPTIONS[
-                                            treatment
-                                          ] ?? [];
+                                        const opts = optsForName ?? [];
                                         const fullList = opts.filter(
                                           (p) => p !== OTHER_PRODUCT_LABEL
                                         );
@@ -4067,11 +4078,11 @@ export default function DiscussedTreatmentsModal({
                                                   ).includes(
                                                     OTHER_PRODUCT_LABEL
                                                   )) ||
-                                                  (treatment === "Laser" &&
+                                                  (treatment === "Energy Device" &&
                                                     selected ===
                                                       OTHER_PRODUCT_LABEL) ||
                                                   (treatment !== "Skincare" &&
-                                                    treatment !== "Laser" &&
+                                                    treatment !== "Energy Device" &&
                                                     selected ===
                                                       OTHER_PRODUCT_LABEL)) && (
                                                   <div className="discussed-treatments-product-other-input-wrap">
@@ -4103,7 +4114,7 @@ export default function DiscussedTreatmentsModal({
                                                   </div>
                                                 )}
                                                 {treatment !== "Skincare" &&
-                                                  treatment !== "Laser" &&
+                                                  treatment !== "Energy Device" &&
                                                   showSeeAll &&
                                                   (isNarrowScreen ? (
                                                     <div className="discussed-treatments-product-search-wrap">
@@ -4329,7 +4340,7 @@ export default function DiscussedTreatmentsModal({
                                                 {selected ===
                                                   OTHER_PRODUCT_LABEL &&
                                                   treatment !== "Skincare" &&
-                                                  treatment !== "Laser" && (
+                                                  treatment !== "Energy Device" && (
                                                     <div className="discussed-treatments-product-other-input-wrap">
                                                       <input
                                                         type="text"
@@ -4593,16 +4604,14 @@ export default function DiscussedTreatmentsModal({
                               ) : (
                                 <>
                                   {treatmentsForTopic.map((name) => {
+                                    const optsForName = getTreatmentProductOptionsForProvider(provider?.code, name);
                                     const hasProductOptions =
-                                      (TREATMENT_PRODUCT_OPTIONS[name]
-                                        ?.length ?? 0) > 0;
+                                      (optsForName?.length ?? 0) > 0;
                                     const isSelected =
                                       form.selectedTreatments.includes(name);
                                     if (hasProductOptions) {
                                       const treatment = name;
-                                      const opts =
-                                        TREATMENT_PRODUCT_OPTIONS[treatment] ??
-                                        [];
+                                      const opts = optsForName ?? [];
                                       const fullList = opts.filter(
                                         (p) => p !== OTHER_PRODUCT_LABEL
                                       );
@@ -4893,7 +4902,7 @@ export default function DiscussedTreatmentsModal({
                                                 ).includes(
                                                   OTHER_PRODUCT_LABEL
                                                 )) ||
-                                                (treatment === "Laser" &&
+                                                (treatment === "Energy Device" &&
                                                   selected ===
                                                     OTHER_PRODUCT_LABEL)) && (
                                                 <div className="discussed-treatments-product-other-input-wrap">
@@ -4923,7 +4932,7 @@ export default function DiscussedTreatmentsModal({
                                                 </div>
                                               )}
                                               {treatment !== "Skincare" &&
-                                              treatment !== "Laser" &&
+                                              treatment !== "Energy Device" &&
                                               showSeeAll ? (
                                                 isNarrowScreen ? (
                                                   <div className="discussed-treatments-product-search-wrap">
@@ -5141,7 +5150,7 @@ export default function DiscussedTreatmentsModal({
                                               {selected ===
                                                 OTHER_PRODUCT_LABEL &&
                                                 treatment !== "Skincare" &&
-                                                treatment !== "Laser" && (
+                                                treatment !== "Energy Device" && (
                                                   <div className="discussed-treatments-product-other-input-wrap">
                                                     <input
                                                       type="text"
@@ -5664,7 +5673,13 @@ export default function DiscussedTreatmentsModal({
                               (form.otherTreatment.trim()
                                 ? form.otherTreatment.trim()
                                 : undefined);
-                            const qtyCtx = getQuantityContext(treatmentForQty);
+                            const productForQty = treatmentForQty
+                              ? (form.treatmentProducts[treatmentForQty] ?? "")
+                              : "";
+                            const qtyCtx = getQuantityContext(
+                              treatmentForQty,
+                              productForQty || undefined,
+                            );
                             const displayUnit =
                               form.quantityUnit || qtyCtx.unitLabel;
                             return (
@@ -5970,8 +5985,11 @@ export default function DiscussedTreatmentsModal({
                     <>
                       <div className="discussed-treatments-prefill-rows">
                         {(() => {
+                          const productForQty =
+                            form.treatmentProducts[selectedTreatmentFirst] ?? "";
                           const qtyCtx = getQuantityContext(
-                            selectedTreatmentFirst
+                            selectedTreatmentFirst,
+                            productForQty || undefined,
                           );
                           const displayUnit =
                             form.quantityUnit || qtyCtx.unitLabel;
@@ -6357,6 +6375,7 @@ export default function DiscussedTreatmentsModal({
                 prev.map((it, i) => (i === index ? { ...it, ...patch } : it))
               )
             }
+            providerCode={provider?.code}
           />
         )}
 

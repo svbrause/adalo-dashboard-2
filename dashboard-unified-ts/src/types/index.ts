@@ -205,6 +205,7 @@ export type ViewType =
   | "cards"
   | "kanban"
   | "facial-analysis"
+  | "leads"
   | "archived"
   | "offers"
   | "inbox"
