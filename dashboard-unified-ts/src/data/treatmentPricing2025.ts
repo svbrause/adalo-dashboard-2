@@ -764,6 +764,16 @@ export function matchPlanItemToSku(
     else matched = skus[0];
   }
   if (!matched) return null;
+  // Filler: quantity is in Syringes; if set, price should scale by quantity.
+  if (treatment === "Filler" && !Number.isNaN(qty) && qty > 0) {
+    return {
+      sku: matched,
+      totalPrice: matched.price * qty,
+      isPerUnit: true,
+      unitPrice: matched.price,
+      quantity: qty,
+    };
+  }
   return { sku: matched, totalPrice: matched.price };
 }
 
