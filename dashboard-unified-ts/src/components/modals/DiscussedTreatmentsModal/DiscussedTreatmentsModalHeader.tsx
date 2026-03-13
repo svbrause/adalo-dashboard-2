@@ -45,7 +45,7 @@ export default function DiscussedTreatmentsModalHeader({
             className="btn-secondary btn-sm"
             onClick={onCheckout}
           >
-            Checkout
+            Quote
           </button>
         )}
         <button

@@ -208,7 +208,7 @@ export default function TreatmentPlanCheckoutModal({
                 className="treatment-plan-checkout-quote-btn"
                 onClick={() => setShowQuoteSheet(true)}
               >
-                Summary
+                Quote Summary
               </button>
             )}
             <button
