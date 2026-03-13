@@ -263,6 +263,18 @@
   border-color: var(--theme-border-strong, #ccc);
 }
 
+.treatment-recommender-by-treatment__plan-checkout-btn:disabled {
+  color: var(--theme-text-muted, #757575);
+  background: var(--theme-bg-subtle, #f3f4f6);
+  border-color: var(--theme-border, #e8e8e8);
+  cursor: not-allowed;
+}
+
+.treatment-recommender-by-treatment__plan-checkout-btn:disabled:hover {
+  background: var(--theme-bg-subtle, #f3f4f6);
+  border-color: var(--theme-border, #e8e8e8);
+}
+
 /* Client photo expand modal */
 .treatment-recommender-by-treatment__photo-modal-backdrop {
   position: fixed;
