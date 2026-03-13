@@ -186,7 +186,7 @@ export default function TreatmentPlanCheckoutModal({
       className="treatment-plan-checkout-modal-overlay"
       onClick={onClose}
       role="dialog"
-      aria-label="Treatment Plan Summary"
+      aria-label="Treatment Plan Quote"
     >
       <div
         className="treatment-plan-checkout-modal-content"
@@ -195,7 +195,7 @@ export default function TreatmentPlanCheckoutModal({
         <div className="treatment-plan-checkout-modal-header">
           <div className="treatment-plan-checkout-modal-header-info">
             <h2 className="treatment-plan-checkout-modal-title">
-              Treatment Plan Summary
+              Treatment Plan Quote
             </h2>
             <p className="treatment-plan-checkout-modal-subtitle">
               Price summary for {firstName}&apos;s treatment plan
@@ -208,7 +208,7 @@ export default function TreatmentPlanCheckoutModal({
                 className="treatment-plan-checkout-quote-btn"
                 onClick={() => setShowQuoteSheet(true)}
               >
-                Visit Quote
+                Summary
               </button>
             )}
             <button
@@ -255,14 +255,14 @@ export default function TreatmentPlanCheckoutModal({
           className="treatment-plan-quote-sheet-overlay"
           onClick={() => setShowQuoteSheet(false)}
           role="dialog"
-          aria-label="Visit quote – treatment summary for patient review"
+          aria-label="Treatment plan quote – treatment summary for patient review"
         >
           <div
             className="treatment-plan-quote-sheet"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="treatment-plan-quote-sheet-header">
-              <h2 className="treatment-plan-quote-sheet-title">Visit Quote</h2>
+              <h2 className="treatment-plan-quote-sheet-title">Summary</h2>
               <p className="treatment-plan-quote-sheet-subtitle">
                 For {clientName?.trim() || "Patient"} – review with patient
               </p>
@@ -328,7 +328,7 @@ export default function TreatmentPlanCheckoutModal({
                     : formatPrice(
                         isMintMember && quoteData.total > 0
                           ? quoteData.total - quoteData.total * 0.1
-                          : quoteData.total
+                          : quoteData.total,
                       )}
                 </span>
               </div>

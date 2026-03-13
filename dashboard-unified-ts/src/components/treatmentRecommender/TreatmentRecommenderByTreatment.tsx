@@ -1196,7 +1196,7 @@ export default function TreatmentRecommenderByTreatment({
                   disabled={planItemCount === 0}
                   onClick={() => onOpenCheckout()}
                 >
-                  Summary
+                  Quote
                 </button>
               )}
             </div>
