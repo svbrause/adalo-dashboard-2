@@ -73,7 +73,7 @@ import "./TreatmentRecommenderByTreatment.css";
 import biostimulantsBeforeAfterUrl from "../../assets/images/Biostimulators-Before-and-After-With-Pictures-1.webp";
 
 /** Show the Checkout button in the plan sidebar. Enabled in local/dev (npm run dev); hidden in production. */
-const SHOW_CHECKOUT_BUTTON = import.meta.env.DEV;
+const SHOW_CHECKOUT_BUTTON = true;
 
 /** Map Airtable record to TreatmentPhoto for card thumbnails. */
 function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
@@ -134,11 +134,15 @@ function photoMatchesTreatment(
   const termsToMatch = [t, ...(TREATMENT_PHOTO_ALIASES[treatmentName] ?? [])];
   const inGeneral = (photo.generalTreatments || []).some((g) => {
     const gLower = String(g).toLowerCase();
-    return termsToMatch.some((term) => gLower.includes(term) || term.includes(gLower));
+    return termsToMatch.some(
+      (term) => gLower.includes(term) || term.includes(gLower),
+    );
   });
   const inSpecific = (photo.treatments || []).some((s) => {
     const sLower = String(s).toLowerCase();
-    return termsToMatch.some((term) => sLower.includes(term) || term.includes(sLower));
+    return termsToMatch.some(
+      (term) => sLower.includes(term) || term.includes(sLower),
+    );
   });
   const inName = (photo.name || "").toLowerCase();
   const nameMatch = termsToMatch.some((term) => inName.includes(term));
@@ -709,12 +713,15 @@ export default function TreatmentRecommenderByTreatment({
   );
   /** Energy Device types are always constrained to pricing-sheet options for the provider (prevents stale custom values like Picosure). */
   const laserWhatOptions = useMemo(
-    () => getTreatmentProductOptionsForProvider(provider?.code, "Energy Device"),
+    () =>
+      getTreatmentProductOptionsForProvider(provider?.code, "Energy Device"),
     [provider?.code],
   );
   /** Records used for rendering Energy Device chips: only pricing-sheet values, with record id when available. */
   const laserWhatDisplayRecords = useMemo(() => {
-    const valueToId = new Map(laserWhatOptionRecords.map((r) => [r.value, r.id]));
+    const valueToId = new Map(
+      laserWhatOptionRecords.map((r) => [r.value, r.id]),
+    );
     return laserWhatOptions.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
@@ -727,12 +734,15 @@ export default function TreatmentRecommenderByTreatment({
   );
   /** Biostimulants types are constrained to pricing-sheet options only (prevents stale values like Ellanse and duplicate variants). */
   const biostimulantWhatOptions = useMemo(
-    () => getTreatmentProductOptionsForProvider(provider?.code, "Biostimulants"),
+    () =>
+      getTreatmentProductOptionsForProvider(provider?.code, "Biostimulants"),
     [provider?.code],
   );
   /** Records used for rendering Biostimulants chips: only pricing-sheet values, with record id when available. */
   const biostimulantDisplayRecords = useMemo(() => {
-    const valueToId = new Map(biostimulantWhatOptionRecords.map((r) => [r.value, r.id]));
+    const valueToId = new Map(
+      biostimulantWhatOptionRecords.map((r) => [r.value, r.id]),
+    );
     return biostimulantWhatOptions.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
@@ -747,16 +757,18 @@ export default function TreatmentRecommenderByTreatment({
   );
   const neurotoxinTypeOptions = useMemo(
     () =>
-      getTreatmentProductOptionsForProvider(provider?.code, "Neurotoxin").filter(
-        (v) => v !== OTHER_PRODUCT_LABEL,
-      ),
+      getTreatmentProductOptionsForProvider(
+        provider?.code,
+        "Neurotoxin",
+      ).filter((v) => v !== OTHER_PRODUCT_LABEL),
     [provider?.code],
   );
   const chemicalPeelTypeOptions = useMemo(
     () =>
-      getTreatmentProductOptionsForProvider(provider?.code, "Chemical Peel").filter(
-        (v) => v !== OTHER_PRODUCT_LABEL,
-      ),
+      getTreatmentProductOptionsForProvider(
+        provider?.code,
+        "Chemical Peel",
+      ).filter((v) => v !== OTHER_PRODUCT_LABEL),
     [provider?.code],
   );
 
@@ -792,7 +804,10 @@ export default function TreatmentRecommenderByTreatment({
   ]);
 
   const suggestedTreatments = useMemo(() => {
-    const withGoals = getSuggestedTreatmentsForFindings(combinedFindings, provider?.code);
+    const withGoals = getSuggestedTreatmentsForFindings(
+      combinedFindings,
+      provider?.code,
+    );
     let names = Array.from(new Set(withGoals.map((s) => s.treatment)));
     // When client has skin quiz recommendations, include Skincare so "Add to plan" from top section has a card to open
     const hasSkinQuizProducts =
@@ -1333,7 +1348,11 @@ export default function TreatmentRecommenderByTreatment({
                       GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result] && (
                         <span className="treatment-recommender-skin-analysis__gemstone">
                           {" "}
-                          · {GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result].emoji}{" "}
+                          ·{" "}
+                          {
+                            GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result]
+                              .emoji
+                          }{" "}
                           {
                             GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result]
                               .tagline
@@ -1501,7 +1520,9 @@ export default function TreatmentRecommenderByTreatment({
                                     skincareCategoryFilter:
                                       treatment === "Skincare" ? [] : undefined,
                                     laserWhat:
-                                      treatment === "Energy Device" ? [] : undefined,
+                                      treatment === "Energy Device"
+                                        ? []
+                                        : undefined,
                                     biostimulantWhat:
                                       treatment === "Biostimulants"
                                         ? []
@@ -1831,83 +1852,82 @@ export default function TreatmentRecommenderByTreatment({
                                         );
                                       })
                                     : (treatment === "Microneedling"
-                                          ? [
-                                              ...REGION_OPTIONS_MICRONEEDLING,
-                                            ].map((v) => ({ id: "", value: v }))
-                                          : treatment === "Chemical Peel"
-                                            ? [...CHEMICAL_PEEL_AREA_OPTIONS].map((v) => ({
+                                        ? [...REGION_OPTIONS_MICRONEEDLING].map(
+                                            (v) => ({ id: "", value: v }),
+                                          )
+                                        : treatment === "Chemical Peel"
+                                          ? [...CHEMICAL_PEEL_AREA_OPTIONS].map(
+                                              (v) => ({
                                                 id: "",
                                                 value: v,
-                                              }))
+                                              }),
+                                            )
                                           : whereOptions.map((v) => ({
                                               id: "",
                                               value: v,
                                             }))
-                                        ).map((rec) => {
-                                          const r = rec.value;
-                                          const whereSelected =
-                                            addToPlanForTreatment.where.includes(
-                                              r,
-                                            );
-                                          const recordId = rec.id || null;
-                                          return (
-                                            <button
-                                              key={
-                                                recordId ? String(recordId) : r
-                                              }
-                                              type="button"
-                                              className={`treatment-recommender-by-treatment__chip ${
-                                                whereSelected
-                                                  ? "treatment-recommender-by-treatment__chip--selected"
-                                                  : ""
-                                              }`}
-                                              onClick={() => {
-                                                setAddToPlanForTreatment(
-                                                  (prev) =>
-                                                    prev
-                                                      ? {
-                                                          ...prev,
-                                                          where:
-                                                            prev.where.includes(
-                                                              r,
-                                                            )
-                                                              ? prev.where.filter(
-                                                                  (x) =>
-                                                                    x !== r,
-                                                                )
-                                                              : [
-                                                                  ...prev.where,
-                                                                  r,
-                                                                ],
-                                                        }
-                                                      : null,
-                                                );
-                                              }}
-                                              title={
-                                                whereSelected
-                                                  ? `Remove ${r}`
-                                                  : `Add ${r}`
-                                              }
-                                              aria-label={
-                                                whereSelected
-                                                  ? `Remove ${r}`
-                                                  : `Add ${r}`
-                                              }
-                                            >
-                                              <span className="treatment-recommender-by-treatment__chip-label">
-                                                {r}
-                                              </span>
-                                              {whereSelected && (
-                                                <span
-                                                  className="treatment-recommender-by-treatment__chip-remove"
-                                                  aria-hidden
-                                                >
-                                                  ×
-                                                </span>
-                                              )}
-                                            </button>
+                                      ).map((rec) => {
+                                        const r = rec.value;
+                                        const whereSelected =
+                                          addToPlanForTreatment.where.includes(
+                                            r,
                                           );
-                                        })}
+                                        const recordId = rec.id || null;
+                                        return (
+                                          <button
+                                            key={
+                                              recordId ? String(recordId) : r
+                                            }
+                                            type="button"
+                                            className={`treatment-recommender-by-treatment__chip ${
+                                              whereSelected
+                                                ? "treatment-recommender-by-treatment__chip--selected"
+                                                : ""
+                                            }`}
+                                            onClick={() => {
+                                              setAddToPlanForTreatment(
+                                                (prev) =>
+                                                  prev
+                                                    ? {
+                                                        ...prev,
+                                                        where:
+                                                          prev.where.includes(r)
+                                                            ? prev.where.filter(
+                                                                (x) => x !== r,
+                                                              )
+                                                            : [
+                                                                ...prev.where,
+                                                                r,
+                                                              ],
+                                                      }
+                                                    : null,
+                                              );
+                                            }}
+                                            title={
+                                              whereSelected
+                                                ? `Remove ${r}`
+                                                : `Add ${r}`
+                                            }
+                                            aria-label={
+                                              whereSelected
+                                                ? `Remove ${r}`
+                                                : `Add ${r}`
+                                            }
+                                          >
+                                            <span className="treatment-recommender-by-treatment__chip-label">
+                                              {r}
+                                            </span>
+                                            {whereSelected && (
+                                              <span
+                                                className="treatment-recommender-by-treatment__chip-remove"
+                                                aria-hidden
+                                              >
+                                                ×
+                                              </span>
+                                            )}
+                                          </button>
+                                        );
+                                      })}
                                   {/* Custom (user-typed) options; click chip to remove */}
                                   {treatment === "Skincare" &&
                                     (addToPlanForTreatment.skincareWhat ?? [])
@@ -2104,10 +2124,14 @@ export default function TreatmentRecommenderByTreatment({
                                           })
                                         }
                                         title={
-                                          selected ? `Remove ${opt}` : `Add ${opt}`
+                                          selected
+                                            ? `Remove ${opt}`
+                                            : `Add ${opt}`
                                         }
                                         aria-label={
-                                          selected ? `Remove ${opt}` : `Add ${opt}`
+                                          selected
+                                            ? `Remove ${opt}`
+                                            : `Add ${opt}`
                                         }
                                       >
                                         <span className="treatment-recommender-by-treatment__chip-label">
@@ -2208,7 +2232,8 @@ export default function TreatmentRecommenderByTreatment({
                                       : chemicalPeelTypeOptions
                                   ).map((opt) => {
                                     const selected =
-                                      (addToPlanForTreatment.product ?? "") === opt;
+                                      (addToPlanForTreatment.product ?? "") ===
+                                      opt;
                                     return (
                                       <button
                                         key={opt}
@@ -2229,10 +2254,14 @@ export default function TreatmentRecommenderByTreatment({
                                           )
                                         }
                                         title={
-                                          selected ? `Remove ${opt}` : `Select ${opt}`
+                                          selected
+                                            ? `Remove ${opt}`
+                                            : `Select ${opt}`
                                         }
                                         aria-label={
-                                          selected ? `Remove ${opt}` : `Select ${opt}`
+                                          selected
+                                            ? `Remove ${opt}`
+                                            : `Select ${opt}`
                                         }
                                       >
                                         <span className="treatment-recommender-by-treatment__chip-label">
@@ -2363,7 +2392,9 @@ export default function TreatmentRecommenderByTreatment({
                                 skincareCategoryFilter:
                                   treatment === "Skincare" ? [] : undefined,
                                 laserWhat:
-                                  treatment === "Energy Device" ? [] : undefined,
+                                  treatment === "Energy Device"
+                                    ? []
+                                    : undefined,
                                 biostimulantWhat:
                                   treatment === "Biostimulants"
                                     ? []
