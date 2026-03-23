@@ -1,0 +1,32 @@
+.sms-config-request-modal {
+  max-width: 760px;
+  width: min(760px, calc(100vw - 24px));
+}
+
+.sms-config-request-subtitle {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.sms-config-request-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.sms-config-request-body .form-group:last-child {
+  grid-column: 1 / -1;
+}
+
+.sms-config-request-body textarea {
+  min-height: 180px;
+  resize: vertical;
+}
+
+@media (max-width: 760px) {
+  .sms-config-request-body {
+    grid-template-columns: 1fr;
+  }
+}
+

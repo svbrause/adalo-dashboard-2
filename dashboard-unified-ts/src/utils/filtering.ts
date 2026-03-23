@@ -4,6 +4,40 @@ import { Client, FilterState, SortState } from "../types";
 import { formatFacialStatus } from "./statusFormatting";
 import { formatProviderDisplayName } from "./providerHelpers";
 
+function hasSkinAnalysis(client: Client): boolean {
+  const status = String(client.facialAnalysisStatus ?? "").trim().toLowerCase();
+  if (status && status !== "not-started" && status !== "not started") return true;
+  const hasFrontPhoto = Boolean(client.frontPhoto);
+  const hasIssueSignals = Boolean(
+    String(client.allIssues ?? "").trim() ||
+      String(client.interestedIssues ?? "").trim() ||
+      String(client.processedAreasOfInterest ?? "").trim(),
+  );
+  return hasFrontPhoto || hasIssueSignals;
+}
+
+function hasTreatmentPlan(client: Client): boolean {
+  return (client.discussedItems ?? []).length > 0;
+}
+
+function hasTreatmentFinder(client: Client): boolean {
+  if (client.offerEarned === true) return true;
+  const hasFinderSignals = Boolean(
+    (client.goals ?? []).length > 0 ||
+      (Array.isArray(client.concerns)
+        ? client.concerns.length > 0
+        : String(client.concerns ?? "").trim().length > 0) ||
+      (Array.isArray(client.areas) ? client.areas.length > 0 : false) ||
+      String(client.aestheticGoals ?? "").trim().length > 0 ||
+      Number(client.photosViewed ?? 0) > 0 ||
+      Number(client.photosLiked ?? 0) > 0 ||
+      Number(client.casesViewedCount ?? 0) > 0 ||
+      Number(client.totalCasesAvailable ?? 0) > 0 ||
+      (client.concernsExplored ?? []).length > 0,
+  );
+  return hasFinderSignals;
+}
+
 export function applyFilters(
   clients: Client[],
   filters: FilterState,
@@ -71,6 +105,29 @@ export function applyFilters(
       const formattedStatus = formatFacialStatus(client.facialAnalysisStatus);
       return formattedStatus === filters.analysisStatus;
     });
+  }
+
+  // Apply "has/blank" completion filters
+  if (filters.skinAnalysisState) {
+    filtered = filtered.filter((client) =>
+      filters.skinAnalysisState === "has"
+        ? hasSkinAnalysis(client)
+        : !hasSkinAnalysis(client),
+    );
+  }
+  if (filters.treatmentFinderState) {
+    filtered = filtered.filter((client) =>
+      filters.treatmentFinderState === "has"
+        ? hasTreatmentFinder(client)
+        : !hasTreatmentFinder(client),
+    );
+  }
+  if (filters.treatmentPlanState) {
+    filtered = filtered.filter((client) =>
+      filters.treatmentPlanState === "has"
+        ? hasTreatmentPlan(client)
+        : !hasTreatmentPlan(client),
+    );
   }
 
   // Apply lead stage filter

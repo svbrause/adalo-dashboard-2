@@ -1,0 +1,93 @@
+.ai-mirror-canvas-wrap {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f1f5f9;
+  min-height: 160px;
+}
+
+.ai-mirror-canvas-wrap--loading {
+  min-height: 200px;
+}
+
+.ai-mirror-canvas-wrap--loading .ai-mirror-canvas {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  left: 0;
+  top: 0;
+}
+
+.ai-mirror-canvas,
+.ai-mirror-fallback-img {
+  width: 100%;
+  display: block;
+  vertical-align: middle;
+  max-height: 360px;
+  object-fit: cover;
+}
+
+.ai-mirror-unavailable {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 18px;
+  color: #334155;
+  background: #f8fafc;
+}
+
+.ai-mirror-unavailable strong {
+  color: #0f172a;
+}
+
+.ai-mirror-unavailable span {
+  max-width: 48ch;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.ai-mirror-canvas {
+  /* intrinsic size set in JS; scales with width */
+  height: auto;
+}
+
+.ai-mirror-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #4338ca;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(4px);
+}
+
+.ai-mirror-loading-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6366f1;
+  animation: ai-mirror-pulse 1s ease-in-out infinite;
+}
+
+@keyframes ai-mirror-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

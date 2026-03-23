@@ -11,7 +11,9 @@ import DebugPatientIssuesPage from "./debug/DebugPatientIssuesPage";
 import DebugIndexPage from "./debug/DebugIndexPage";
 import DebugClientDetailPage from "./components/debug/DebugClientDetailPage";
 import SkinQuizStandalonePage from "./components/pages/SkinQuizStandalonePage";
+import PostVisitBlueprintPage from "./components/pages/PostVisitBlueprintPage";
 import { isSkinQuizStandalonePath } from "./utils/skinQuizLink";
+import { isPostVisitBlueprintPath } from "./utils/postVisitBlueprint";
 import "./styles/index.css";
 
 /** Detect debug route from pathname or ?debug= (no provider required). */
@@ -78,6 +80,10 @@ function AppContent() {
   // Public standalone skin quiz (unique link from SMS) – no login
   if (isSkinQuizStandalonePath()) {
     return <SkinQuizStandalonePage />;
+  }
+  // Public post-visit blueprint (unique link from SMS) – no login
+  if (isPostVisitBlueprintPath()) {
+    return <PostVisitBlueprintPage />;
   }
 
   // Debug pages: same components as dashboard, dummy data, no login

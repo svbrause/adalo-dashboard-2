@@ -537,7 +537,8 @@ export function getBiostimulantsTypesFromPriceList(): string[] {
     } else if (i.name.includes("Sculptra")) {
       normalized.push("Sculptra");
     } else if (i.name.includes("Skinvive")) {
-      normalized.push(i.name); // Skinvive II, Skinvive III Add-On Syringe – no quantity variant
+      // Expose one clean type in selectors; pricing logic chooses II + add-on syringe SKU(s).
+      normalized.push("Skinvive");
     }
   }
   return Array.from(new Set(normalized));
@@ -737,6 +738,31 @@ export function matchPlanItemToSku(
         const one = sculptraSkus.find((s) => /Sculptra\s*[–-]\s*1\s*Vial/i.test(s.name));
         if (one) return { sku: one, totalPrice: one.price };
       }
+    }
+    if (/skinvive/i.test(product)) {
+      const skinviveBase =
+        skus.find((s) => /Skinvive\s*II/i.test(s.name)) ||
+        skus.find((s) => /Skinvive/i.test(s.name));
+      if (!skinviveBase) return null;
+      const skinviveAddon = skus.find((s) => /Skinvive\s*III\s*Add-On\s*Syringe/i.test(s.name));
+      if (bioQty <= 1 || !skinviveAddon) {
+        return {
+          sku: skinviveBase,
+          totalPrice: skinviveBase.price,
+          isPerUnit: true,
+          unitPrice: skinviveBase.price,
+          quantity: 1,
+        };
+      }
+      // Skinvive pricing model: first syringe at Skinvive II, additional syringes at add-on rate.
+      const totalPrice = skinviveBase.price + (bioQty - 1) * skinviveAddon.price;
+      return {
+        sku: skinviveBase,
+        totalPrice,
+        isPerUnit: true,
+        unitPrice: skinviveAddon.price,
+        quantity: bioQty,
+      };
     }
   }
 

@@ -1,0 +1,178 @@
+.sms-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sms-settings-page .card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.sms-settings-header h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.sms-settings-header p {
+  margin: 8px 0 0;
+  color: #475569;
+}
+
+.sms-settings-kpis {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sms-settings-kpis > div {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.sms-settings-kpis span {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.sms-settings-kpis strong {
+  color: #0f172a;
+  font-size: 1.1rem;
+}
+
+.sms-settings-guide h3 {
+  margin: 0 0 6px;
+}
+
+.sms-settings-guide ol {
+  margin: 0;
+  padding-left: 20px;
+  color: #334155;
+}
+
+.sms-settings-products {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sms-settings-product-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sms-settings-product-head h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.sms-settings-product-head p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.sms-settings-owner {
+  background: #eef2ff;
+  color: #3730a3;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.sms-settings-events {
+  display: grid;
+  gap: 10px;
+}
+
+.sms-settings-event {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.sms-settings-event-meta h4 {
+  margin: 0;
+}
+
+.sms-settings-event-meta p {
+  margin: 4px 0 8px;
+  color: #64748b;
+}
+
+.sms-settings-badges {
+  display: flex;
+  gap: 8px;
+}
+
+.sms-status-badge,
+.sms-channel-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.sms-status-badge--on {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.sms-status-badge--off {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.sms-channel-badge {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.sms-settings-template {
+  margin-top: 10px;
+}
+
+.sms-settings-template label {
+  display: block;
+  margin-bottom: 6px;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sms-settings-template pre {
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 0.88rem;
+}
+
+.sms-settings-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 800px) {
+  .sms-settings-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

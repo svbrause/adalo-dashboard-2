@@ -209,13 +209,20 @@ export type ViewType =
   | "archived"
   | "offers"
   | "inbox"
-  | "sms-history";
+  | "sms-history"
+  | "sms-settings";
 
 export interface FilterState {
   source: string;
   ageMin: number | null;
   ageMax: number | null;
   analysisStatus: string;
+  /** Whether skin analysis data exists for this client. ""=all, "has", "blank". */
+  skinAnalysisState: "" | "has" | "blank";
+  /** Whether treatment finder data exists for this client. ""=all, "has", "blank". */
+  treatmentFinderState: "" | "has" | "blank";
+  /** Whether a treatment plan exists (discussed items). ""=all, "has", "blank". */
+  treatmentPlanState: "" | "has" | "blank";
   leadStage: string;
   /** Location name (e.g. Newport Beach) – from client.locationName (Patients). */
   locationName: string;

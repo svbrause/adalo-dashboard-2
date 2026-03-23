@@ -1835,6 +1835,7 @@ export default function ClientDetailModal({
       {showCheckoutModal && client && (
         <TreatmentPlanCheckoutModal
           clientName={client.name ?? ""}
+          client={client}
           items={client.discussedItems ?? []}
           onClose={() => setShowCheckoutModal(false)}
           onRemoveItem={async (_item, index) => {

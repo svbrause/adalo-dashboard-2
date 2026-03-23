@@ -6365,6 +6365,7 @@ export default function DiscussedTreatmentsModal({
         {showCheckoutModal && (
           <TreatmentPlanCheckoutModal
             clientName={client.name ?? ""}
+            client={client}
             items={items}
             onClose={() => setShowCheckoutModal(false)}
             onRemoveItem={(_item, index) =>

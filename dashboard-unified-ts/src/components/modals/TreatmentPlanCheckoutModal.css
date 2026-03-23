@@ -52,6 +52,22 @@
   margin: 0;
 }
 
+.treatment-plan-checkout-modal-blueprint-sent {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--theme-text-secondary, #475569);
+}
+
+.treatment-plan-checkout-modal-link-btn {
+  margin-left: 8px;
+  border: none;
+  background: none;
+  color: var(--theme-accent, #6366f1);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .treatment-plan-checkout-modal-header-actions {
   display: flex;
   align-items: center;
@@ -241,6 +257,86 @@
 
 .treatment-plan-checkout-mint-line .treatment-plan-checkout-subtotal-value {
   color: var(--theme-success, #059669);
+}
+
+.treatment-plan-checkout-blueprint-compose-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10010;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.treatment-plan-checkout-blueprint-compose-modal {
+  width: min(680px, 100%);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  padding: 18px;
+}
+
+.treatment-plan-checkout-blueprint-compose-modal h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.treatment-plan-checkout-blueprint-compose-modal p {
+  margin: 8px 0 12px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.treatment-plan-checkout-blueprint-compose-label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.treatment-plan-checkout-blueprint-compose-label--textarea {
+  margin-top: 14px;
+}
+
+.treatment-plan-checkout-blueprint-compose-phone {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.treatment-plan-checkout-blueprint-compose-phone:focus {
+  outline: 2px solid rgba(99, 102, 241, 0.35);
+  outline-offset: 1px;
+  border-color: #818cf8;
+}
+
+.treatment-plan-checkout-blueprint-compose-textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 140px;
+  box-sizing: border-box;
+}
+
+.treatment-plan-checkout-blueprint-compose-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .treatment-plan-checkout-when-one-click {
@@ -637,6 +733,25 @@
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
+}
+
+.treatment-plan-checkout-send-blueprint-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--theme-accent, #6366f1);
+  border: 1px solid var(--theme-accent, #6366f1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.treatment-plan-checkout-send-blueprint-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .treatment-plan-checkout-quote-btn:hover {

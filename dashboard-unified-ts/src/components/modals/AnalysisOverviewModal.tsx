@@ -2,6 +2,10 @@
 // Supports drill-down into category detail and area detail views.
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import {
+  AreaThemeFeatureRow,
+  SubScoreFeatureRow,
+} from "../analysisOverview/FeatureBreakdownRows";
 import { useDashboard } from "../../context/DashboardContext";
 import { Client, TreatmentPhoto } from "../../types";
 import { fetchTreatmentPhotos, fetchTableRecords, fetchAIAssessment, fetchCategoryAssessment } from "../../services/api";
@@ -24,11 +28,16 @@ import {
   type CategoryResult,
   type AreaResult,
 } from "../../config/analysisOverviewConfig";
+import {
+  getDetectedIssuesFromClient,
+  getInterestAreaNamesFromClient,
+} from "../../utils/analysisOverviewClient";
 import { getSuggestedTreatmentsForFindings } from "./DiscussedTreatmentsModal/utils";
 import { TREATMENT_META } from "./DiscussedTreatmentsModal/constants";
 import type { TreatmentPlanPrefill } from "./DiscussedTreatmentsModal/TreatmentPhotos";
 import PhotoViewerModal from "./PhotoViewerModal";
 import aiLogoUrl from "../../assets/images/ai.svg";
+import { RadarChart } from "../postVisitBlueprint/RadarChart";
 import "./AnalysisOverviewModal.css";
 
 /** Typewriter text – animates char-by-char on first render only */
@@ -435,96 +444,6 @@ function TreatmentRowContent({
   );
 }
 
-/** SVG radar/spider chart for category sub-scores */
-function RadarChart({
-  data,
-  size = 180,
-  animate,
-  showLabels = true,
-  className,
-}: {
-  data: { name: string; score: number }[];
-  size?: number;
-  animate: boolean;
-  showLabels?: boolean;
-  className?: string;
-}) {
-  const padding = showLabels ? 44 : Math.min(12, size / 6);
-  const svgSize = size + padding * 2;
-  const cx = svgSize / 2;
-  const cy = svgSize / 2;
-  const r = size / 2 - (showLabels ? 28 : 8);
-  const n = data.length;
-  if (n < 3) return null;
-  const angleStep = (2 * Math.PI) / n;
-  const rings = showLabels ? [25, 50, 75, 100] : [50, 100];
-
-  const pointAt = (i: number, val: number) => {
-    const angle = -Math.PI / 2 + i * angleStep;
-    const dist = (val / 100) * r;
-    return { x: cx + dist * Math.cos(angle), y: cy + dist * Math.sin(angle) };
-  };
-
-  const dataPoints = data.map((d, i) => pointAt(i, animate ? d.score : 0));
-  const polygon = dataPoints.map((p) => `${p.x},${p.y}`).join(" ");
-
-  return (
-    <div className={`ao-radar ${className ?? ""}`.trim()}>
-      <svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
-        {/* Grid rings */}
-        {rings.map((ringVal) => (
-          <polygon
-            key={ringVal}
-            points={Array.from({ length: n }, (_, i) => {
-              const p = pointAt(i, ringVal);
-              return `${p.x},${p.y}`;
-            }).join(" ")}
-            fill="none"
-            stroke="rgba(0,0,0,0.08)"
-            strokeWidth="1"
-          />
-        ))}
-        {/* Axis lines */}
-        {data.map((_, i) => {
-          const p = pointAt(i, 100);
-          return (
-            <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(0,0,0,0.06)" strokeWidth="1" />
-          );
-        })}
-        {/* Data polygon */}
-        <polygon
-          points={polygon}
-          fill="rgba(59,130,246,0.15)"
-          stroke="#3b82f6"
-          strokeWidth={showLabels ? 2 : 1.5}
-          style={{ transition: "all 0.6s ease-out" }}
-        />
-        {/* Data points */}
-        {dataPoints.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={showLabels ? 3.5 : 2} fill="#3b82f6" style={{ transition: "all 0.6s ease-out" }} />
-        ))}
-        {/* Labels – placed well outside polygon so they don't overlap the graph */}
-        {showLabels &&
-          data.map((d, i) => {
-            const p = pointAt(i, 132);
-            return (
-              <text
-                key={d.name}
-                x={p.x}
-                y={p.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                className="ao-radar__label"
-              >
-                {d.name}
-              </text>
-            );
-          })}
-      </svg>
-    </div>
-  );
-}
-
 /** Horizontal bar for sub-score breakdown in category detail */
 function DetailBar({
   label,
@@ -675,133 +594,6 @@ function AreaCard({
   );
 }
 
-/** Collapsible sub-score row with check/x pill list */
-function SubScoreRow({
-  subScore,
-  issues,
-  detectedIssues,
-  animate,
-}: {
-  subScore: { name: string; score: number; tier: string; total: number; detected: number };
-  issues: string[];
-  detectedIssues: Set<string>;
-  animate: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const color = tierColor(scoreTier(subScore.score));
-
-  const goodIssues = issues.filter(i => !detectedIssues.has(normalizeIssue(i)));
-  const badIssues = issues.filter(i => detectedIssues.has(normalizeIssue(i)));
-
-  return (
-    <div className={`ao-subscore-row ${expanded ? "ao-subscore-row--open" : ""}`}>
-      <button
-        type="button"
-        className="ao-subscore-row__header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className="ao-subscore-row__name">{subScore.name}</span>
-        <div className="ao-subscore-row__bar-wrap">
-          <div className="ao-subscore-row__bar-track">
-            <div
-              className="ao-subscore-row__bar-fill"
-              style={{
-                width: animate ? `${subScore.score}%` : "0%",
-                background: color,
-                transition: animate ? "width 0.8s ease-out" : "none",
-              }}
-            />
-          </div>
-          <span className="ao-subscore-row__score" style={{ color }}>
-            {subScore.score}
-          </span>
-        </div>
-        <span className="ao-subscore-row__chev" aria-hidden>
-          {expanded ? "▲" : "▼"}
-        </span>
-      </button>
-      {expanded && (
-        <div className="ao-subscore-row__pills">
-          {goodIssues.map(issue => (
-            <span key={issue} className="ao-pill ao-pill--good">
-              <span className="ao-pill__icon">✓</span>
-              {issue}
-            </span>
-          ))}
-          {badIssues.map(issue => (
-            <span key={issue} className="ao-pill ao-pill--concern">
-              <span className="ao-pill__icon">✕</span>
-              {issue}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Collapsible area theme row with check/x pill list */
-function AreaThemeRow({
-  theme,
-  detectedIssues,
-}: {
-  theme: { label: string; totalCount: number; detectedCount: number; issues: string[] };
-  detectedIssues: Set<string>;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const score = theme.totalCount > 0
-    ? Math.round(((theme.totalCount - theme.detectedCount) / theme.totalCount) * 100)
-    : 100;
-  const color = tierColor(scoreTier(score));
-  const goodIssues = theme.issues.filter(i => !detectedIssues.has(normalizeIssue(i)));
-  const badIssues = theme.issues.filter(i => detectedIssues.has(normalizeIssue(i)));
-
-  return (
-    <div className={`ao-subscore-row ${expanded ? "ao-subscore-row--open" : ""}`}>
-      <button
-        type="button"
-        className="ao-subscore-row__header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className="ao-subscore-row__name">{theme.label}</span>
-        <div className="ao-subscore-row__bar-wrap">
-          <div className="ao-subscore-row__bar-track">
-            <div
-              className="ao-subscore-row__bar-fill"
-              style={{
-                width: `${score}%`,
-                background: color,
-              }}
-            />
-          </div>
-          <span className="ao-subscore-row__score" style={{ color }}>
-            {score}
-          </span>
-        </div>
-        <span className="ao-subscore-row__chev" aria-hidden>
-          {expanded ? "▲" : "▼"}
-        </span>
-      </button>
-      {expanded && (
-        <div className="ao-subscore-row__pills">
-          {goodIssues.map(issue => (
-            <span key={issue} className="ao-pill ao-pill--good">
-              <span className="ao-pill__icon">✓</span>
-              {issue}
-            </span>
-          ))}
-          {badIssues.map(issue => (
-            <span key={issue} className="ao-pill ao-pill--concern">
-              <span className="ao-pill__icon">✕</span>
-              {issue}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ========== Category Detail View (drill-down) ========== */
 function CategoryDetailContent({
   categoryKey,
@@ -937,7 +729,7 @@ function CategoryDetailContent({
         <h3 className="ao-detail__section-title">Feature Breakdown</h3>
         <div className="ao-detail__subscore-list">
           {catResult.subScores.map((s) => (
-            <SubScoreRow
+            <SubScoreFeatureRow
               key={s.name}
               subScore={s}
               issues={CATEGORIES.find(c => c.key === categoryKey)?.subScores.find(ss => ss.name === s.name)?.issues || []}
@@ -1117,7 +909,7 @@ function AreaDetailContent({
         <h3 className="ao-detail__section-title">Feature Breakdown</h3>
         <div className="ao-detail__subscore-list">
           {themes.map((theme) => (
-            <AreaThemeRow
+            <AreaThemeFeatureRow
               key={theme.label}
               theme={theme}
               detectedIssues={detectedIssues}
@@ -1160,52 +952,6 @@ function AreaDetailContent({
       )}
     </div>
   );
-}
-
-/** Build detected issues Set from client.allIssues (comma-separated or array). */
-function getDetectedIssues(client: Client): Set<string> {
-  const set = new Set<string>();
-  const raw = client.allIssues;
-  if (!raw) return set;
-  const list = Array.isArray(raw)
-    ? raw
-    : String(raw)
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-  list.forEach((issue) => set.add(normalizeIssue(issue)));
-  return set;
-}
-
-/** Build interest area names (lowercase) from client form/regions. */
-function getInterestAreaNames(client: Client): Set<string> {
-  const names = new Set<string>();
-  const sources = [
-    client.processedAreasOfInterest,
-    client.areasOfInterestFromForm,
-    client.whichRegions,
-  ].filter(Boolean) as string[];
-
-  sources.forEach((str) => {
-    const s = typeof str === "string" ? str : String(str);
-    s.split(",").forEach((part) => {
-      const trimmed = part.trim().toLowerCase();
-      if (trimmed) names.add(trimmed);
-    });
-  });
-
-  // Map common phrases to area names
-  names.forEach((n) => {
-    if (n.includes("jaw") || n.includes("chin")) names.add("jawline");
-    if (n.includes("eye")) names.add("eyes");
-    if (n.includes("lip")) names.add("lips");
-    if (n.includes("forehead") || n.includes("brow")) names.add("forehead");
-    if (n.includes("cheek")) names.add("cheeks");
-    if (n.includes("nose")) names.add("nose");
-    if (n.includes("skin")) names.add("skin");
-  });
-
-  return names;
 }
 
 export default function AnalysisOverviewModal({
@@ -1295,10 +1041,13 @@ export default function AnalysisOverviewModal({
     };
   }, [detailView]);
 
-  const detectedIssues = useMemo(() => getDetectedIssues(client), [client]);
+  const detectedIssues = useMemo(
+    () => getDetectedIssuesFromClient(client),
+    [client],
+  );
   const interestAreaNames = useMemo(
-    () => getInterestAreaNames(client),
-    [client]
+    () => getInterestAreaNamesFromClient(client),
+    [client],
   );
 
   const categories = useMemo(

@@ -109,6 +109,78 @@ export function notifyLoginToSlack(provider: Provider): void {
 }
 
 /**
+ * Ask the backend for a **fresh** Airtable attachment URL for the blueprint hero photo.
+ * Airtable download URLs expire (~2h); this lets the patient page recover when the link
+ * payload only has an expired URL (no embedded data URL).
+ *
+ * **Backend contract** (implement on `ponce-patient-backend` or similar):
+ * `GET /api/dashboard/blueprint/front-photo?token=&patientId=&tableSource=&providerCode=`
+ * → `{ "url": "https://..." }` with a newly fetched attachment URL from Airtable.
+ * Return 404 if not implemented or patient not found.
+ */
+export async function fetchBlueprintFrontPhotoFreshUrl(params: {
+  token: string;
+  patientId: string;
+  tableSource: string;
+  providerCode?: string;
+}): Promise<string | null> {
+  try {
+    const q = new URLSearchParams({
+      token: params.token,
+      patientId: params.patientId,
+      tableSource: params.tableSource,
+    });
+    if (params.providerCode) q.set("providerCode", params.providerCode);
+    const url = `${API_BASE_URL}/api/dashboard/blueprint/front-photo?${q.toString()}`;
+    const res = await fetch(url, { method: "GET" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { url?: unknown };
+    const u = typeof data?.url === "string" ? data.url.trim() : "";
+    return u || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist Post-Visit Blueprint JSON on the backend so patient links can be short (`?t=` only).
+ * Backend: POST /api/dashboard/blueprint
+ */
+export async function storePostVisitBlueprintOnServer(
+  payload: Record<string, unknown>,
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/dashboard/blueprint`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Load blueprint JSON for the public patient page when the URL has no `d` param.
+ * Backend: GET /api/dashboard/blueprint?token=
+ */
+export async function fetchPostVisitBlueprintFromServer(
+  token: string,
+): Promise<unknown | null> {
+  const t = token?.trim();
+  if (!t) return null;
+  try {
+    const url = `${API_BASE_URL}/api/dashboard/blueprint?${new URLSearchParams({ token: t })}`;
+    const res = await fetch(url, { method: "GET" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch records from an Airtable table with optional filtering
  */
 export async function fetchTableRecords(
@@ -1066,6 +1138,11 @@ export interface AIAssessmentPayload {
   categories: Array<{ name: string; score: number; tier: string }>;
   focusCount: number;
   detectedIssues: string[];
+  /**
+   * Rich patient-facing overview already composed on the client. Backend can use this
+   * as context so `/api/assessment` returns an “additional perspective” instead of repeating thin stats.
+   */
+  patientOverviewSummary?: string;
 }
 
 export interface CategoryAssessmentPayload {

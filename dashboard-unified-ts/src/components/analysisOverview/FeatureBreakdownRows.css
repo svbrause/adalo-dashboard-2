@@ -1,0 +1,118 @@
+/* Shared with Analysis Overview modal — collapsible feature rows + check/x pills */
+
+.ao-detail__subscore-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ao-subscore-row {
+  border: 1px solid var(--theme-border, #e8e8e8);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--theme-bg-card, #fff);
+  transition: border-color 0.2s;
+}
+
+.ao-subscore-row--open {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.ao-subscore-row__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.ao-subscore-row__name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.ao-subscore-row__bar-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ao-subscore-row__bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.ao-subscore-row__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s ease-out;
+}
+
+.ao-subscore-row__score {
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: right;
+}
+
+.ao-subscore-row__chev {
+  font-size: 0.625rem;
+  color: var(--theme-text-secondary, #9e9e9e);
+  flex-shrink: 0;
+}
+
+.ao-subscore-row__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+
+.ao-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ao-pill__icon {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ao-pill--good {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.ao-pill--good .ao-pill__icon {
+  color: #43a047;
+}
+
+.ao-pill--concern {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.ao-pill--concern .ao-pill__icon {
+  color: #f9a825;
+}

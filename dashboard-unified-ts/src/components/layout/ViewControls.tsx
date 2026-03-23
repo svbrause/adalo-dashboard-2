@@ -1,6 +1,6 @@
 // View Controls Component (Search, Filters, Sort)
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import { isAddClientLead } from "../../utils/leadSource";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
@@ -62,6 +62,44 @@ export default function ViewControls() {
 
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
+  const filterSectionRef = useRef<HTMLDivElement | null>(null);
+  const sortSectionRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!showFilters) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (filterSectionRef.current?.contains(target)) return;
+      setShowFilters(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [showFilters]);
+
+  useEffect(() => {
+    if (!showSort) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (sortSectionRef.current?.contains(target)) return;
+      setShowSort(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [showSort]);
 
   const isClientView =
     currentView === "list" ||
@@ -177,7 +215,7 @@ export default function ViewControls() {
       {isClientView && (
       <>
       {/* Filter Section */}
-      <div className="control-section filter-section">
+      <div className="control-section filter-section" ref={filterSectionRef}>
         <button
           className="control-toggle-btn"
           onClick={() => setShowFilters(!showFilters)}
@@ -272,6 +310,57 @@ export default function ViewControls() {
               </select>
             </div>
             <div className="filter-group">
+              <label>Skin Analysis</label>
+              <select
+                value={filters.skinAnalysisState}
+                onChange={(e) => {
+                  setFilters({ ...filters, skinAnalysisState: e.target.value as "" | "has" | "blank" });
+                  setPagination({ currentPage: 1, itemsPerPage: 25 });
+                }}
+                className="filter-select"
+              >
+                <option value="">All</option>
+                <option value="has">Has Skin Analysis</option>
+                <option value="blank">Skin Analysis Blank</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Treatment Finder</label>
+              <select
+                value={filters.treatmentFinderState}
+                onChange={(e) => {
+                  setFilters({
+                    ...filters,
+                    treatmentFinderState: e.target.value as "" | "has" | "blank",
+                  });
+                  setPagination({ currentPage: 1, itemsPerPage: 25 });
+                }}
+                className="filter-select"
+              >
+                <option value="">All</option>
+                <option value="has">Has Treatment Finder</option>
+                <option value="blank">Treatment Finder Blank</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Treatment Plan</label>
+              <select
+                value={filters.treatmentPlanState}
+                onChange={(e) => {
+                  setFilters({
+                    ...filters,
+                    treatmentPlanState: e.target.value as "" | "has" | "blank",
+                  });
+                  setPagination({ currentPage: 1, itemsPerPage: 25 });
+                }}
+                className="filter-select"
+              >
+                <option value="">All</option>
+                <option value="has">Plan Built</option>
+                <option value="blank">Plan Blank</option>
+              </select>
+            </div>
+            <div className="filter-group">
               <label>Lead Stage</label>
               <select
                 value={filters.leadStage}
@@ -338,6 +427,9 @@ export default function ViewControls() {
                   ageMin: null,
                   ageMax: null,
                   analysisStatus: "",
+                  skinAnalysisState: "",
+                  treatmentFinderState: "",
+                  treatmentPlanState: "",
                   leadStage: "",
                   locationName: "",
                   providerName: "",
@@ -353,7 +445,7 @@ export default function ViewControls() {
       </div>
 
       {/* Sort Section */}
-      <div className="control-section sort-section">
+      <div className="control-section sort-section" ref={sortSectionRef}>
         <button
           className="control-toggle-btn"
           onClick={() => setShowSort(!showSort)}

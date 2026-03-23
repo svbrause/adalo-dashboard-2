@@ -205,6 +205,31 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse 
           </svg>
           <span className="nav-item-label">Text Messages</span>
         </a>
+        <a
+          href="#"
+          className={`nav-item ${currentView === "sms-settings" ? "active" : ""}`}
+          onClick={(e) => {
+            e.preventDefault();
+            handleViewChange("sms-settings");
+          }}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M3 6h18"></path>
+            <path d="M3 12h18"></path>
+            <path d="M3 18h18"></path>
+            <circle cx="7" cy="6" r="1"></circle>
+            <circle cx="17" cy="12" r="1"></circle>
+            <circle cx="11" cy="18" r="1"></circle>
+          </svg>
+          <span className="nav-item-label">SMS Settings</span>
+        </a>
         <div className="nav-divider"></div>
         <a
           href="#"
