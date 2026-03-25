@@ -207,10 +207,10 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse 
         </a>
         <a
           href="#"
-          className={`nav-item ${currentView === "sms-settings" ? "active" : ""}`}
+          className={`nav-item ${currentView === "settings" ? "active" : ""}`}
           onClick={(e) => {
             e.preventDefault();
-            handleViewChange("sms-settings");
+            handleViewChange("settings");
           }}
         >
           <svg
@@ -220,15 +220,13 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse 
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <path d="M3 6h18"></path>
-            <path d="M3 12h18"></path>
-            <path d="M3 18h18"></path>
-            <circle cx="7" cy="6" r="1"></circle>
-            <circle cx="17" cy="12" r="1"></circle>
-            <circle cx="11" cy="18" r="1"></circle>
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
           </svg>
-          <span className="nav-item-label">SMS Settings</span>
+          <span className="nav-item-label">Settings</span>
         </a>
         <div className="nav-divider"></div>
         <a

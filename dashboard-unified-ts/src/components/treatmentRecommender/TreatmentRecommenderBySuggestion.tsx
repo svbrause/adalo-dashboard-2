@@ -153,6 +153,8 @@ export interface TreatmentRecommenderBySuggestionProps {
   onOpenTreatmentPlanWithItem?: (item: DiscussedItem) => void;
   /** Ref set by parent; when treatment plan modal closes, parent will call this so we clear "just added" state. */
   treatmentPlanModalClosedRef?: React.MutableRefObject<(() => void) | null>;
+  /** Region filter chips — used when sending post-visit blueprint (AI mirror highlights). */
+  onRecommenderRegionsChange?: (regions: readonly string[]) => void;
 }
 
 export default function TreatmentRecommenderBySuggestion({
@@ -164,6 +166,7 @@ export default function TreatmentRecommenderBySuggestion({
   onOpenTreatmentPlanWithPrefill,
   onOpenTreatmentPlanWithItem,
   treatmentPlanModalClosedRef,
+  onRecommenderRegionsChange,
 }: TreatmentRecommenderBySuggestionProps) {
   const { provider } = useDashboard();
   /** Item we just added so we can open it for editing when user clicks "Add additional details". Cleared when modal closes. */
@@ -174,6 +177,11 @@ export default function TreatmentRecommenderBySuggestion({
     useState<TreatmentRecommenderFilterState>(() => ({
       ...DEFAULT_RECOMMENDER_FILTER_STATE,
     }));
+
+  useEffect(() => {
+    onRecommenderRegionsChange?.(filterState.region);
+  }, [filterState.region, onRecommenderRegionsChange]);
+
   const [clientFrontPhotoUrl, setClientFrontPhotoUrl] = useState<string | null>(
     null,
   );

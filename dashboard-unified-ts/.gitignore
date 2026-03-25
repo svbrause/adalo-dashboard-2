@@ -28,3 +28,7 @@ dist-ssr
 .env.local
 .env.production.local
 .env.development.local
+
+# Google Cloud service account JSON (private keys — use CI / host secrets, never commit)
+service-account.json
+*-service-account.json

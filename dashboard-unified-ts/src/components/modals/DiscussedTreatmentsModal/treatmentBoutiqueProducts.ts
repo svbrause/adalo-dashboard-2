@@ -407,3 +407,19 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
   },
   { name: "Other" },
 ];
+
+/**
+ * True when the plan line is a Skin Boutique retail product (not an in-office facial / service
+ * priced under the Skincare treatment category).
+ */
+export function isBoutiqueSkincareProductName(productName: string): boolean {
+  const q = (productName ?? "").trim();
+  if (!q) return false;
+  const names = TREATMENT_BOUTIQUE_SKINCARE.map((p) => p.name);
+  const lower = q.toLowerCase();
+  if (names.some((n) => n.trim().toLowerCase() === lower)) return true;
+  return names.some((n) => {
+    const nl = n.trim().toLowerCase();
+    return nl.includes(lower) || lower.includes(nl);
+  });
+}

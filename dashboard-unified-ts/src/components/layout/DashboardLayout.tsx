@@ -13,7 +13,7 @@ import FacialAnalysisView from "../views/FacialAnalysisView";
 import OffersView from "../views/OffersView";
 import InboxView from "../views/InboxView";
 import SmsHistoryView from "../views/SmsHistoryView";
-import SmsSettingsView from "../views/SmsSettingsView";
+import SettingsView from "../views/SettingsView";
 import "./DashboardLayout.css";
 
 interface DashboardLayoutProps {
@@ -36,8 +36,8 @@ function DashboardViews() {
       return <InboxView />;
     case "sms-history":
       return <SmsHistoryView />;
-    case "sms-settings":
-      return <SmsSettingsView />;
+    case "settings":
+      return <SettingsView />;
     case "facial-analysis":
     case "cards":
       return <FacialAnalysisView />;

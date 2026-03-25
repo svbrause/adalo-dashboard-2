@@ -20,9 +20,9 @@ export interface SmsProductConfig {
 export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
   {
     id: "treatment-finder",
-    productName: "Online Treatment Finder",
+    productName: "Website quiz leads",
     description:
-      "Website treatment finder creates Web Popup Leads. The welcome SMS below mirrors the backend automation template used in the treatment finder backend. Follow-up copy may vary by automation and should be confirmed in backend/Airtable before changing.",
+      "Web Popup Leads from the public site quiz. Welcome SMS mirrors backend automation; confirm follow-ups in Airtable or the automation service.",
     owner: "Growth / Leads",
     events: [
       {
@@ -33,7 +33,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         enabled: true,
         channel: "sms",
         template:
-          "Hi {{first_name}}, Welcome to The Treatment! Thank you for trying our AI Skin Analysis Quiz, we hope you loved your results! As promised, you have $50 off your first treatment waiting for you (expires {{expires_date}}). When you're ready, our team would love to sit down with you, go over your results, and build a treatment plan tailored just for you. Contact us by phone at (844) 344-7546 or book your visit here: {{booking_link}}",
+          "Hi {{first_name}}, Welcome to The Treatment! Thank you for trying our AI Skin Analysis Quiz, we hope you loved your results! When you're ready, our team would love to sit down with you, go over your results, and build a treatment plan tailored just for you. Contact us by phone at (844) 344-7546 or book your visit here: {{booking_link}}",
       },
       {
         id: "finder-followup",
@@ -43,7 +43,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         enabled: true,
         channel: "sms",
         template:
-          "Hi {{first_name}}, reminder that your $50 off expires in 2 weeks on {{expires_date}}. This credit can be used toward any service including facials, Botox, fillers, or laser treatments. Book using the link below or call us at (844)344-7546. {{booking_link}} New bookings only. Cannot be combined with other offers.",
+          "Hi {{first_name}}, we wanted to follow up and see if you're ready to book your visit. Our team can help with facials, Botox, fillers, laser treatments, and more. Book using the link below or call us at (844)344-7546. {{booking_link}}",
       },
     ],
   },
@@ -100,7 +100,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         enabled: true,
         channel: "sms",
         template:
-          "The Treatment Skin Boutique: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the 5-min at-home AI facial scan prior to your next appointment and earn $50 off any new treatments you discover: {{scan_link}}",
+          "The Treatment Skin Boutique: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the 5-min at-home AI facial scan prior to your next appointment: {{scan_link}}",
       },
       {
         id: "analysis-processing",

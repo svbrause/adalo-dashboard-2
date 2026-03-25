@@ -48,7 +48,7 @@ export default function NewClientSMSModal({
   useEffect(() => {
     // Set default message
     const providerName = formatProviderDisplayName(provider?.name) || "We";
-    const defaultMessage = `${providerName}: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the 5-min at-home AI facial scan prior to your next appointment and earn $50 off any new treatments you discover:`;
+    const defaultMessage = `${providerName}: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the 5-min at-home AI facial scan prior to your next appointment:`;
     setFormData((prev) => ({ ...prev, message: defaultMessage }));
   }, [provider]);
 

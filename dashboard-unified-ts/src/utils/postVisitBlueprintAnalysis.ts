@@ -52,7 +52,7 @@ export interface BlueprintAnalysisOverviewSnapshot {
   /** Deduped labels from `allIssues` for chips. */
   detectedIssueLabels: string[];
   /**
-   * OpenAI (backend `/api/assessment`) narrative — fetched once when the blueprint is sent
+   * LLM narrative from backend `/api/assessment` (OpenAI or Gemini) — fetched once when the blueprint is sent
    * and cached here so the patient page matches the dashboard Analysis Overview experience.
    */
   aiNarrative?: string;

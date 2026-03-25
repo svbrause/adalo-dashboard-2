@@ -19,6 +19,7 @@ import {
 } from "./constants";
 import { REGION_OPTIONS, TIMELINE_OPTIONS } from "./constants";
 import { RECOMMENDED_PRODUCT_REASONS } from "../../../data/skinTypeQuiz";
+import { CheckoutFinancingSection } from "./CheckoutFinancingSection";
 
 export interface TreatmentPlanCheckoutProps {
   items: DiscussedItem[];
@@ -26,6 +27,8 @@ export interface TreatmentPlanCheckoutProps {
   getPhotoForItem?: (item: DiscussedItem) => string | null;
   /** When set (e.g. modal), render the total into this DOM id instead of inline (bottom bar) */
   totalSlotId?: string;
+  /** Patient financing URL (CareCredit, Cherry, etc.) — shows pay-over-time copy + link */
+  financingUrl?: string;
   /** Called when checkout summary changes so parent can show quote sheet (lineItems use skuName from pricing e.g. "Moxi Full Face") */
   onCheckoutDataChange?: (data: {
     lineItems: CheckoutLineItemDetail[];
@@ -169,6 +172,7 @@ export default function TreatmentPlanCheckout({
   items,
   getPhotoForItem,
   totalSlotId: _totalSlotId,
+  financingUrl,
   onCheckoutDataChange,
   onRemoveItem,
   onUpdateItem,
@@ -272,7 +276,7 @@ export default function TreatmentPlanCheckout({
         (eff.timeline ?? "").trim().toLowerCase() === "wishlist";
       if (isWishlist) {
         wishlist.push(idx);
-      } else if ((eff.treatment ?? "").trim() === "Skincare") {
+      } else if (lineItems[idx]?.quoteLineKind === "skincare") {
         skincare.push(idx);
       } else {
         treatment.push(idx);
@@ -283,7 +287,7 @@ export default function TreatmentPlanCheckout({
       treatmentIndices: treatment,
       wishlistIndices: wishlist,
     };
-  }, [effectiveItems]);
+  }, [effectiveItems, lineItems]);
 
   /** Subtotals and total exclude wishlist (same as quote sheet) */
   const { skincareSubtotal, treatmentsSubtotal } = useMemo(() => {
@@ -386,6 +390,15 @@ export default function TreatmentPlanCheckout({
             : formatPrice(totalAfterMint)}
         </span>
       </div>
+      {financingUrl?.trim() ? (
+        <CheckoutFinancingSection
+          totalAmount={totalAfterMint}
+          hasUnknownPrices={quoteData.hasUnknownPrices}
+          financingUrl={financingUrl.trim()}
+          variant="integrated"
+          integratedSurface="order-summary"
+        />
+      ) : null}
     </div>
   );
 

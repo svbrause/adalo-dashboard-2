@@ -803,6 +803,20 @@ export function matchPlanItemToSku(
   return { sku: matched, totalPrice: matched.price };
 }
 
+/** Same display string used on checkout lines for a matched SKU (per-unit or flat). */
+export function formatSkuMatchDisplayPrice(match: {
+  totalPrice: number;
+  isPerUnit?: boolean;
+  unitPrice?: number;
+  quantity?: number;
+}): string {
+  return match.isPerUnit &&
+    match.quantity != null &&
+    match.unitPrice != null
+    ? `${match.quantity} × ${formatPrice(match.unitPrice)} = ${formatPrice(match.totalPrice)}`
+    : formatPrice(match.totalPrice);
+}
+
 /**
  * Estimated price range for a single plan item based on treatment category (2025 list).
  */
@@ -890,6 +904,8 @@ export interface CheckoutLineItemDetail {
   isEstimate?: boolean;
   /** Product description (skincare only; when set, longevity/recovery/sessions are omitted) */
   description?: string;
+  /** Quote UI grouping: `skincare` = Skin Boutique retail product line only; `treatment` = everything else (including facials under Skincare category) */
+  quoteLineKind?: "skincare" | "treatment";
 }
 
 /** Skincare boutique product info for checkout (from getSkincareCarouselItems / TREATMENT_BOUTIQUE_SKINCARE). */
@@ -928,6 +944,10 @@ export function getCheckoutSummaryWithSkus(
     const categoryMeta = meta(cat);
     const productName = (item.product ?? "").trim();
 
+    /** Retail Skin Boutique products only — not in-office facials under the Skincare category. */
+    const skincareLineKind = "skincare" as const;
+    const treatmentLineKind = "treatment" as const;
+
     if (cat === "Skincare" && productName && getSkincareProductInfo) {
       const skincare = getSkincareProductInfo(productName);
       if (skincare) {
@@ -939,6 +959,7 @@ export function getCheckoutSummaryWithSkus(
           photoUrl: skincare.imageUrl,
           isEstimate: !skincare.price,
           description: skincare.description,
+          quoteLineKind: skincareLineKind,
           /* longevity/downtime/sessions omitted for skincare products */
         });
         total += skincare.price ?? 0;
@@ -950,10 +971,7 @@ export function getCheckoutSummaryWithSkus(
     const match = matchPlanItemToSku(item);
 
     if (match) {
-      const displayPrice =
-        match.isPerUnit && match.quantity != null && match.unitPrice != null
-          ? `${match.quantity} × ${formatPrice(match.unitPrice)} = ${formatPrice(match.totalPrice)}`
-          : formatPrice(match.totalPrice);
+      const displayPrice = formatSkuMatchDisplayPrice(match);
       const isPerUnitNeuro =
         match.isPerUnit && /1-Unit|Unit/i.test(match.sku.name);
       const region = (item.region ?? "").trim();
@@ -977,6 +995,7 @@ export function getCheckoutSummaryWithSkus(
         downtime: categoryMeta?.downtime,
         sessions: categoryMeta?.sessions,
         isEstimate: false,
+        quoteLineKind: treatmentLineKind,
       });
       total += match.totalPrice;
     } else {
@@ -995,6 +1014,7 @@ export function getCheckoutSummaryWithSkus(
           downtime: categoryMetaFallback?.downtime,
           sessions: categoryMetaFallback?.sessions,
           isEstimate: true,
+          quoteLineKind: treatmentLineKind,
         });
         total += range.min;
       } else {
@@ -1006,6 +1026,7 @@ export function getCheckoutSummaryWithSkus(
           downtime: categoryMetaFallback?.downtime,
           sessions: categoryMetaFallback?.sessions,
           isEstimate: true,
+          quoteLineKind: treatmentLineKind,
         });
         hasUnknownPrices = true;
       }

@@ -1,6 +1,10 @@
 import type { Client, DiscussedItem } from "../types";
 import type { CheckoutLineItemDetail } from "../data/treatmentPricing2025";
-import { fetchAIAssessment, storePostVisitBlueprintOnServer } from "../services/api";
+import {
+  fetchAIAssessment,
+  fetchPostVisitBlueprintFromServer,
+  storePostVisitBlueprintOnServer,
+} from "../services/api";
 import type { BlueprintAnalysisSummary } from "./postVisitBlueprintAnalysis";
 import { buildAnalysisSummaryFromClient } from "./postVisitBlueprintAnalysis";
 import { getDetectedIssueDisplayStrings } from "./analysisOverviewClient";
@@ -91,6 +95,11 @@ export interface PostVisitBlueprintPayload {
      * patient link works long after Airtable URLs expire. Omitted if CORS blocks fetch or file is too large.
      */
     frontPhotoDataUrl?: string | null;
+    /**
+     * Long-lived HTTPS URL (e.g. GCS object or CDN) written by the backend when the blueprint is stored.
+     * Prefer this over `frontPhoto` when present so the patient page does not depend on expiring Airtable links.
+     */
+    frontPhotoPersistentUrl?: string | null;
     /** Airtable attachment id — for server-side refresh or GCS upload (optional). */
     frontPhotoAttachmentId?: string | null;
   };
@@ -112,6 +121,11 @@ export interface PostVisitBlueprintPayload {
    * Older links may omit this — the page still derives plan interests from `discussedItems`.
    */
   analysisSummary?: BlueprintAnalysisSummary;
+  /**
+   * Region filters selected in the treatment recommender (e.g. "Forehead/Brows", "Eyes").
+   * Drives AI mirror highlights on the patient page when present.
+   */
+  recommenderFocusRegions?: string[];
 }
 
 /** Max bytes to embed as base64 in the blueprint payload (keeps SMS links usable). */
@@ -179,10 +193,53 @@ export async function tryFetchHeroPhotoAsDataUrl(url: string): Promise<string | 
   }
 }
 
-/** Prefer embedded data URL, then expiring Airtable URL. */
-export function resolveHeroPhotoDisplayUrl(patient: PostVisitBlueprintPayload["patient"]): string | null {
+/**
+ * When `VITE_BLUEPRINT_HERO_PHOTO_URL_TEMPLATE` is set, resolve a public URL without
+ * waiting for `frontPhotoPersistentUrl` in the JSON (same path your backend uses for GCS).
+ */
+export function resolveHeroPhotoUrlFromEnvTemplate(
+  patient: PostVisitBlueprintPayload["patient"],
+  blueprintToken: string,
+): string | null {
+  const raw = import.meta.env.VITE_BLUEPRINT_HERO_PHOTO_URL_TEMPLATE;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const pid = String(patient.id ?? "").trim();
+  const tok = String(blueprintToken ?? "").trim();
+  if (!pid || !tok) return null;
+  const url = raw
+    .split("{patientId}")
+    .join(encodeURIComponent(pid))
+    .split("{token}")
+    .join(encodeURIComponent(tok))
+    .trim();
+  return url || null;
+}
+
+/** True when hero can be shown without calling the Airtable refresh endpoint. */
+export function hasStableHeroPhotoSource(
+  patient: PostVisitBlueprintPayload["patient"],
+  blueprintToken: string,
+): boolean {
+  if (patient.frontPhotoDataUrl?.trim()) return true;
+  if (patient.frontPhotoPersistentUrl?.trim()) return true;
+  if (resolveHeroPhotoUrlFromEnvTemplate(patient, blueprintToken)) return true;
+  return false;
+}
+
+/** Prefer embedded data URL, then stable bucket/CDN URL, env template, then Airtable attachment URL. */
+export function resolveHeroPhotoDisplayUrl(
+  patient: PostVisitBlueprintPayload["patient"],
+  options?: { blueprintToken?: string },
+): string | null {
   const embedded = patient.frontPhotoDataUrl?.trim();
   if (embedded) return embedded;
+  const persistent = patient.frontPhotoPersistentUrl?.trim();
+  if (persistent) return persistent;
+  const token = options?.blueprintToken?.trim();
+  if (token) {
+    const fromEnv = resolveHeroPhotoUrlFromEnvTemplate(patient, token);
+    if (fromEnv) return fromEnv;
+  }
   return normalizeFrontPhotoUrl(patient.frontPhoto);
 }
 
@@ -313,6 +370,8 @@ export async function createAndStorePostVisitBlueprint(input: {
   providerPhone?: string;
   client: Client;
   discussedItems: DiscussedItem[];
+  /** Treatment recommender "region" filter chips at send time — optional. */
+  recommenderFocusRegions?: string[];
   quote: {
     lineItems: CheckoutLineItemDetail[];
     total: number;
@@ -360,15 +419,33 @@ export async function createAndStorePostVisitBlueprint(input: {
     quote: input.quote,
     cta: input.cta,
     ...(analysisSummary ? { analysisSummary } : {}),
+    ...(input.recommenderFocusRegions?.length
+      ? {
+          recommenderFocusRegions: [...input.recommenderFocusRegions],
+        }
+      : {}),
   };
-  localStorage.setItem(getStorageKey(token), JSON.stringify(payload));
+  let payloadOut: PostVisitBlueprintPayload = payload;
+  localStorage.setItem(getStorageKey(token), JSON.stringify(payloadOut));
   const storedRemote = await storePostVisitBlueprintOnServer(
-    payload as unknown as Record<string, unknown>,
+    payloadOut as unknown as Record<string, unknown>,
   );
+  if (storedRemote) {
+    const remoteRaw = await fetchPostVisitBlueprintFromServer(token);
+    const remoteParsed = parsePostVisitBlueprintPayload(remoteRaw);
+    const pUrl = remoteParsed?.patient?.frontPhotoPersistentUrl?.trim();
+    if (pUrl && remoteParsed) {
+      payloadOut = {
+        ...payloadOut,
+        patient: { ...payloadOut.patient, frontPhotoPersistentUrl: pUrl },
+      };
+      localStorage.setItem(getStorageKey(token), JSON.stringify(payloadOut));
+    }
+  }
   const link = storedRemote
     ? buildPostVisitBlueprintLink(token)
-    : buildPostVisitBlueprintLink(token, payload);
-  return { token, link, payload };
+    : buildPostVisitBlueprintLink(token, payloadOut);
+  return { token, link, payload: payloadOut };
 }
 
 export function getStoredPostVisitBlueprint(

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import {
   fetchBlueprintFrontPhotoFreshUrl,
   fetchPatientRecords,
@@ -13,10 +12,11 @@ import { formatPrice } from "../../data/treatmentPricing2025";
 import {
   getPostVisitBlueprintFromUrlData,
   getStoredPostVisitBlueprint,
+  hasStableHeroPhotoSource,
   persistPostVisitBlueprint,
-  normalizeFrontPhotoUrl,
   parsePostVisitBlueprintPayload,
   parsePostVisitBlueprintTokenFromUrl,
+  resolveHeroPhotoDisplayUrl,
   trackPostVisitBlueprintEvent,
   type PostVisitBlueprintPayload,
 } from "../../utils/postVisitBlueprint";
@@ -30,8 +30,10 @@ import {
   THE_TREATMENT_BOOKING_URL,
 } from "../../utils/providerHelpers";
 import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
-import { RadarChart } from "../postVisitBlueprint/RadarChart";
+import { PvbNarrativeAudioControls } from "../postVisitBlueprint/PvbNarrativeAudioControls";
+import { PvbTypewriterParagraphs } from "../postVisitBlueprint/PvbTypewriterParagraphs";
 import { TreatmentChapterView } from "../postVisitBlueprint/TreatmentChapter";
+import { POST_VISIT_BLUEPRINT_VIDEOS } from "../../config/postVisitBlueprintVideos";
 import { buildTreatmentChapters } from "../../utils/blueprintTreatmentChapters";
 import {
   getBlueprintAnalysisDisplay,
@@ -39,16 +41,16 @@ import {
   PVB_ANALYSIS_SECTION_ID,
   treatmentChapterAnchorId,
 } from "../../utils/postVisitBlueprintAnalysis";
-import aiLogoUrl from "../../assets/images/ai.svg";
+import { buildPvbPlanBridgeParagraph } from "../../utils/pvbOverviewNarratives";
 import {
-  CATEGORIES,
-  splitStrengthsAndImprovements,
-  scoreTier,
-  tierColor,
-  tierLabel,
-} from "../../config/analysisOverviewConfig";
-import type { BlueprintAnalysisOverviewSnapshot } from "../../utils/postVisitBlueprintAnalysis";
-import { resolveBlueprintCategorySubScores } from "../../utils/pvbBlueprintCategorySubScores";
+  buildPvbMainOverviewSpeechText,
+  buildPvbMainOverviewTypewriterParagraphs,
+} from "../../utils/pvbOverviewSpeechText";
+import {
+  filterGlossaryTermsForChapter,
+  getResolvedPlanGlossaryTerms,
+} from "../../utils/pvbPlanTermGlossary";
+import { mapRecommenderRegionsToMirrorTerms } from "../../utils/pvbRecommenderMirror";
 import {
   buildPvbAreaSubpageHash,
   buildPvbCategorySubpageHash,
@@ -61,453 +63,33 @@ import {
   PvbCategoryDetailSubpage,
   PvbTreatmentPlanDetailSubpage,
 } from "../postVisitBlueprint/PvbAnalysisSubpages";
+import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
+import { CheckoutFinancingSection } from "../modals/DiscussedTreatmentsModal/CheckoutFinancingSection";
+import { partitionQuoteLineIndices } from "../../utils/pvbQuotePartition";
+import { patientFacingSkincareShortName } from "../../utils/pvbSkincareDisplay";
 import "./PostVisitBlueprintPage.css";
 
-/** Collapsible block with chevron toggle (matches Analysis Overview pattern). */
-function PvbFacialAnalysisCollapsible({
-  sectionId,
-  title,
-  open,
-  onToggle,
-  icon,
-  children,
-  domId,
-}: {
-  sectionId: string;
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  icon?: ReactNode;
-  children: ReactNode;
-  /** Optional root id (e.g. in-page anchor) */
-  domId?: string;
-}) {
+/** The Treatment Skin Boutique — patient-facing blueprint branding */
+const PVB_BRAND_LOGO_SRC =
+  "/post-visit-blueprint/videos/The%20Treatment%20Mint%20and%20Gray.png";
+
+function PvbBrandBar() {
   return (
-    <section
-      className="pvb-ao-ai-summary"
-      id={domId}
-      aria-labelledby={`${sectionId}-btn`}
-    >
-      <button
-        type="button"
-        id={`${sectionId}-btn`}
-        className="pvb-ao-ai-summary__toggle"
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls={`${sectionId}-panel`}
-      >
-        <div className="pvb-ao-ai-summary__brand">
-          {icon}
-          <span className="pvb-ao-ai-summary__label">{title}</span>
-        </div>
-        <span className="pvb-ao-ai-summary__chev" aria-hidden>
-          {open ? "▲" : "▼"}
-        </span>
-      </button>
-      {open ? (
-        <div className="pvb-ao-ai-summary__body" id={`${sectionId}-panel`} role="region">
-          {children}
-        </div>
-      ) : null}
-    </section>
+    <header className="pvb-brand-bar" aria-label="The Treatment Skin Boutique">
+      <img
+        src={PVB_BRAND_LOGO_SRC}
+        alt="The Treatment Skin Boutique"
+        className="pvb-brand-logo"
+        width={220}
+        height={72}
+        decoding="async"
+      />
+    </header>
   );
 }
 
-/** Scroll target for “explore” CTAs (match DOM id below). */
+/** Scroll target for TOC / “What we discussed”. */
 const PVB_TOC_ID = "pvb-toc";
-
-/** Circular score ring (same math as Analysis Overview modal gauge). */
-function PvbOverallGauge({
-  score,
-  animate,
-  size = 100,
-}: {
-  score: number;
-  animate: boolean;
-  size?: number;
-}) {
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth * 2) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = animate ? (score / 100) * circumference : 0;
-  const offset = circumference - progress;
-  const color = tierColor(scoreTier(score));
-
-  return (
-    <div
-      className="pvb-overall-gauge"
-      style={{ width: size, height: size }}
-      aria-hidden
-    >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="rgba(0,0,0,0.08)"
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{
-            transition: animate ? "stroke-dashoffset 1.1s ease-out" : "none",
-          }}
-        />
-      </svg>
-      <div className="pvb-overall-gauge__inner">
-        <span className="pvb-overall-gauge__value">{animate ? score : 0}</span>
-        <span className="pvb-overall-gauge__label">Aesthetic score</span>
-      </div>
-    </div>
-  );
-}
-
-/** Matches Analysis Overview `DetailBar` when a category has &lt; 3 sub-axes for a radar. */
-function PvbSubScoreBar({
-  label,
-  score,
-  animate,
-}: {
-  label: string;
-  score: number;
-  animate: boolean;
-}) {
-  const color = tierColor(scoreTier(score));
-  return (
-    <div className="pvb-subscore-bar">
-      <div className="pvb-subscore-bar__header">
-        <span className="pvb-subscore-bar__label">{label}</span>
-        <span className="pvb-subscore-bar__score" style={{ color }}>
-          {score}
-        </span>
-      </div>
-      <div className="pvb-subscore-bar__track">
-        <div
-          className="pvb-subscore-bar__fill"
-          style={{
-            width: animate ? `${score}%` : "0%",
-            background: color,
-            transition: animate ? "width 0.8s ease-out" : "none",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-type SnapshotCategory = BlueprintAnalysisOverviewSnapshot["categories"][number];
-type SnapshotArea = BlueprintAnalysisOverviewSnapshot["areas"][number];
-
-/** Infer detected/total for older snapshots so strengths vs focus pills still work. */
-function enrichSubScoreForPills(
-  sub: NonNullable<SnapshotCategory["subScores"]>[number],
-  categoryKey: string,
-): { name: string; score: number; total: number; detected: number } {
-  if (sub.total != null && sub.detected != null) {
-    const total = Math.max(1, sub.total);
-    const detected = Math.min(total, Math.max(0, sub.detected));
-    return {
-      name: sub.name,
-      score: sub.score,
-      total,
-      detected,
-    };
-  }
-  const catDef = CATEGORIES.find((c) => c.key === categoryKey);
-  const subDef = catDef?.subScores.find((ss) => ss.name === sub.name);
-  const total = Math.max(1, subDef?.issues.length ?? 1);
-  const detected = Math.min(
-    total,
-    Math.max(0, Math.round(((100 - sub.score) / 100) * total)),
-  );
-  return { name: sub.name, score: sub.score, total, detected };
-}
-
-/** Expandable pillar — radar + strengths / focus pills + explore (patient-overview v0 style). */
-function PvbCategoryExploreCard({
-  cat,
-  defaultOpen,
-  animate,
-  onExplorePlan,
-  onOpenDetails,
-}: {
-  cat: SnapshotCategory;
-  defaultOpen: boolean;
-  animate: boolean;
-  onExplorePlan: () => void;
-  onOpenDetails: () => void;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  const resolvedSubs = resolveBlueprintCategorySubScores(cat);
-  const subs = resolvedSubs.map((s) => enrichSubScoreForPills(s, cat.key));
-  const { strengths, improvements } = splitStrengthsAndImprovements(
-    subs,
-    (s) => s.total - s.detected,
-    (s) => s.detected,
-  );
-  const tierC = tierColor(cat.tier);
-  const radarData = resolvedSubs.map((s) => ({
-    name: s.name,
-    score: s.score,
-  }));
-
-  return (
-    <div className={`pvb-explore-cat ${open ? "pvb-explore-cat--open" : ""}`}>
-      <button
-        type="button"
-        className="pvb-explore-cat__header"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-      >
-        <span className="pvb-explore-cat__name">{cat.scoreLabel}</span>
-        <div className="pvb-explore-cat__header-right">
-          <span
-            className="pvb-explore-cat__score-pill"
-            style={{ background: tierC }}
-          >
-            {cat.score}
-          </span>
-          <span className="pvb-explore-cat__chev" aria-hidden>
-            {open ? "▲" : "▼"}
-          </span>
-        </div>
-      </button>
-      {open && (
-        <div className="pvb-explore-cat__body">
-          {cat.description ? (
-            <p className="pvb-explore-cat__desc">{cat.description}</p>
-          ) : null}
-          {radarData.length >= 3 ? (
-            <div className="pvb-explore-cat__radar">
-              <RadarChart
-                data={radarData}
-                size={176}
-                animate={animate}
-                showLabels
-                className="pvb-radar pvb-radar--pillar"
-                labelClassName="pvb-radar__label"
-              />
-            </div>
-          ) : radarData.length > 0 ? (
-            <div className="pvb-explore-cat__bars">
-              {radarData.map((s) => (
-                <PvbSubScoreBar
-                  key={s.name}
-                  label={s.name}
-                  score={s.score}
-                  animate={animate}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="pvb-explore-cat__empty">No sub-area breakdown.</p>
-          )}
-
-          <div className="pvb-explore-cat__split" aria-label="Sub-area summary">
-            <section
-              className="pvb-explore-cat__panel pvb-explore-cat__panel--good"
-              aria-labelledby={`pvb-strengths-${cat.key}`}
-            >
-              <h5 className="pvb-explore-cat__panel-title" id={`pvb-strengths-${cat.key}`}>
-                Strengths
-              </h5>
-              <ul className="pvb-explore-cat__list">
-                {strengths.length > 0 ? (
-                  strengths.map((s) => (
-                    <li key={s.name} className="pvb-explore-cat__row pvb-explore-cat__row--good">
-                      <span className="pvb-explore-cat__row-label">{s.name}</span>
-                      <span className="pvb-explore-cat__row-meta">
-                        {s.total - s.detected}/{s.total} look good
-                      </span>
-                    </li>
-                  ))
-                ) : (
-                  <li className="pvb-explore-cat__row pvb-explore-cat__row--empty">
-                    All sub-areas here need attention
-                  </li>
-                )}
-              </ul>
-            </section>
-            <section
-              className="pvb-explore-cat__panel pvb-explore-cat__panel--imp"
-              aria-labelledby={`pvb-focus-${cat.key}`}
-            >
-              <h5 className="pvb-explore-cat__panel-title" id={`pvb-focus-${cat.key}`}>
-                Areas for improvement
-              </h5>
-              <ul className="pvb-explore-cat__list">
-                {improvements.length > 0 ? (
-                  improvements.map((s) => (
-                    <li key={s.name} className="pvb-explore-cat__row pvb-explore-cat__row--imp">
-                      <span className="pvb-explore-cat__row-label">{s.name}</span>
-                      <span className="pvb-explore-cat__row-meta">
-                        {s.detected}/{s.total} noted
-                      </span>
-                    </li>
-                  ))
-                ) : (
-                  <li className="pvb-explore-cat__row pvb-explore-cat__row--empty">
-                    None — looking good
-                  </li>
-                )}
-              </ul>
-            </section>
-          </div>
-
-          <div className="pvb-explore-cat__cta-row">
-            <button
-              type="button"
-              className="pvb-explore-cat__cta pvb-explore-cat__cta--primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenDetails();
-              }}
-            >
-              View details
-              <span aria-hidden> →</span>
-            </button>
-            <button
-              type="button"
-              className="pvb-explore-cat__cta pvb-explore-cat__cta--secondary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onExplorePlan();
-              }}
-            >
-              Treatment plan
-              <span aria-hidden> →</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Expandable face-area row — strengths vs findings (v0 AreaCard style). */
-function PvbAreaExploreCard({
-  area,
-  defaultOpen,
-  onOpenDetails,
-}: {
-  area: SnapshotArea;
-  defaultOpen: boolean;
-  onOpenDetails: () => void;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  const color = tierColor(area.tier);
-  const strengths = area.strengths ?? [];
-  const improvements = area.improvements ?? [];
-  const idSlug = area.name.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "area";
-
-  return (
-    <div className={`pvb-explore-area ${open ? "pvb-explore-area--open" : ""}`}>
-      <button
-        type="button"
-        className="pvb-explore-area__header"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-      >
-        <span className="pvb-explore-area__left">
-          {area.hasInterest ? (
-            <span className="pvb-explore-area__star" title="You highlighted this area">
-              ★
-            </span>
-          ) : null}
-          <span className="pvb-explore-area__name">{area.name}</span>
-        </span>
-        <div className="pvb-explore-area__header-right">
-          <span
-            className="pvb-explore-cat__score-pill pvb-explore-area__score-pill"
-            style={{ background: color }}
-          >
-            {area.score}
-          </span>
-          <span className="pvb-explore-cat__chev" aria-hidden>
-            {open ? "▲" : "▼"}
-          </span>
-        </div>
-      </button>
-      {open && (
-        <div className="pvb-explore-area__body">
-          <div className="pvb-explore-cat__split" aria-label={`${area.name} summary`}>
-            <section
-              className="pvb-explore-cat__panel pvb-explore-cat__panel--good"
-              aria-labelledby={`pvb-area-str-${idSlug}`}
-            >
-              <h5 className="pvb-explore-cat__panel-title" id={`pvb-area-str-${idSlug}`}>
-                Strengths
-              </h5>
-              <ul className="pvb-explore-cat__list">
-                {strengths.length > 0 ? (
-                  strengths.map((t, i) => (
-                    <li
-                      key={`s-${i}-${t}`}
-                      className="pvb-explore-cat__row pvb-explore-cat__row--good pvb-explore-cat__row--text-only"
-                    >
-                      <span className="pvb-explore-cat__row-label">{t}</span>
-                    </li>
-                  ))
-                ) : (
-                  <li className="pvb-explore-cat__row pvb-explore-cat__row--empty">
-                    {improvements.length > 0
-                      ? "Compared with our full checklist for this region, every feature we evaluate showed up on your scan — see Areas for improvement."
-                      : "Open View details for the full regional breakdown."}
-                  </li>
-                )}
-              </ul>
-            </section>
-            <section
-              className="pvb-explore-cat__panel pvb-explore-cat__panel--imp"
-              aria-labelledby={`pvb-area-imp-${idSlug}`}
-            >
-              <h5 className="pvb-explore-cat__panel-title" id={`pvb-area-imp-${idSlug}`}>
-                Areas for improvement
-              </h5>
-              <ul className="pvb-explore-cat__list">
-                {improvements.length > 0 ? (
-                  improvements.map((t, i) => (
-                    <li
-                      key={`f-${i}-${t}`}
-                      className="pvb-explore-cat__row pvb-explore-cat__row--imp pvb-explore-cat__row--text-only"
-                    >
-                      <span className="pvb-explore-cat__row-label">{t}</span>
-                    </li>
-                  ))
-                ) : (
-                  <li className="pvb-explore-cat__row pvb-explore-cat__row--empty">
-                    None noted in this region.
-                  </li>
-                )}
-              </ul>
-            </section>
-          </div>
-          <button
-            type="button"
-            className="pvb-explore-area__details-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenDetails();
-            }}
-          >
-            View details
-            <span aria-hidden> →</span>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ── Airtable helpers (data loading) ── */
 
@@ -626,15 +208,10 @@ export default function PostVisitBlueprintPage() {
   const [caseGalleryTracked, setCaseGalleryTracked] = useState(false);
   const videoPlayTrackedRef = useRef<Set<string>>(new Set());
   const [isQuoteOpen, setIsQuoteOpen] = useState(false);
+  /** Patient can preview Mint member 10% off (defaults from plan at send time). */
+  const [previewMintMember, setPreviewMintMember] = useState(false);
   /** Hero / AI Mirror image: embedded data URL, fresh API URL, or stale Airtable URL. */
   const [heroPhotoUrl, setHeroPhotoUrl] = useState<string | null>(null);
-  const [aestheticIntelOpen, setAestheticIntelOpen] = useState(true);
-  const [analysisSnapshotOpen, setAnalysisSnapshotOpen] = useState(true);
-  const [profileStripOpen, setProfileStripOpen] = useState(true);
-  const [focusGoalsOpen, setFocusGoalsOpen] = useState(true);
-  const [visitThemesOpen, setVisitThemesOpen] = useState(true);
-  /** Whole “Facial analysis” card — collapsed shows title + chevron only */
-  const [facialAnalysisOpen, setFacialAnalysisOpen] = useState(true);
   const [overviewGaugeAnimate, setOverviewGaugeAnimate] = useState(false);
   const [analysisSubpage, setAnalysisSubpage] = useState<PvbAnalysisSubpageRoute | null>(
     null,
@@ -654,13 +231,13 @@ export default function PostVisitBlueprintPage() {
       setHeroPhotoUrl(null);
       return;
     }
-    const embedded = blueprint.patient.frontPhotoDataUrl?.trim();
-    if (embedded) {
-      setHeroPhotoUrl(embedded);
+    const resolved = resolveHeroPhotoDisplayUrl(blueprint.patient, {
+      blueprintToken: blueprint.token,
+    });
+    setHeroPhotoUrl(resolved);
+    if (hasStableHeroPhotoSource(blueprint.patient, blueprint.token)) {
       return;
     }
-    const staticUrl = normalizeFrontPhotoUrl(blueprint.patient.frontPhoto);
-    setHeroPhotoUrl(staticUrl);
     let cancelled = false;
     void (async () => {
       const fresh = await fetchBlueprintFrontPhotoFreshUrl({
@@ -703,6 +280,7 @@ export default function PostVisitBlueprintPage() {
         {},
       ),
     );
+    setPreviewMintMember(blueprint.quote.isMintMember);
   }, [blueprint, blueprintAllowed]);
 
   useEffect(() => {
@@ -762,12 +340,64 @@ export default function PostVisitBlueprintPage() {
 
   const chapters = useMemo(() => {
     if (!blueprint || !blueprintAllowed) return [];
-    return buildTreatmentChapters(blueprint.discussedItems, treatmentResultCards);
+    return buildTreatmentChapters(
+      blueprint.discussedItems,
+      treatmentResultCards,
+      POST_VISIT_BLUEPRINT_VIDEOS,
+      blueprint.quote.lineItems,
+    );
   }, [blueprint, blueprintAllowed, treatmentResultCards]);
 
   const analysisDisplay = useMemo(() => {
     if (!blueprint || !blueprintAllowed) return null;
     return getBlueprintAnalysisDisplay(blueprint);
+  }, [blueprint, blueprintAllowed]);
+
+  const overviewBridgeParagraph = useMemo(() => {
+    if (!analysisDisplay) return null;
+    const names = chapters.map((c) => c.displayName);
+    return buildPvbPlanBridgeParagraph(
+      names,
+      analysisDisplay.overviewSnapshot,
+      analysisDisplay.globalPlanInsights,
+    );
+  }, [analysisDisplay, chapters]);
+
+  const mainOverviewTwParagraphs = useMemo(() => {
+    if (!analysisDisplay) return [];
+    return buildPvbMainOverviewTypewriterParagraphs(
+      analysisDisplay,
+      overviewBridgeParagraph,
+    );
+  }, [analysisDisplay, overviewBridgeParagraph]);
+
+  const planGlossaryTerms = useMemo(() => {
+    if (!blueprint || !blueprintAllowed || !analysisDisplay) return [];
+    const overviewSnippets: string[] = [];
+    const os = analysisDisplay.overviewSnapshot;
+    if (os?.assessmentParagraph) overviewSnippets.push(os.assessmentParagraph);
+    if (os?.aiNarrative) overviewSnippets.push(os.aiNarrative);
+    for (const row of analysisDisplay.clinicalSnapshotLines) {
+      overviewSnippets.push(`${row.label}: ${row.text}`);
+    }
+    if (overviewBridgeParagraph) overviewSnippets.push(overviewBridgeParagraph);
+    return getResolvedPlanGlossaryTerms(
+      blueprint.discussedItems,
+      blueprint.quote.lineItems,
+      overviewSnippets,
+    );
+  }, [blueprint, blueprintAllowed, analysisDisplay, overviewBridgeParagraph]);
+
+  const mainOverviewSpeechText = useMemo(() => {
+    if (!analysisDisplay) return "";
+    return buildPvbMainOverviewSpeechText(analysisDisplay, overviewBridgeParagraph);
+  }, [analysisDisplay, overviewBridgeParagraph]);
+
+  const quotePartition = useMemo(() => {
+    if (!blueprint || !blueprintAllowed) {
+      return { skincare: [] as number[], treatment: [] as number[] };
+    }
+    return partitionQuoteLineIndices(blueprint.quote.lineItems, blueprint.discussedItems);
   }, [blueprint, blueprintAllowed]);
 
   /** Open link with #fragment → scroll to chapter after load */
@@ -783,23 +413,9 @@ export default function PostVisitBlueprintPage() {
     return () => window.clearTimeout(t);
   }, [chapters]);
 
-  /** Deep link / hash → #pvb-analysis opens the full facial analysis card */
-  useEffect(() => {
-    const sync = () => {
-      const h = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
-      if (h === PVB_ANALYSIS_SECTION_ID) setFacialAnalysisOpen(true);
-    };
-    sync();
-    window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
-  }, []);
-
   /* ── Callbacks ── */
 
   const scrollToSection = useCallback((id: string) => {
-    if (id === PVB_ANALYSIS_SECTION_ID) {
-      setFacialAnalysisOpen(true);
-    }
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -817,14 +433,6 @@ export default function PostVisitBlueprintPage() {
     },
     [scrollToSection],
   );
-
-  const scrollToExploreTarget = useCallback(() => {
-    if (chapters.length > 0) {
-      scrollToSection(PVB_TOC_ID);
-    } else if (analysisDisplay && analysisDisplay.planByTreatment.length > 0) {
-      scrollToSection(analysisDisplay.planByTreatment[0].anchorId);
-    }
-  }, [analysisDisplay, chapters.length, scrollToSection]);
 
   const closeAnalysisSubpage = useCallback(() => {
     setAnalysisSubpage(null);
@@ -874,17 +482,6 @@ export default function PostVisitBlueprintPage() {
     }
     closeAnalysisSubpage();
   }, [treatmentReturnRoute, closeAnalysisSubpage]);
-
-  const openCategorySubpage = useCallback((key: string) => {
-    setTreatmentReturnRoute(null);
-    setAnalysisSubpage({ type: "category", key });
-    const { pathname, search } = window.location;
-    window.history.replaceState(
-      null,
-      "",
-      `${pathname}${search}${buildPvbCategorySubpageHash(key)}`,
-    );
-  }, []);
 
   const openAreaSubpage = useCallback((name: string) => {
     setTreatmentReturnRoute(null);
@@ -986,6 +583,7 @@ export default function PostVisitBlueprintPage() {
   if (waitingForRemoteBlueprint) {
     return (
       <div className="pvb">
+        <PvbBrandBar />
         <div className="pvb-error">
           <h1>Loading your blueprint…</h1>
           <p>Fetching your plan. This only takes a moment.</p>
@@ -995,13 +593,30 @@ export default function PostVisitBlueprintPage() {
   }
 
   if (!blueprint) {
+    /** Short URL (?t= only): no `d` in address bar. Private/incognito has no localStorage, so we must load from the server — if that fails, this message. */
+    const usedTokenOnlyLink = Boolean(token && !inlinePayload);
     return (
       <div className="pvb">
+        <PvbBrandBar />
         <div className="pvb-error">
           <h1>Blueprint unavailable</h1>
+          {usedTokenOnlyLink ? (
+            <p>
+              This link uses a short code that loads your plan from our systems.{" "}
+              <strong>Private / incognito windows</strong> don&apos;t keep a saved copy, so the page has to
+              fetch it again — and we couldn&apos;t load it (the server may not have it yet, or it was cleared
+              after a restart).
+            </p>
+          ) : (
+            <p>
+              This link is missing your plan data (for example, the message was shortened or the address was
+              copied incompletely).
+            </p>
+          )}
           <p>
-            This link is missing your plan data (for example, the message was shortened or you&apos;re on a new
-            device). Open the <strong>full</strong> link from your text, or contact your clinic for a new blueprint.
+            <strong>Try:</strong> open the same link in a <strong>normal</strong> browser window, use the{" "}
+            <strong>longer</strong> link from your text if you have one, or contact your clinic for a new
+            blueprint.
           </p>
         </div>
       </div>
@@ -1011,6 +626,7 @@ export default function PostVisitBlueprintPage() {
   if (!blueprintAllowed) {
     return (
       <div className="pvb">
+        <PvbBrandBar />
         <div className="pvb-error">
           <h1>Blueprint unavailable</h1>
           <p>This experience is only available for patients of The Treatment Skin Boutique or links sent from an authorized account.</p>
@@ -1025,7 +641,7 @@ export default function PostVisitBlueprintPage() {
   const patientFirst = blueprint.patient.name.split(/\s+/)[0] || "there";
   const providerFirst = (blueprint.providerName ?? "").split(",")[0]?.trim() || blueprint.providerName;
 
-  const visibleHotspots = Array.from(
+  const discussedHotspotLabels = Array.from(
     new Set(
       blueprint.discussedItems
         .flatMap((item) => {
@@ -1042,18 +658,54 @@ export default function PostVisitBlueprintPage() {
     ),
   ).slice(0, 8);
 
-  const toggledTotal = blueprint.quote.lineItems.reduce((sum, line, idx) => {
+  const mirrorTermsFromRecommender =
+    blueprint.recommenderFocusRegions && blueprint.recommenderFocusRegions.length > 0
+      ? mapRecommenderRegionsToMirrorTerms(blueprint.recommenderFocusRegions)
+      : [];
+  const mirrorHighlightTerms =
+    mirrorTermsFromRecommender.length > 0 ? mirrorTermsFromRecommender : discussedHotspotLabels;
+
+  const visibleHotspots =
+    blueprint.recommenderFocusRegions && blueprint.recommenderFocusRegions.length > 0
+      ? blueprint.recommenderFocusRegions.slice(0, 8)
+      : discussedHotspotLabels;
+
+  const lineItems = blueprint.quote.lineItems;
+  const { skincare: skincareQuoteIdxs, treatment: treatmentQuoteIdxs } = quotePartition;
+
+  const toggledSkincareSub = skincareQuoteIdxs.reduce((sum, idx) => {
     if (!selectedRows[idx]) return sum;
-    return sum + (line.price ?? 0);
+    return sum + (lineItems[idx].price ?? 0);
   }, 0);
-  const finalTotal = blueprint.quote.isMintMember
-    ? toggledTotal * 0.9
-    : toggledTotal;
+  const toggledTreatmentsSub = treatmentQuoteIdxs.reduce((sum, idx) => {
+    if (!selectedRows[idx]) return sum;
+    return sum + (lineItems[idx].price ?? 0);
+  }, 0);
+  const toggledTotal = toggledSkincareSub + toggledTreatmentsSub;
+  const showMintBreakdown = previewMintMember && toggledTotal > 0;
+  const mintDiscountAmount = showMintBreakdown ? toggledTotal * 0.1 : 0;
+  const finalTotal = previewMintMember ? toggledTotal * 0.9 : toggledTotal;
+
+  /** Treatments share of total after Mint discount — used only for financing examples */
+  const treatmentFinancingAmount =
+    toggledTotal > 0 && toggledTreatmentsSub > 0
+      ? (toggledTreatmentsSub / toggledTotal) * finalTotal
+      : 0;
+
+  const hasUnknownTreatmentPrices = treatmentQuoteIdxs.some(
+    (idx) =>
+      lineItems[idx].isEstimate ||
+      lineItems[idx].displayPrice === "Price varies",
+  );
+
+  const showTreatmentFinancingBlock = treatmentQuoteIdxs.length > 0;
+
   /* ── Render ── */
 
   return (
     <div className="pvb">
       <main className="pvb-shell" aria-label="Post Visit Blueprint">
+        <PvbBrandBar />
 
         {/* ═══ 1. HERO: Mirror + Welcome ═══ */}
         <section className="pvb-hero">
@@ -1062,7 +714,7 @@ export default function PostVisitBlueprintPage() {
               <AiMirrorCanvas
                 imageUrl={heroPhotoUrl}
                 alt="Your facial analysis"
-                highlightTerms={visibleHotspots}
+                highlightTerms={mirrorHighlightTerms}
               />
             ) : (
               <div className="pvb-hero-mirror-placeholder">AI Analysis</div>
@@ -1089,228 +741,41 @@ export default function PostVisitBlueprintPage() {
           )}
         </section>
 
-        {/* ═══ 2. FACIAL ANALYSIS (same narrative pattern as dashboard Analysis Overview) ═══ */}
+        {/* ═══ 2. OVERVIEW (assessment narrative + plan bridge) ═══ */}
         {analysisDisplay && (
           <section className="pvb-analysis" id={PVB_ANALYSIS_SECTION_ID}>
-            <h2 className="pvb-analysis-title pvb-analysis-title--accordion" id="pvb-analysis-heading">
-              <button
-                type="button"
-                className="pvb-analysis__accordion-btn"
-                aria-expanded={facialAnalysisOpen}
-                aria-controls="pvb-facial-analysis-panel"
-                onClick={() => setFacialAnalysisOpen((o) => !o)}
-              >
-                <span className="pvb-analysis__accordion-btn-label">Facial analysis</span>
-                <span className="pvb-analysis__accordion-chev" aria-hidden>
-                  {facialAnalysisOpen ? "▲" : "▼"}
-                </span>
-              </button>
-            </h2>
-            {facialAnalysisOpen ? (
-              <>
-                <p className="pvb-analysis-lead pvb-analysis-lead--panel">
-                  Highlights from your visit and assessment. Your plan sections below go deeper on
-                  each treatment.
-                </p>
-                <div
-                  id="pvb-facial-analysis-panel"
-                  className="pvb-analysis-stack"
-                  role="region"
-                  aria-labelledby="pvb-analysis-heading"
-                >
-              {analysisDisplay.overviewSnapshot && (
-                <PvbFacialAnalysisCollapsible
-                  sectionId="pvb-aesthetic-intel"
-                  title="Aesthetic Intelligence"
-                  open={aestheticIntelOpen}
-                  onToggle={() => setAestheticIntelOpen((o) => !o)}
-                  icon={
-                    <img
-                      src={aiLogoUrl}
-                      alt=""
-                      className="pvb-ao-ai-summary__icon"
-                      width={16}
-                      height={16}
+            <div className="pvb-overview-heading-row">
+              <div className="pvb-overview-heading-brand">
+                <AiSparkleLogo size={18} className="pvb-ai-sparkle" />
+                <h2 className="pvb-analysis-title" id="pvb-analysis-heading">
+                  Overview
+                </h2>
+                <GeminiWordmark />
+              </div>
+              <PvbNarrativeAudioControls
+                text={mainOverviewSpeechText}
+                ariaLabel="Listen to overview"
+              />
+            </div>
+            <p className="pvb-analysis-lead">
+              Your assessment and how the treatments in your plan connect to your visit.
+            </p>
+            <div className="pvb-overview-stack" role="region" aria-labelledby="pvb-analysis-heading">
+              {mainOverviewTwParagraphs.length > 0 ? (
+                <div className="pvb-ai-hero">
+                  <div className="pvb-ai-hero__narrative">
+                    <PvbTypewriterParagraphs
+                      paragraphs={mainOverviewTwParagraphs}
+                      paragraphClassName="pvb-ai-hero__para"
+                      msPerChar={15}
                     />
-                  }
-                >
-                  <div className="pvb-ai-hero pvb-ai-hero--in-collapsible">
-                    <div className="pvb-ai-hero__narrative">
-                      {analysisDisplay.overviewSnapshot.assessmentParagraph
-                        .split(/\n\n+/)
-                        .map((p) => p.trim())
-                        .filter(Boolean)
-                        .map((para, idx) => (
-                          <p key={idx} className="pvb-ai-hero__para">
-                            {para}
-                          </p>
-                        ))}
-                    </div>
-                    {analysisDisplay.overviewSnapshot.aiNarrative?.trim() ? (
-                      <div className="pvb-ai-hero__supplement">
-                        <p className="pvb-ai-hero__supplement-label">
-                          Additional perspective
-                        </p>
-                        <p className="pvb-ai-hero__supplement-text">
-                          {analysisDisplay.overviewSnapshot.aiNarrative.trim()}
-                        </p>
-                      </div>
-                    ) : null}
                   </div>
-                </PvbFacialAnalysisCollapsible>
-              )}
-
-              {analysisDisplay.overviewSnapshot && (
-                <PvbFacialAnalysisCollapsible
-                  sectionId="pvb-analysis-snapshot"
-                  title="Analysis snapshot"
-                  open={analysisSnapshotOpen}
-                  onToggle={() => setAnalysisSnapshotOpen((o) => !o)}
-                >
-                  <div className="pvb-analysis-overview">
-                  <div className="pvb-analysis-overview-hero">
-                    {heroPhotoUrl ? (
-                      <div className="pvb-analysis-overview-hero-photo">
-                        <img
-                          src={heroPhotoUrl}
-                          alt=""
-                          className="pvb-analysis-overview-hero-photo-img"
-                          loading="lazy"
-                        />
-                        <span className="pvb-analysis-overview-hero-photo-caption">Your photo</span>
-                      </div>
-                    ) : null}
-                    <PvbOverallGauge
-                      score={analysisDisplay.overviewSnapshot.overallScore}
-                      animate={overviewGaugeAnimate}
-                      size={100}
-                    />
-                    <div className="pvb-analysis-overview-hero-text">
-                      <p
-                        className="pvb-analysis-tier-badge"
-                        style={{
-                          color: tierColor(
-                            analysisDisplay.overviewSnapshot.overallTier,
-                          ),
-                        }}
-                      >
-                        {tierLabel(analysisDisplay.overviewSnapshot.overallTier)}
-                      </p>
-                      <p className="pvb-analysis-overview-lead">
-                        Your aesthetic score combines skin health, volume, and facial structure.
-                      </p>
-                    </div>
-                  </div>
-                  <h4 className="pvb-analysis-subsection-title">
-                    Skin, volume &amp; structure
-                  </h4>
-                  <p className="pvb-pillar-radars-intro">
-                    Tap a pillar to expand — <strong>View details</strong> opens the full category
-                    page. From there, categories that include <strong>Eye Area</strong> or{" "}
-                    <strong>Brow &amp; Eyes</strong> can open <strong>View Eye area details</strong> for
-                    the Eyes region. <strong>What we discussed</strong> lists each treatment in your plan
-                    below.
-                  </p>
-                  <div
-                    className="pvb-explore-cat-list"
-                    role="list"
-                    aria-label="Category exploration"
-                  >
-                    {analysisDisplay.overviewSnapshot.categories.map((c) => (
-                      <PvbCategoryExploreCard
-                        key={c.key}
-                        cat={c}
-                        defaultOpen={false}
-                        animate={overviewGaugeAnimate}
-                        onExplorePlan={scrollToExploreTarget}
-                        onOpenDetails={() => openCategorySubpage(c.key)}
-                      />
-                    ))}
-                  </div>
-                  <h4 className="pvb-analysis-subsection-title pvb-analysis-subsection-title--tight">
-                    Face areas
-                  </h4>
-                  <p className="pvb-analysis-subsection-lead">
-                    By region — lower scores mean more features were noted in your analysis.
-                  </p>
-                  {(() => {
-                    const areas = analysisDisplay.overviewSnapshot.areas;
-                    const focusAreas = [...areas]
-                      .filter((a) => a.hasInterest)
-                      .sort((x, y) => x.score - y.score);
-                    const otherAreas = [...areas]
-                      .filter((a) => !a.hasInterest)
-                      .sort((x, y) => x.score - y.score);
-                    return (
-                      <div className="pvb-explore-area-wrap">
-                        {focusAreas.length > 0 ? (
-                          <div className="pvb-explore-area-group">
-                            <h5 className="pvb-explore-area-group-title">
-                              <span className="pvb-explore-area-group-star" aria-hidden>
-                                ★
-                              </span>{" "}
-                              Focus areas
-                            </h5>
-                            <div className="pvb-explore-area-list" role="list">
-                              {focusAreas.map((ar) => (
-                                <PvbAreaExploreCard
-                                  key={ar.name}
-                                  area={ar}
-                                  defaultOpen={false}
-                                  onOpenDetails={() => openAreaSubpage(ar.name)}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                        {otherAreas.length > 0 ? (
-                          <div className="pvb-explore-area-group">
-                            <h5 className="pvb-explore-area-group-title">All areas</h5>
-                            <div className="pvb-explore-area-list" role="list">
-                              {otherAreas.map((ar) => (
-                                <PvbAreaExploreCard
-                                  key={ar.name}
-                                  area={ar}
-                                  defaultOpen={false}
-                                  onOpenDetails={() => openAreaSubpage(ar.name)}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })()}
-                  {analysisDisplay.overviewSnapshot.detectedIssueLabels.length > 0 && (
-                    <>
-                      <h4 className="pvb-analysis-subsection-title">
-                        All findings from your scan
-                      </h4>
-                      <div className="pvb-analysis-findings-chips">
-                        {analysisDisplay.overviewSnapshot.detectedIssueLabels.map(
-                          (label, idx) => (
-                            <span
-                              key={`${label}-${idx}`}
-                              className="pvb-analysis-findings-chip"
-                            >
-                              {label}
-                            </span>
-                          ),
-                        )}
-                      </div>
-                    </>
-                  )}
-                  </div>
-                </PvbFacialAnalysisCollapsible>
-              )}
+                </div>
+              ) : null}
 
               {analysisDisplay.profileLabels.length > 0 && (
-                <PvbFacialAnalysisCollapsible
-                  sectionId="pvb-profile-strip"
-                  title="Your profile"
-                  open={profileStripOpen}
-                  onToggle={() => setProfileStripOpen((o) => !o)}
-                >
+                <div className="pvb-overview-meta">
+                  <h3 className="pvb-overview-meta-title">Your profile</h3>
                   <div className="pvb-analysis-profile-strip" aria-label="Your profile">
                     {analysisDisplay.profileLabels.map((row) => (
                       <span key={row.label} className="pvb-analysis-profile-chip">
@@ -1319,37 +784,26 @@ export default function PostVisitBlueprintPage() {
                       </span>
                     ))}
                   </div>
-                </PvbFacialAnalysisCollapsible>
+                </div>
               )}
 
               {analysisDisplay.goals.length > 0 && (
-                <PvbFacialAnalysisCollapsible
-                  sectionId="pvb-focus-goals"
-                  title="Client's focus"
-                  open={focusGoalsOpen}
-                  onToggle={() => setFocusGoalsOpen((o) => !o)}
-                >
-                  <section className="pvb-analysis-panel pvb-analysis-panel--in-collapsible" aria-label="Client focus">
-                    <div className="pvb-analysis-goal-chips">
-                      {analysisDisplay.goals.map((g) => (
-                        <span key={g} className="pvb-analysis-goal-chip">
-                          {g}
-                        </span>
-                      ))}
-                    </div>
-                  </section>
-                </PvbFacialAnalysisCollapsible>
+                <div className="pvb-overview-meta">
+                  <h3 className="pvb-overview-meta-title">Your focus</h3>
+                  <div className="pvb-analysis-goal-chips" aria-label="Your focus">
+                    {analysisDisplay.goals.map((g) => (
+                      <span key={g} className="pvb-analysis-goal-chip">
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {(analysisDisplay.globalPlanInsights.interests.length > 0 ||
                 analysisDisplay.globalPlanInsights.findings.length > 0) && (
-                <PvbFacialAnalysisCollapsible
-                  sectionId="pvb-visit-themes"
-                  title="Visit themes"
-                  open={visitThemesOpen}
-                  onToggle={() => setVisitThemesOpen((o) => !o)}
-                >
-                  <div className="pvb-analysis-panel pvb-analysis-global pvb-analysis-panel--in-collapsible">
+                <div className="pvb-overview-meta">
+                  <div className="pvb-analysis-panel pvb-analysis-global">
                     {analysisDisplay.globalPlanInsights.interests.length > 0 && (
                       <div className="pvb-analysis-global-group">
                         <span className="pvb-analysis-global-label">Interests</span>
@@ -1378,11 +832,9 @@ export default function PostVisitBlueprintPage() {
                       </div>
                     )}
                   </div>
-                </PvbFacialAnalysisCollapsible>
-              )}
                 </div>
-              </>
-            ) : null}
+              )}
+            </div>
           </section>
         )}
 
@@ -1391,7 +843,7 @@ export default function PostVisitBlueprintPage() {
           <section className="pvb-toc" id={PVB_TOC_ID}>
             <h2 className="pvb-toc-title">What we discussed</h2>
             <p className="pvb-toc-sub">
-              {analysisDisplay ? "Analysis, then " : ""}
+              {analysisDisplay ? "Overview, then " : ""}
               {chapters.length} {chapters.length !== 1 ? "treatments" : "treatment"} in your plan
             </p>
             <ol className="pvb-toc-list">
@@ -1405,7 +857,7 @@ export default function PostVisitBlueprintPage() {
                       scrollToSection(PVB_ANALYSIS_SECTION_ID);
                     }}
                   >
-                    <span className="pvb-toc-item-name">Your analysis highlights</span>
+                    <span className="pvb-toc-item-name">Overview</span>
                   </a>
                 </li>
               )}
@@ -1442,6 +894,21 @@ export default function PostVisitBlueprintPage() {
               index={i}
               total={chapters.length}
               anchorId={treatmentChapterAnchorId(chapter.key)}
+              chapterAnalysisContext={
+                analysisDisplay
+                  ? {
+                      overviewSnapshot: analysisDisplay.overviewSnapshot,
+                      planRow:
+                        analysisDisplay.planByTreatment.find(
+                          (r) => r.key === chapter.key,
+                        ) ?? null,
+                    }
+                  : undefined
+              }
+              chapterGlossaryTerms={filterGlossaryTermsForChapter(
+                planGlossaryTerms,
+                chapter.key,
+              )}
               onVideoPlay={handleBlueprintVideoPlay}
               onCaseDetail={setSelectedCaseDetail}
               trackCaseGallery={trackCaseGalleryOnce}
@@ -1539,25 +1006,121 @@ export default function PostVisitBlueprintPage() {
             <button className="pvb-drawer-x" onClick={() => setIsQuoteOpen(false)}>&times;</button>
           </div>
           <div className="pvb-drawer-scroll">
-            <p className="pvb-drawer-intro">Toggle treatments on or off to update the total.</p>
+            <p className="pvb-drawer-intro">
+              Toggle skincare products and treatments on or off to update the total.
+            </p>
             <div className="pvb-quote">
-              {blueprint.quote.lineItems.map((line, idx) => (
-                <label key={`${line.skuName ?? line.label}-${idx}`} className="pvb-quote-row">
+              {skincareQuoteIdxs.length > 0 ? (
+                <div className="pvb-quote-section">
+                  <h3 className="pvb-quote-section-title">Skincare products</h3>
+                  {skincareQuoteIdxs.map((idx) => {
+                    const line = lineItems[idx];
+                    return (
+                      <label
+                        key={`${line.skuName ?? line.label}-${idx}`}
+                        className="pvb-quote-row"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selectedRows[idx])}
+                          onChange={(e) =>
+                            setSelectedRows((prev) => ({
+                              ...prev,
+                              [idx]: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span>
+                          {patientFacingSkincareShortName(line.skuName ?? line.label)}
+                        </span>
+                        <strong>{formatPrice(line.price ?? 0)}</strong>
+                      </label>
+                    );
+                  })}
+                  <div className="pvb-quote-subtotal">
+                    <span>Skincare subtotal</span>
+                    <strong>{formatPrice(toggledSkincareSub)}</strong>
+                  </div>
+                </div>
+              ) : null}
+
+              {treatmentQuoteIdxs.length > 0 ? (
+                <div className="pvb-quote-section">
+                  <h3 className="pvb-quote-section-title">Treatments</h3>
+                  {treatmentQuoteIdxs.map((idx) => {
+                    const line = lineItems[idx];
+                    return (
+                      <label
+                        key={`${line.skuName ?? line.label}-${idx}`}
+                        className="pvb-quote-row"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selectedRows[idx])}
+                          onChange={(e) =>
+                            setSelectedRows((prev) => ({
+                              ...prev,
+                              [idx]: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span>{line.skuName ?? line.label}</span>
+                        <strong>{formatPrice(line.price ?? 0)}</strong>
+                      </label>
+                    );
+                  })}
+                  <div className="pvb-quote-subtotal">
+                    <span>Treatments subtotal</span>
+                    <strong>{formatPrice(toggledTreatmentsSub)}</strong>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="pvb-quote-mint-toggle-wrap">
+                <label className="pvb-quote-mint-toggle">
                   <input
                     type="checkbox"
-                    checked={Boolean(selectedRows[idx])}
-                    onChange={(e) => setSelectedRows((prev) => ({ ...prev, [idx]: e.target.checked }))}
+                    checked={previewMintMember}
+                    disabled={toggledTotal <= 0}
+                    onChange={(e) => setPreviewMintMember(e.target.checked)}
                   />
-                  <span>{line.skuName ?? line.label}</span>
-                  <strong>{formatPrice(line.price ?? 0)}</strong>
+                  <span>Mint member — 10% off this plan</span>
                 </label>
-              ))}
-              {blueprint.quote.isMintMember && (
-                <p className="pvb-quote-note">Mint member discount (10%) applied.</p>
-              )}
-              <div className="pvb-quote-total">
-                <span>Total</span>
-                <strong>{formatPrice(finalTotal)}</strong>
+                <p className="pvb-quote-mint-hint">
+                  The Treatment Mint members save on eligible services and boutique skincare.
+                </p>
+              </div>
+
+              <div className="pvb-quote-footer-totals">
+                {showMintBreakdown ? (
+                  <>
+                    <div className="pvb-quote-summary-row">
+                      <span>Subtotal</span>
+                      <strong>{formatPrice(toggledTotal)}</strong>
+                    </div>
+                    <div className="pvb-quote-mint-line">
+                      <span>Mint member 10% off</span>
+                      <strong>−{formatPrice(mintDiscountAmount)}</strong>
+                    </div>
+                  </>
+                ) : null}
+                <div className="pvb-quote-total">
+                  <span>{showMintBreakdown ? "Total with Mint" : "Total"}</span>
+                  <strong>{formatPrice(finalTotal)}</strong>
+                </div>
+                {showTreatmentFinancingBlock ? (
+                  <CheckoutFinancingSection
+                    totalAmount={treatmentFinancingAmount}
+                    hasUnknownPrices={hasUnknownTreatmentPrices}
+                    financingUrl={
+                      blueprint.cta.financingUrl || "https://www.carecredit.com"
+                    }
+                    variant="integrated"
+                    integratedSurface="pvb-drawer"
+                    financingScope="treatments_only"
+                    showFinancingLink={false}
+                  />
+                ) : null}
               </div>
             </div>
             <div className="pvb-drawer-ctas">
@@ -1568,18 +1131,11 @@ export default function PostVisitBlueprintPage() {
                 rel="noreferrer"
                 onClick={() => trackPostVisitBlueprintEvent("booking_clicked", { token: blueprint.token, patient_id: blueprint.patient.id })}
               >Book my plan</a>
-              <div className="pvb-drawer-ctas-row">
-                <a
-                  className="pvb-cta pvb-cta--ghost"
-                  href={blueprint.cta.financingUrl || "https://www.carecredit.com"}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => trackPostVisitBlueprintEvent("financing_clicked", { token: blueprint.token, patient_id: blueprint.patient.id })}
-                >Check financing</a>
-                {blueprint.cta.textProviderPhone && (
+              {blueprint.cta.textProviderPhone ? (
+                <div className="pvb-drawer-ctas-row">
                   <a className="pvb-cta pvb-cta--ghost" href={`sms:${blueprint.cta.textProviderPhone}`}>Text provider</a>
-                )}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

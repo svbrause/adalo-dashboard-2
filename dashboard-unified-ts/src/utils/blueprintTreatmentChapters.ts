@@ -11,6 +11,13 @@ import {
   getDisplayAreaForItem,
 } from "../components/modals/DiscussedTreatmentsModal/utils";
 import { normalizeBlueprintAnalysisText } from "./postVisitBlueprintAnalysis";
+import type { CheckoutLineItemDetail } from "../data/treatmentPricing2025";
+import {
+  formatPrice,
+  formatSkuMatchDisplayPrice,
+  matchPlanItemToSku,
+} from "../data/treatmentPricing2025";
+import { getQuoteLineDiscussedItemIndexOrder } from "./pvbQuotePartition";
 
 export type TreatmentChapter = {
   key: string;
@@ -20,7 +27,13 @@ export type TreatmentChapter = {
   displayArea: string | null;
   /** Derived from interest + findings on the treatment's plan items */
   whyRecommended: string[];
-  meta: { longevity?: string; downtime?: string; priceRange?: string };
+  meta: {
+    longevity?: string;
+    downtime?: string;
+    priceRange?: string;
+    /** Quick fact label: "Price" when tied to quote/SKU; "Range" for category-wide band */
+    priceFactLabel?: "price" | "range";
+  };
   /** Videos whose keywords match this treatment's plan items */
   videos: PostVisitBlueprintVideo[];
   /** Pre-built result card with matched case photos, or null */
@@ -32,6 +45,83 @@ export type TreatmentChapter = {
 
 function norm(s: string): string {
   return s.trim().toLowerCase();
+}
+
+function isWishlistItem(item: DiscussedItem): boolean {
+  return (item.timeline ?? "").trim().toLowerCase() === "wishlist";
+}
+
+/** Patient blueprint: show neurotoxin as total only, not per-unit × price breakdown */
+function priceDisplayForChapterQuickFacts(
+  chapterKey: string,
+  line: CheckoutLineItemDetail,
+): string {
+  if (chapterKey === "neurotoxin") {
+    return formatPrice(line.price ?? 0);
+  }
+  return line.displayPrice;
+}
+
+function skuPriceDisplayForChapterQuickFacts(
+  chapterKey: string,
+  match: NonNullable<ReturnType<typeof matchPlanItemToSku>>,
+): string {
+  if (chapterKey === "neurotoxin") {
+    return formatPrice(match.totalPrice);
+  }
+  return formatSkuMatchDisplayPrice(match);
+}
+
+/**
+ * Prefer stored quote lines (SKU-level, same as checkout), then per–plan-item SKU match,
+ * then the broad category range from TREATMENT_META.
+ */
+function resolveChapterPriceDisplay(
+  chapterKey: string,
+  planItems: DiscussedItem[],
+  discussedItems: DiscussedItem[],
+  quoteLineItems: CheckoutLineItemDetail[] | undefined,
+  categoryPriceRange: string | undefined,
+): { priceRange: string | undefined; priceFactLabel: "price" | "range" } {
+  if (quoteLineItems?.length) {
+    const order = getQuoteLineDiscussedItemIndexOrder(discussedItems);
+    if (order.length === quoteLineItems.length) {
+      const fromQuote: string[] = [];
+      for (let i = 0; i < quoteLineItems.length; i++) {
+        const dIdx = order[i]!;
+        const line = quoteLineItems[i]!;
+        const d = discussedItems[dIdx];
+        if (!d || !line) continue;
+        if (norm(d.treatment ?? "") !== chapterKey) continue;
+        fromQuote.push(priceDisplayForChapterQuickFacts(chapterKey, line));
+      }
+      if (fromQuote.length > 0) {
+        return {
+          priceRange:
+            fromQuote.length === 1 ? fromQuote[0]! : fromQuote.join(" · "),
+          priceFactLabel: "price",
+        };
+      }
+    }
+  }
+
+  const fromSku: string[] = [];
+  for (const pi of planItems) {
+    if (isWishlistItem(pi)) continue;
+    const m = matchPlanItemToSku(pi);
+    if (m) fromSku.push(skuPriceDisplayForChapterQuickFacts(chapterKey, m));
+  }
+  if (fromSku.length > 0) {
+    return {
+      priceRange: fromSku.join(" · "),
+      priceFactLabel: "price",
+    };
+  }
+
+  if (categoryPriceRange) {
+    return { priceRange: categoryPriceRange, priceFactLabel: "range" };
+  }
+  return { priceRange: undefined, priceFactLabel: "range" };
 }
 
 function buildWhyRecommended(items: DiscussedItem[]): string[] {
@@ -88,6 +178,7 @@ export function buildTreatmentChapters(
   discussedItems: DiscussedItem[],
   treatmentCards: TreatmentResultsCard[],
   catalog: PostVisitBlueprintVideo[] = POST_VISIT_BLUEPRINT_VIDEOS,
+  quoteLineItems?: CheckoutLineItemDetail[],
 ): TreatmentChapter[] {
   const seen = new Set<string>();
   const chapters: TreatmentChapter[] = [];
@@ -104,6 +195,13 @@ export function buildTreatmentChapters(
     );
     const meta = TREATMENT_META[t] ?? {};
     const caseCard = treatmentCards.find((c) => c.key === key) ?? null;
+    const { priceRange, priceFactLabel } = resolveChapterPriceDisplay(
+      key,
+      planItems,
+      discussedItems,
+      quoteLineItems,
+      meta.priceRange,
+    );
 
     const areas = new Set<string>();
     for (const pi of planItems) {
@@ -120,7 +218,8 @@ export function buildTreatmentChapters(
       meta: {
         longevity: meta.longevity,
         downtime: meta.downtime,
-        priceRange: meta.priceRange,
+        priceRange,
+        priceFactLabel,
       },
       videos: videosForItems(planItems, catalog),
       caseCard,

@@ -1,0 +1,37 @@
+/* Shared AI sparkle + Gemini wordmark — Analysis Overview, Post-Visit Blueprint */
+
+.ai-sparkle-logo {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.ai-gemini-wordmark {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  line-height: 1;
+  background: linear-gradient(
+    120deg,
+    #4285f4 0%,
+    #9b72cb 35%,
+    #d96570 65%,
+    #fbbc04 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.ai-gemini-brand-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-gemini-brand-row--compact {
+  gap: 5px;
+}

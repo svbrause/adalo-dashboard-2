@@ -7,8 +7,8 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  background: linear-gradient(180deg, #fafafa 0%, #f1f5f9 100%);
-  color: #0f172a;
+  background: #ffffff;
+  color: #3a3c3e;
 }
 
 /* Treatment detail — patient-overview SuggestionCard–style shell (flex + fixed thumb bar) */
@@ -37,7 +37,7 @@
   background: transparent;
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #3a3c3e;
   cursor: pointer;
   padding: 8px 4px;
   margin: -8px 0 -8px -4px;
@@ -198,7 +198,7 @@
   font-size: 1.5rem;
   font-weight: 800;
   line-height: 1;
-  color: #0f172a;
+  color: #3a3c3e;
 }
 
 .pvb-subpage-gauge__tier {
@@ -280,7 +280,7 @@
 .pvb-subpage__theme-label {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #3a3c3e;
 }
 
 .pvb-subpage__theme-meta {
@@ -476,7 +476,7 @@
 .pvb-tx-card__expand-btn[aria-expanded="true"] {
   background: #f1f5f9;
   border-color: #cbd5e1;
-  color: #0f172a;
+  color: #3a3c3e;
 }
 
 .pvb-tx-card__expand-btn:focus-visible {
@@ -515,7 +515,7 @@
 
 .pvb-tx-card__meta-value {
   font-weight: 700;
-  color: #0f172a;
+  color: #3a3c3e;
 }
 
 .pvb-tx-card__meta-value--price {
@@ -736,7 +736,7 @@
   background: #fff;
   font-size: 0.875rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #3a3c3e;
   cursor: pointer;
 }
 

@@ -36,7 +36,7 @@ import { getSuggestedTreatmentsForFindings } from "./DiscussedTreatmentsModal/ut
 import { TREATMENT_META } from "./DiscussedTreatmentsModal/constants";
 import type { TreatmentPlanPrefill } from "./DiscussedTreatmentsModal/TreatmentPhotos";
 import PhotoViewerModal from "./PhotoViewerModal";
-import aiLogoUrl from "../../assets/images/ai.svg";
+import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
 import { RadarChart } from "../postVisitBlueprint/RadarChart";
 import "./AnalysisOverviewModal.css";
 
@@ -79,16 +79,16 @@ function TypewriterText({
   );
 }
 
-/** Reusable dual-sparkle AI logo (uses ai.svg with CSS gradient mask) */
-function AILogo({ size = 18, className }: { size?: number; className?: string }) {
+/** Section titles that pair LLM-backed copy with AI + Gemini brand */
+function OverviewSectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <img
-      src={aiLogoUrl}
-      alt=""
-      aria-hidden
-      className={`ao-ai-logo ${className || ""}`}
-      style={{ width: size, height: size }}
-    />
+    <h3 className="analysis-overview-modal__area-group-title">
+      <span className="analysis-overview-modal__area-group-title-inner">
+        <AiSparkleLogo size={14} className="ao-ai-logo" />
+        <span>{children}</span>
+        <GeminiWordmark />
+      </span>
+    </h3>
   );
 }
 
@@ -708,8 +708,9 @@ function CategoryDetailContent({
         </div>
         <div className="ao-detail__hero-ai">
           <div className="ao-detail__ai-header">
-            <AILogo size={14} />
+            <AiSparkleLogo size={14} className="ao-ai-logo" />
             <span className="ao-detail__ai-label">Aesthetic Intelligence</span>
+            <GeminiWordmark />
           </div>
           {aiCatLoading ? (
             <div className="ao-ai-summary__loading">
@@ -726,7 +727,13 @@ function CategoryDetailContent({
 
       {/* Sub-score breakdown with collapsible check/x pills */}
       <section className="ao-detail__section">
-        <h3 className="ao-detail__section-title">Feature Breakdown</h3>
+        <h3 className="ao-detail__section-title ao-detail__section-title--with-ai">
+          <span className="ao-detail__section-title-inner">
+            <AiSparkleLogo size={13} className="ao-ai-logo" />
+            <span>Feature Breakdown</span>
+            <GeminiWordmark />
+          </span>
+        </h3>
         <div className="ao-detail__subscore-list">
           {catResult.subScores.map((s) => (
             <SubScoreFeatureRow
@@ -888,8 +895,9 @@ function AreaDetailContent({
         </div>
         <div className="ao-detail__hero-ai">
           <div className="ao-detail__ai-header">
-            <AILogo size={14} />
+            <AiSparkleLogo size={14} className="ao-ai-logo" />
             <span className="ao-detail__ai-label">Aesthetic Intelligence</span>
+            <GeminiWordmark />
           </div>
           {aiAreaLoading ? (
             <div className="ao-ai-summary__loading">
@@ -906,7 +914,13 @@ function AreaDetailContent({
 
       {/* Theme-based feature breakdown with check/x pills */}
       <section className="ao-detail__section">
-        <h3 className="ao-detail__section-title">Feature Breakdown</h3>
+        <h3 className="ao-detail__section-title ao-detail__section-title--with-ai">
+          <span className="ao-detail__section-title-inner">
+            <AiSparkleLogo size={13} className="ao-ai-logo" />
+            <span>Feature Breakdown</span>
+            <GeminiWordmark />
+          </span>
+        </h3>
         <div className="ao-detail__subscore-list">
           {themes.map((theme) => (
             <AreaThemeFeatureRow
@@ -1362,8 +1376,9 @@ export default function AnalysisOverviewModal({
                   onClick={() => setAiSummaryOpen(!aiSummaryOpen)}
                 >
                   <div className="ao-ai-summary__brand">
-                    <AILogo size={16} className="ao-ai-summary__icon" />
+                    <AiSparkleLogo size={16} className="ao-ai-summary__icon ao-ai-logo" />
                     <span className="ao-ai-summary__label">Aesthetic Intelligence</span>
+                    <GeminiWordmark />
                   </div>
                   <span className="ao-ai-summary__chev" aria-hidden>
                     {aiSummaryOpen ? "▲" : "▼"}
@@ -1387,6 +1402,16 @@ export default function AnalysisOverviewModal({
 
               {/* Category sub-scores – circle inside each collapsible card */}
               <section className="analysis-overview-modal__categories">
+                <div
+                  className="analysis-overview-modal__categories-brand"
+                  aria-label="AI-assisted category scores"
+                >
+                  <AiSparkleLogo size={14} className="ao-ai-logo" />
+                  <span className="analysis-overview-modal__categories-brand-label">
+                    Category scores
+                  </span>
+                  <GeminiWordmark />
+                </div>
                 <div className="analysis-overview-modal__cat-columns">
                   {categories.map((c) => (
                     <div key={c.key} className="analysis-overview-modal__cat-column">
@@ -1405,9 +1430,9 @@ export default function AnalysisOverviewModal({
               {/* Client's focus areas */}
               {focusAreas.length > 0 && (
                 <section className="analysis-overview-modal__areas">
-                  <h3 className="analysis-overview-modal__area-group-title">
+                  <OverviewSectionHeading>
                     Client&apos;s focus areas
-                  </h3>
+                  </OverviewSectionHeading>
                   <div className="analysis-overview-modal__area-dot-legend">
                     <span className="analysis-overview-modal__area-legend-item">
                       <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("excellent") }} />
@@ -1441,9 +1466,7 @@ export default function AnalysisOverviewModal({
               {/* Other areas */}
               {otherAreas.length > 0 && (
                 <section className="analysis-overview-modal__areas">
-                  <h3 className="analysis-overview-modal__area-group-title">
-                    Other areas
-                  </h3>
+                  <OverviewSectionHeading>Other areas</OverviewSectionHeading>
                   <div className="analysis-overview-modal__area-dot-legend">
                     <span className="analysis-overview-modal__area-legend-item">
                       <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("excellent") }} />

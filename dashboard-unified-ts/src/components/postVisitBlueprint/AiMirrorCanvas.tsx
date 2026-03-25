@@ -22,7 +22,7 @@ const REGION_KEYWORDS: Record<string, string[]> = {
   rLeftCheek: ["cheek", "midface", "nasolabial", "smile line", "malar"],
   rRightCheek: ["cheek", "midface", "nasolabial", "smile line", "malar"],
   rLips: ["lip", "mouth", "marionette", "perioral", "gummy"],
-  rChin: ["chin", "jaw", "jawline", "submental", "jowl"],
+  rChin: ["chin", "jaw", "jawline", "submental", "jowl", "neck"],
 };
 
 const REGION_DISPLAY_LABEL: Record<string, string> = {
@@ -250,7 +250,7 @@ function drawAnnotatedFace(
     lineWidth: lineOval,
   });
   du.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_CONTOURS, {
-    color: "#6366f1aa",
+    color: "#9dd6cbaa",
     lineWidth: lineContour,
   });
   ctx.restore();

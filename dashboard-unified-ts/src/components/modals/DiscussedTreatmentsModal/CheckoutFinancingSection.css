@@ -1,0 +1,196 @@
+/* Shared: checkout modal order summary + Post-Visit Blueprint quote drawer */
+.treatment-plan-checkout-financing {
+  margin-top: 4px;
+  padding: 16px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+  background: var(--theme-bg-card, #ffffff);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+}
+
+.treatment-plan-checkout-financing--quote-sheet {
+  margin-top: 20px;
+  padding: 16px 0 0;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--theme-border, rgba(0, 0, 0, 0.08));
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Patient Post-Visit Blueprint quote drawer — compact, mint CTA */
+.treatment-plan-checkout-financing--pvb {
+  margin-top: 16px;
+  padding: 16px 0 0;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid rgba(150, 152, 154, 0.35);
+  background: transparent;
+  box-shadow: none;
+}
+
+.treatment-plan-checkout-financing--pvb .treatment-plan-checkout-financing__title {
+  color: #96989a;
+}
+
+.treatment-plan-checkout-financing--pvb .treatment-plan-checkout-financing__lead,
+.treatment-plan-checkout-financing--pvb .treatment-plan-checkout-financing__summary {
+  color: #3a3c3e;
+}
+
+.treatment-plan-checkout-financing--pvb .treatment-plan-checkout-financing__lead strong {
+  color: #5a9e94;
+}
+
+.treatment-plan-checkout-financing--pvb .treatment-plan-checkout-financing__link {
+  background: #9dd6cb;
+  color: #2a4540;
+  border: 1px solid rgba(90, 158, 148, 0.35);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.treatment-plan-checkout-financing__title {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--theme-text-secondary, #64748b);
+}
+
+.treatment-plan-checkout-financing__lead {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.treatment-plan-checkout-financing__summary {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.treatment-plan-checkout-financing__lead strong {
+  font-weight: 800;
+  color: var(--theme-accent, #6366f1);
+}
+
+.treatment-plan-checkout-financing__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--theme-accent, #6366f1);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.treatment-plan-checkout-financing__link:hover {
+  opacity: 0.92;
+}
+
+.treatment-plan-checkout-financing__link:active {
+  transform: scale(0.98);
+}
+
+/* ── Integrated with treatment quote (same column as totals; no separate card) ── */
+.treatment-plan-checkout-financing--integrated {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.treatment-plan-checkout-financing--integrated-order {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+}
+
+.treatment-plan-checkout-financing--integrated-quote-footer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+}
+
+.treatment-plan-checkout-financing--integrated-pvb {
+  margin-top: 0;
+  padding: 12px 18px 4px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.treatment-plan-checkout-financing-integrated__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.treatment-plan-checkout-financing-integrated__label {
+  color: var(--theme-text-muted, #64748b);
+}
+
+.treatment-plan-checkout-financing-integrated__value {
+  color: var(--theme-text-primary, #1e293b);
+  font-weight: 600;
+}
+
+.treatment-plan-checkout-financing-integrated__lead {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--theme-text-secondary, #475569);
+}
+
+.treatment-plan-checkout-financing-integrated__scope-note {
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--theme-text-muted, #64748b);
+}
+
+.treatment-plan-checkout-financing-integrated__link {
+  display: inline-flex;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-accent, #6366f1);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.35);
+  width: fit-content;
+}
+
+.treatment-plan-checkout-financing-integrated__link:hover {
+  color: #4f46e5;
+  border-bottom-color: currentColor;
+}
+
+.treatment-plan-checkout-financing--integrated-pvb .treatment-plan-checkout-financing-integrated__label {
+  color: #96989a;
+}
+
+.treatment-plan-checkout-financing--integrated-pvb .treatment-plan-checkout-financing-integrated__value {
+  color: #3a3c3e;
+}
+
+.treatment-plan-checkout-financing--integrated-pvb .treatment-plan-checkout-financing-integrated__lead {
+  color: #96989a;
+}
+
+.treatment-plan-checkout-financing--integrated-pvb
+  .treatment-plan-checkout-financing-integrated__scope-note {
+  color: #96989a;
+}

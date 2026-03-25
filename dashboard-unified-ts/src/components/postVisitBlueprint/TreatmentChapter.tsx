@@ -16,6 +16,17 @@ import {
   isRedundantTreatmentSubtitle,
   buildPhotoTagSummary,
 } from "../../utils/postVisitBlueprintCases";
+import {
+  buildChapterOverviewContent,
+  type ChapterOverviewBuildOptions,
+} from "../../utils/pvbOverviewNarratives";
+import type { PvbResolvedPlanGlossaryTerm } from "../../utils/pvbPlanTermGlossary";
+import { buildChapterOverviewSpeechText } from "../../utils/pvbOverviewSpeechText";
+import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
+import { PvbChapterOverviewTypewriter } from "./PvbChapterOverviewTypewriter";
+import { PvbNarrativeAudioControls } from "./PvbNarrativeAudioControls";
+import { buildSkincareChapterProductSlots } from "../../utils/pvbSkincareDisplay";
+import { fetchTreatmentChapterOverview } from "../../services/api";
 import "./TreatmentChapter.css";
 
 interface TreatmentChapterViewProps {
@@ -24,6 +35,10 @@ interface TreatmentChapterViewProps {
   total: number;
   /** DOM id for TOC / deep links (must match PostVisitBlueprintPage TOC href) */
   anchorId: string;
+  /** When set, overview copy weaves in scan findings + per-treatment plan notes */
+  chapterAnalysisContext?: ChapterOverviewBuildOptions | null;
+  /** Glossary entries matched to this chapter’s treatment (see pvbPlanTermGlossary chapterKeys) */
+  chapterGlossaryTerms?: PvbResolvedPlanGlossaryTerm[];
   onVideoPlay: (videoId: string, title: string) => void;
   onCaseDetail: (detail: CaseDetailPayload) => void;
   trackCaseGallery: () => void;
@@ -59,6 +74,8 @@ export function TreatmentChapterView({
   index,
   total,
   anchorId,
+  chapterAnalysisContext,
+  chapterGlossaryTerms,
   onVideoPlay,
   onCaseDetail,
   trackCaseGallery,
@@ -66,11 +83,92 @@ export function TreatmentChapterView({
   const card = chapter.caseCard;
   const photos = card?.photos ?? [];
   const len = photos.length;
+  const isSkincareChapter = chapter.treatment.trim().toLowerCase() === "skincare";
+  const skincareProductSlots = useMemo(
+    () => (isSkincareChapter ? buildSkincareChapterProductSlots(chapter.planItems) : []),
+    [chapter.planItems, isSkincareChapter],
+  );
 
   /** Full catalog (3) ordered by relevance to this chapter — shown as compact thumbnails */
   const catalogVideos = useMemo(
     () => orderBlueprintVideosForPlan(chapter.planItems, POST_VISIT_BLUEPRINT_VIDEOS),
     [chapter.planItems],
+  );
+  const chapterOverview = useMemo(
+    () =>
+      buildChapterOverviewContent(
+        chapter,
+        chapterAnalysisContext ?? undefined,
+      ),
+    [chapter, chapterAnalysisContext],
+  );
+  const [aiChapterAnalysis, setAiChapterAnalysis] = useState<string | null>(null);
+  const aiChapterPayload = useMemo(() => {
+    const snapshot = chapterAnalysisContext?.overviewSnapshot ?? null;
+    const planRow = chapterAnalysisContext?.planRow ?? null;
+    const focusAreas = snapshot?.areas
+      ?.filter((a) => a.hasInterest)
+      .map((a) => a.name)
+      .slice(0, 8) ?? [];
+    const areaImprovements = snapshot?.areas
+      ?.flatMap((a) => a.improvements ?? [])
+      .filter(Boolean)
+      .slice(0, 14) ?? [];
+    return {
+      treatment: chapter.treatment,
+      displayName: chapter.displayName,
+      displayArea: chapter.displayArea,
+      whyRecommended: chapter.whyRecommended.slice(0, 10),
+      planBullets: chapterOverview.planBullets.slice(0, 8),
+      findings: planRow?.findings?.slice(0, 10) ?? [],
+      interest: planRow?.interest,
+      detectedIssues: snapshot?.detectedIssueLabels?.slice(0, 14) ?? [],
+      focusAreas,
+      areaImprovements,
+      longevity: chapter.meta.longevity,
+      downtime: chapter.meta.downtime,
+      priceRange: chapter.meta.priceRange,
+    };
+  }, [chapter, chapterOverview.planBullets, chapterAnalysisContext]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAiChapterAnalysis(null);
+    void (async () => {
+      const text = await fetchTreatmentChapterOverview(aiChapterPayload);
+      if (cancelled) return;
+      setAiChapterAnalysis(text && text.trim().length > 0 ? text.trim() : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [aiChapterPayload]);
+
+  const chapterOverviewResolved = useMemo(
+    () => {
+      if (aiChapterAnalysis) {
+        return { ...chapterOverview, analysis: aiChapterAnalysis };
+      }
+      // Fallback copy: keep it paragraph-style so it reads less like generated list output.
+      if (chapterOverview.planBullets.length === 0) return chapterOverview;
+      const details = chapterOverview.planBullets
+        .map((b) => b.trim())
+        .filter(Boolean)
+        .join("; ");
+      return {
+        ...chapterOverview,
+        planBullets: [],
+        analysis: details
+          ? `Your plan details include ${details}. ${chapterOverview.analysis}`
+          : chapterOverview.analysis,
+      };
+    },
+    [chapterOverview, aiChapterAnalysis],
+  );
+  const chapterOverviewSpeech = useMemo(
+    () =>
+      buildChapterOverviewSpeechText(chapterOverviewResolved, chapterGlossaryTerms),
+    [chapterOverviewResolved, chapterGlossaryTerms],
   );
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
   const expandedVideo = expandedVideoId
@@ -125,17 +223,33 @@ export function TreatmentChapterView({
         {chapter.displayArea && <span className="tc-area">{chapter.displayArea}</span>}
       </div>
 
-      {/* Why Recommended */}
-      {chapter.whyRecommended.length > 0 && (
-        <div className="tc-why">
-          <h3 className="tc-label">Why this was recommended</h3>
-          <ul className="tc-why-list">
-            {chapter.whyRecommended.map((reason) => (
-              <li key={reason}>{reason}</li>
+      {/* Regions / plan notes — high on the card so they are not buried below photos */}
+      {card && card.planHighlights.length > 0 && !isSkincareChapter && (
+        <div className="tc-highlights tc-highlights--top">
+          <div className="pvb-chips">
+            {card.planHighlights.map((h) => (
+              <span key={h} className="pvb-chip">
+                {h}
+              </span>
             ))}
-          </ul>
+          </div>
         </div>
       )}
+
+      <div className="tc-overview">
+        <div className="tc-overview-head">
+          <div className="tc-overview-brand">
+            <AiSparkleLogo size={15} className="tc-overview-ai-logo" />
+            <h3 className="tc-label">Overview</h3>
+            <GeminiWordmark />
+          </div>
+          <PvbNarrativeAudioControls
+            text={chapterOverviewSpeech}
+            ariaLabel={`Listen to ${chapter.displayName} overview`}
+          />
+        </div>
+        <PvbChapterOverviewTypewriter chapterOverview={chapterOverviewResolved} />
+      </div>
 
       {/* Quick Facts */}
       {(chapter.meta.longevity || chapter.meta.downtime || chapter.meta.priceRange) && (
@@ -154,11 +268,55 @@ export function TreatmentChapterView({
           )}
           {chapter.meta.priceRange && (
             <div className="tc-fact">
-              <span className="tc-fact-label">Range</span>
+              <span className="tc-fact-label">
+                {chapter.meta.priceFactLabel === "price" ? "Price" : "Range"}
+              </span>
               <span className="tc-fact-val">{chapter.meta.priceRange}</span>
             </div>
           )}
         </div>
+      )}
+
+      {chapterGlossaryTerms && chapterGlossaryTerms.length > 0 && (
+        <details className="pvb-plan-glossary pvb-plan-glossary--collapsible tc-chapter-glossary">
+          <summary className="pvb-plan-glossary__section-summary">
+            <span className="pvb-plan-glossary__section-summary-text">
+              <span className="pvb-plan-glossary__section-title">What these terms mean</span>
+              <span className="pvb-plan-glossary__section-hint">
+                {chapterGlossaryTerms.length}{" "}
+                {chapterGlossaryTerms.length === 1 ? "term" : "terms"}
+              </span>
+            </span>
+            <span className="pvb-plan-glossary__section-chev" aria-hidden>
+              ▼
+            </span>
+          </summary>
+          <div className="pvb-plan-glossary__section-body">
+            <p className="pvb-plan-glossary-lead">
+              Quick definitions for abbreviations and add-ons that appear in this part of your plan.
+            </p>
+            <ul className="pvb-plan-glossary-list" aria-label="Terms explained for this treatment">
+              {chapterGlossaryTerms.map((term) => (
+                <li key={term.id} className="pvb-plan-glossary-item">
+                  <details className="pvb-plan-glossary-term-details">
+                    <summary className="pvb-plan-glossary__term-summary">
+                      <span className="pvb-plan-glossary-term">{term.title}</span>
+                      <span className="pvb-plan-glossary__term-chev" aria-hidden>
+                        ▼
+                      </span>
+                    </summary>
+                    <div className="pvb-plan-glossary__term-body">
+                      <p className="pvb-plan-glossary-body">{term.body}</p>
+                      {term.relationToYou ? (
+                        <p className="pvb-plan-glossary-relation">{term.relationToYou}</p>
+                      ) : null}
+                    </div>
+                  </details>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       )}
 
       {/* Videos — all clinic clips as compact thumbnails; tap to expand & play */}
@@ -323,13 +481,62 @@ export function TreatmentChapterView({
         </div>
       )}
 
-      {/* Highlights */}
-      {card && card.planHighlights.length > 0 && (
-        <div className="tc-highlights">
-          <div className="pvb-chips">
-            {card.planHighlights.map((h) => (
-              <span key={h} className="pvb-chip">{h}</span>
-            ))}
+      {/* Skincare: boutique product images + caption under each */}
+      {isSkincareChapter && skincareProductSlots.length > 0 && (
+        <div className="tc-skincare-products">
+          <h3 className="tc-section-label">Products discussed</h3>
+          <div className="tc-skincare-products__grid" role="list">
+            {skincareProductSlots.map((slot) => {
+              const caption = (
+                <span className="tc-skincare-products__caption">{slot.shortName}</span>
+              );
+              const inner = (
+                <>
+                  <div className="tc-skincare-products__thumb-wrap">
+                    {slot.imageUrl ? (
+                      <img
+                        src={slot.imageUrl}
+                        alt=""
+                        className="tc-skincare-products__thumb"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div
+                        className="tc-skincare-products__thumb tc-skincare-products__thumb--placeholder"
+                        aria-hidden
+                      >
+                        <span className="tc-skincare-products__ph-icon" aria-hidden>
+                          ◆
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {caption}
+                </>
+              );
+              return slot.productUrl ? (
+                <a
+                  key={slot.planProductLabel}
+                  className="tc-skincare-products__cell tc-skincare-products__cell--link"
+                  href={slot.productUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  role="listitem"
+                  aria-label={`${slot.shortName} (opens product page)`}
+                >
+                  {inner}
+                </a>
+              ) : (
+                <div
+                  key={slot.planProductLabel}
+                  className="tc-skincare-products__cell"
+                  role="listitem"
+                >
+                  {inner}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

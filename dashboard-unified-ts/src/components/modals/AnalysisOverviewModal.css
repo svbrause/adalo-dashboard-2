@@ -594,6 +594,37 @@
   letter-spacing: 0.05em;
 }
 
+.analysis-overview-modal__area-group-title-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.analysis-overview-modal__area-group-title-inner > span:first-of-type {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Category scores strip — above column cards */
+.analysis-overview-modal__categories-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.analysis-overview-modal__categories-brand-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--theme-text-secondary, #616161);
+}
+
 .analysis-overview-modal__area-dot-legend {
   display: flex;
   flex-wrap: wrap;
@@ -937,6 +968,18 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--theme-text-primary, #212121);
+}
+
+.ao-detail__section-title-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.ao-detail__section-title-inner > span:not(.ai-gemini-wordmark) {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 /* (overview-text and color modifiers removed in simplification) */
@@ -1339,6 +1382,7 @@
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .ao-detail__ai-label {

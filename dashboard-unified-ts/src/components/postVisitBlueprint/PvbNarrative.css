@@ -1,0 +1,99 @@
+/* Typewriter caret + listen control — post-visit overview narratives */
+
+.pvb-typewriter-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.12em;
+  background: var(--pvb-mint-deep, #5a9e94);
+  animation: pvb-typewriter-blink 0.85s step-end infinite;
+}
+
+@keyframes pvb-typewriter-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.pvb-overview-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.pvb-overview-heading-row .pvb-analysis-title {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.pvb-narrative-audio {
+  flex-shrink: 0;
+  margin-top: 2px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(90, 158, 148, 0.45);
+  background: rgba(157, 214, 203, 0.22);
+  color: #2a4540;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.pvb-narrative-audio:hover {
+  background: rgba(157, 214, 203, 0.38);
+  border-color: rgba(90, 158, 148, 0.6);
+}
+
+.pvb-narrative-audio:active {
+  transform: scale(0.97);
+}
+
+.pvb-narrative-audio:focus-visible {
+  outline: 2px solid #5a9e94;
+  outline-offset: 2px;
+}
+
+.pvb-narrative-audio--playing {
+  background: rgba(90, 158, 148, 0.35);
+  border-color: rgba(58, 60, 62, 0.25);
+  color: #1e293b;
+}
+
+.tc-overview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.tc-overview-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.tc-overview-brand .tc-label {
+  margin-bottom: 0;
+}
+
+.tc-overview-ai-logo {
+  flex-shrink: 0;
+}
+
+.tc-overview-head .pvb-narrative-audio {
+  margin-top: 0;
+}

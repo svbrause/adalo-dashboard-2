@@ -1,6 +1,11 @@
 // API service for fetching data from Airtable via backend (ponce-patient-backend.vercel.app)
 // All dashboard API calls go to the backend; no /api or relative routes.
 
+import {
+  fetchAIAssessmentViaDevGemini,
+  fetchCategoryAssessmentViaDevGemini,
+  fetchTreatmentChapterOverviewViaDevGemini,
+} from "./geminiDevAssessment";
 import type { Offer, DoctorAdviceRequest, SkincareQuizData } from "../types";
 import { cleanPhoneNumber } from "../utils/validation";
 import { parseSkincareQuizFromFields } from "../utils/clientMapper";
@@ -145,6 +150,9 @@ export async function fetchBlueprintFrontPhotoFreshUrl(params: {
 /**
  * Persist Post-Visit Blueprint JSON on the backend so patient links can be short (`?t=` only).
  * Backend: POST /api/dashboard/blueprint
+ *
+ * Recommended: after accepting the payload, fetch hero bytes (or receive upload), store in GCS (or similar),
+ * and merge `patient.frontPhotoPersistentUrl` into the saved JSON so patient pages avoid expiring Airtable URLs.
  */
 export async function storePostVisitBlueprintOnServer(
   payload: Record<string, unknown>,
@@ -1154,6 +1162,55 @@ export interface CategoryAssessmentPayload {
   strengthIssues: string[];
 }
 
+/** Body for POST /api/pvb/treatment-chapter-overview (Post-Visit Blueprint chapters). */
+export interface TreatmentChapterOverviewPayload {
+  treatment: string;
+  displayName: string;
+  displayArea?: string | null;
+  whyRecommended: string[];
+  planBullets: string[];
+  findings: string[];
+  interest?: string;
+  detectedIssues: string[];
+  focusAreas: string[];
+  areaImprovements: string[];
+  longevity?: string;
+  downtime?: string;
+  priceRange?: string;
+}
+
+const LLM_BACKEND_TIMEOUT_MS = 28_000;
+
+/**
+ * Server-side chapter overview; falls back to localhost Vite Gemini/OpenAI only if the backend fails.
+ */
+export async function fetchTreatmentChapterOverview(
+  payload: TreatmentChapterOverviewPayload,
+): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
+    const res = await fetch(
+      `${API_BASE_URL}/api/pvb/treatment-chapter-overview`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      },
+    );
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = (await res.json()) as { overview?: string };
+      const t = data.overview?.trim();
+      if (t && t.length > 0) return t;
+    }
+  } catch {
+    /* try dev fallback */
+  }
+  return fetchTreatmentChapterOverviewViaDevGemini(payload);
+}
+
 /**
  * Fetch AI-generated overview assessment from the backend.
  * Falls back to null on failure (caller should use template text as fallback).
@@ -1163,7 +1220,7 @@ export async function fetchAIAssessment(
 ): Promise<string | null> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
     const res = await fetch(`${API_BASE_URL}/api/assessment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1171,12 +1228,17 @@ export async function fetchAIAssessment(
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    if (!res.ok) return null;
-    const data = (await res.json()) as { assessment?: string };
-    return data.assessment || null;
+    if (res.ok) {
+      const data = (await res.json()) as { assessment?: string };
+      const t = data.assessment?.trim();
+      if (t && t.length > 0) return t;
+    }
   } catch {
-    return null;
+    /* dev fallback below */
   }
+
+  const devGemini = await fetchAIAssessmentViaDevGemini(payload);
+  return devGemini ?? null;
 }
 
 /**
@@ -1188,7 +1250,7 @@ export async function fetchCategoryAssessment(
 ): Promise<string | null> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
     const res = await fetch(`${API_BASE_URL}/api/category-assessment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1196,10 +1258,15 @@ export async function fetchCategoryAssessment(
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    if (!res.ok) return null;
-    const data = (await res.json()) as { assessment?: string };
-    return data.assessment || null;
+    if (res.ok) {
+      const data = (await res.json()) as { assessment?: string };
+      const t = data.assessment?.trim();
+      if (t && t.length > 0) return t;
+    }
   } catch {
-    return null;
+    /* dev fallback below */
   }
+
+  const devGemini = await fetchCategoryAssessmentViaDevGemini(payload);
+  return devGemini ?? null;
 }

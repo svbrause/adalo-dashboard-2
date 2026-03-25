@@ -9,6 +9,7 @@ import {
 } from "../../services/api";
 import { getSkincareCarouselItems } from "./DiscussedTreatmentsModal/constants";
 import TreatmentPlanCheckout from "./DiscussedTreatmentsModal/TreatmentPlanCheckout";
+import { CheckoutFinancingSection } from "./DiscussedTreatmentsModal/CheckoutFinancingSection";
 import type { CheckoutLineItemDetail } from "../../data/treatmentPricing2025";
 import { formatPrice } from "../../data/treatmentPricing2025";
 import { useDashboard } from "../../context/DashboardContext";
@@ -30,6 +31,11 @@ export interface TreatmentPlanCheckoutModalProps {
   clientName: string;
   items: DiscussedItem[];
   client?: Client | null;
+  /**
+   * Region chips selected in the treatment recommender when the user sends the blueprint.
+   * Stored on the patient link for AI mirror highlights.
+   */
+  recommenderFocusRegions?: string[];
   onClose: () => void;
   /** When provided, each row shows a remove button; called with the item and its index in the list. */
   onRemoveItem?: (item: DiscussedItem, index: number) => void;
@@ -115,6 +121,7 @@ export default function TreatmentPlanCheckoutModal({
   clientName,
   items,
   client,
+  recommenderFocusRegions,
   onClose,
   onRemoveItem,
   onUpdateItem,
@@ -291,6 +298,10 @@ export default function TreatmentPlanCheckoutModal({
         providerPhone,
         client,
         discussedItems: items,
+        recommenderFocusRegions:
+          recommenderFocusRegions && recommenderFocusRegions.length > 0
+            ? [...recommenderFocusRegions]
+            : undefined,
         quote: {
           lineItems: quoteData.lineItems,
           total: quoteData.total,
@@ -329,6 +340,7 @@ export default function TreatmentPlanCheckoutModal({
     provider?.name,
     providerPhone,
     quoteData,
+    recommenderFocusRegions,
   ]);
 
   const handleConfirmSendBlueprint = useCallback(async () => {
@@ -458,6 +470,7 @@ export default function TreatmentPlanCheckoutModal({
               items={items}
               getPhotoForItem={getPhotoForItem}
               totalSlotId="treatment-plan-checkout-modal-total-slot"
+              financingUrl={financingUrl}
               onCheckoutDataChange={setQuoteData}
               onRemoveItem={onRemoveItem}
               onUpdateItem={onUpdateItem}
@@ -558,6 +571,21 @@ export default function TreatmentPlanCheckoutModal({
                       )}
                 </span>
               </div>
+              {financingUrl.trim() ? (
+                <CheckoutFinancingSection
+                  totalAmount={
+                    quoteData.hasUnknownPrices && quoteData.total === 0
+                      ? 0
+                      : isMintMember && quoteData.total > 0
+                        ? quoteData.total - quoteData.total * 0.1
+                        : quoteData.total
+                  }
+                  hasUnknownPrices={quoteData.hasUnknownPrices}
+                  financingUrl={financingUrl.trim()}
+                  variant="integrated"
+                  integratedSurface="quote-footer"
+                />
+              ) : null}
             </div>
           </div>
         </div>

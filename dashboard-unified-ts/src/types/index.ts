@@ -210,7 +210,7 @@ export type ViewType =
   | "offers"
   | "inbox"
   | "sms-history"
-  | "sms-settings";
+  | "settings";
 
 export interface FilterState {
   source: string;

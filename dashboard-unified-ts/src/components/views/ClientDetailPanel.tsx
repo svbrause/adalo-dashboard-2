@@ -1,6 +1,6 @@
 // Client Detail Panel Component - Side panel version (non-modal)
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Client, DiscussedItem } from "../../types";
 import { formatDate, formatRelativeDate } from "../../utils/dateFormatting";
 import {
@@ -146,6 +146,8 @@ export default function ClientDetailPanel({
   const [recommenderMode, setRecommenderMode] = useState<
     "by-treatment" | "by-suggestion" | null
   >(null);
+  /** Region filter chips from the active treatment recommender — passed into post-visit blueprint for AI mirror. */
+  const [recommenderFocusRegions, setRecommenderFocusRegions] = useState<string[]>([]);
   const scanDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   /** Called when treatment plan modal closes so recommenders can clear "just added" state */
@@ -197,6 +199,14 @@ export default function ClientDetailPanel({
       }
     }
   }, [client]);
+
+  useEffect(() => {
+    setRecommenderFocusRegions([]);
+  }, [client?.id]);
+
+  const handleRecommenderRegionsChange = useCallback((regions: readonly string[]) => {
+    setRecommenderFocusRegions([...regions]);
+  }, []);
 
   // Prefetch SMS for this client in the background so the Text popup opens with cached messages
   useEffect(() => {
@@ -524,6 +534,7 @@ export default function ClientDetailPanel({
                 client={client}
                 onBack={() => setRecommenderMode(null)}
                 onUpdate={onUpdate}
+                onRecommenderRegionsChange={handleRecommenderRegionsChange}
                 onAddToPlanDirect={async (prefill) => {
                   const newItem: DiscussedItem = {
                     id: generateId(),
@@ -595,6 +606,7 @@ export default function ClientDetailPanel({
                 client={client}
                 onBack={() => setRecommenderMode(null)}
                 onUpdate={onUpdate}
+                onRecommenderRegionsChange={handleRecommenderRegionsChange}
                 onAddToPlanDirect={async (prefill) => {
                   const newItem: DiscussedItem = {
                     id: generateId(),
@@ -2005,6 +2017,7 @@ export default function ClientDetailPanel({
           clientName={client.name ?? ""}
           client={client}
           items={client.discussedItems ?? []}
+          recommenderFocusRegions={recommenderFocusRegions}
           onClose={() => setShowCheckoutModal(false)}
           onRemoveItem={async (_item, index) => {
             const nextItems = (client.discussedItems ?? []).filter(
