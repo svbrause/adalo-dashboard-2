@@ -422,12 +422,16 @@ async function getSharedBlueprintHeavyPrep(
   return result;
 }
 
-/** Recommender timelines omitted from the patient blueprint (same labels as the treatment plan UI). */
-const PVB_EXCLUDED_TIMELINES = new Set(["now", "completed"]);
+/**
+ * Timelines omitted from the patient blueprint share picker and payload.
+ * **Completed** only — items in **Now** stay eligible so recommender defaults
+ * (`TIMELINE_OPTIONS[0]` = "Now") still appear when sharing the post-visit link.
+ */
+const PVB_EXCLUDED_TIMELINES = new Set(["completed"]);
 
 /**
- * Whether a plan row should appear on Post Visit Blueprint: **Add next visit**, **Wishlist**,
- * and the Skincare section — not **Now** or **Completed**. Unknown/empty timelines count as wishlist-style.
+ * Whether a plan row may appear on Post Visit Blueprint: **Now**, **Add next visit**,
+ * **Wishlist**, Skincare — not **Completed**. Unknown/empty timelines count as wishlist-style.
  */
 export function isDiscussedItemOnPostVisitBlueprint(item: DiscussedItem): boolean {
   const treatment = (item.treatment ?? "").trim();
@@ -436,7 +440,7 @@ export function isDiscussedItemOnPostVisitBlueprint(item: DiscussedItem): boolea
   return !PVB_EXCLUDED_TIMELINES.has(tl);
 }
 
-/** Preserve list order; drops Now / Completed treatments only. */
+/** Preserve list order; drops Completed treatments only. */
 export function filterDiscussedItemsForPostVisitBlueprint(
   items: DiscussedItem[],
 ): DiscussedItem[] {
@@ -445,7 +449,7 @@ export function filterDiscussedItemsForPostVisitBlueprint(
 
 /**
  * Default checkbox state when sharing the patient treatment-plan link:
- * **Add next visit** and **Skincare** on; **Wishlist** (and empty timeline) off.
+ * **Now**, **Add next visit**, and **Skincare** on; **Wishlist** (and empty timeline) off.
  */
 export function defaultIncludeItemInSharedTreatmentPlanLink(
   item: DiscussedItem,
@@ -453,7 +457,7 @@ export function defaultIncludeItemInSharedTreatmentPlanLink(
   if (!isDiscussedItemOnPostVisitBlueprint(item)) return false;
   if ((item.treatment ?? "").trim() === "Skincare") return true;
   const t = (item.timeline ?? "").trim();
-  return t === "Add next visit";
+  return t === "Add next visit" || t === "Now";
 }
 
 function sliceQuoteForPostVisitBlueprint(

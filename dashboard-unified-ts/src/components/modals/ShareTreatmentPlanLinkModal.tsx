@@ -311,13 +311,13 @@ export default function ShareTreatmentPlanLinkModal({
           <>
             <p className="share-treatment-plan-link-lead">
               Choose which items appear on the patient&apos;s post-visit
-              experience. Add next visit and Skincare are on by default;
+              experience. Now, Add next visit, and Skincare are on by default;
               Wishlist is off unless you turn it on.
             </p>
             {eligibleItems.length === 0 ? (
               <p className="share-treatment-plan-link-empty">
-                Only Add next visit, Wishlist, and Skincare can be shared.
-                Move items out of Now or Completed, or add plan rows in those
+                Only Now, Add next visit, Wishlist, and Skincare can be shared.
+                Move items out of Completed, or add plan rows in those
                 sections.
               </p>
             ) : (
