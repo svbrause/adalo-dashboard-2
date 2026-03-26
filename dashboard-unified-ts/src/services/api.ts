@@ -9,6 +9,7 @@ import {
 import type { Offer, DoctorAdviceRequest, SkincareQuizData } from "../types";
 import { cleanPhoneNumber } from "../utils/validation";
 import { parseSkincareQuizFromFields } from "../utils/clientMapper";
+import { buildSmsSendErrorMessage } from "./smsSendErrorMessage";
 
 export const BACKEND_API_URL =
   import.meta.env.VITE_BACKEND_API_URL ||
@@ -494,7 +495,10 @@ export async function fetchSkinQuizResultsFromLink(
   return data;
 }
 
-/** One SMS notification record (from GET /api/dashboard/sms-notifications). */
+/**
+ * One SMS row after the backend merges sources (see fetchSmsNotifications).
+ * Shape should match both Airtable tables used for history.
+ */
 export interface SmsNotificationRecord {
   id: string;
   createdTime?: string;
@@ -522,6 +526,9 @@ function smsCacheKey(phone: string, limit?: number, offset?: number): string {
  * Cross-references by phone number with Patients and Web Popup Leads.
  * Optional: limit, offset for pagination; search for server-side search by name/phone.
  * Results for phone+limit+offset are cached so prefetched or repeated opens load instantly.
+ *
+ * Backend contract: merge **SMS Notifications** (e.g. Zapier-queued) with **SMS Notifications Logs**
+ * (dashboard sends: OpenPhone first, then log). Return one combined list sorted by time (newest first).
  */
 export async function fetchSmsNotifications(options: {
   providerId?: string;
@@ -607,7 +614,10 @@ export function invalidateSmsCache(phone?: string): void {
 }
 
 /**
- * Send SMS notification. Backend SMS Notifications table has: Phone Number, Message, Name.
+ * Send SMS from the dashboard. Backend should: (1) send via OpenPhone, (2) append a row to
+ * **SMS Notifications Logs** (Phone Number, Message, Name — same shape as before).
+ * Do **not** insert into **SMS Notifications** for this path if Zapier sends that table to OpenPhone
+ * (avoids double texts). Zapier-driven rows stay in **SMS Notifications**; Messages UI reads both.
  */
 export async function sendSMSNotification(
   phone: string,
@@ -634,11 +644,7 @@ export async function sendSMSNotification(
 
   if (!response.ok) {
     const errorData = await safeJsonParse(response).catch(() => ({}));
-    throw new Error(
-      errorData.error?.message ||
-        errorData.message ||
-        "Failed to send SMS notification"
-    );
+    throw new Error(buildSmsSendErrorMessage(errorData));
   }
   return true;
 }

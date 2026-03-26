@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dr. Reddy video thumbnails – export</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d0d0d; color: #eee; padding: 24px; margin: 0; }
+    h1 { margin-top: 0; font-size: 1.5rem; }
+    .thumb-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; margin-top: 20px; }
+    .thumb-item { background: #1a1a1a; border-radius: 12px; overflow: hidden; padding: 12px; }
+    .thumb-item canvas { width: 100%; height: auto; display: block; border-radius: 8px; background: #000; }
+    .thumb-item p { margin: 10px 0 8px; font-size: 12px; line-height: 1.3; color: #999; }
+    .thumb-item button { width: 100%; padding: 10px; background: #e50914; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .thumb-item button:hover { background: #ff1a1a; }
+    .note { font-size: 12px; color: #666; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Dr. Reddy video thumbnails</h1>
+  <p>Inspired by high-engagement YouTube thumbnails: face glow, key-word banners, stacked text, arrows, simple graphics. Open from dev server: <code>/wellnest/thumbnail-generator.html</code></p>
+  <div class="thumb-list" id="list"></div>
+  <p class="note">Save each PNG as <code>video-reddy-1.png</code> … <code>video-reddy-16.png</code> in <code>public/wellnest/thumbnails/</code>.</p>
+
+  <script>
+    const DR_REDDY_IMAGE = 'Dr-Reddy-qr-code.png';
+    const W = 1280;
+    const H = 720;
+
+    const VIDEOS = [
+      { key: 'video-reddy-1',  t: 'blackPanel', top: 'WHAT ARE', highlight: 'PEPTIDES?', bottom: null, faceSide: 'right' },
+      { key: 'video-reddy-2',  t: 'splitStacked', bg: '#1E88E5', line1: 'PEPTIDES', line2: 'CHANGING MEDICINE', faceSide: 'right', arrow: true },
+      { key: 'video-reddy-3',  t: 'splitPop',     bg: '#6A1B9A', big: 'WHY', small: 'is everyone talking peptides?', faceSide: 'left', glow: true },
+      { key: 'video-reddy-4',  t: 'blackPanel', top: 'FDA', highlight: 'APPROVED??', bottom: null, faceSide: 'right', keyBg: '#00C853' },
+      { key: 'video-reddy-5',  t: 'splitStacked', bg: '#000', line1: '3 MYTHS', line2: 'BUSTED', faceSide: 'left', arrow: true, line2Bg: '#FF1744' },
+      { key: 'video-reddy-6',  t: 'splitPop',     bg: '#1565C0', big: 'WHERE IS', small: 'RESEARCH GOING?', faceSide: 'right', glow: true },
+      { key: 'video-reddy-7',  t: 'blackPanel', top: 'RIGHT', highlight: 'FOR YOU?', bottom: null, faceSide: 'right', keyBg: '#E91E63' },
+      { key: 'video-reddy-8',  t: 'splitPop',     bg: '#E65100', big: 'METABOLISM', small: '& GROWTH HORMONE', faceSide: 'left', glow: true, textColor: '#000' },
+      { key: 'video-reddy-9',  t: 'blackPanel', top: 'SKINCARE', highlight: 'PEPTIDES', bottom: 'WHICH TO USE?', faceSide: 'right', keyBg: '#D32F2F', graphic: 'vials' },
+      { key: 'video-reddy-10', t: 'splitStacked', bg: '#00897B', line1: 'RECOVERY', line2: 'STACK EXPLAINED', faceSide: 'right', arrow: true, line2Bg: '#FFD600', line2Color: '#000' },
+      { key: 'video-reddy-11', t: 'blackPanel', top: 'SKIN', highlight: 'REGENERATION?', bottom: null, faceSide: 'right', keyBg: '#C2185B' },
+      { key: 'video-reddy-12', t: 'splitPop',     bg: '#283593', big: 'PEPTIDES FOR', small: 'METABOLISM', faceSide: 'left', glow: true },
+      { key: 'video-reddy-13', t: 'splitStacked', bg: '#B71C1C', line1: "DR. REDDY'S", line2: 'PEPTIDE GUIDE', faceSide: 'left', line2Bg: '#FFD600', line2Color: '#000' },
+      { key: 'video-reddy-14', t: 'blackPanel', top: 'FOCUS', highlight: '& CALM', bottom: null, faceSide: 'right', keyBg: '#0097A7' },
+      { key: 'video-reddy-15', t: 'splitPop',     bg: '#BF360C', big: 'STUBBORN', small: 'FAT?', faceSide: 'right', glow: true },
+      { key: 'video-reddy-16', t: 'blackPanel', top: 'THE', highlight: 'EPITALON', bottom: 'STORY', faceSide: 'right', keyBg: '#7B1FA2' },
+    ];
+
+    function drawFace(ctx, img, x, y, w, h, zoom) {
+      zoom = zoom || 1;
+      const iw = img.naturalWidth;
+      const ih = img.naturalHeight;
+      const srcW = iw / zoom;
+      const srcH = ih / zoom;
+      const sx = (iw - srcW) / 2;
+      const sy = (ih - srcH) / 2;
+      ctx.drawImage(img, sx, sy, srcW, srcH, x, y, w, h);
+    }
+
+    function drawFaceGlow(ctx, faceX, faceW, faceSide) {
+      const edgeX = faceSide === 'left' ? faceX + faceW : faceX;
+      const g = ctx.createLinearGradient(edgeX - 25, 0, edgeX + 25, 0);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(0.3, 'rgba(255,255,255,0.4)');
+      g.addColorStop(0.5, 'rgba(255,255,255,0.7)');
+      g.addColorStop(0.7, 'rgba(255,255,255,0.4)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(edgeX - 25, 0, 50, H);
+    }
+
+    function drawRoundedRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function drawTextInBanner(ctx, text, x, y, font, bgColor, textColor, align) {
+      ctx.font = font;
+      const m = ctx.measureText(text);
+      const pad = 20;
+      const bw = m.width + pad * 2;
+      const bh = 72;
+      const by = y - bh / 2;
+      const bx = align === 'center' ? x - bw / 2 : align === 'right' ? x - bw : x;
+      ctx.fillStyle = bgColor;
+      drawRoundedRect(ctx, bx, by, bw, bh, 8);
+      ctx.fill();
+      ctx.fillStyle = textColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, bx + bw / 2, y);
+    }
+
+    function drawArrow(ctx, fromX, fromY, toX, toY, color) {
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      const head = 50;
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      const endX = toX - head * Math.cos(angle);
+      const endY = toY - head * Math.sin(angle);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - head * Math.cos(angle - 0.5), toY - head * Math.sin(angle - 0.5));
+      ctx.lineTo(toX - head * 0.7 * Math.cos(angle), toY - head * 0.7 * Math.sin(angle));
+      ctx.lineTo(toX - head * Math.cos(angle + 0.5), toY - head * Math.sin(angle + 0.5));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawVials(ctx) {
+      const cx = 180;
+      const cy = H - 120;
+      const vialH = 70;
+      const vialW = 28;
+      const capH = 14;
+      for (let i = 0; i < 3; i++) {
+        const x = cx + i * 95;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 2;
+        drawRoundedRect(ctx, x, cy, vialW, vialH, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(200,200,200,0.9)';
+        ctx.fillRect(x - 2, cy - capH, vialW + 4, capH + 4);
+        if (i === 0) {
+          ctx.strokeStyle = '#D32F2F';
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(x - 8, cy - 5);
+          ctx.lineTo(x + vialW + 8, cy + vialH + 5);
+          ctx.moveTo(x + vialW + 8, cy - 5);
+          ctx.lineTo(x - 8, cy + vialH + 5);
+          ctx.stroke();
+        }
+        if (i === 2) {
+          ctx.strokeStyle = '#00C853';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.moveTo(x + 5, cy + vialH / 2 + 8);
+          ctx.lineTo(x + vialW / 2 - 2, cy + vialH - 8);
+          ctx.lineTo(x + vialW - 5, cy + 8);
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawOuterBorder(ctx, color) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, W - 4, H - 4);
+    }
+
+    function strokeText(ctx, text, x, y, font, fillColor, strokeWidth) {
+      ctx.font = font;
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = strokeWidth ?? 5;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(text, x, y);
+      ctx.fillStyle = fillColor;
+      ctx.fillText(text, x, y);
+    }
+
+    function drawThumbnail(ctx, img, v) {
+      const faceW = Math.round(W * 0.5);
+      const faceH = H;
+      const faceX = v.faceSide === 'right' ? W - faceW : 0;
+      const panelX = v.faceSide === 'right' ? 0 : faceW;
+      const panelW = W - faceW;
+
+      if (v.t === 'blackPanel') {
+        drawFace(ctx, img, faceX, 0, faceW, faceH, 1.15);
+        if (v.faceSide === 'right') drawFaceGlow(ctx, faceX, faceW, 'right');
+        else drawFaceGlow(ctx, faceX, faceW, 'left');
+        ctx.fillStyle = '#000';
+        ctx.fillRect(panelX, 0, panelW, H);
+        const pad = 44;
+        const tx = v.faceSide === 'right' ? pad : faceW + pad;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 52px "Arial Black", sans-serif';
+        if (v.top) {
+          ctx.fillText(v.top, tx, H * 0.28);
+        }
+        const keyBg = v.keyBg || '#D32F2F';
+        ctx.font = 'bold 58px "Arial Black", sans-serif';
+        const keyY = v.top ? H * 0.42 : H * 0.35;
+        drawTextInBanner(ctx, v.highlight, tx + 0, keyY, 'bold 58px "Arial Black", sans-serif', keyBg, '#fff', 'left');
+        if (v.bottom) {
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 42px "Arial Black", sans-serif';
+          ctx.fillText(v.bottom, tx, keyY + 82);
+        }
+        if (v.graphic === 'vials') drawVials(ctx);
+        drawOuterBorder(ctx, 'rgba(255,255,255,0.25)');
+        return;
+      }
+
+      if (v.t === 'splitStacked') {
+        drawFace(ctx, img, faceX, 0, faceW, faceH, 1.12);
+        if (v.faceSide === 'right') drawFaceGlow(ctx, faceX, faceW, 'right');
+        else drawFaceGlow(ctx, faceX, faceW, 'left');
+        ctx.fillStyle = v.bg;
+        ctx.fillRect(panelX, 0, panelW, H);
+        const pad = 40;
+        const tx = v.faceSide === 'right' ? pad : faceW + pad;
+        const blockH = 72;
+        const gap = 8;
+        ctx.font = 'bold 52px "Arial Black", sans-serif';
+        const line1W = ctx.measureText(v.line1).width + 32;
+        ctx.fillStyle = '#000';
+        drawRoundedRect(ctx, tx, H * 0.32 - blockH / 2, line1W, blockH, 10);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'left';
+        ctx.fillText(v.line1, tx + 16, H * 0.32);
+        const line2Bg = v.line2Bg || '#D32F2F';
+        const line2Color = v.line2Color || '#fff';
+        ctx.font = 'bold 48px "Arial Black", sans-serif';
+        const line2W = ctx.measureText(v.line2).width + 32;
+        ctx.fillStyle = line2Bg;
+        drawRoundedRect(ctx, tx, H * 0.32 + blockH / 2 + gap, line2W, blockH, 10);
+        ctx.fill();
+        ctx.fillStyle = line2Color;
+        ctx.fillText(v.line2, tx + 16, H * 0.32 + blockH + gap);
+        if (v.arrow) {
+          const ax = v.faceSide === 'right' ? panelW - 80 : faceW - 80;
+          const ay = H * 0.5;
+          const ax2 = v.faceSide === 'right' ? faceW + 60 : panelW + 60;
+          drawArrow(ctx, ax, ay, ax2, ay, '#D32F2F');
+        }
+        drawOuterBorder(ctx, 'rgba(255,255,255,0.2)');
+        return;
+      }
+
+      if (v.t === 'splitPop') {
+        drawFace(ctx, img, faceX, 0, faceW, faceH, 1.15);
+        if (v.glow) {
+          if (v.faceSide === 'right') drawFaceGlow(ctx, faceX, faceW, 'right');
+          else drawFaceGlow(ctx, faceX, faceW, 'left');
+        }
+        ctx.fillStyle = v.bg;
+        ctx.fillRect(panelX, 0, panelW, H);
+        const pad = 40;
+        const tx = v.faceSide === 'right' ? pad : faceW + pad;
+        const textColor = v.textColor || '#fff';
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 72px "Arial Black", sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(v.big, tx, H * 0.38);
+        ctx.font = 'bold 44px "Arial Black", sans-serif';
+        ctx.fillStyle = textColor;
+        ctx.fillText(v.small, tx, H * 0.55);
+        drawOuterBorder(ctx, '#40C4FF');
+        return;
+      }
+
+      drawOuterBorder(ctx, 'rgba(255,255,255,0.15)');
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function () {
+      const list = document.getElementById('list');
+      VIDEOS.forEach((v) => {
+        const div = document.createElement('div');
+        div.className = 'thumb-item';
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        drawThumbnail(ctx, img, v);
+        div.appendChild(canvas);
+        const p = document.createElement('p');
+        p.textContent = (v.top || v.big || v.line1) + ' · ' + (v.highlight || v.small || v.line2);
+        div.appendChild(p);
+        const btn = document.createElement('button');
+        btn.textContent = 'Download ' + v.key + '.png';
+        btn.onclick = () => {
+          const a = document.createElement('a');
+          a.download = v.key + '.png';
+          a.href = canvas.toDataURL('image/png');
+          a.click();
+        };
+        div.appendChild(btn);
+        list.appendChild(div);
+      });
+    };
+    img.onerror = () => {
+      document.getElementById('list').innerHTML =
+        '<p style="color:#e50914">Could not load image. Open from dev server: http://localhost:5173/wellnest/thumbnail-generator.html</p>';
+    };
+    img.src = DR_REDDY_IMAGE;
+  </script>
+</body>
+</html>

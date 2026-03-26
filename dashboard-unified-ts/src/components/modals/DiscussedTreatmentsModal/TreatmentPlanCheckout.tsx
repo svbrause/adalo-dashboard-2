@@ -18,6 +18,7 @@ import {
   TREATMENTS_WITH_NO_REGION,
 } from "./constants";
 import { REGION_OPTIONS, TIMELINE_OPTIONS } from "./constants";
+import { getWellnestOfferingByTreatmentName } from "../../../data/wellnestOfferings";
 import { RECOMMENDED_PRODUCT_REASONS } from "../../../data/skinTypeQuiz";
 import { CheckoutFinancingSection } from "./CheckoutFinancingSection";
 
@@ -86,6 +87,7 @@ function getQuantityOptionsForCheckout(
 /** Options for Where dropdown: broad (Face/Neck/Chest) or specific (Forehead, etc.). Empty for treatments with no region (e.g. Chemical Peel = full face only). */
 function getRegionOptionsForTreatment(treatment: string): readonly string[] {
   const t = (treatment ?? "").trim();
+  if (getWellnestOfferingByTreatmentName(t)) return [];
   if (TREATMENTS_WITH_NO_REGION.includes(t as (typeof TREATMENTS_WITH_NO_REGION)[number])) {
     return [];
   }
@@ -1349,4 +1351,95 @@ function CheckoutDetailPanel({
       )}
     </section>
   );
+}
+
+function matchSkincareProductForQuote(
+  productName: string,
+  carouselItems: {
+    name: string;
+    imageUrl?: string;
+    price?: string;
+    description?: string;
+  }[],
+): {
+  name: string;
+  imageUrl?: string;
+  price?: string;
+  description?: string;
+} | null {
+  const q = (productName ?? "").trim().toLowerCase();
+  if (!q) return null;
+  const exact = carouselItems.find((p) => p.name.trim().toLowerCase() === q);
+  if (exact) return exact;
+  const contains = carouselItems.find(
+    (p) =>
+      p.name.trim().toLowerCase().includes(q) ||
+      q.includes(p.name.trim().toLowerCase()),
+  );
+  return contains ?? null;
+}
+
+/**
+ * Quote line items and total for non-wishlist rows — matches the checkout "quote" payload
+ * (no per-row UI overrides; uses stored plan fields only).
+ */
+export function computeQuoteSheetDataForDiscussedItems(
+  items: DiscussedItem[],
+): {
+  lineItems: CheckoutLineItemDetail[];
+  total: number;
+  hasUnknownPrices: boolean;
+} | null {
+  if (items.length === 0) return null;
+  const carouselItems = getSkincareCarouselItems();
+  const getSkincareProductInfo = (productName: string): SkincareProductInfo | null => {
+    const found = matchSkincareProductForQuote(productName, carouselItems);
+    if (!found) return null;
+    const priceStr = found.price;
+    const price = priceStr
+      ? parseFloat(priceStr.replace(/[$,]/g, ""))
+      : undefined;
+    const displayPrice =
+      price != null && Number.isFinite(price)
+        ? `$${Math.round(price)}`
+        : (priceStr?.trim() ?? "See boutique");
+    return {
+      price: Number.isFinite(price) ? price : undefined,
+      displayPrice,
+      imageUrl: found.imageUrl,
+      productLabel: found.name,
+      description: found.description,
+    };
+  };
+  const { lineItems } = getCheckoutSummaryWithSkus(
+    items,
+    (item) => getCheckoutDisplayName(item as DiscussedItem),
+    getSkincareProductInfo,
+  );
+  const skincareIndices: number[] = [];
+  const treatmentIndices: number[] = [];
+  items.forEach((eff, idx) => {
+    const isWishlist =
+      (eff.timeline ?? "").trim().toLowerCase() === "wishlist";
+    if (isWishlist) return;
+    if (lineItems[idx]?.quoteLineKind === "skincare") skincareIndices.push(idx);
+    else treatmentIndices.push(idx);
+  });
+  const activeIndices = [...skincareIndices, ...treatmentIndices];
+  const quoteLineItems = activeIndices
+    .map((idx) => lineItems[idx])
+    .filter(Boolean) as CheckoutLineItemDetail[];
+  const quoteTotal = quoteLineItems.reduce(
+    (sum, l) => sum + (l?.price ?? 0),
+    0,
+  );
+  const quoteHasUnknown = quoteLineItems.some(
+    (l) =>
+      l?.displayPrice === "Price varies" || (l?.price === 0 && l?.isEstimate),
+  );
+  return {
+    lineItems: quoteLineItems,
+    total: quoteTotal,
+    hasUnknownPrices: quoteHasUnknown,
+  };
 }

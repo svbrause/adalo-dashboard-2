@@ -22,6 +22,11 @@ import {
   QUANTITY_OPTIONS_RADIESSE,
   QUANTITY_OPTIONS_SCULPTRA,
 } from "./constants";
+import {
+  getWellnestOfferingByTreatmentName,
+  isWellnestWellnessProviderCode,
+  WELLNEST_OFFERINGS,
+} from "../../../data/wellnestOfferings";
 
 export function getRecommendedProducts(
   treatment: string,
@@ -86,6 +91,23 @@ export function getSuggestedTreatmentsForFindings(
         goal: mapped.goal,
         region: mapped.region,
         exampleFinding: finding,
+      });
+    }
+  }
+  // Facial-analysis findings map to aesthetic categories only; peptide names are never returned above.
+  if (isWellnestWellnessProviderCode(providerCode) && result.length === 0) {
+    for (const offering of WELLNEST_OFFERINGS) {
+      if (!allowed.has(offering.treatmentName)) continue;
+      const key = `${offering.treatmentName}|${offering.category}|Other`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const firstAddress =
+        offering.addresses.split(/[;,]/)[0]?.trim() || offering.category;
+      result.push({
+        treatment: offering.treatmentName,
+        goal: offering.category,
+        region: "Other",
+        exampleFinding: firstAddress,
       });
     }
   }
@@ -160,7 +182,11 @@ export function getTreatmentsForInterest(
     }
   }
   const base = matched.size > 0 ? Array.from(matched) : [...allowed];
-  return base.filter((t) => allowed.includes(t));
+  const filtered = base.filter((t) => allowed.includes(t));
+  if (isWellnestWellnessProviderCode(providerCode) && filtered.length === 0) {
+    return [...allowed];
+  }
+  return filtered;
 }
 
 export function getQuantityContext(
@@ -213,6 +239,12 @@ export function getQuantityContext(
     t.includes("microneedling")
   ) {
     return { unitLabel: "Sessions", options: QUANTITY_QUICK_OPTIONS_DEFAULT };
+  }
+  if (getWellnestOfferingByTreatmentName(treatment)) {
+    return {
+      unitLabel: "Supply (protocol)",
+      options: QUANTITY_QUICK_OPTIONS_DEFAULT,
+    };
   }
   return { unitLabel: "Quantity", options: QUANTITY_QUICK_OPTIONS_DEFAULT };
 }

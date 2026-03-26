@@ -42,6 +42,7 @@ export function applyFilters(
   clients: Client[],
   filters: FilterState,
   searchQuery: string,
+  providerCode?: string | null,
 ): Client[] {
   let filtered = [...clients];
 
@@ -102,7 +103,10 @@ export function applyFilters(
   // Apply analysis status filter
   if (filters.analysisStatus) {
     filtered = filtered.filter((client) => {
-      const formattedStatus = formatFacialStatus(client.facialAnalysisStatus);
+      const formattedStatus = formatFacialStatus(
+        client.facialAnalysisStatus,
+        providerCode,
+      );
       return formattedStatus === filters.analysisStatus;
     });
   }

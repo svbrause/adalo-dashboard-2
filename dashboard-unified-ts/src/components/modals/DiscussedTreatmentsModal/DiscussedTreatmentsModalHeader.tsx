@@ -2,7 +2,10 @@
 
 interface DiscussedTreatmentsModalHeaderProps {
   clientName: string;
+  /** SMS summary (non–plan-link) or plan link — parent chooses */
   onShare: () => void;
+  /** When false, Share button is hidden (e.g. empty plan). */
+  showShare?: boolean;
   onClose: () => void;
   /** Open the treatment explorer photo gallery */
   onViewExamples?: () => void;
@@ -15,6 +18,7 @@ interface DiscussedTreatmentsModalHeaderProps {
 export default function DiscussedTreatmentsModalHeader({
   clientName,
   onShare,
+  showShare = true,
   onClose,
   onViewExamples,
   onCheckout,
@@ -23,7 +27,18 @@ export default function DiscussedTreatmentsModalHeader({
   return (
     <div className="modal-header discussed-treatments-modal-header">
       <div className="modal-header-info">
-        <h2 className="modal-title">Treatment plan for {clientName}</h2>
+        <div className="discussed-treatments-modal-header-title-row">
+          <h2 className="modal-title">{clientName}&apos;s plan</h2>
+          {showShare ? (
+            <button
+              type="button"
+              className="btn-secondary btn-sm discussed-treatments-header-share-btn"
+              onClick={onShare}
+            >
+              Share
+            </button>
+          ) : null}
+        </div>
         <p className="modal-subtitle">
           Adding to the plan saves to their record. Pick a topic, check what you
           discussed, add to plan — then share when ready.
@@ -48,13 +63,6 @@ export default function DiscussedTreatmentsModalHeader({
             Quote
           </button>
         )}
-        <button
-          type="button"
-          className="btn-secondary btn-sm"
-          onClick={onShare}
-        >
-          Share with patient
-        </button>
         <button
           type="button"
           className="btn-secondary btn-sm discussed-treatments-close-btn"

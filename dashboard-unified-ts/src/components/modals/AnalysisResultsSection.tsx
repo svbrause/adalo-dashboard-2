@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { Client } from '../../types';
 import { issueToSuggestionMap, getIssueArea } from '../../utils/issueMapping';
+import {
+  parseInterestedIssuesList,
+  partitionInterestedIssuesForFacialVsWellness,
+} from '../../utils/partitionInterestedIssuesWellnessFacial';
 import './AnalysisResultsSection.css';
 
 interface AnalysisResultsSectionProps {
@@ -28,12 +32,9 @@ export default function AnalysisResultsSection({
     allIssues = client.allIssues.split(',').map(i => i.trim()).filter(i => i);
   }
 
-  let interestedIssues: string[] = [];
-  if (Array.isArray(client.interestedIssues)) {
-    interestedIssues = client.interestedIssues.filter(i => i && i.trim());
-  } else if (typeof client.interestedIssues === 'string') {
-    interestedIssues = client.interestedIssues.split(',').map(i => i.trim()).filter(i => i);
-  }
+  const interestedIssuesAll = parseInterestedIssuesList(client);
+  const { facialInterests, wellnessInterests } =
+    partitionInterestedIssuesForFacialVsWellness(interestedIssuesAll);
 
   const patientGoals: string[] = Array.isArray(client.goals) 
     ? (client.goals as string[])
@@ -72,12 +73,23 @@ export default function AnalysisResultsSection({
         : [])
     : [];
 
-  const hasData = allIssues.length > 0 || interestedIssues.length > 0 || processedAreas.length > 0 || client.skinComplaints;
+  const hasFacialAnalysisContent =
+    allIssues.length > 0 ||
+    facialInterests.length > 0 ||
+    processedAreas.length > 0 ||
+    Boolean(client.skinComplaints?.trim());
 
-  if (!hasData) {
+  if (!hasFacialAnalysisContent) {
     return (
       <div className="analysis-results-empty">
-        Facial analysis data is available for this patient.
+        <p>No facial analysis findings to display yet.</p>
+        {wellnessInterests.length > 0 ? (
+          <p className="analysis-results-empty-secondary">
+            Wellness-oriented intake goals (energy, sleep, gut comfort, etc.)
+            are shown under <strong>Online Treatment Finder</strong> or{" "}
+            <strong>Wellness Quiz</strong> — not in this facial analysis block.
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -90,12 +102,12 @@ export default function AnalysisResultsSection({
     const mappedSuggestion = issueToSuggestionMap[issue];
     if (mappedSuggestion) {
       const mappedSuggestionLower = mappedSuggestion.toLowerCase();
-      if (interestedIssues.some(interest => interest.toLowerCase().trim() === mappedSuggestionLower)) {
+      if (facialInterests.some(interest => interest.toLowerCase().trim() === mappedSuggestionLower)) {
         matchingInterests.push(mappedSuggestion);
       }
     }
     
-    interestedIssues.forEach(interest => {
+    facialInterests.forEach(interest => {
       const interestLower = interest.toLowerCase().trim();
       if (interestLower === issueLower && !matchingInterests.includes(interest)) {
         matchingInterests.push(interest);
@@ -105,7 +117,7 @@ export default function AnalysisResultsSection({
     return [...new Set(matchingInterests)];
   };
 
-  const interestedSet = new Set(interestedIssues.map(i => i.toLowerCase().trim()));
+  const interestedSet = new Set(facialInterests.map(i => i.toLowerCase().trim()));
 
   // Determine focus areas
   const focusAreas = new Set<string>();
@@ -155,9 +167,9 @@ export default function AnalysisResultsSection({
         <div className="analysis-section-title">
           Interested Treatments
         </div>
-        {interestedIssues.length > 0 ? (
+        {facialInterests.length > 0 ? (
           <div className="analysis-tags-container">
-            {interestedIssues.map((issue, i) => (
+            {facialInterests.map((issue, i) => (
               <button
                 key={i}
                 type="button"

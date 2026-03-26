@@ -29,11 +29,13 @@ import {
   isPostVisitBlueprintAllowedForPatient,
   THE_TREATMENT_BOOKING_URL,
 } from "../../utils/providerHelpers";
+import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
+import { buildWellnestBlueprintCasePhotos } from "../../utils/wellnestBlueprintCases";
 import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
 import { PvbNarrativeAudioControls } from "../postVisitBlueprint/PvbNarrativeAudioControls";
 import { PvbTypewriterParagraphs } from "../postVisitBlueprint/PvbTypewriterParagraphs";
 import { TreatmentChapterView } from "../postVisitBlueprint/TreatmentChapter";
-import { POST_VISIT_BLUEPRINT_VIDEOS } from "../../config/postVisitBlueprintVideos";
+import { getPostVisitBlueprintVideoCatalog } from "../../config/postVisitBlueprintVideos";
 import { buildTreatmentChapters } from "../../utils/blueprintTreatmentChapters";
 import {
   getBlueprintAnalysisDisplay,
@@ -322,13 +324,22 @@ export default function PostVisitBlueprintPage() {
     };
   }, [blueprint, blueprintAllowed]);
 
+  /** Airtable explorer pool + Wellnest illustrative cases (peptides rarely match explorer tags). */
+  const casePhotoPool = useMemo(() => {
+    if (!blueprint) return photoPool;
+    if (!isWellnestWellnessProviderCode(blueprint.providerCode)) return photoPool;
+    const extra = buildWellnestBlueprintCasePhotos(blueprint.discussedItems);
+    if (!extra.length) return photoPool;
+    return [...photoPool, ...extra];
+  }, [blueprint, photoPool]);
+
   /* ── Derived data ── */
 
   const treatmentResultCards = useMemo(() => {
     if (!blueprint || !blueprintAllowed) return [];
     return buildTreatmentResultsCards(
       blueprint.discussedItems,
-      photoPool,
+      casePhotoPool,
       {
         skinType: blueprint.patient.skinType,
         skinTone: blueprint.patient.skinTone,
@@ -336,17 +347,22 @@ export default function PostVisitBlueprintPage() {
       },
       8,
     );
-  }, [blueprint, blueprintAllowed, photoPool]);
+  }, [blueprint, blueprintAllowed, casePhotoPool]);
+
+  const blueprintVideoCatalog = useMemo(
+    () => getPostVisitBlueprintVideoCatalog(blueprint?.providerCode),
+    [blueprint?.providerCode],
+  );
 
   const chapters = useMemo(() => {
     if (!blueprint || !blueprintAllowed) return [];
     return buildTreatmentChapters(
       blueprint.discussedItems,
       treatmentResultCards,
-      POST_VISIT_BLUEPRINT_VIDEOS,
+      blueprintVideoCatalog,
       blueprint.quote.lineItems,
     );
-  }, [blueprint, blueprintAllowed, treatmentResultCards]);
+  }, [blueprint, blueprintAllowed, treatmentResultCards, blueprintVideoCatalog]);
 
   const analysisDisplay = useMemo(() => {
     if (!blueprint || !blueprintAllowed) return null;
@@ -629,7 +645,11 @@ export default function PostVisitBlueprintPage() {
         <PvbBrandBar />
         <div className="pvb-error">
           <h1>Blueprint unavailable</h1>
-          <p>This experience is only available for patients of The Treatment Skin Boutique or links sent from an authorized account.</p>
+          <p>
+            This experience is only available for patients of an authorized clinic
+            (The Treatment Skin Boutique, Wellnest MD) or links sent from an authorized
+            account.
+          </p>
         </div>
       </div>
     );
@@ -637,7 +657,11 @@ export default function PostVisitBlueprintPage() {
 
   /* ── Derived render data ── */
 
-  const bookingHref = blueprint.cta.bookingUrl?.trim() || THE_TREATMENT_BOOKING_URL;
+  const bookingHref =
+    blueprint.cta.bookingUrl?.trim() ||
+    (isWellnestWellnessProviderCode(blueprint.providerCode)
+      ? ""
+      : THE_TREATMENT_BOOKING_URL);
   const patientFirst = blueprint.patient.name.split(/\s+/)[0] || "there";
   const providerFirst = (blueprint.providerName ?? "").split(",")[0]?.trim() || blueprint.providerName;
 
@@ -939,7 +963,7 @@ export default function PostVisitBlueprintPage() {
               return (
                 <PvbTreatmentPlanDetailSubpage
                   row={row}
-                  casePhotos={photoPool}
+                  casePhotos={casePhotoPool}
                   suggestionCards={patientSuggestionCards}
                   heroPhotoFallbackUrl={heroPhotoUrl}
                   onBack={backFromTreatmentSubpage}
@@ -957,7 +981,7 @@ export default function PostVisitBlueprintPage() {
                   cat={cat}
                   animate={overviewGaugeAnimate}
                   planRows={analysisDisplay.planByTreatment}
-                  casePhotos={photoPool}
+                  casePhotos={casePhotoPool}
                   detectedIssueLabels={analysisDisplay.overviewSnapshot.detectedIssueLabels}
                   onBack={closeAnalysisSubpage}
                   onOpenTreatmentDetails={(r) => openTreatmentPlanSubpage(r.key)}
@@ -975,7 +999,7 @@ export default function PostVisitBlueprintPage() {
                 area={ar}
                 animate={overviewGaugeAnimate}
                 planRows={analysisDisplay.planByTreatment}
-                casePhotos={photoPool}
+                casePhotos={casePhotoPool}
                 detectedIssueLabels={analysisDisplay.overviewSnapshot.detectedIssueLabels}
                 onBack={closeAnalysisSubpage}
                 onOpenTreatmentDetails={(r) => openTreatmentPlanSubpage(r.key)}
@@ -1124,13 +1148,26 @@ export default function PostVisitBlueprintPage() {
               </div>
             </div>
             <div className="pvb-drawer-ctas">
-              <a
-                className="pvb-cta pvb-cta--book"
-                href={bookingHref}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => trackPostVisitBlueprintEvent("booking_clicked", { token: blueprint.token, patient_id: blueprint.patient.id })}
-              >Book my plan</a>
+              {bookingHref ? (
+                <a
+                  className="pvb-cta pvb-cta--book"
+                  href={bookingHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() =>
+                    trackPostVisitBlueprintEvent("booking_clicked", {
+                      token: blueprint.token,
+                      patient_id: blueprint.patient.id,
+                    })
+                  }
+                >
+                  Book my plan
+                </a>
+              ) : (
+                <span className="pvb-cta pvb-cta--book pvb-cta--muted" role="note">
+                  Contact your care team to schedule your plan.
+                </span>
+              )}
               {blueprint.cta.textProviderPhone ? (
                 <div className="pvb-drawer-ctas-row">
                   <a className="pvb-cta pvb-cta--ghost" href={`sms:${blueprint.cta.textProviderPhone}`}>Text provider</a>
@@ -1161,7 +1198,7 @@ export default function PostVisitBlueprintPage() {
               >
                 <span aria-hidden>←</span> Back
               </button>
-              <span className="pvb-case-eyebrow">Real patient result</span>
+              <span className="pvb-case-eyebrow">Case story</span>
               <h2 className="pvb-case-title">{selectedCaseDetail.cardTitle}</h2>
               <p className="pvb-case-cat">{selectedCaseDetail.treatment}</p>
             </header>
@@ -1204,10 +1241,15 @@ export default function PostVisitBlueprintPage() {
                 <p className="pvb-case-demo">{selectedCaseDetail.demographics}</p>
               ) : null}
 
-              {selectedCaseDetail.story ? (
+              {selectedCaseDetail.story || selectedCaseDetail.caption ? (
                 <section className="pvb-case-block">
                   <h3 className="pvb-case-block-title">About this case</h3>
-                  <p className="pvb-case-prose">{selectedCaseDetail.story}</p>
+                  {selectedCaseDetail.story ? (
+                    <p className="pvb-case-prose pvb-case-prose--headline">{selectedCaseDetail.story}</p>
+                  ) : null}
+                  {selectedCaseDetail.caption ? (
+                    <p className="pvb-case-prose">{selectedCaseDetail.caption}</p>
+                  ) : null}
                 </section>
               ) : null}
 

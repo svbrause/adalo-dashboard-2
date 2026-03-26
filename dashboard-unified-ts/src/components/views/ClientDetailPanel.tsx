@@ -1,12 +1,12 @@
 // Client Detail Panel Component - Side panel version (non-modal)
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Client, DiscussedItem } from "../../types";
 import { formatDate, formatRelativeDate } from "../../utils/dateFormatting";
 import {
   formatFacialStatusForDisplay,
   getFacialStatusColorForDisplay,
-  hasInterestedTreatments,
+  hasFacialInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { WEB_POPUP_LEAD_NO_ANALYSIS_STATUS } from "../../utils/clientMapper";
 import { updateLeadRecord, prefetchSmsForPhone, fetchRecordQuizFields } from "../../services/api";
@@ -22,6 +22,7 @@ import AnalysisResultsSection from "../modals/AnalysisResultsSection";
 import TelehealthSMSModal from "../modals/TelehealthSMSModal";
 import ShareAnalysisModal from "../modals/ShareAnalysisModal";
 import ShareTreatmentPlanModal from "../modals/ShareTreatmentPlanModal";
+import ShareTreatmentPlanLinkModal from "../modals/ShareTreatmentPlanLinkModal";
 import PhotoViewerModal from "../modals/PhotoViewerModal";
 import NewClientSMSModal from "../modals/NewClientSMSModal";
 import SendSMSModal from "../modals/SendSMSModal";
@@ -67,8 +68,14 @@ import {
 } from "../modals/DiscussedTreatmentsModal/constants";
 import { getSkinQuizMessage } from "../../utils/skinQuizLink";
 import {
+  parseInterestedIssuesList,
+  partitionInterestedIssuesForFacialVsWellness,
+} from "../../utils/partitionInterestedIssuesWellnessFacial";
+import { discussedItemMatchesWellnessOffering } from "../../utils/wellnessDiscussedItems";
+import {
   getJotformUrl,
   formatProviderDisplayName,
+  isPostVisitBlueprintSender,
   isUniqueAestheticsProvider,
 } from "../../utils/providerHelpers";
 import {
@@ -84,6 +91,7 @@ import {
 import {
   shouldLoadPhotoForClient,
   fetchClientFrontPhoto,
+  getClientFrontPhotoDisplayUrl,
 } from "../../utils/photoLoading";
 import { formatZipCodeInput } from "../../utils/validation";
 import { useDashboard } from "../../context/DashboardContext";
@@ -101,6 +109,22 @@ export default function ClientDetailPanel({
   onUpdate,
 }: ClientDetailPanelProps) {
   const { provider } = useDashboard();
+
+  const intakeIssuePartition = useMemo(() => {
+    if (!client) {
+      return { facialInterests: [] as string[], wellnessInterests: [] as string[] };
+    }
+    return partitionInterestedIssuesForFacialVsWellness(
+      parseInterestedIssuesList(client),
+    );
+  }, [client?.id, client?.interestedIssues]);
+  const intakeWellnessInterests = intakeIssuePartition.wellnessInterests;
+  const intakeFacialInterests = intakeIssuePartition.facialInterests;
+
+  const wellnessPlanItems = useMemo(() => {
+    if (!client?.discussedItems?.length) return [];
+    return client.discussedItems.filter(discussedItemMatchesWellnessOffering);
+  }, [client?.id, client?.discussedItems]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedClient, setEditedClient] = useState<Partial<Client> | null>(
     null,
@@ -109,6 +133,8 @@ export default function ClientDetailPanel({
   const [showTelehealthSMS, setShowTelehealthSMS] = useState(false);
   const [showShareAnalysis, setShowShareAnalysis] = useState(false);
   const [showShareTreatmentPlan, setShowShareTreatmentPlan] = useState(false);
+  const [showShareTreatmentPlanLink, setShowShareTreatmentPlanLink] =
+    useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [photoViewerType, setPhotoViewerType] = useState<"front" | "side">(
     "front",
@@ -161,41 +187,30 @@ export default function ClientDetailPanel({
       });
       setStatus(client.status);
 
-      // Load front photo if available and should be loaded
-      let photoUrl: string | null = null;
-      if (
-        client.frontPhoto &&
-        Array.isArray(client.frontPhoto) &&
-        client.frontPhoto.length > 0
-      ) {
-        const attachment = client.frontPhoto[0];
-        photoUrl =
-          attachment.thumbnails?.large?.url ||
-          attachment.thumbnails?.full?.url ||
-          attachment.url;
-        setFrontPhotoUrl(photoUrl);
+      // Load front photo: inline URL string, Airtable attachment array, or fetch on demand
+      const resolved = getClientFrontPhotoDisplayUrl(client.frontPhoto);
+      if (resolved) {
+        setFrontPhotoUrl(resolved);
+        setPhotoLoading(false);
       } else if (
         client.tableSource === "Patients" &&
         !client.frontPhotoLoaded &&
         shouldLoadPhotoForClient(client)
       ) {
-        // Fetch photo on demand
+        setFrontPhotoUrl(null);
         setPhotoLoading(true);
         fetchClientFrontPhoto(client.id)
           .then((photo) => {
-            if (photo && Array.isArray(photo) && photo.length > 0) {
-              const attachment = photo[0];
-              const url =
-                attachment.thumbnails?.large?.url ||
-                attachment.thumbnails?.full?.url ||
-                attachment.url;
-              setFrontPhotoUrl(url);
-            }
+            const url = getClientFrontPhotoDisplayUrl(photo);
+            if (url) setFrontPhotoUrl(url);
             setPhotoLoading(false);
           })
           .catch(() => {
             setPhotoLoading(false);
           });
+      } else {
+        setFrontPhotoUrl(null);
+        setPhotoLoading(false);
       }
     }
   }, [client]);
@@ -463,11 +478,10 @@ export default function ClientDetailPanel({
 
   const facialAnalysisFormHasData =
     hasFacialAnalysisForm &&
-    (client.age ||
-      (client.aestheticGoals &&
-        (typeof client.aestheticGoals === "string"
-          ? client.aestheticGoals.trim()
-          : String(client.aestheticGoals).trim())) ||
+    ((client.aestheticGoals &&
+      (typeof client.aestheticGoals === "string"
+        ? client.aestheticGoals.trim()
+        : String(client.aestheticGoals).trim())) ||
       client.whichRegions ||
       client.skinComplaints ||
       client.areasOfInterestFromForm ||
@@ -475,9 +489,14 @@ export default function ClientDetailPanel({
       (client.goals &&
         Array.isArray(client.goals) &&
         client.goals.length > 0) ||
-      client.facialAnalysisStatus ||
       client.allIssues ||
-      client.interestedIssues);
+      intakeFacialInterests.length > 0);
+
+  const showTreatmentRecommenderShortcut =
+    facialAnalysisFormHasData ||
+    webPopupFormHasData ||
+    intakeWellnessInterests.length > 0 ||
+    wellnessPlanItems.length > 0;
 
   // Import the rest of the component content from ClientDetailModal
   // This is a large component, so I'll need to copy the JSX structure
@@ -599,6 +618,16 @@ export default function ClientDetailPanel({
                   }
                 }}
                 treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
+                onShareTreatmentPlan={
+                  (client.discussedItems?.length ?? 0) > 0 &&
+                  (isPostVisitBlueprintSender(provider) ||
+                    facialAnalysisFormHasData)
+                    ? () =>
+                        isPostVisitBlueprintSender(provider)
+                          ? setShowShareTreatmentPlanLink(true)
+                          : setShowShareTreatmentPlan(true)
+                    : undefined
+                }
               />
             )}
             {recommenderMode === "by-suggestion" && client && (
@@ -1193,160 +1222,37 @@ export default function ClientDetailPanel({
                   </div>
                 )}
 
-                {/* Facial Analysis Section */}
-                <div className="detail-section detail-section-facial-analysis">
-                  <div className="detail-section-header-flex">
-                    <div className="detail-section-title detail-section-title-inline detail-section-title-facial">
-                      <div className="facial-analysis-heading-row">
-                        <span>Facial Analysis</span>
-                        {(() => {
-                          const statusForDisplay =
-                            client.facialAnalysisStatus ??
-                            (client.tableSource === "Web Popup Leads"
-                              ? WEB_POPUP_LEAD_NO_ANALYSIS_STATUS
-                              : "not-started");
-                          return (
-                            <span
-                              className="status-badge detail-status-badge-dynamic"
-                              style={{
-                                background: getFacialStatusColorForDisplay(
-                                  statusForDisplay,
-                                  hasInterestedTreatments(client),
-                                ),
-                              }}
-                            >
-                              {formatFacialStatusForDisplay(
-                                statusForDisplay,
-                                hasInterestedTreatments(client),
-                              )}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                      {client.tableSource === "Patients" &&
-                        facialAnalysisFormHasData &&
-                        client.createdAt && (
-                          <span className="facial-analysis-date">
-                            Analysis date: {formatDate(client.createdAt)}
-                          </span>
-                        )}
-                    </div>
-                    <div className="detail-actions-inline">
-                      {facialAnalysisFormHasData && (
-                        <>
-                          <button
-                            type="button"
-                            className="btn-secondary btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowAnalysisOverview(true);
-                            }}
-                          >
-                            Analysis Overview
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-secondary btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowShareAnalysis(true);
-                            }}
-                          >
-                            Share with Patient
-                          </button>
-                        </>
-                      )}
-                      {hasWebPopupForm && (
-                        <div
-                          className="scan-client-dropdown"
-                          ref={scanDropdownRef}
-                        >
-                          <button
-                            className="btn-secondary btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowScanDropdown(!showScanDropdown);
-                            }}
-                          >
-                            Scan Patient
-                          </button>
-                          {showScanDropdown && (
-                            <div className="scan-client-dropdown-menu">
-                              <button
-                                className="scan-client-option"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleScanInClinic();
-                                }}
-                              >
-                                Scan In-Clinic
-                              </button>
-                              {!isUniqueAestheticsProvider(provider) && (
-                                <button
-                                  className="scan-client-option"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowScanDropdown(false);
-                                    setShowNewClientSMS(true);
-                                  }}
-                                >
-                                  Scan At Home
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {facialAnalysisFormHasData ? (
-                    <AnalysisResultsSection
-                      client={client}
-                      onViewExamples={(issue, region) =>
-                        setIssuePhotosContext({ issue, region })
-                      }
-                      onTreatmentInterestClick={(interest) =>
-                        setIssuePhotosContext({ interest })
-                      }
-                    />
-                  ) : (
-                    <div className="detail-empty-state">
-                      {hasWebPopupForm ? (
-                        <div className="detail-empty-state-text">
-                          Request a facial analysis scan for this client using
-                          the "Scan Patient" button above.
-                        </div>
-                      ) : (
-                        <div className="detail-empty-center">
-                          This patient has not completed the Facial Analysis
-                          form.
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Treatments discussed in clinic (in reference to analysis findings & interests) */}
+                <div className="detail-section detail-section-treatment-plan">
                   <div className="discussed-treatments-in-facial-section">
                     <div className="discussed-treatments-in-facial-title-row">
                       <div className="discussed-treatments-in-facial-heading-block">
                         <span className="discussed-treatments-in-facial-heading">
-                          Treatment plan
+                          {(client.name?.trim().split(/\s+/)[0] || "Patient")}
+                          &apos;s plan
                         </span>
                         <span className="discussed-treatments-in-facial-subheading">
-                          In reference to analysis findings & interests
+                          From the visit and your notes (not limited to facial
+                          scan)
                         </span>
                       </div>
                       <div className="discussed-treatments-in-facial-actions">
-                        {facialAnalysisFormHasData && (
-                          <button
-                            type="button"
-                            className="btn-secondary btn-sm"
-                            onClick={() => setShowShareTreatmentPlan(true)}
-                          >
-                            Share with Patient
-                          </button>
-                        )}
-                        {(facialAnalysisFormHasData || webPopupFormHasData) && (
+                        {client.discussedItems &&
+                          client.discussedItems.length > 0 &&
+                          (isPostVisitBlueprintSender(provider) ||
+                            facialAnalysisFormHasData) && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-sm"
+                              onClick={() =>
+                                isPostVisitBlueprintSender(provider)
+                                  ? setShowShareTreatmentPlanLink(true)
+                                  : setShowShareTreatmentPlan(true)
+                              }
+                            >
+                              Share
+                            </button>
+                          )}
+                        {showTreatmentRecommenderShortcut && (
                           <button
                             type="button"
                             className="btn-secondary btn-sm"
@@ -1453,6 +1359,198 @@ export default function ClientDetailPanel({
                       )}
                     </div>
                   </div>
+                </div>
+
+                {(intakeWellnessInterests.length > 0 ||
+                  wellnessPlanItems.length > 0) && (
+                  <div className="detail-section detail-section-wellness-overview">
+                    <div className="detail-section-title">Wellness</div>
+                    <p className="skin-analysis-description">
+                      Peptide and wellness goals and plan items — separate from
+                      facial analysis and scanning.
+                    </p>
+                    {intakeWellnessInterests.length > 0 && (
+                      <div className="detail-wellness-intake-interests">
+                        <div className="detail-label">Goals from intake</div>
+                        <div
+                          className="detail-wellness-intake-chips"
+                          role="list"
+                        >
+                          {intakeWellnessInterests.map((label, idx) => (
+                            <span
+                              key={`${label}-${idx}`}
+                              className="detail-wellness-intake-chip"
+                              role="listitem"
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {wellnessPlanItems.length > 0 && (
+                      <div className="detail-wellness-plan-excerpt">
+                        <div className="detail-label">On treatment plan</div>
+                        <ul className="detail-wellness-plan-list">
+                          {wellnessPlanItems.map((item) => (
+                            <li key={item.id}>
+                              <span className="detail-wellness-plan-treatment">
+                                {getTreatmentDisplayName(item)}
+                              </span>
+                              {item.timeline?.trim() ? (
+                                <span className="detail-wellness-plan-meta">
+                                  {" "}
+                                  · {item.timeline.trim()}
+                                </span>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Facial Analysis Section */}
+                <div className="detail-section detail-section-facial-analysis">
+                  <div className="detail-section-header-flex">
+                    <div className="detail-section-title detail-section-title-inline detail-section-title-facial">
+                      <div className="facial-analysis-heading-row">
+                        <span>Facial Analysis</span>
+                        {(() => {
+                          const raw = client.facialAnalysisStatus?.trim();
+                          let statusForDisplay =
+                            raw ||
+                            (client.tableSource === "Web Popup Leads"
+                              ? WEB_POPUP_LEAD_NO_ANALYSIS_STATUS
+                              : "not-started");
+                          if (!facialAnalysisFormHasData) {
+                            const low = (raw ?? "").toLowerCase();
+                            if (!low || low === "pending") {
+                              statusForDisplay = "not-started";
+                            }
+                          }
+                          return (
+                            <span
+                              className="status-badge detail-status-badge-dynamic"
+                              style={{
+                                background: getFacialStatusColorForDisplay(
+                                  statusForDisplay,
+                                  hasFacialInterestedTreatments(client),
+                                  provider?.code,
+                                ),
+                              }}
+                            >
+                              {formatFacialStatusForDisplay(
+                                statusForDisplay,
+                                hasFacialInterestedTreatments(client),
+                                provider?.code,
+                              )}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      {client.tableSource === "Patients" &&
+                        facialAnalysisFormHasData &&
+                        client.createdAt && (
+                          <span className="facial-analysis-date">
+                            Analysis date: {formatDate(client.createdAt)}
+                          </span>
+                        )}
+                    </div>
+                    <div className="detail-actions-inline">
+                      {facialAnalysisFormHasData && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowAnalysisOverview(true);
+                            }}
+                          >
+                            Analysis Overview
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowShareAnalysis(true);
+                            }}
+                          >
+                            Share with Patient
+                          </button>
+                        </>
+                      )}
+                      {hasWebPopupForm && (
+                        <div
+                          className="scan-client-dropdown"
+                          ref={scanDropdownRef}
+                        >
+                          <button
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowScanDropdown(!showScanDropdown);
+                            }}
+                          >
+                            Scan Patient
+                          </button>
+                          {showScanDropdown && (
+                            <div className="scan-client-dropdown-menu">
+                              <button
+                                className="scan-client-option"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleScanInClinic();
+                                }}
+                              >
+                                Scan In-Clinic
+                              </button>
+                              {!isUniqueAestheticsProvider(provider) && (
+                                <button
+                                  className="scan-client-option"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowScanDropdown(false);
+                                    setShowNewClientSMS(true);
+                                  }}
+                                >
+                                  Scan At Home
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {facialAnalysisFormHasData ? (
+                    <AnalysisResultsSection
+                      client={client}
+                      onViewExamples={(issue, region) =>
+                        setIssuePhotosContext({ issue, region })
+                      }
+                      onTreatmentInterestClick={(interest) =>
+                        setIssuePhotosContext({ interest })
+                      }
+                    />
+                  ) : (
+                    <div className="detail-empty-state">
+                      {hasWebPopupForm ? (
+                        <div className="detail-empty-state-text">
+                          Request a facial analysis scan for this client using
+                          the "Scan Patient" button above.
+                        </div>
+                      ) : (
+                        <div className="detail-empty-center">
+                          This patient has not completed the Facial Analysis
+                          form.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {!isUniqueAestheticsProvider(provider) && (
@@ -1879,6 +1977,18 @@ export default function ClientDetailPanel({
           }}
         />
       )}
+      {showShareTreatmentPlanLink && client && (
+        <ShareTreatmentPlanLinkModal
+          client={client}
+          discussedItems={client.discussedItems ?? []}
+          recommenderFocusRegions={recommenderFocusRegions}
+          onClose={() => setShowShareTreatmentPlanLink(false)}
+          onSuccess={() => {
+            setShowShareTreatmentPlanLink(false);
+            onUpdate();
+          }}
+        />
+      )}
       {showPhotoViewer && client && (
         <PhotoViewerModal
           client={client}
@@ -2017,7 +2127,6 @@ export default function ClientDetailPanel({
           clientName={client.name ?? ""}
           client={client}
           items={client.discussedItems ?? []}
-          recommenderFocusRegions={recommenderFocusRegions}
           onClose={() => setShowCheckoutModal(false)}
           onRemoveItem={async (_item, index) => {
             const nextItems = (client.discussedItems ?? []).filter(

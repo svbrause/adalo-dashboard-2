@@ -8,7 +8,7 @@ import { formatRelativeDate } from "../../utils/dateFormatting";
 import {
   formatFacialStatusForDisplay,
   getFacialStatusColorForDisplay,
-  hasInterestedTreatments,
+  hasFacialInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { applyFilters, applySorting } from "../../utils/filtering";
 import { isAddClientLead } from "../../utils/leadSource";
@@ -29,6 +29,7 @@ export default function ListView() {
     setSort,
     pagination,
     setPagination,
+    provider,
   } = useDashboard();
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
@@ -49,11 +50,11 @@ export default function ListView() {
       );
     }
 
-    filtered = applyFilters(filtered, filters, searchQuery);
+    filtered = applyFilters(filtered, filters, searchQuery, provider?.code);
     filtered = applySorting(filtered, sort);
 
     return filtered;
-  }, [clients, currentView, filters, searchQuery, sort]);
+  }, [clients, currentView, filters, searchQuery, sort, provider?.code]);
 
   // Paginate
   const paginatedClients = useMemo(() => {
@@ -221,13 +222,15 @@ export default function ListView() {
                         style={{
                           background: getFacialStatusColorForDisplay(
                             client.facialAnalysisStatus || null,
-                            hasInterestedTreatments(client),
+                            hasFacialInterestedTreatments(client),
+                            provider?.code,
                           ),
                         }}
                       >
                         {formatFacialStatusForDisplay(
                           client.facialAnalysisStatus || null,
-                          hasInterestedTreatments(client),
+                          hasFacialInterestedTreatments(client),
+                          provider?.code,
                         )}
                       </span>
                       {client.offerClaimed && (

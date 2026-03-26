@@ -1,6 +1,7 @@
 // Provider helper functions
 
 import { Provider } from "../types";
+import { isWellnestWellnessProviderCode } from "../data/wellnestOfferings";
 
 /** The Treatment Skin Boutique — public booking (MVP Post-Visit Blueprint CTA). */
 export const THE_TREATMENT_BOOKING_URL = "https://getthetreatment.com/#book-now";
@@ -15,6 +16,8 @@ const THE_TREATMENT_DISPLAY_NAMES = [
   "The Treatment",
   "San Clemente, Henderson, and Newport Beach",
 ] as const;
+
+const WELLNEST_DISPLAY_NAMES = ["Wellnest MD", "Wellnest"] as const;
 
 /** Admin login codes allowed to send/view Post-Visit Blueprint links. */
 const ADMIN_BLUEPRINT_PROVIDER_CODES = ["admin", "password"] as const;
@@ -51,22 +54,27 @@ export function isAdminBlueprintProvider(provider: Provider | null): boolean {
   return isAdminBlueprintCode(provider.code) || name === "admin";
 }
 
-/** Dashboard: who may send a Post-Visit Blueprint (The Treatment locations + Admin). */
+/** Dashboard: who may send a Post-Visit Blueprint (The Treatment locations + Wellnest MD + Admin). */
 export function isPostVisitBlueprintSender(provider: Provider | null): boolean {
-  return isTheTreatmentProvider(provider) || isAdminBlueprintProvider(provider);
+  return (
+    isTheTreatmentProvider(provider) ||
+    isAdminBlueprintProvider(provider) ||
+    isWellnestWellnessProviderCode(provider?.code)
+  );
 }
 
 /** Patient micro-site: blueprint payload must have been issued by an allowed sender (code on payload). */
 export function isPostVisitBlueprintProviderCode(code: string | null | undefined): boolean {
   if (isTheTreatmentProviderCode(code)) return true;
+  if (isWellnestWellnessProviderCode(code)) return true;
   return isAdminBlueprintCode(code);
 }
 
 /**
  * Whether a decoded blueprint may be shown on the patient page.
- * - If `providerCode` is present: only allowlisted codes (Treatment + admin).
+ * - If `providerCode` is present: only allowlisted codes (Treatment, Wellnest MD, admin).
  * - If `providerCode` is missing/empty (older SMS links): allow only when clinic or provider
- *   display matches Admin or The Treatment — same orgs as {@link isPostVisitBlueprintSender}.
+ *   display matches Admin, The Treatment, or Wellnest — same orgs as {@link isPostVisitBlueprintSender}.
  */
 export function isPostVisitBlueprintAllowedForPatient(payload: {
   providerCode?: string;
@@ -84,9 +92,31 @@ export function isPostVisitBlueprintAllowedForPatient(payload: {
 
   const clinicTrim = (payload.clinicName || "").trim();
   const provTrim = (payload.providerName || "").trim();
+  if (
+    WELLNEST_DISPLAY_NAMES.some((n) => n === clinicTrim || n === provTrim)
+  ) {
+    return true;
+  }
   return THE_TREATMENT_DISPLAY_NAMES.some(
     (n) => n === clinicTrim || n === provTrim,
   );
+}
+
+/**
+ * Booking / scheduling URL embedded in Post-Visit Blueprint CTAs.
+ * Wellnest uses the provider telehealth / web link when set; The Treatment keeps the public book page.
+ */
+export function getPostVisitBlueprintBookingUrl(provider: Provider | null): string {
+  if (isWellnestWellnessProviderCode(provider?.code)) {
+    const tele = getTelehealthLink(provider);
+    const t = tele?.trim();
+    if (t && !t.includes("your-telehealth-link.com")) return t;
+    const web = String(
+      provider?.["Web Link"] || provider?.WebLink || "",
+    ).trim();
+    return web;
+  }
+  return THE_TREATMENT_BOOKING_URL;
 }
 
 /** Name fragment that identifies Unique Aesthetics (e.g. "Unique Aesthetics & Wellness"). */

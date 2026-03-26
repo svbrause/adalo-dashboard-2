@@ -19,7 +19,6 @@ import {
   computeOverall,
   computeAreas,
   scoreTier,
-  tierLabel,
   tierColor,
   summarizeAreaThemes,
   generateAssessment,
@@ -1069,7 +1068,6 @@ export default function AnalysisOverviewModal({
     [detectedIssues]
   );
   const overall = useMemo(() => computeOverall(categories), [categories]);
-  const overallTier = scoreTier(overall);
 
   const areaResults = useMemo(
     () => computeAreas(detectedIssues, interestAreaNames),
@@ -1326,7 +1324,7 @@ export default function AnalysisOverviewModal({
           ) : (
             /* ===== Main overview ===== */
             <>
-              {/* Hero: front photo + score gauge + tier */}
+              {/* Hero: front photo */}
               <section className="analysis-overview-modal__hero">
                 <div className="analysis-overview-modal__hero-card">
                   {clientFrontPhotoUrl && (
@@ -1350,21 +1348,6 @@ export default function AnalysisOverviewModal({
                       </span>
                     </div>
                   )}
-                  <div className="analysis-overview-modal__score-block">
-                    <ScoreGauge
-                      score={overall}
-                      size={110}
-                      strokeWidth={10}
-                      animate={animate}
-                      label="Aesthetic Score"
-                    />
-                    <span
-                      className="analysis-overview-modal__tier"
-                      style={{ color: tierColor(overallTier) }}
-                    >
-                      {tierLabel(overallTier)}
-                    </span>
-                  </div>
                 </div>
               </section>
 

@@ -7,7 +7,10 @@ import { formatRelativeDate } from "../../utils/dateFormatting";
 import { formatPhoneDisplay } from "../../utils/validation";
 import { updateClientStatus } from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
-import { preloadVisiblePhotos } from "../../utils/photoLoading";
+import {
+  getClientFrontPhotoDisplayUrl,
+  preloadVisiblePhotos,
+} from "../../utils/photoLoading";
 import ClientDetailModal from "../modals/ClientDetailModal";
 import "./KanbanView.css";
 
@@ -32,10 +35,10 @@ export default function KanbanView() {
   const processedClients = useMemo(() => {
     let filtered = clients.filter((client) => !client.archived);
     filtered = filtered.filter((client) => client.tableSource === "Patients");
-    filtered = applyFilters(filtered, filters, searchQuery);
+    filtered = applyFilters(filtered, filters, searchQuery, provider?.code);
     filtered = applySorting(filtered, sort);
     return filtered;
-  }, [clients, filters, searchQuery, sort]);
+  }, [clients, filters, searchQuery, sort, provider?.code]);
 
   const statuses: Array<
     "new" | "contacted" | "requested-consult" | "scheduled" | "converted" | "current-client"
@@ -185,20 +188,10 @@ export default function KanbanView() {
                 ) : (
                   statusClients.map((client) => {
                     // Get photo URL from client data or loaded photos
-                    let photoUrl: string | null = null;
-                    if (
-                      client.frontPhoto &&
-                      Array.isArray(client.frontPhoto) &&
-                      client.frontPhoto.length > 0
-                    ) {
-                      const attachment = client.frontPhoto[0];
-                      photoUrl =
-                        attachment.thumbnails?.large?.url ||
-                        attachment.thumbnails?.full?.url ||
-                        attachment.url;
-                    } else if (clientPhotos[client.id]) {
-                      photoUrl = clientPhotos[client.id];
-                    }
+                    let photoUrl: string | null =
+                      getClientFrontPhotoDisplayUrl(client.frontPhoto) ||
+                      clientPhotos[client.id] ||
+                      null;
 
                     return (
                       <div

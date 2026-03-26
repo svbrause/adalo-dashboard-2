@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react';
 import { Client, TreatmentPhoto } from '../../types';
 import { formatRelativeDate } from '../../utils/dateFormatting';
 import { issueToSuggestionMap, groupIssuesByArea } from '../../utils/issueMapping';
+import {
+  parseInterestedIssuesList,
+  partitionInterestedIssuesForFacialVsWellness,
+} from '../../utils/partitionInterestedIssuesWellnessFacial';
 import IssuePhotoCarousel from './IssuePhotoCarousel';
 import './PatientIssuesModal.css';
 
@@ -49,12 +53,10 @@ export default function PatientIssuesModal({ client, onClose, onPhotoClick, demo
   //   allIssues = client.allIssues.split(',').map(i => i.trim()).filter(i => i);
   // }
 
-  let interestedIssues: string[] = [];
-  if (Array.isArray(client.interestedIssues)) {
-    interestedIssues = client.interestedIssues.filter(i => i && i.trim());
-  } else if (typeof client.interestedIssues === 'string') {
-    interestedIssues = client.interestedIssues.split(',').map(i => i.trim()).filter(i => i);
-  }
+  const { facialInterests: interestedIssues } =
+    partitionInterestedIssuesForFacialVsWellness(
+      parseInterestedIssuesList(client),
+    );
 
   const patientGoals: string[] = Array.isArray(client.goals) 
     ? (client.goals as string[])

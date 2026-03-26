@@ -1,12 +1,12 @@
 // Client Detail Modal Component - Complete Version
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Client, DiscussedItem } from "../../types";
 import { formatDate, formatRelativeDate } from "../../utils/dateFormatting";
 import {
   formatFacialStatusForDisplay,
   getFacialStatusColorForDisplay,
-  hasInterestedTreatments,
+  hasFacialInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { WEB_POPUP_LEAD_NO_ANALYSIS_STATUS } from "../../utils/clientMapper";
 import { updateLeadRecord, fetchRecordQuizFields } from "../../services/api";
@@ -22,6 +22,7 @@ import AnalysisResultsSection from "./AnalysisResultsSection";
 import TelehealthSMSModal from "./TelehealthSMSModal";
 import ShareAnalysisModal from "./ShareAnalysisModal";
 import ShareTreatmentPlanModal from "./ShareTreatmentPlanModal";
+import ShareTreatmentPlanLinkModal from "./ShareTreatmentPlanLinkModal";
 import PhotoViewerModal from "./PhotoViewerModal";
 import NewClientSMSModal from "./NewClientSMSModal";
 import SendSMSModal from "./SendSMSModal";
@@ -62,8 +63,14 @@ import {
 } from "./DiscussedTreatmentsModal/constants";
 import { getSkinQuizMessage } from "../../utils/skinQuizLink";
 import {
+  parseInterestedIssuesList,
+  partitionInterestedIssuesForFacialVsWellness,
+} from "../../utils/partitionInterestedIssuesWellnessFacial";
+import { discussedItemMatchesWellnessOffering } from "../../utils/wellnessDiscussedItems";
+import {
   getJotformUrl,
   formatProviderDisplayName,
+  isPostVisitBlueprintSender,
   isUniqueAestheticsProvider,
 } from "../../utils/providerHelpers";
 import {
@@ -79,6 +86,7 @@ import {
 import {
   shouldLoadPhotoForClient,
   fetchClientFrontPhoto,
+  getClientFrontPhotoDisplayUrl,
 } from "../../utils/photoLoading";
 import { formatZipCodeInput } from "../../utils/validation";
 import { useDashboard } from "../../context/DashboardContext";
@@ -96,6 +104,22 @@ export default function ClientDetailModal({
   onUpdate,
 }: ClientDetailModalProps) {
   const { provider } = useDashboard();
+
+  const intakeIssuePartition = useMemo(() => {
+    if (!client) {
+      return { facialInterests: [] as string[], wellnessInterests: [] as string[] };
+    }
+    return partitionInterestedIssuesForFacialVsWellness(
+      parseInterestedIssuesList(client),
+    );
+  }, [client?.id, client?.interestedIssues]);
+  const intakeWellnessInterests = intakeIssuePartition.wellnessInterests;
+  const intakeFacialInterests = intakeIssuePartition.facialInterests;
+
+  const wellnessPlanItems = useMemo(() => {
+    if (!client?.discussedItems?.length) return [];
+    return client.discussedItems.filter(discussedItemMatchesWellnessOffering);
+  }, [client?.id, client?.discussedItems]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedClient, setEditedClient] = useState<Partial<Client> | null>(
     null,
@@ -104,6 +128,8 @@ export default function ClientDetailModal({
   const [showTelehealthSMS, setShowTelehealthSMS] = useState(false);
   const [showShareAnalysis, setShowShareAnalysis] = useState(false);
   const [showShareTreatmentPlan, setShowShareTreatmentPlan] = useState(false);
+  const [showShareTreatmentPlanLink, setShowShareTreatmentPlanLink] =
+    useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [photoViewerType, setPhotoViewerType] = useState<"front" | "side">(
     "front",
@@ -147,41 +173,30 @@ export default function ClientDetailModal({
       });
       setStatus(client.status);
 
-      // Load front photo if available and should be loaded
-      let photoUrl: string | null = null;
-      if (
-        client.frontPhoto &&
-        Array.isArray(client.frontPhoto) &&
-        client.frontPhoto.length > 0
-      ) {
-        const attachment = client.frontPhoto[0];
-        photoUrl =
-          attachment.thumbnails?.large?.url ||
-          attachment.thumbnails?.full?.url ||
-          attachment.url;
-        setFrontPhotoUrl(photoUrl);
+      // Load front photo: inline URL string, Airtable attachment array, or fetch on demand
+      const resolved = getClientFrontPhotoDisplayUrl(client.frontPhoto);
+      if (resolved) {
+        setFrontPhotoUrl(resolved);
+        setPhotoLoading(false);
       } else if (
         client.tableSource === "Patients" &&
         !client.frontPhotoLoaded &&
         shouldLoadPhotoForClient(client)
       ) {
-        // Fetch photo on demand
+        setFrontPhotoUrl(null);
         setPhotoLoading(true);
         fetchClientFrontPhoto(client.id)
           .then((photo) => {
-            if (photo && Array.isArray(photo) && photo.length > 0) {
-              const attachment = photo[0];
-              const url =
-                attachment.thumbnails?.large?.url ||
-                attachment.thumbnails?.full?.url ||
-                attachment.url;
-              setFrontPhotoUrl(url);
-            }
+            const url = getClientFrontPhotoDisplayUrl(photo);
+            if (url) setFrontPhotoUrl(url);
             setPhotoLoading(false);
           })
           .catch(() => {
             setPhotoLoading(false);
           });
+      } else {
+        setFrontPhotoUrl(null);
+        setPhotoLoading(false);
       }
     }
   }, [client]);
@@ -396,11 +411,10 @@ export default function ClientDetailModal({
 
   const facialAnalysisFormHasData =
     hasFacialAnalysisForm &&
-    (client.age ||
-      (client.aestheticGoals &&
-        (typeof client.aestheticGoals === "string"
-          ? client.aestheticGoals.trim()
-          : String(client.aestheticGoals).trim())) ||
+    ((client.aestheticGoals &&
+      (typeof client.aestheticGoals === "string"
+        ? client.aestheticGoals.trim()
+        : String(client.aestheticGoals).trim())) ||
       client.whichRegions ||
       client.skinComplaints ||
       client.areasOfInterestFromForm ||
@@ -408,9 +422,14 @@ export default function ClientDetailModal({
       (client.goals &&
         Array.isArray(client.goals) &&
         client.goals.length > 0) ||
-      client.facialAnalysisStatus ||
       client.allIssues ||
-      client.interestedIssues);
+      intakeFacialInterests.length > 0);
+
+  const showTreatmentRecommenderShortcut =
+    facialAnalysisFormHasData ||
+    webPopupFormHasData ||
+    intakeWellnessInterests.length > 0 ||
+    wellnessPlanItems.length > 0;
 
   return (
     <div className="modal-overlay active" onClick={onClose}>
@@ -522,6 +541,16 @@ export default function ClientDetailModal({
                 }
               }}
               treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
+              onShareTreatmentPlan={
+                (client.discussedItems?.length ?? 0) > 0 &&
+                (isPostVisitBlueprintSender(provider) ||
+                  facialAnalysisFormHasData)
+                  ? () =>
+                      isPostVisitBlueprintSender(provider)
+                        ? setShowShareTreatmentPlanLink(true)
+                        : setShowShareTreatmentPlan(true)
+                  : undefined
+              }
             />
           )}
           {recommenderMode === "by-suggestion" && client && (
@@ -1066,6 +1095,163 @@ export default function ClientDetailModal({
                 </div>
               )}
 
+              <div className="detail-section detail-section-treatment-plan">
+                <div className="discussed-treatments-in-facial-section">
+                  <div className="discussed-treatments-in-facial-title-row">
+                    <div className="discussed-treatments-in-facial-heading-block">
+                      <span className="discussed-treatments-in-facial-heading">
+                        {(client.name?.trim().split(/\s+/)[0] || "Patient")}
+                        &apos;s plan
+                      </span>
+                      <span className="discussed-treatments-in-facial-subheading">
+                        From the visit and your notes (not limited to facial
+                        scan)
+                      </span>
+                    </div>
+                    <div className="discussed-treatments-in-facial-actions">
+                      {client.discussedItems &&
+                        client.discussedItems.length > 0 &&
+                        (isPostVisitBlueprintSender(provider) ||
+                          facialAnalysisFormHasData) && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={() =>
+                            isPostVisitBlueprintSender(provider)
+                              ? setShowShareTreatmentPlanLink(true)
+                              : setShowShareTreatmentPlan(true)
+                          }
+                        >
+                          Share
+                        </button>
+                      )}
+                      {showTreatmentRecommenderShortcut && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRecommenderMode("by-treatment");
+                          }}
+                        >
+                          Treatment Recommender
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() => setShowDiscussedTreatments(true)}
+                      >
+                        {client.discussedItems &&
+                        client.discussedItems.length > 0
+                          ? "Manage"
+                          : "Add"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="discussed-treatments-in-facial-summary-row">
+                    {client.discussedItems &&
+                    client.discussedItems.length > 0 ? (
+                      <div className="discussed-treatments-plan-sections-outer">
+                        {(() => {
+                          const items = client.discussedItems || [];
+                          const skincareItems = items.filter((i) => i.treatment?.trim() === "Skincare").sort((a, b) => (a.product || "").localeCompare(b.product || ""));
+                          const hasSkincare = skincareItems.length > 0;
+                          const sectionLabels = hasSkincare ? [SKINCARE_SECTION_LABEL, ...PLAN_SECTIONS] : [...PLAN_SECTIONS];
+                          return sectionLabels.map((sectionLabel) => {
+                            const sectionItems =
+                              sectionLabel === SKINCARE_SECTION_LABEL
+                                ? skincareItems
+                                : (client.discussedItems || []).filter((item) => {
+                                    if (item.treatment?.trim() === "Skincare") return false;
+                                    const t = item.timeline?.trim();
+                                    if (sectionLabel === "Now") return t === "Now";
+                                    if (sectionLabel === "Add next visit") return t === "Add next visit";
+                                    if (sectionLabel === "Completed") return t === "Completed";
+                                    return t === "Wishlist" || !t;
+                                  }).sort((a, b) => (a.treatment || "").localeCompare(b.treatment || ""));
+                            if (sectionItems.length === 0) return null;
+                            return (
+                              <div key={sectionLabel} className="discussed-treatments-plan-section-outer">
+                                <h4 className="discussed-treatments-plan-section-title-outer">{sectionLabel}</h4>
+                                <div className="discussed-treatments-records-list-outer">
+                                  {sectionItems.map((item) => (
+                                    <div key={item.id} className="discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta">
+                                      <div className="discussed-treatments-record-treatment-heading-outer">
+                                        {getTreatmentDisplayName(item)}
+                                      </div>
+                                      {formatTreatmentPlanRecordMetaLine(item) ? (
+                                        <div className="discussed-treatments-record-meta-line-outer">
+                                          {formatTreatmentPlanRecordMetaLine(item)}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    ) : (
+                      <span className="discussed-treatments-in-facial-summary">
+                        None
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {(intakeWellnessInterests.length > 0 ||
+                wellnessPlanItems.length > 0) && (
+                <div className="detail-section detail-section-wellness-overview">
+                  <div className="detail-section-title">Wellness</div>
+                  <p className="skin-analysis-description">
+                    Peptide and wellness goals and plan items — separate from
+                    facial analysis and scanning.
+                  </p>
+                  {intakeWellnessInterests.length > 0 && (
+                    <div className="detail-wellness-intake-interests">
+                      <div className="detail-label">Goals from intake</div>
+                      <div
+                        className="detail-wellness-intake-chips"
+                        role="list"
+                      >
+                        {intakeWellnessInterests.map((label, idx) => (
+                          <span
+                            key={`${label}-${idx}`}
+                            className="detail-wellness-intake-chip"
+                            role="listitem"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {wellnessPlanItems.length > 0 && (
+                    <div className="detail-wellness-plan-excerpt">
+                      <div className="detail-label">On treatment plan</div>
+                      <ul className="detail-wellness-plan-list">
+                        {wellnessPlanItems.map((item) => (
+                          <li key={item.id}>
+                            <span className="detail-wellness-plan-treatment">
+                              {getTreatmentDisplayName(item)}
+                            </span>
+                            {item.timeline?.trim() ? (
+                              <span className="detail-wellness-plan-meta">
+                                {" "}
+                                · {item.timeline.trim()}
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Facial Analysis Section */}
               <div className="detail-section detail-section-facial-analysis">
                 <div className="detail-section-header-flex">
@@ -1073,24 +1259,33 @@ export default function ClientDetailModal({
                       <div className="facial-analysis-heading-row">
                         <span>Facial Analysis</span>
                         {(() => {
-                          const statusForDisplay =
-                            client.facialAnalysisStatus ??
+                          const raw = client.facialAnalysisStatus?.trim();
+                          let statusForDisplay =
+                            raw ||
                             (client.tableSource === "Web Popup Leads"
                               ? WEB_POPUP_LEAD_NO_ANALYSIS_STATUS
                               : "not-started");
+                          if (!facialAnalysisFormHasData) {
+                            const low = (raw ?? "").toLowerCase();
+                            if (!low || low === "pending") {
+                              statusForDisplay = "not-started";
+                            }
+                          }
                           return (
                             <span
                               className="status-badge detail-status-badge-dynamic"
                               style={{
                                 background: getFacialStatusColorForDisplay(
                                   statusForDisplay,
-                                  hasInterestedTreatments(client),
+                                  hasFacialInterestedTreatments(client),
+                                  provider?.code,
                                 ),
                               }}
                             >
                               {formatFacialStatusForDisplay(
                                 statusForDisplay,
-                                hasInterestedTreatments(client),
+                                hasFacialInterestedTreatments(client),
+                                provider?.code,
                               )}
                             </span>
                           );
@@ -1212,103 +1407,6 @@ export default function ClientDetailModal({
                     )}
                   </div>
                 )}
-
-                {/* Treatments discussed in clinic (in reference to analysis findings & interests) */}
-                <div className="discussed-treatments-in-facial-section">
-                  <div className="discussed-treatments-in-facial-title-row">
-                    <div className="discussed-treatments-in-facial-heading-block">
-                      <span className="discussed-treatments-in-facial-heading">
-                        Treatment plan
-                      </span>
-                      <span className="discussed-treatments-in-facial-subheading">
-                        In reference to analysis findings & interests
-                      </span>
-                    </div>
-                    <div className="discussed-treatments-in-facial-actions">
-                      {facialAnalysisFormHasData && (
-                        <button
-                          type="button"
-                          className="btn-secondary btn-sm"
-                          onClick={() => setShowShareTreatmentPlan(true)}
-                        >
-                          Share with Patient
-                        </button>
-                      )}
-                      {(facialAnalysisFormHasData || webPopupFormHasData) && (
-                        <button
-                          type="button"
-                          className="btn-secondary btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRecommenderMode("by-treatment");
-                          }}
-                        >
-                          Treatment Recommender
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn-secondary btn-sm"
-                        onClick={() => setShowDiscussedTreatments(true)}
-                      >
-                        {client.discussedItems &&
-                        client.discussedItems.length > 0
-                          ? "Manage"
-                          : "Add"}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="discussed-treatments-in-facial-summary-row">
-                    {client.discussedItems &&
-                    client.discussedItems.length > 0 ? (
-                      <div className="discussed-treatments-plan-sections-outer">
-                        {(() => {
-                          const items = client.discussedItems || [];
-                          const skincareItems = items.filter((i) => i.treatment?.trim() === "Skincare").sort((a, b) => (a.product || "").localeCompare(b.product || ""));
-                          const hasSkincare = skincareItems.length > 0;
-                          const sectionLabels = hasSkincare ? [SKINCARE_SECTION_LABEL, ...PLAN_SECTIONS] : [...PLAN_SECTIONS];
-                          return sectionLabels.map((sectionLabel) => {
-                            const sectionItems =
-                              sectionLabel === SKINCARE_SECTION_LABEL
-                                ? skincareItems
-                                : (client.discussedItems || []).filter((item) => {
-                                    if (item.treatment?.trim() === "Skincare") return false;
-                                    const t = item.timeline?.trim();
-                                    if (sectionLabel === "Now") return t === "Now";
-                                    if (sectionLabel === "Add next visit") return t === "Add next visit";
-                                    if (sectionLabel === "Completed") return t === "Completed";
-                                    return t === "Wishlist" || !t;
-                                  }).sort((a, b) => (a.treatment || "").localeCompare(b.treatment || ""));
-                            if (sectionItems.length === 0) return null;
-                            return (
-                              <div key={sectionLabel} className="discussed-treatments-plan-section-outer">
-                                <h4 className="discussed-treatments-plan-section-title-outer">{sectionLabel}</h4>
-                                <div className="discussed-treatments-records-list-outer">
-                                  {sectionItems.map((item) => (
-                                    <div key={item.id} className="discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta">
-                                      <div className="discussed-treatments-record-treatment-heading-outer">
-                                        {getTreatmentDisplayName(item)}
-                                      </div>
-                                      {formatTreatmentPlanRecordMetaLine(item) ? (
-                                        <div className="discussed-treatments-record-meta-line-outer">
-                                          {formatTreatmentPlanRecordMetaLine(item)}
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-                    ) : (
-                      <span className="discussed-treatments-in-facial-summary">
-                        None
-                      </span>
-                    )}
-                  </div>
-                </div>
               </div>
 
               {!isUniqueAestheticsProvider(provider) && (
@@ -1698,6 +1796,17 @@ export default function ClientDetailModal({
           onClose={() => setShowShareTreatmentPlan(false)}
           onSuccess={() => {
             setShowShareTreatmentPlan(false);
+            onUpdate();
+          }}
+        />
+      )}
+      {showShareTreatmentPlanLink && client && (
+        <ShareTreatmentPlanLinkModal
+          client={client}
+          discussedItems={client.discussedItems ?? []}
+          onClose={() => setShowShareTreatmentPlanLink(false)}
+          onSuccess={() => {
+            setShowShareTreatmentPlanLink(false);
             onUpdate();
           }}
         />

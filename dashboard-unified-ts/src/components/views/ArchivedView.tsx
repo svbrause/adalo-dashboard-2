@@ -19,6 +19,7 @@ export default function ArchivedView() {
     setPagination,
     loading,
     refreshClients,
+    provider,
   } = useDashboard();
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
@@ -27,10 +28,10 @@ export default function ArchivedView() {
   // Filter archived clients
   const processedClients = useMemo(() => {
     let filtered = clients.filter((client) => client.archived);
-    filtered = applyFilters(filtered, filters, searchQuery);
+    filtered = applyFilters(filtered, filters, searchQuery, provider?.code);
     filtered = applySorting(filtered, sort);
     return filtered;
-  }, [clients, filters, searchQuery, sort]);
+  }, [clients, filters, searchQuery, sort, provider?.code]);
 
   // Paginate
   const paginatedClients = useMemo(() => {

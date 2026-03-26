@@ -2185,6 +2185,14 @@
   box-shadow: 0 4px 14px rgba(157, 214, 203, 0.5);
 }
 
+.pvb-cta--muted {
+  background: #e8eef0;
+  color: #475569;
+  box-shadow: none;
+  font-weight: 600;
+  cursor: default;
+}
+
 .pvb-drawer-ctas-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2399,6 +2407,12 @@
   font-size: 0.92rem;
   color: #334155;
   line-height: 1.58;
+}
+
+.pvb-case-prose--headline {
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #1e293b;
 }
 
 .pvb-case-tags-line {

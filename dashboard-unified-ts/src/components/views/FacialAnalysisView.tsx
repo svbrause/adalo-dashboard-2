@@ -6,6 +6,10 @@ import ClientDetailPanel from "./ClientDetailPanel";
 import PatientIssuesModal from "../modals/PatientIssuesModal";
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import { getIssueArea } from "../../utils/issueMapping";
+import {
+  parseInterestedIssuesList,
+  partitionInterestedIssuesForFacialVsWellness,
+} from "../../utils/partitionInterestedIssuesWellnessFacial";
 import Pagination from "../common/Pagination";
 import { formatRelativeDate } from "../../utils/dateFormatting";
 import { formatPhoneDisplay } from "../../utils/validation";
@@ -13,7 +17,7 @@ import {
   formatFacialStatusForDisplay,
   getFacialStatusColorForDisplay,
   getFacialStatusBorderColorForDisplay,
-  hasInterestedTreatments,
+  hasFacialInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { applyFilters, applySorting } from "../../utils/filtering";
 // Unused imports - kept for potential future drag-and-drop functionality
@@ -55,10 +59,10 @@ export default function FacialAnalysisView() {
   const processedClients = useMemo(() => {
     let filtered = clients.filter((client) => !client.archived);
     filtered = filtered.filter((client) => client.tableSource === "Patients");
-    filtered = applyFilters(filtered, filters, searchQuery);
+    filtered = applyFilters(filtered, filters, searchQuery, provider?.code);
     filtered = applySorting(filtered, sort);
     return filtered;
-  }, [clients, filters, searchQuery, sort]);
+  }, [clients, filters, searchQuery, sort, provider?.code]);
 
   // Paginate
   const paginatedClients = useMemo(() => {
@@ -252,15 +256,11 @@ export default function FacialAnalysisView() {
                 .filter((i) => i)
             : []
           : [];
-      const interestedIssues =
-        isPatient && client.interestedIssues
-          ? typeof client.interestedIssues === "string"
-            ? client.interestedIssues
-                .split(",")
-                .map((i) => i.trim())
-                .filter((i) => i)
-            : []
-          : [];
+      const interestedIssuesRaw = isPatient
+        ? parseInterestedIssuesList(client)
+        : [];
+      const { facialInterests: interestedIssues, wellnessInterests } =
+        partitionInterestedIssuesForFacialVsWellness(interestedIssuesRaw);
       const whichRegions =
         isPatient && client.whichRegions ? client.whichRegions : "";
       const skinComplaints =
@@ -279,6 +279,7 @@ export default function FacialAnalysisView() {
         isPatient &&
         (allIssues.length > 0 ||
           interestedIssues.length > 0 ||
+          wellnessInterests.length > 0 ||
           whichRegions ||
           skinComplaints ||
           processedAreas.length > 0);
@@ -298,7 +299,8 @@ export default function FacialAnalysisView() {
         client.lastContact || client.createdAt || new Date().toISOString();
       const borderColor = getFacialStatusBorderColorForDisplay(
         client.facialAnalysisStatus,
-        hasInterestedTreatments(client),
+        hasFacialInterestedTreatments(client),
+        provider?.code,
       );
 
       return {
@@ -306,6 +308,7 @@ export default function FacialAnalysisView() {
         isPatient,
         allIssues,
         interestedIssues,
+        wellnessInterests,
         whichRegions,
         skinComplaints,
         processedAreas,
@@ -316,7 +319,7 @@ export default function FacialAnalysisView() {
         borderColor,
       };
     });
-  }, [paginatedClients]);
+  }, [paginatedClients, provider?.code]);
 
   return (
     <section className="facial-analysis-view">
@@ -327,6 +330,7 @@ export default function FacialAnalysisView() {
             isPatient,
             allIssues,
             interestedIssues,
+            wellnessInterests,
             whichRegions: _whichRegions,
             skinComplaints,
             processedAreas,
@@ -373,13 +377,15 @@ export default function FacialAnalysisView() {
                         style={{
                           background: getFacialStatusColorForDisplay(
                             client.facialAnalysisStatus,
-                            hasInterestedTreatments(client),
+                            hasFacialInterestedTreatments(client),
+                            provider?.code,
                           ),
                         }}
                       >
                         {formatFacialStatusForDisplay(
                           client.facialAnalysisStatus,
-                          hasInterestedTreatments(client),
+                          hasFacialInterestedTreatments(client),
+                          provider?.code,
                         )}
                       </span>
                     </div>
@@ -461,8 +467,29 @@ export default function FacialAnalysisView() {
                                 </button>
                               ))}
                             </div>
-                          ) : null}
+                          ) : (
+                            <div className="facial-card-text facial-card-text-muted">
+                              None listed for facial aesthetics.
+                            </div>
+                          )}
                         </div>
+                        {wellnessInterests.length > 0 && (
+                          <div className="facial-card-section">
+                            <div className="facial-card-section-title">
+                              Wellness goals (intake)
+                            </div>
+                            <div className="facial-card-tags">
+                              {wellnessInterests.map((name, i) => (
+                                <span
+                                  key={i}
+                                  className="facial-tag facial-tag-wellness-intake"
+                                >
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {processedAreas.length > 0 && (
                           <div className="facial-card-section">
                             <div className="facial-card-section-title">

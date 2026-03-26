@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import { isAddClientLead } from "../../utils/leadSource";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
+import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import "./ViewControls.css";
 
 export default function ViewControls() {
@@ -18,7 +19,12 @@ export default function ViewControls() {
     sort,
     setSort,
     setPagination,
+    provider,
   } = useDashboard();
+
+  const wellnestAnalysisStatusPendingLabel = isWellnestWellnessProviderCode(
+    provider?.code,
+  );
 
   /** Clients for the current tab (All Clients = Patients + Add Client leads; Leads = Web Popup Leads not from Add Client) for filter options. */
   const clientsForFilters = useMemo(() => {
@@ -304,7 +310,11 @@ export default function ViewControls() {
                 className="filter-select"
               >
                 <option value="">All Statuses</option>
-                <option value="Pending">Pending</option>
+                <option
+                  value={wellnestAnalysisStatusPendingLabel ? "Not started" : "Pending"}
+                >
+                  {wellnestAnalysisStatusPendingLabel ? "Not started" : "Pending"}
+                </option>
                 <option value="Ready for Review">Ready for Review</option>
                 <option value="Patient Reviewed">Patient Reviewed</option>
               </select>

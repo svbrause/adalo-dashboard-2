@@ -8,6 +8,7 @@ import {
 import type { BlueprintAnalysisSummary } from "./postVisitBlueprintAnalysis";
 import { buildAnalysisSummaryFromClient } from "./postVisitBlueprintAnalysis";
 import { getDetectedIssueDisplayStrings } from "./analysisOverviewClient";
+import { getQuoteLineDiscussedItemIndexOrder } from "./pvbQuotePartition";
 
 /** Keep SMS / localStorage payload reasonable if the model returns a long essay. */
 const MAX_AI_NARRATIVE_CHARS = 10_000;
@@ -54,7 +55,12 @@ async function enrichAnalysisSummaryWithAiNarrative(
   };
 }
 
-export const POST_VISIT_BLUEPRINT_PATH = "/post-visit-blueprint";
+/** Patient-facing shared plan URL (SPA route). Still accepted for bookmarks and old links. */
+export const POST_VISIT_BLUEPRINT_PATH = "/treatment-plan";
+/** Shorter path used in new SMS / share links (same page as {@link POST_VISIT_BLUEPRINT_PATH}). */
+export const POST_VISIT_BLUEPRINT_SHORT_PATH = "/tp";
+/** Legacy path — still recognized so old SMS links keep working. */
+export const LEGACY_POST_VISIT_BLUEPRINT_PATH = "/post-visit-blueprint";
 const BLUEPRINT_STORAGE_KEY_PREFIX = "post_visit_blueprint_v1:";
 
 export type BlueprintEventName =
@@ -249,7 +255,12 @@ function normalizePath(path: string): string {
 
 export function isPostVisitBlueprintPath(): boolean {
   if (typeof window === "undefined") return false;
-  return normalizePath(window.location.pathname) === POST_VISIT_BLUEPRINT_PATH;
+  const p = normalizePath(window.location.pathname);
+  return (
+    p === normalizePath(POST_VISIT_BLUEPRINT_PATH) ||
+    p === normalizePath(POST_VISIT_BLUEPRINT_SHORT_PATH) ||
+    p === normalizePath(LEGACY_POST_VISIT_BLUEPRINT_PATH)
+  );
 }
 
 export function parsePostVisitBlueprintTokenFromUrl(): string | null {
@@ -283,7 +294,23 @@ export function buildPostVisitBlueprintLink(
   const params = new URLSearchParams();
   params.set("t", token);
   if (payload) params.set("d", encodeBlueprintPayload(payload));
-  return `${base}${POST_VISIT_BLUEPRINT_PATH}?${params.toString()}`;
+  /** Prefer `/tp` so SMS and copy-paste links stay shorter than `/treatment-plan`. */
+  return `${base}${POST_VISIT_BLUEPRINT_SHORT_PATH}?${params.toString()}`;
+}
+
+/** Try server persist a few times so we avoid the very long `?d=` fallback when the API is flaky. */
+async function storePostVisitBlueprintOnServerWithRetry(
+  payload: Record<string, unknown>,
+  maxAttempts = 3,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const ok = await storePostVisitBlueprintOnServer(payload);
+    if (ok) return true;
+    if (attempt < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+    }
+  }
+  return false;
 }
 
 function getStorageKey(token: string): string {
@@ -349,6 +376,88 @@ async function getSharedBlueprintHeavyPrep(
   return result;
 }
 
+/** Recommender timelines omitted from the patient blueprint (same labels as the treatment plan UI). */
+const PVB_EXCLUDED_TIMELINES = new Set(["now", "completed"]);
+
+/**
+ * Whether a plan row should appear on Post Visit Blueprint: **Add next visit**, **Wishlist**,
+ * and the Skincare section — not **Now** or **Completed**. Unknown/empty timelines count as wishlist-style.
+ */
+export function isDiscussedItemOnPostVisitBlueprint(item: DiscussedItem): boolean {
+  const treatment = (item.treatment ?? "").trim();
+  if (treatment === "Skincare") return true;
+  const tl = (item.timeline ?? "").trim().toLowerCase();
+  return !PVB_EXCLUDED_TIMELINES.has(tl);
+}
+
+/** Preserve list order; drops Now / Completed treatments only. */
+export function filterDiscussedItemsForPostVisitBlueprint(
+  items: DiscussedItem[],
+): DiscussedItem[] {
+  return items.filter(isDiscussedItemOnPostVisitBlueprint);
+}
+
+/**
+ * Default checkbox state when sharing the patient treatment-plan link:
+ * **Add next visit** and **Skincare** on; **Wishlist** (and empty timeline) off.
+ */
+export function defaultIncludeItemInSharedTreatmentPlanLink(
+  item: DiscussedItem,
+): boolean {
+  if (!isDiscussedItemOnPostVisitBlueprint(item)) return false;
+  if ((item.treatment ?? "").trim() === "Skincare") return true;
+  const t = (item.timeline ?? "").trim();
+  return t === "Add next visit";
+}
+
+function sliceQuoteForPostVisitBlueprint(
+  fullDiscussedItems: DiscussedItem[],
+  quote: {
+    lineItems: CheckoutLineItemDetail[];
+    total: number;
+    totalAfterDiscount: number;
+    hasUnknownPrices: boolean;
+    isMintMember: boolean;
+  },
+  includedDiscussedItemIds?: Set<string> | null,
+): {
+  lineItems: CheckoutLineItemDetail[];
+  total: number;
+  totalAfterDiscount: number;
+  hasUnknownPrices: boolean;
+  isMintMember: boolean;
+} {
+  const order = getQuoteLineDiscussedItemIndexOrder(fullDiscussedItems);
+  const lineItems = quote.lineItems;
+  const bpLineItems: CheckoutLineItemDetail[] = [];
+  const n = Math.min(lineItems.length, order.length);
+  for (let i = 0; i < n; i++) {
+    const d = fullDiscussedItems[order[i]!];
+    if (!d || !isDiscussedItemOnPostVisitBlueprint(d)) continue;
+    if (includedDiscussedItemIds && !includedDiscussedItemIds.has(d.id)) {
+      continue;
+    }
+    bpLineItems.push(lineItems[i]!);
+  }
+  const bpTotal = bpLineItems.reduce((s, l) => s + (l?.price ?? 0), 0);
+  const origTotal = quote.total;
+  const bpTotalAfterDiscount =
+    origTotal > 0
+      ? (quote.totalAfterDiscount / origTotal) * bpTotal
+      : quote.totalAfterDiscount;
+  const hasUnknownPrices = bpLineItems.some(
+    (l) =>
+      l?.displayPrice === "Price varies" || (l?.price === 0 && l?.isEstimate),
+  );
+  return {
+    lineItems: bpLineItems,
+    total: bpTotal,
+    totalAfterDiscount: Math.round(bpTotalAfterDiscount * 100) / 100,
+    hasUnknownPrices,
+    isMintMember: quote.isMintMember,
+  };
+}
+
 /**
  * Start hero-photo + AI prep early (e.g. when Treatment Plan Quote opens with a valid plan).
  * Safe to call repeatedly; work is deduped per client + discussed item ids.
@@ -357,8 +466,9 @@ export function warmPostVisitBlueprintForSend(
   client: Client,
   discussedItems: DiscussedItem[],
 ): void {
-  if (!discussedItems.length) return;
-  void getSharedBlueprintHeavyPrep(client, discussedItems).catch(() => {
+  const bp = filterDiscussedItemsForPostVisitBlueprint(discussedItems);
+  if (!bp.length) return;
+  void getSharedBlueprintHeavyPrep(client, bp).catch(() => {
     /* warm is best-effort */
   });
 }
@@ -370,6 +480,11 @@ export async function createAndStorePostVisitBlueprint(input: {
   providerPhone?: string;
   client: Client;
   discussedItems: DiscussedItem[];
+  /**
+   * When set, only these discussed-item ids appear on the patient link and quote.
+   * Must be a non-empty subset of blueprint-eligible rows after filtering.
+   */
+  includedDiscussedItemIds?: Set<string>;
   /** Treatment recommender "region" filter chips at send time — optional. */
   recommenderFocusRegions?: string[];
   quote: {
@@ -385,12 +500,33 @@ export async function createAndStorePostVisitBlueprint(input: {
     textProviderPhone?: string;
   };
 }): Promise<{ token: string; link: string; payload: PostVisitBlueprintPayload }> {
+  let bpDiscussed = filterDiscussedItemsForPostVisitBlueprint(
+    input.discussedItems,
+  );
+  if (input.includedDiscussedItemIds?.size) {
+    bpDiscussed = bpDiscussed.filter((i) =>
+      input.includedDiscussedItemIds!.has(i.id),
+    );
+  }
+  if (bpDiscussed.length === 0) {
+    throw new Error(
+      "Choose at least one Add next visit, Wishlist, or Skincare item to include on the shared treatment plan.",
+    );
+  }
+  const bpQuote = sliceQuoteForPostVisitBlueprint(
+    input.discussedItems,
+    input.quote,
+    input.includedDiscussedItemIds?.size
+      ? input.includedDiscussedItemIds
+      : null,
+  );
+
   const token = createBlueprintToken();
   const basePhotoUrl = normalizeFrontPhotoUrl(input.client.frontPhoto);
   const attachmentId = extractFrontPhotoAttachmentId(input.client.frontPhoto);
   const { frontPhotoDataUrl, analysisSummary } = await getSharedBlueprintHeavyPrep(
     input.client,
-    input.discussedItems,
+    bpDiscussed,
   );
 
   const payload: PostVisitBlueprintPayload = {
@@ -415,8 +551,8 @@ export async function createAndStorePostVisitBlueprint(input: {
       frontPhotoDataUrl: frontPhotoDataUrl || undefined,
       frontPhotoAttachmentId: attachmentId || undefined,
     },
-    discussedItems: input.discussedItems,
-    quote: input.quote,
+    discussedItems: bpDiscussed,
+    quote: bpQuote,
     cta: input.cta,
     ...(analysisSummary ? { analysisSummary } : {}),
     ...(input.recommenderFocusRegions?.length
@@ -427,7 +563,7 @@ export async function createAndStorePostVisitBlueprint(input: {
   };
   let payloadOut: PostVisitBlueprintPayload = payload;
   localStorage.setItem(getStorageKey(token), JSON.stringify(payloadOut));
-  const storedRemote = await storePostVisitBlueprintOnServer(
+  const storedRemote = await storePostVisitBlueprintOnServerWithRetry(
     payloadOut as unknown as Record<string, unknown>,
   );
   if (storedRemote) {

@@ -16,6 +16,22 @@ import {
   seedTreatmentRecommenderOptions,
   type TreatmentRecommenderOptionType,
 } from "../../services/api";
+import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
+import {
+  getWellnestOfferingByTreatmentName,
+  getWellnestProductOptionsForTreatment,
+  isWellnestWellnessProviderCode,
+  WELLNEST_REGULATORY_NOTICE,
+} from "../../data/wellnestOfferings";
+import {
+  getWellnestExampleTalkingPoints,
+  getWellnestRecommenderImageUrl,
+} from "../../data/wellnestRecommenderPresentation";
+import {
+  getWellnestExternalExamplesForOffering,
+  WELLNEST_EXTERNAL_LINKS_DISCLAIMER,
+  type WellnestExternalExampleKind,
+} from "../../data/wellnestExternalExamples";
 import type { TreatmentRecommenderCustomOption } from "../../services/api";
 import type { AirtableRecord } from "../../services/api";
 import {
@@ -73,7 +89,7 @@ import "./TreatmentRecommenderByTreatment.css";
 import biostimulantsBeforeAfterUrl from "../../assets/images/Biostimulators-Before-and-After-With-Pictures-1.webp";
 
 /** Show the Checkout button in the plan sidebar. Enabled in local/dev (npm run dev); hidden in production. */
-const SHOW_CHECKOUT_BUTTON = true;
+const SHOW_CHECKOUT_BUTTON = import.meta.env.DEV;
 
 /** Map Airtable record to TreatmentPhoto for card thumbnails. */
 function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
@@ -134,15 +150,11 @@ function photoMatchesTreatment(
   const termsToMatch = [t, ...(TREATMENT_PHOTO_ALIASES[treatmentName] ?? [])];
   const inGeneral = (photo.generalTreatments || []).some((g) => {
     const gLower = String(g).toLowerCase();
-    return termsToMatch.some(
-      (term) => gLower.includes(term) || term.includes(gLower),
-    );
+    return termsToMatch.some((term) => gLower.includes(term) || term.includes(gLower));
   });
   const inSpecific = (photo.treatments || []).some((s) => {
     const sLower = String(s).toLowerCase();
-    return termsToMatch.some(
-      (term) => sLower.includes(term) || term.includes(sLower),
-    );
+    return termsToMatch.some((term) => sLower.includes(term) || term.includes(sLower));
   });
   const inName = (photo.name || "").toLowerCase();
   const nameMatch = termsToMatch.some((term) => inName.includes(term));
@@ -372,6 +384,8 @@ export interface TreatmentRecommenderByTreatmentProps {
   treatmentPlanModalClosedRef?: React.MutableRefObject<(() => void) | null>;
   /** Region filter chips — used when sending post-visit blueprint (AI mirror highlights). */
   onRecommenderRegionsChange?: (regions: readonly string[]) => void;
+  /** When set, shows Share next to “{name}'s plan” (same rules as client detail treatment plan). */
+  onShareTreatmentPlan?: () => void;
 }
 
 export default function TreatmentRecommenderByTreatment({
@@ -386,6 +400,7 @@ export default function TreatmentRecommenderByTreatment({
   onRemovePlanItem,
   treatmentPlanModalClosedRef,
   onRecommenderRegionsChange,
+  onShareTreatmentPlan,
 }: TreatmentRecommenderByTreatmentProps) {
   const { provider } = useDashboard();
   /** All options (defaults + custom) from Treatment Recommender Options table; used so providers can remove any option. */
@@ -441,6 +456,10 @@ export default function TreatmentRecommenderByTreatment({
     treatment: string;
     region?: string;
   } | null>(null);
+  /** Full-screen educational overlay for Wellnest peptide cards (no aesthetic before/after gallery). */
+  const [wellnestDetailTreatment, setWellnestDetailTreatment] = useState<
+    string | null
+  >(null);
   const [treatmentPhotos, setTreatmentPhotos] = useState<TreatmentPhoto[]>([]);
   const [clientPhotoView, setClientPhotoView] = useState<"front" | "side">(
     "front",
@@ -467,6 +486,15 @@ export default function TreatmentRecommenderByTreatment({
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [showClientPhotoModal]);
+
+  useEffect(() => {
+    if (!wellnestDetailTreatment) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setWellnestDetailTreatment(null);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [wellnestDetailTreatment]);
 
   useEffect(() => {
     if (!editOptionsContext) return;
@@ -496,13 +524,8 @@ export default function TreatmentRecommenderByTreatment({
 
   useEffect(() => {
     if (client.tableSource !== "Patients") return;
-    if (
-      client.frontPhoto &&
-      Array.isArray(client.frontPhoto) &&
-      client.frontPhoto.length > 0
-    ) {
-      setFrontPhotoUrl(getUrl(client.frontPhoto[0]) ?? null);
-    }
+    const inline = getClientFrontPhotoDisplayUrl(client.frontPhoto);
+    setFrontPhotoUrl(inline);
     let mounted = true;
     fetchTableRecords("Patients", {
       filterFormula: `RECORD_ID() = "${client.id}"`,
@@ -721,15 +744,12 @@ export default function TreatmentRecommenderByTreatment({
   );
   /** Energy Device types are always constrained to pricing-sheet options for the provider (prevents stale custom values like Picosure). */
   const laserWhatOptions = useMemo(
-    () =>
-      getTreatmentProductOptionsForProvider(provider?.code, "Energy Device"),
+    () => getTreatmentProductOptionsForProvider(provider?.code, "Energy Device"),
     [provider?.code],
   );
   /** Records used for rendering Energy Device chips: only pricing-sheet values, with record id when available. */
   const laserWhatDisplayRecords = useMemo(() => {
-    const valueToId = new Map(
-      laserWhatOptionRecords.map((r) => [r.value, r.id]),
-    );
+    const valueToId = new Map(laserWhatOptionRecords.map((r) => [r.value, r.id]));
     return laserWhatOptions.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
@@ -742,15 +762,12 @@ export default function TreatmentRecommenderByTreatment({
   );
   /** Biostimulants types are constrained to pricing-sheet options only (prevents stale values like Ellanse and duplicate variants). */
   const biostimulantWhatOptions = useMemo(
-    () =>
-      getTreatmentProductOptionsForProvider(provider?.code, "Biostimulants"),
+    () => getTreatmentProductOptionsForProvider(provider?.code, "Biostimulants"),
     [provider?.code],
   );
   /** Records used for rendering Biostimulants chips: only pricing-sheet values, with record id when available. */
   const biostimulantDisplayRecords = useMemo(() => {
-    const valueToId = new Map(
-      biostimulantWhatOptionRecords.map((r) => [r.value, r.id]),
-    );
+    const valueToId = new Map(biostimulantWhatOptionRecords.map((r) => [r.value, r.id]));
     return biostimulantWhatOptions.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
@@ -765,18 +782,16 @@ export default function TreatmentRecommenderByTreatment({
   );
   const neurotoxinTypeOptions = useMemo(
     () =>
-      getTreatmentProductOptionsForProvider(
-        provider?.code,
-        "Neurotoxin",
-      ).filter((v) => v !== OTHER_PRODUCT_LABEL),
+      getTreatmentProductOptionsForProvider(provider?.code, "Neurotoxin").filter(
+        (v) => v !== OTHER_PRODUCT_LABEL,
+      ),
     [provider?.code],
   );
   const chemicalPeelTypeOptions = useMemo(
     () =>
-      getTreatmentProductOptionsForProvider(
-        provider?.code,
-        "Chemical Peel",
-      ).filter((v) => v !== OTHER_PRODUCT_LABEL),
+      getTreatmentProductOptionsForProvider(provider?.code, "Chemical Peel").filter(
+        (v) => v !== OTHER_PRODUCT_LABEL,
+      ),
     [provider?.code],
   );
 
@@ -812,10 +827,7 @@ export default function TreatmentRecommenderByTreatment({
   ]);
 
   const suggestedTreatments = useMemo(() => {
-    const withGoals = getSuggestedTreatmentsForFindings(
-      combinedFindings,
-      provider?.code,
-    );
+    const withGoals = getSuggestedTreatmentsForFindings(combinedFindings, provider?.code);
     let names = Array.from(new Set(withGoals.map((s) => s.treatment)));
     // When client has skin quiz recommendations, include Skincare so "Add to plan" from top section has a card to open
     const hasSkinQuizProducts =
@@ -824,7 +836,14 @@ export default function TreatmentRecommenderByTreatment({
     if (hasSkinQuizProducts && !names.includes("Skincare")) {
       names = ["Skincare", ...names];
     }
-    const sameDay = filterTreatmentsBySameDay(names, filterState.sameDayAddOn);
+    let sameDay = filterTreatmentsBySameDay(names, filterState.sameDayAddOn);
+    if (
+      isWellnestWellnessProviderCode(provider?.code) &&
+      sameDay.length === 0 &&
+      names.length > 0
+    ) {
+      sameDay = names;
+    }
     const filtered = filterTreatmentsByRegion(
       sameDay,
       filterState.region,
@@ -988,6 +1007,12 @@ export default function TreatmentRecommenderByTreatment({
   };
 
   const getWhyExplanation = (treatment: string): string => {
+    const wellnestO = getWellnestOfferingByTreatmentName(treatment);
+    if (wellnestO) {
+      const lead =
+        wellnestO.addresses.split(",")[0]?.trim() || wellnestO.category;
+      return `${wellnestO.treatmentName} — ${wellnestO.category}. Often discussed for: ${lead}.`;
+    }
     const relevant = getRelevantFindingsForTreatment(treatment);
     const findingsText =
       relevant.length > 0
@@ -1123,10 +1148,21 @@ export default function TreatmentRecommenderByTreatment({
         </div>
 
         <div className="treatment-recommender-by-treatment__plan-section">
-          <h3 className="treatment-recommender-by-treatment__plan-title">
-            {firstName}&apos;s plan ({planItemCount}{" "}
-            {planItemCount === 1 ? "item" : "items"})
-          </h3>
+          <div className="treatment-recommender-by-treatment__plan-title-row">
+            <h3 className="treatment-recommender-by-treatment__plan-title">
+              {firstName}&apos;s plan ({planItemCount}{" "}
+              {planItemCount === 1 ? "item" : "items"})
+            </h3>
+            {onShareTreatmentPlan ? (
+              <button
+                type="button"
+                className="treatment-recommender-by-treatment__plan-share-btn"
+                onClick={() => onShareTreatmentPlan()}
+              >
+                Share
+              </button>
+            ) : null}
+          </div>
           {planItemCount === 0 ? (
             <p className="treatment-recommender-by-treatment__plan-empty">
               No plan items yet.
@@ -1356,11 +1392,7 @@ export default function TreatmentRecommenderByTreatment({
                       GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result] && (
                         <span className="treatment-recommender-skin-analysis__gemstone">
                           {" "}
-                          ·{" "}
-                          {
-                            GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result]
-                              .emoji
-                          }{" "}
+                          · {GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result].emoji}{" "}
                           {
                             GEMSTONE_BY_SKIN_TYPE[client.skincareQuiz.result]
                               .tagline
@@ -1461,8 +1493,18 @@ export default function TreatmentRecommenderByTreatment({
               </p>
             ) : (
               treatmentsToShow.map((treatment) => {
+                const wellnestOffering =
+                  getWellnestOfferingByTreatmentName(treatment);
                 const cardPhotos = getPhotosForTreatment(treatment);
                 const cardPhoto = cardPhotos[0];
+                const wellnestHeroUrl = wellnestOffering
+                  ? getWellnestRecommenderImageUrl(treatment)
+                  : null;
+                const displayCardPhotoSrc =
+                  wellnestHeroUrl ??
+                  (cardPhoto
+                    ? cardPhoto.thumbnailUrl || cardPhoto.photoUrl
+                    : null);
                 return (
                   <div
                     key={treatment}
@@ -1472,11 +1514,18 @@ export default function TreatmentRecommenderByTreatment({
                     className="treatment-recommender-by-treatment__card"
                   >
                     <div className="treatment-recommender-by-treatment__card-top">
-                      {(cardPhoto || treatment === "Biostimulants") && (
-                        <div className="treatment-recommender-by-treatment__card-photo-wrap">
-                          {cardPhoto ? (
+                      {(displayCardPhotoSrc ||
+                        treatment === "Biostimulants") && (
+                        <div
+                          className={`treatment-recommender-by-treatment__card-photo-wrap${
+                            wellnestOffering
+                              ? " treatment-recommender-by-treatment__card-photo-wrap--wellnest"
+                              : ""
+                          }`}
+                        >
+                          {displayCardPhotoSrc ? (
                             <img
-                              src={cardPhoto.thumbnailUrl || cardPhoto.photoUrl}
+                              src={displayCardPhotoSrc}
                               alt=""
                               className="treatment-recommender-by-treatment__card-photo"
                             />
@@ -1507,6 +1556,45 @@ export default function TreatmentRecommenderByTreatment({
                       detectedIssues={detectedIssues}
                     />
 
+                    {wellnestOffering && (
+                      <div className="treatment-recommender-wellnest-card">
+                        <div className="treatment-recommender-wellnest-card__chips">
+                          <span className="treatment-recommender-wellnest-card__chip">
+                            Timeline: {wellnestOffering.resultsTimeline}
+                          </span>
+                          <span className="treatment-recommender-wellnest-card__chip">
+                            {wellnestOffering.pricing}
+                          </span>
+                        </div>
+                        <div className="treatment-recommender-wellnest-card__grid">
+                          <div>
+                            <h4 className="treatment-recommender-wellnest-card__label">
+                              What it may address
+                            </h4>
+                            <p>{wellnestOffering.addresses}</p>
+                          </div>
+                          <div>
+                            <h4 className="treatment-recommender-wellnest-card__label">
+                              Typical patient profile
+                            </h4>
+                            <p>{wellnestOffering.demographics}</p>
+                          </div>
+                          <div>
+                            <h4 className="treatment-recommender-wellnest-card__label">
+                              Delivery
+                            </h4>
+                            <p>{wellnestOffering.delivery}</p>
+                          </div>
+                          <div>
+                            <h4 className="treatment-recommender-wellnest-card__label">
+                              Supply / protocol notes
+                            </h4>
+                            <p>{wellnestOffering.notes}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="treatment-recommender-by-treatment__card-actions">
                       <div className="treatment-recommender-by-treatment__add-section">
                         {isTreatmentInPlan(treatment) &&
@@ -1528,9 +1616,7 @@ export default function TreatmentRecommenderByTreatment({
                                     skincareCategoryFilter:
                                       treatment === "Skincare" ? [] : undefined,
                                     laserWhat:
-                                      treatment === "Energy Device"
-                                        ? []
-                                        : undefined,
+                                      treatment === "Energy Device" ? [] : undefined,
                                     biostimulantWhat:
                                       treatment === "Biostimulants"
                                         ? []
@@ -1739,7 +1825,62 @@ export default function TreatmentRecommenderByTreatment({
                                 </div>
                               </>
                             )}
-                            {treatment !== "Skincare" && (
+                            {wellnestOffering && (
+                              <div className="treatment-recommender-by-treatment__add-row">
+                                <span className="treatment-recommender-by-treatment__add-row-label">
+                                  Delivery / form:
+                                </span>
+                                <div className="treatment-recommender-by-treatment__chips">
+                                  {getWellnestProductOptionsForTreatment(
+                                    treatment,
+                                  ).map((opt) => {
+                                    const selected =
+                                      (addToPlanForTreatment.product ?? "") ===
+                                      opt;
+                                    return (
+                                      <button
+                                        key={opt}
+                                        type="button"
+                                        className={`treatment-recommender-by-treatment__chip ${
+                                          selected
+                                            ? "treatment-recommender-by-treatment__chip--selected"
+                                            : ""
+                                        }`}
+                                        onClick={() =>
+                                          setAddToPlanForTreatment((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  product: selected ? "" : opt,
+                                                }
+                                              : null,
+                                          )
+                                        }
+                                        title={
+                                          selected ? `Remove ${opt}` : `Select ${opt}`
+                                        }
+                                        aria-label={
+                                          selected ? `Remove ${opt}` : `Select ${opt}`
+                                        }
+                                      >
+                                        <span className="treatment-recommender-by-treatment__chip-label">
+                                          {opt}
+                                        </span>
+                                        {selected && (
+                                          <span
+                                            className="treatment-recommender-by-treatment__chip-remove"
+                                            aria-hidden
+                                          >
+                                            ×
+                                          </span>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            {treatment !== "Skincare" && !wellnestOffering && (
                               <div className="treatment-recommender-by-treatment__add-row">
                                 <span className="treatment-recommender-by-treatment__add-row-label">
                                   {treatment === "Energy Device"
@@ -1860,82 +2001,83 @@ export default function TreatmentRecommenderByTreatment({
                                         );
                                       })
                                     : (treatment === "Microneedling"
-                                        ? [...REGION_OPTIONS_MICRONEEDLING].map(
-                                            (v) => ({ id: "", value: v }),
-                                          )
-                                        : treatment === "Chemical Peel"
-                                          ? [...CHEMICAL_PEEL_AREA_OPTIONS].map(
-                                              (v) => ({
+                                          ? [
+                                              ...REGION_OPTIONS_MICRONEEDLING,
+                                            ].map((v) => ({ id: "", value: v }))
+                                          : treatment === "Chemical Peel"
+                                            ? [...CHEMICAL_PEEL_AREA_OPTIONS].map((v) => ({
                                                 id: "",
                                                 value: v,
-                                              }),
-                                            )
+                                              }))
                                           : whereOptions.map((v) => ({
                                               id: "",
                                               value: v,
                                             }))
-                                      ).map((rec) => {
-                                        const r = rec.value;
-                                        const whereSelected =
-                                          addToPlanForTreatment.where.includes(
-                                            r,
-                                          );
-                                        const recordId = rec.id || null;
-                                        return (
-                                          <button
-                                            key={
-                                              recordId ? String(recordId) : r
-                                            }
-                                            type="button"
-                                            className={`treatment-recommender-by-treatment__chip ${
-                                              whereSelected
-                                                ? "treatment-recommender-by-treatment__chip--selected"
-                                                : ""
-                                            }`}
-                                            onClick={() => {
-                                              setAddToPlanForTreatment(
-                                                (prev) =>
-                                                  prev
-                                                    ? {
-                                                        ...prev,
-                                                        where:
-                                                          prev.where.includes(r)
-                                                            ? prev.where.filter(
-                                                                (x) => x !== r,
-                                                              )
-                                                            : [
-                                                                ...prev.where,
-                                                                r,
-                                                              ],
-                                                      }
-                                                    : null,
-                                              );
-                                            }}
-                                            title={
-                                              whereSelected
-                                                ? `Remove ${r}`
-                                                : `Add ${r}`
-                                            }
-                                            aria-label={
-                                              whereSelected
-                                                ? `Remove ${r}`
-                                                : `Add ${r}`
-                                            }
-                                          >
-                                            <span className="treatment-recommender-by-treatment__chip-label">
-                                              {r}
-                                            </span>
-                                            {whereSelected && (
-                                              <span
-                                                className="treatment-recommender-by-treatment__chip-remove"
-                                                aria-hidden
-                                              >
-                                                ×
+                                        ).map((rec) => {
+                                          const r = rec.value;
+                                          const whereSelected =
+                                            addToPlanForTreatment.where.includes(
+                                              r,
+                                            );
+                                          const recordId = rec.id || null;
+                                          return (
+                                            <button
+                                              key={
+                                                recordId ? String(recordId) : r
+                                              }
+                                              type="button"
+                                              className={`treatment-recommender-by-treatment__chip ${
+                                                whereSelected
+                                                  ? "treatment-recommender-by-treatment__chip--selected"
+                                                  : ""
+                                              }`}
+                                              onClick={() => {
+                                                setAddToPlanForTreatment(
+                                                  (prev) =>
+                                                    prev
+                                                      ? {
+                                                          ...prev,
+                                                          where:
+                                                            prev.where.includes(
+                                                              r,
+                                                            )
+                                                              ? prev.where.filter(
+                                                                  (x) =>
+                                                                    x !== r,
+                                                                )
+                                                              : [
+                                                                  ...prev.where,
+                                                                  r,
+                                                                ],
+                                                        }
+                                                      : null,
+                                                );
+                                              }}
+                                              title={
+                                                whereSelected
+                                                  ? `Remove ${r}`
+                                                  : `Add ${r}`
+                                              }
+                                              aria-label={
+                                                whereSelected
+                                                  ? `Remove ${r}`
+                                                  : `Add ${r}`
+                                              }
+                                            >
+                                              <span className="treatment-recommender-by-treatment__chip-label">
+                                                {r}
                                               </span>
-                                            )}
-                                          </button>
-                                        );
-                                      })}
+                                              {whereSelected && (
+                                                <span
+                                                  className="treatment-recommender-by-treatment__chip-remove"
+                                                  aria-hidden
+                                                >
+                                                  ×
+                                                </span>
+                                              )}
+                                            </button>
+                                          );
+                                        })}
                                   {/* Custom (user-typed) options; click chip to remove */}
                                   {treatment === "Skincare" &&
                                     (addToPlanForTreatment.skincareWhat ?? [])
@@ -2132,14 +2274,10 @@ export default function TreatmentRecommenderByTreatment({
                                           })
                                         }
                                         title={
-                                          selected
-                                            ? `Remove ${opt}`
-                                            : `Add ${opt}`
+                                          selected ? `Remove ${opt}` : `Add ${opt}`
                                         }
                                         aria-label={
-                                          selected
-                                            ? `Remove ${opt}`
-                                            : `Add ${opt}`
+                                          selected ? `Remove ${opt}` : `Add ${opt}`
                                         }
                                       >
                                         <span className="treatment-recommender-by-treatment__chip-label">
@@ -2240,8 +2378,7 @@ export default function TreatmentRecommenderByTreatment({
                                       : chemicalPeelTypeOptions
                                   ).map((opt) => {
                                     const selected =
-                                      (addToPlanForTreatment.product ?? "") ===
-                                      opt;
+                                      (addToPlanForTreatment.product ?? "") === opt;
                                     return (
                                       <button
                                         key={opt}
@@ -2262,14 +2399,10 @@ export default function TreatmentRecommenderByTreatment({
                                           )
                                         }
                                         title={
-                                          selected
-                                            ? `Remove ${opt}`
-                                            : `Select ${opt}`
+                                          selected ? `Remove ${opt}` : `Select ${opt}`
                                         }
                                         aria-label={
-                                          selected
-                                            ? `Remove ${opt}`
-                                            : `Select ${opt}`
+                                          selected ? `Remove ${opt}` : `Select ${opt}`
                                         }
                                       >
                                         <span className="treatment-recommender-by-treatment__chip-label">
@@ -2400,9 +2533,7 @@ export default function TreatmentRecommenderByTreatment({
                                 skincareCategoryFilter:
                                   treatment === "Skincare" ? [] : undefined,
                                 laserWhat:
-                                  treatment === "Energy Device"
-                                    ? []
-                                    : undefined,
+                                  treatment === "Energy Device" ? [] : undefined,
                                 biostimulantWhat:
                                   treatment === "Biostimulants"
                                     ? []
@@ -2427,18 +2558,22 @@ export default function TreatmentRecommenderByTreatment({
                         type="button"
                         className="treatment-recommender-by-treatment__examples-btn"
                         onClick={() =>
-                          setPhotoExplorerContext({
-                            treatment,
-                            region:
-                              filterState.region.length > 0
-                                ? getInternalRegionForFilter(
-                                    filterState.region[0],
-                                  )
-                                : undefined,
-                          })
+                          wellnestOffering
+                            ? setWellnestDetailTreatment(treatment)
+                            : setPhotoExplorerContext({
+                                treatment,
+                                region:
+                                  filterState.region.length > 0
+                                    ? getInternalRegionForFilter(
+                                        filterState.region[0],
+                                      )
+                                    : undefined,
+                              })
                         }
                       >
-                        View examples
+                        {wellnestOffering
+                          ? "Overview & examples"
+                          : "View examples"}
                       </button>
                     </div>
                   </div>
@@ -2448,6 +2583,138 @@ export default function TreatmentRecommenderByTreatment({
           </div>
         </div>
       </div>
+
+      {wellnestDetailTreatment &&
+        (() => {
+          const detailOffering = getWellnestOfferingByTreatmentName(
+            wellnestDetailTreatment,
+          );
+          if (!detailOffering) return null;
+          const detailImg = getWellnestRecommenderImageUrl(
+            wellnestDetailTreatment,
+          );
+          const talking = getWellnestExampleTalkingPoints(detailOffering);
+          const externalExamples =
+            getWellnestExternalExamplesForOffering(detailOffering);
+          const externalKindLabel = (k: WellnestExternalExampleKind) => {
+            switch (k) {
+              case "news":
+                return "News";
+              case "youtube":
+                return "YouTube";
+              case "reddit":
+                return "Reddit";
+              case "podcast":
+                return "Podcast";
+              case "government":
+                return "Gov";
+              case "research":
+                return "Research";
+              case "investigation":
+                return "Report";
+            }
+          };
+          return (
+            <div
+              className="wellnest-recommender-info-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="wellnest-recommender-info-title"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setWellnestDetailTreatment(null);
+                }
+              }}
+            >
+              <div
+                className="wellnest-recommender-info-dialog"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="wellnest-recommender-info-close"
+                  aria-label="Close"
+                  onClick={() => setWellnestDetailTreatment(null)}
+                >
+                  ×
+                </button>
+                <img
+                  className="wellnest-recommender-info-hero"
+                  src={detailImg}
+                  alt=""
+                />
+                <div className="wellnest-recommender-info-body">
+                  <h2 id="wellnest-recommender-info-title">
+                    {detailOffering.treatmentName}
+                  </h2>
+                  <p className="wellnest-recommender-info-category">
+                    {detailOffering.category}
+                  </p>
+                  <dl className="wellnest-recommender-info-dl">
+                    <dt>Typical timeline</dt>
+                    <dd>{detailOffering.resultsTimeline}</dd>
+                    <dt>Price guide (from sheet)</dt>
+                    <dd>{detailOffering.pricing}</dd>
+                    <dt>Delivery options</dt>
+                    <dd>{detailOffering.delivery}</dd>
+                    <dt>Often discussed for</dt>
+                    <dd>{detailOffering.demographics}</dd>
+                    <dt>Supply / protocol notes</dt>
+                    <dd>{detailOffering.notes}</dd>
+                  </dl>
+                  <h3 className="wellnest-recommender-info-subhead">
+                    What it may address
+                  </h3>
+                  <p className="wellnest-recommender-info-para">
+                    {detailOffering.addresses}
+                  </p>
+                  <h3 className="wellnest-recommender-info-subhead">
+                    Example talking points (education only)
+                  </h3>
+                  <ul className="wellnest-recommender-info-bullets">
+                    {talking.map((line, i) => (
+                      <li key={`${i}-${line.slice(0, 40)}`}>{line}</li>
+                    ))}
+                  </ul>
+                  <h3 className="wellnest-recommender-info-subhead">
+                    Third-party perspectives (open web)
+                  </h3>
+                  <p className="wellnest-recommender-info-para wellnest-recommender-info-para--compact">
+                    {WELLNEST_EXTERNAL_LINKS_DISCLAIMER}
+                  </p>
+                  <ul className="wellnest-recommender-info-external">
+                    {externalExamples.map((ex) => (
+                      <li key={ex.id}>
+                        <span
+                          className="wellnest-recommender-info-external-kind"
+                          title={ex.kind}
+                        >
+                          {externalKindLabel(ex.kind)}
+                        </span>
+                        <a
+                          href={ex.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="wellnest-recommender-info-external-link"
+                        >
+                          {ex.title}
+                        </a>
+                        {ex.note ? (
+                          <span className="wellnest-recommender-info-external-note">
+                            {ex.note}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="wellnest-recommender-info-disclaimer">
+                    {WELLNEST_REGULATORY_NOTICE}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {photoExplorerContext && (
         <TreatmentPhotosModal

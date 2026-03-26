@@ -16,7 +16,7 @@ import {
   OTHER_FINDING_LABEL,
   OTHER_PRODUCT_LABEL,
   SEE_ALL_OPTIONS_LABEL,
-  TREATMENT_POSTCARE,
+  resolveTreatmentPostcare,
   ALL_INTEREST_OPTIONS,
   OTHER_TREATMENT_LABEL,
   getTreatmentOptionsForProvider,
@@ -52,7 +52,9 @@ import TreatmentPhotos, {
   type TreatmentPlanPrefill,
 } from "./TreatmentPhotos";
 import ShareTreatmentPlanModal from "../ShareTreatmentPlanModal";
+import ShareTreatmentPlanLinkModal from "../ShareTreatmentPlanLinkModal";
 import TreatmentPlanCheckoutModal from "../TreatmentPlanCheckoutModal";
+import { isPostVisitBlueprintSender } from "../../../utils/providerHelpers";
 import "./index.css";
 
 export default function DiscussedTreatmentsModal({
@@ -576,6 +578,8 @@ export default function DiscussedTreatmentsModal({
   /** Treatment photos browser state */
   const [showPhotoBrowser, setShowPhotoBrowser] = useState(false);
   const [showShareTreatmentPlan, setShowShareTreatmentPlan] = useState(false);
+  const [showShareTreatmentPlanLink, setShowShareTreatmentPlanLink] =
+    useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [photoBrowserTreatment, setPhotoBrowserTreatment] =
     useState<string>("");
@@ -1498,7 +1502,12 @@ export default function DiscussedTreatmentsModal({
       >
         <DiscussedTreatmentsModalHeader
           clientName={client.name?.split(" ")[0] || "patient"}
-          onShare={() => setShowShareTreatmentPlan(true)}
+          showShare={items.length > 0}
+          onShare={() =>
+            isPostVisitBlueprintSender(provider)
+              ? setShowShareTreatmentPlanLink(true)
+              : setShowShareTreatmentPlan(true)
+          }
           onClose={handleCloseImmediate}
           onViewExamples={() => {
             const sel = selectedPlanItemId
@@ -2357,75 +2366,74 @@ export default function DiscussedTreatmentsModal({
                             ) : null}
 
                             {/* Post care for [treatment] – instructions + suggested products */}
-                            {TREATMENT_POSTCARE[sel.treatment] && (
-                              <div className="discussed-treatments-detail-section discussed-treatments-postcare-section">
-                                <h4 className="discussed-treatments-detail-section-title">
-                                  Post care for {sel.treatment}
-                                </h4>
-                                <div className="discussed-treatments-postcare-actions">
-                                  <button
-                                    type="button"
-                                    className="discussed-treatments-postcare-send-btn"
-                                    onClick={() => {
-                                      const pc =
-                                        TREATMENT_POSTCARE[sel.treatment];
-                                      if (pc)
+                            {(() => {
+                              const pc = resolveTreatmentPostcare(sel.treatment);
+                              if (!pc) return null;
+                              return (
+                                <div className="discussed-treatments-detail-section discussed-treatments-postcare-section">
+                                  <h4 className="discussed-treatments-detail-section-title">
+                                    Post care for {sel.treatment}
+                                  </h4>
+                                  <div className="discussed-treatments-postcare-actions">
+                                    <button
+                                      type="button"
+                                      className="discussed-treatments-postcare-send-btn"
+                                      onClick={() => {
                                         setPostCareModal({
                                           treatment: sel.treatment,
                                           label: pc.sendInstructionsLabel,
                                           instructionsText: pc.instructionsText,
                                         });
-                                    }}
-                                  >
-                                    {
-                                      TREATMENT_POSTCARE[sel.treatment]
-                                        .sendInstructionsLabel
-                                    }
-                                  </button>
-                                  {TREATMENT_POSTCARE[sel.treatment]
-                                    .suggestedProducts.length > 0 && (
-                                    <div className="discussed-treatments-postcare-suggested">
-                                      <span className="discussed-treatments-postcare-suggested-label">
-                                        Patients often add:
-                                      </span>
-                                      <div className="discussed-treatments-postcare-chips">
-                                        {TREATMENT_POSTCARE[
-                                          sel.treatment
-                                        ].suggestedProducts.map((product) => {
-                                          const added =
-                                            isSuggestedProductInPlan(product);
-                                          return (
-                                            <button
-                                              key={product}
-                                              type="button"
-                                              className={`discussed-treatments-postcare-chip${
-                                                added ? " added" : ""
-                                              }`}
-                                              onClick={() =>
-                                                handleAddSuggestedProduct(
-                                                  sel.treatment,
-                                                  product
-                                                )
-                                              }
-                                              disabled={added}
-                                              aria-pressed={added}
-                                              title={
-                                                added
-                                                  ? "Already in plan"
-                                                  : `Add ${product}`
-                                              }
-                                            >
-                                              {added ? "✓ " : "+ "}
-                                              {product}
-                                            </button>
-                                          );
-                                        })}
+                                      }}
+                                    >
+                                      {pc.sendInstructionsLabel}
+                                    </button>
+                                    {pc.suggestedProducts.length > 0 && (
+                                      <div className="discussed-treatments-postcare-suggested">
+                                        <span className="discussed-treatments-postcare-suggested-label">
+                                          Patients often add:
+                                        </span>
+                                        <div className="discussed-treatments-postcare-chips">
+                                          {pc.suggestedProducts.map(
+                                            (product) => {
+                                              const added =
+                                                isSuggestedProductInPlan(
+                                                  product,
+                                                );
+                                              return (
+                                                <button
+                                                  key={product}
+                                                  type="button"
+                                                  className={`discussed-treatments-postcare-chip${
+                                                    added ? " added" : ""
+                                                  }`}
+                                                  onClick={() =>
+                                                    handleAddSuggestedProduct(
+                                                      sel.treatment,
+                                                      product,
+                                                    )
+                                                  }
+                                                  disabled={added}
+                                                  aria-pressed={added}
+                                                  title={
+                                                    added
+                                                      ? "Already in plan"
+                                                      : `Add ${product}`
+                                                  }
+                                                >
+                                                  {added ? "✓ " : "+ "}
+                                                  {product}
+                                                </button>
+                                              );
+                                            },
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
                           </div>
                         </>
                       ) : (
@@ -5902,7 +5910,7 @@ export default function DiscussedTreatmentsModal({
                                 ? form.otherTreatment.trim()
                                 : null);
                             const pc =
-                              currentTx && TREATMENT_POSTCARE[currentTx];
+                              currentTx && resolveTreatmentPostcare(currentTx);
                             if (!pc) return null;
                             return (
                               <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
@@ -6201,75 +6209,71 @@ export default function DiscussedTreatmentsModal({
                         />
                       </div>
                       {/* Post care for [treatment] (treatment mode) */}
-                      {TREATMENT_POSTCARE[selectedTreatmentFirst] && (
-                        <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
-                          <h4 className="discussed-treatments-detail-section-title">
-                            Post care for {selectedTreatmentFirst}
-                          </h4>
-                          <div className="discussed-treatments-postcare-actions">
-                            <button
-                              type="button"
-                              className="discussed-treatments-postcare-send-btn"
-                              onClick={() => {
-                                const pc =
-                                  TREATMENT_POSTCARE[selectedTreatmentFirst];
-                                if (pc)
+                      {(() => {
+                        const pc =
+                          resolveTreatmentPostcare(selectedTreatmentFirst);
+                        if (!pc) return null;
+                        return (
+                          <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
+                            <h4 className="discussed-treatments-detail-section-title">
+                              Post care for {selectedTreatmentFirst}
+                            </h4>
+                            <div className="discussed-treatments-postcare-actions">
+                              <button
+                                type="button"
+                                className="discussed-treatments-postcare-send-btn"
+                                onClick={() =>
                                   setPostCareModal({
                                     treatment: selectedTreatmentFirst,
                                     label: pc.sendInstructionsLabel,
                                     instructionsText: pc.instructionsText,
-                                  });
-                              }}
-                            >
-                              {
-                                TREATMENT_POSTCARE[selectedTreatmentFirst]
-                                  .sendInstructionsLabel
-                              }
-                            </button>
-                            {TREATMENT_POSTCARE[selectedTreatmentFirst]
-                              .suggestedProducts.length > 0 && (
-                              <div className="discussed-treatments-postcare-suggested">
-                                <span className="discussed-treatments-postcare-suggested-label">
-                                  Patients often add:
-                                </span>
-                                <div className="discussed-treatments-postcare-chips">
-                                  {TREATMENT_POSTCARE[
-                                    selectedTreatmentFirst
-                                  ].suggestedProducts.map((product) => {
-                                    const added =
-                                      isSuggestedProductInPlan(product);
-                                    return (
-                                      <button
-                                        key={product}
-                                        type="button"
-                                        className={`discussed-treatments-postcare-chip${
-                                          added ? " added" : ""
-                                        }`}
-                                        onClick={() =>
-                                          handleAddSuggestedProduct(
-                                            selectedTreatmentFirst,
-                                            product
-                                          )
-                                        }
-                                        disabled={added}
-                                        aria-pressed={added}
-                                        title={
-                                          added
-                                            ? "Already in plan"
-                                            : `Add ${product}`
-                                        }
-                                      >
-                                        {added ? "✓ " : "+ "}
-                                        {product}
-                                      </button>
-                                    );
-                                  })}
+                                  })
+                                }
+                              >
+                                {pc.sendInstructionsLabel}
+                              </button>
+                              {pc.suggestedProducts.length > 0 && (
+                                <div className="discussed-treatments-postcare-suggested">
+                                  <span className="discussed-treatments-postcare-suggested-label">
+                                    Patients often add:
+                                  </span>
+                                  <div className="discussed-treatments-postcare-chips">
+                                    {pc.suggestedProducts.map((product) => {
+                                      const added =
+                                        isSuggestedProductInPlan(product);
+                                      return (
+                                        <button
+                                          key={product}
+                                          type="button"
+                                          className={`discussed-treatments-postcare-chip${
+                                            added ? " added" : ""
+                                          }`}
+                                          onClick={() =>
+                                            handleAddSuggestedProduct(
+                                              selectedTreatmentFirst,
+                                              product,
+                                            )
+                                          }
+                                          disabled={added}
+                                          aria-pressed={added}
+                                          title={
+                                            added
+                                              ? "Already in plan"
+                                              : `Add ${product}`
+                                          }
+                                        >
+                                          {added ? "✓ " : "+ "}
+                                          {product}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                       <button
                         type="button"
                         className="btn-primary discussed-treatments-add-btn"
@@ -6388,6 +6392,17 @@ export default function DiscussedTreatmentsModal({
             onClose={() => setShowShareTreatmentPlan(false)}
             onSuccess={() => {
               setShowShareTreatmentPlan(false);
+              onUpdate();
+            }}
+          />
+        )}
+        {showShareTreatmentPlanLink && (
+          <ShareTreatmentPlanLinkModal
+            client={client}
+            discussedItems={items}
+            onClose={() => setShowShareTreatmentPlanLink(false)}
+            onSuccess={() => {
+              setShowShareTreatmentPlanLink(false);
               onUpdate();
             }}
           />

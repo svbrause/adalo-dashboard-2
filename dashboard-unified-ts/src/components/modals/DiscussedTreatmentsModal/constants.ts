@@ -13,6 +13,12 @@ import {
   getFillerTypesFromPriceList,
   getBiostimulantsTypesFromPriceList,
 } from "../../../data/treatmentPricing2025";
+import {
+  getWellnestOfferingByTreatmentName,
+  getWellnestProductOptionsForTreatment,
+  getWellnestTreatmentOptionNames,
+  isWellnestWellnessProviderCode,
+} from "../../../data/wellnestOfferings";
 
 export const AIRTABLE_FIELD = "Treatments Discussed";
 export const OTHER_LABEL = "Other";
@@ -526,6 +532,27 @@ export const TREATMENT_POSTCARE: Record<
   },
 };
 
+const WELLNEST_PEPTIDE_POSTCARE: (typeof TREATMENT_POSTCARE)[string] = {
+  sendInstructionsLabel: "Send peptide counseling notes",
+  instructionsText: `Peptide therapy — patient education
+
+• Follow your clinician's dosing and route instructions exactly
+• Store and handle per pharmacy labeling (often refrigerated when indicated)
+• Report injection-site reactions, fever, or unexpected symptoms promptly
+• For use under medical supervision only`,
+  suggestedProducts: [],
+};
+
+export function resolveTreatmentPostcare(
+  treatment: string | undefined,
+): (typeof TREATMENT_POSTCARE)[string] | undefined {
+  if (!treatment?.trim()) return undefined;
+  const direct = TREATMENT_POSTCARE[treatment];
+  if (direct) return direct;
+  if (getWellnestOfferingByTreatmentName(treatment)) return WELLNEST_PEPTIDE_POSTCARE;
+  return undefined;
+}
+
 /** Map goal (interest) → suggested region(s). */
 export const GOAL_TO_REGIONS: { keywords: string[]; regions: string[] }[] = [
   { keywords: ["lip", "lips"], regions: ["Lips"] },
@@ -753,6 +780,9 @@ export const OTHER_TREATMENT_LABEL = "Other";
 
 /** Treatment options for the current provider. When provider is TheTreatment250, only categories that exist in the 2025 pricing sheet are returned. */
 export function getTreatmentOptionsForProvider(providerCode: string | undefined): string[] {
+  if (isWellnestWellnessProviderCode(providerCode)) {
+    return getWellnestTreatmentOptionNames();
+  }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...ALL_TREATMENTS];
   return ALL_TREATMENTS.filter((t) =>
     (TREATMENT_CATEGORIES_IN_PRICE_LIST as readonly string[]).includes(t),
@@ -764,6 +794,9 @@ export function getTreatmentProductOptionsForProvider(
   providerCode: string | undefined,
   treatment: string,
 ): string[] {
+  if (isWellnestWellnessProviderCode(providerCode)) {
+    return getWellnestProductOptionsForTreatment(treatment);
+  }
   const base = TREATMENT_PRODUCT_OPTIONS[treatment];
   if (!base) return [];
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...base];
@@ -949,6 +982,12 @@ export function getCheckoutTreatmentTypeOptionsForProvider(
   providerCode: string | undefined,
 ): Record<string, string[]> {
   const base = { ...CHECKOUT_TREATMENT_TYPE_OPTIONS };
+  if (isWellnestWellnessProviderCode(providerCode)) {
+    for (const name of getWellnestTreatmentOptionNames()) {
+      base[name] = getWellnestProductOptionsForTreatment(name);
+    }
+    return base;
+  }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return base;
   base["Energy Device"] = getTreatmentProductOptionsForProvider(providerCode, "Energy Device");
   return base;

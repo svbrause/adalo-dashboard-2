@@ -6,12 +6,13 @@ export function isValidEmail(email: string): boolean {
   return emailRegex.test(email.trim());
 }
 
+/** US-only for now: accept 10 digits or 11 with leading country code 1 (+1 is appended on send). */
 export function isValidPhone(phone: string): boolean {
   if (!phone) return false;
-  // Remove all non-digits
-  const cleaned = phone.replace(/\D/g, '');
-  // US phone numbers should be 10 digits
-  return cleaned.length === 10;
+  const cleaned = phone.replace(/\D/g, "");
+  if (cleaned.length === 10) return true;
+  if (cleaned.length === 11 && cleaned.startsWith("1")) return true;
+  return false;
 }
 
 export function isValidZipCode(zipCode: string): boolean {

@@ -81,7 +81,7 @@ function AppContent() {
   if (isSkinQuizStandalonePath()) {
     return <SkinQuizStandalonePage />;
   }
-  // Public post-visit blueprint (unique link from SMS) – no login
+  // Public shared treatment plan (`/tp`, `/treatment-plan`, legacy `/post-visit-blueprint`) – no login
   if (isPostVisitBlueprintPath()) {
     return <PostVisitBlueprintPage />;
   }

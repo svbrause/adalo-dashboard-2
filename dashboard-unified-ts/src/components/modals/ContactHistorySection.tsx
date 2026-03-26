@@ -1,6 +1,7 @@
 // Contact History Section Component
 
 import { useState } from 'react';
+import { useDashboard } from '../../context/DashboardContext';
 import { Client, ContactHistoryEntry } from '../../types';
 import { formatRelativeDate } from '../../utils/dateFormatting';
 import { formatFacialStatus } from '../../utils/statusFormatting';
@@ -15,6 +16,7 @@ interface ContactHistorySectionProps {
 }
 
 export default function ContactHistorySection({ client, onUpdate }: ContactHistorySectionProps) {
+  const { provider } = useDashboard();
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
     type: 'call' as 'call' | 'email' | 'text' | 'meeting',
@@ -119,7 +121,7 @@ export default function ContactHistorySection({ client, onUpdate }: ContactHisto
       leadId: client.id,
       type: 'facial-analysis' as any,
       outcome: 'reached',
-      notes: `Facial analysis status: ${formatFacialStatus(client.facialAnalysisStatus)}`,
+      notes: `Facial analysis status: ${formatFacialStatus(client.facialAnalysisStatus, provider?.code)}`,
       date: client.createdAt || new Date().toISOString(),
     });
   }
@@ -212,7 +214,7 @@ export default function ContactHistorySection({ client, onUpdate }: ContactHisto
                     <span className="contact-date">{formatRelativeDate(entry.date)}</span>
                   </div>
                   <div className="contact-outcome">
-                    Status: {formatFacialStatus((entry as any).status || client.facialAnalysisStatus)}
+                    Status: {formatFacialStatus((entry as any).status || client.facialAnalysisStatus, provider?.code)}
                   </div>
                   {entry.notes && (
                     <div 

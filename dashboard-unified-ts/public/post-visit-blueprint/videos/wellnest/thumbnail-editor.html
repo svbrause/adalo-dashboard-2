@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wellnest thumbnail editor – edit & export</title>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --mint: #63D4AC;
+      --teal: #4ab896;
+      --charcoal: #232323;
+      --gray: #7D8180;
+      --light-mint: #d4f0e6;
+      --cream: #f7faf9;
+      --border: #e5e8e7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #111;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 8px 0; }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .toolbar label { display: flex; align-items: center; gap: 8px; }
+    .toolbar select {
+      padding: 8px 12px;
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .btn {
+      padding: 10px 18px;
+      background: var(--mint);
+      color: var(--charcoal);
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn:hover { filter: brightness(1.1); }
+    .btn-export {
+      background: var(--teal);
+      color: #fff;
+    }
+    .slide-container {
+      display: inline-block;
+      transform-origin: 0 0;
+      margin-bottom: 24px;
+    }
+    .slide {
+      width: 1280px;
+      height: 720px;
+      position: relative;
+      overflow: hidden;
+      border: none; /* export should not include an extra border line */
+      border-radius: 8px;
+    }
+    .slide-face {
+      position: absolute;
+      width: 48%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 45% 15%;
+      transform: scale(1.42);
+      transform-origin: 50% 30%;
+      z-index: 1;
+    }
+    .slide-face.left { left: 0; }
+    .slide-face.right { right: 0; }
+    .slide-glow {
+      position: absolute;
+      width: 40px;
+      height: 100%;
+      pointer-events: none;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%);
+      z-index: 2;
+      display: none; /* remove white edge treatment (requested) */
+    }
+    .slide-glow.left { left: calc(48% - 20px); }
+    .slide-glow.right { right: calc(52% - 20px); background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%); transform: scaleX(-1); }
+    .slide-panel {
+      position: absolute;
+      width: 52%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 64px 48px;
+      z-index: 3;
+    }
+    .slide-panel.left { left: 0; }
+    .slide-panel.right { right: 0; }
+    .slide-line {
+      color: #fff;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-weight: 900;
+      margin: 0;
+      outline: none;
+      line-height: 1.2;
+    }
+    .slide-line.dark { color: var(--charcoal); }
+    .slide-line.gray { color: var(--gray); }
+    .slide-banner {
+      display: inline-block;
+      padding: 16px 28px;
+      border-radius: 10px;
+      margin: 10px 0;
+      color: #fff;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-weight: 900;
+      font-size: 52px;
+      outline: none;
+      max-width: fit-content;
+    }
+    .slide-banner-block {
+      display: inline-block;
+      padding: 18px 28px;
+      border-radius: 12px;
+      margin: 6px 0;
+      color: #fff;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-weight: 900;
+      font-size: 52px;
+      outline: none;
+    }
+    .slide-banner-block + .slide-banner-block { margin-top: 8px; }
+    .slide-arrow {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-bottom: 8px solid var(--mint);
+      border-right: 8px solid var(--mint);
+      transform: rotate(-45deg);
+      bottom: 30%;
+      z-index: 4;
+      display: none; /* remove arrow (requested) */
+    }
+    .slide-arrow.left { left: calc(50% - 80px); }
+    .slide-arrow.right { right: calc(50% - 80px); transform: rotate(135deg); }
+    .slide-border { box-shadow: none; } /* remove white line/border treatment */
+    .slide-actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .slide-actions input[type="color"] { width: 36px; height: 36px; padding: 2px; cursor: pointer; border: none; border-radius: 6px; }
+    .zoom-control { display: flex; align-items: center; gap: 8px; }
+    .zoom-control input { width: 120px; }
+
+    /* Vial stock icons (simple vector look) */
+    .vial-row {
+      position: absolute;
+      bottom: 62px;
+      display: flex;
+      gap: 26px;
+      align-items: flex-end;
+      pointer-events: none;
+      z-index: 4;
+    }
+    .vial-row.left { left: 64px; }
+    .vial-row.right { right: 64px; }
+    .vial-row.center {
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+    }
+    .vial {
+      width: 96px;
+      height: 156px;
+      border-radius: 22px;
+      background: transparent;
+      position: relative;
+      overflow: hidden;
+    }
+    .vial-photo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* crop to remove excess whitespace */
+      object-position: 50% 30%;
+      display: block;
+    }
+    .vial-badge {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-weight: 900;
+      font-size: 26px;
+      line-height: 1;
+      color: #fff;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+    }
+    .vial-badge.x {
+      background: #7D8180;
+    }
+    .vial-badge.check {
+      background: var(--mint);
+      color: #232323;
+    }
+  </style>
+</head>
+<body>
+  <h1>Wellnest thumbnail editor</h1>
+  <p style="margin: 0 0 16px 0; color: #999; font-size: 14px;">Edit text on each slide, then click Export to download as PNG (1280×720). Save as <code>video-reddy-N.png</code> in <code>public/wellnest/thumbnails/</code>.</p>
+  <div class="toolbar">
+    <label>Slide <select id="slideSelect"></select></label>
+    <div class="zoom-control">
+      <label>Zoom <input type="range" id="zoom" min="25" max="100" value="50" /> <span id="zoomVal">50%</span></label>
+    </div>
+  </div>
+  <div id="slides"></div>
+
+  <script>
+    const W = 1280, H = 720;
+    const IMG_SRC = 'Dr-Reddy-qr-code.png';
+
+    const SLIDES = [
+      { style: 'A', face: 'right', top: 'PEPTIDES 101', highlight: 'WHAT ARE THEY?', bottom: '', panelBg: '#232323', bannerColor: '#63D4AC' },
+      { style: 'B', face: 'right', line1: 'PEPTIDES', line2: 'WORK LIKE SIGNALS', panelBg: '#d4f0e6', line2Bg: '#63D4AC', arrow: true },
+      { style: 'C', face: 'left', big: 'WHY', small: 'PEPTIDES ARE TRENDING', panelBg: '#4ab896', border: true },
+      { style: 'A', face: 'right', top: 'FDA', highlight: 'APPROVED??', bottom: '', panelBg: '#232323', bannerColor: '#63D4AC' },
+      { style: 'B', face: 'left', line1: '3 MYTHS', line2: 'BUSTED', panelBg: '#232323', line2Bg: '#63D4AC', arrow: true },
+      { style: 'C', face: 'right', big: 'WHERE', small: 'RESEARCH IS GOING', panelBg: '#4ab896', border: true },
+      { style: 'A', face: 'right', top: 'RIGHT', highlight: 'FOR YOU?', bottom: '', panelBg: '#232323', bannerColor: '#63D4AC' },
+      { style: 'C', face: 'left', big: 'METABOLISM', small: 'BOOST', panelBg: '#d4f0e6', bigColor: '#232323', smallColor: '#7D8180', border: true },
+      { style: 'A', face: 'right', top: 'SKINCARE', highlight: 'PEPTIDES', bottom: 'WHICH ONE?', panelBg: '#232323', bannerColor: '#63D4AC' },
+      { style: 'B', face: 'right', line1: 'RECOVERY', line2: 'STACK EXPLAINED', panelBg: '#d4f0e6', line2Bg: '#63D4AC', arrow: true },
+      { style: 'A', face: 'right', top: 'SKIN', highlight: 'REGENERATION?', bottom: '', panelBg: '#232323', bannerColor: '#63D4AC' },
+      { style: 'C', face: 'left', big: 'PEPTIDES', small: 'FOR METABOLISM', panelBg: '#4ab896', border: true },
+      { style: 'B', face: 'left', line1: "DR. REDDY'S", line2: 'PEPTIDE GUIDE', panelBg: '#4ab896', line2Bg: '#63D4AC' },
+      { style: 'A', face: 'right', top: 'FOCUS', highlight: '& CALM', bottom: '', panelBg: '#232323', bannerColor: '#63D4AC' },
+      { style: 'C', face: 'right', big: 'STUBBORN', small: 'FAT?', panelBg: '#4ab896', border: true },
+      { style: 'A', face: 'right', top: 'THE', highlight: 'EPITALON', bottom: 'STORY', panelBg: '#232323', bannerColor: '#63D4AC' },
+    ];
+
+    function buildVials(data, panelSide, i) {
+      // Vary vial layout by slide index (to avoid always showing the same row).
+      const preset = [
+        { mode: 'three', pos: 'panel', bottom: 74, gap: 30, scale: 1 },
+        { mode: 'two', pos: 'panel', bottom: 66, gap: 22, scale: 1.08 },
+        { mode: 'one', oneType: 'check', pos: 'center', bottom: 72, scale: 1.15 },
+        { mode: 'three', pos: 'panel', bottom: 92, gap: 28, scale: 1 },
+        { mode: 'two', pos: 'panel', bottom: 78, gap: 24, scale: 1 },
+        { mode: 'none' },
+        { mode: 'three', pos: 'panel', bottom: 70, gap: 26, scale: 0.95 },
+        { mode: 'one', oneType: 'check', pos: 'panel', bottom: 62, scale: 1.1 },
+        { mode: 'three', pos: 'center', bottom: 74, gap: 30, scale: 1 },
+        { mode: 'two', pos: 'panel', bottom: 54, gap: 20, scale: 1 },
+        { mode: 'three', pos: 'panel', bottom: 66, gap: 28, scale: 1 },
+        { mode: 'none' },
+        { mode: 'one', oneType: 'x', pos: 'panel', bottom: 66, scale: 1.15 },
+        { mode: 'two', pos: 'center', bottom: 74, gap: 22, scale: 1 },
+        { mode: 'three', pos: 'panel', bottom: 66, gap: 28, scale: 0.95 },
+        { mode: 'one', oneType: 'check', pos: 'center', bottom: 72, scale: 1.15 },
+      ];
+
+      const p = preset[i] || { mode: 'three' };
+      const mode = data.vialMode || p.mode;
+      if (mode === 'none') return '';
+
+      const pos = data.vialPos || p.pos;
+      const rowClass = pos === 'center' ? 'center' : panelSide;
+
+      const vialBottom = data.vialBottom ?? p.bottom ?? 62;
+      const vialGap = data.vialGap ?? p.gap ?? 26;
+      const vialScale = data.vialScale ?? p.scale ?? 1;
+      const vialW = Math.round(96 * vialScale);
+      const vialH = Math.round(156 * vialScale);
+      const vialStyle = `width:${vialW}px;height:${vialH}px;`;
+
+      const mkVial = (type) => {
+        if (type === 'x') {
+          return `
+            <div class="vial" style="${vialStyle}">
+              <img class="vial-photo" src="/wellnest/thumbnails/vials/vial-1.png" alt="" />
+              <div class="vial-badge x">X</div>
+            </div>
+          `;
+        }
+        if (type === 'check') {
+          return `
+            <div class="vial" style="${vialStyle}">
+              <img class="vial-photo" src="/wellnest/thumbnails/vials/vial-3.png" alt="" />
+              <div class="vial-badge check">✓</div>
+            </div>
+          `;
+        }
+        return `
+          <div class="vial" style="${vialStyle}">
+            <img class="vial-photo" src="/wellnest/thumbnails/vials/vial-2.png" alt="" />
+          </div>
+        `;
+      };
+
+      let types = [];
+      if (mode === 'three') types = ['x', 'neutral', 'check'];
+      else if (mode === 'two') types = ['x', 'check'];
+      else if (mode === 'one') {
+        const oneType = data.vialOneType || p.oneType || 'check';
+        types = [oneType === 'neutral' ? 'neutral' : oneType === 'x' ? 'x' : 'check'];
+      }
+
+      const rowStyle = `bottom:${vialBottom}px; gap:${vialGap}px;`;
+      return `
+        <div class="vial-row ${rowClass}" style="${rowStyle}">
+          ${types.map(mkVial).join('')}
+        </div>
+      `;
+    }
+
+    function renderSlide(data, i) {
+      const panelSide = data.face === 'right' ? 'left' : 'right';
+      const panelStyle = `background:${data.panelBg || '#232323'}`;
+      const borderClass = ''; /* remove border/white line (requested) */
+      const vialHTML = ''; /* vials removed from bottom (requested) */
+
+      let panelHtml = '';
+      if (data.style === 'A') {
+        panelHtml = `
+          <p class="slide-line" style="font-size:76px;color:#fff;" contenteditable="true" data-field="top">${escapeHtml(data.top || '')}</p>
+          <div class="slide-banner" style="background:${data.bannerColor || '#63D4AC'};font-size:68px;padding:18px 28px;border-radius:14px;" contenteditable="true" data-field="highlight">${escapeHtml(data.highlight || '')}</div>
+          ${(data.bottom !== undefined && data.bottom !== '') ? `<p class="slide-line" style="font-size:56px;color:#fff;margin-top:16px;letter-spacing:0.2px;" contenteditable="true" data-field="bottom">${escapeHtml(data.bottom)}</p>` : ''}
+        `;
+      } else if (data.style === 'B') {
+        panelHtml = `
+          <div class="slide-banner-block" style="background:#232323;color:#fff;font-size:68px;border-radius:16px;" contenteditable="true" data-field="line1">${escapeHtml(data.line1 || '')}</div>
+          <div class="slide-banner-block" style="background:${data.line2Bg || '#63D4AC'};color:#fff;font-size:56px;border-radius:16px;" contenteditable="true" data-field="line2">${escapeHtml(data.line2 || '')}</div>
+        `;
+      } else {
+        const bigColor = data.bigColor || '#fff';
+        const smallColor = data.smallColor || '#fff';
+        panelHtml = `
+          <p class="slide-line" style="font-size:104px;color:${bigColor};" contenteditable="true" data-field="big">${escapeHtml(data.big || '')}</p>
+          <p class="slide-line" style="font-size:58px;color:${smallColor};margin-top:12px;letter-spacing:0.2px;" contenteditable="true" data-field="small">${escapeHtml(data.small || '')}</p>
+        `;
+      }
+
+      const glowSide = data.face === 'right' ? 'left' : 'right';
+      return `
+        <div class="slide-container" data-index="${i}">
+          <div class="slide${borderClass}" data-slide="${i}" style="background:${data.panelBg || '#232323'};">
+            <img class="slide-face ${data.face}" src="${IMG_SRC}" alt="" data-face="${data.face}" />
+            ${vialHTML}
+            <div class="slide-panel ${panelSide}" style="${panelStyle}">
+              ${panelHtml}
+            </div>
+          </div>
+          <div class="slide-actions">
+            <input type="color" value="${(data.bannerColor || data.line2Bg || '#63D4AC').toUpperCase()}" data-index="${i}" data-key="bannerColor" title="Banner color" />
+            <button class="btn btn-export" data-export="${i}">Export video-reddy-${i + 1}.png</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    const slidesEl = document.getElementById('slides');
+    const selectEl = document.getElementById('slideSelect');
+    const zoomEl = document.getElementById('zoom');
+    const zoomVal = document.getElementById('zoomVal');
+
+    SLIDES.forEach((s, i) => {
+      slidesEl.insertAdjacentHTML('beforeend', renderSlide(s, i));
+      selectEl.appendChild(new Option(`Slide ${i + 1}`, i));
+    });
+
+    zoomEl.addEventListener('input', () => {
+      const v = zoomEl.value;
+      zoomVal.textContent = v + '%';
+      slidesEl.style.transform = `scale(${v / 100})`;
+      slidesEl.style.transformOrigin = '0 0';
+    });
+    slidesEl.style.transform = 'scale(0.5)';
+    slidesEl.style.transformOrigin = '0 0';
+
+    selectEl.addEventListener('change', () => {
+      const idx = parseInt(selectEl.value, 10);
+      const container = slidesEl.querySelector(`[data-index="${idx}"]`);
+      if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    document.querySelectorAll('input[type="color"]').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.index, 10);
+        const slide = slidesEl.querySelector(`.slide[data-slide="${idx}"]`);
+        if (!slide) return;
+        const banner = slide.querySelector('.slide-banner, .slide-banner-block:nth-child(2)');
+        if (banner) banner.style.background = e.target.value;
+      });
+    });
+
+    document.querySelectorAll('[data-export]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const idx = parseInt(e.target.dataset.export, 10);
+        const slide = slidesEl.querySelector(`.slide[data-slide="${idx}"]`);
+        if (!slide) return;
+        e.target.disabled = true;
+        e.target.textContent = 'Exporting…';
+        try {
+          const scale = 2;
+          const canvas = await html2canvas(slide, {
+            scale,
+            useCORS: true,
+            allowTaint: true,
+            width: W,
+            height: H,
+          });
+          const link = document.createElement('a');
+          link.download = `video-reddy-${idx + 1}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        } catch (err) {
+          console.error(err);
+          alert('Export failed. Make sure the Dr. Reddy image loaded (open this page from the dev server: /wellnest/thumbnail-editor.html).');
+        }
+        e.target.disabled = false;
+        e.target.textContent = `Export video-reddy-${idx + 1}.png`;
+      });
+    });
+  </script>
+</body>
+</html>

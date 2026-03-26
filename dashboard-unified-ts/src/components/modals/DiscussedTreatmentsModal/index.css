@@ -939,6 +939,23 @@
   flex-shrink: 0;
 }
 
+.discussed-treatments-modal-header-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.discussed-treatments-modal-header-title-row .modal-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.discussed-treatments-header-share-btn {
+  flex-shrink: 0;
+}
+
 .discussed-treatments-close-btn {
   width: 36px;
   min-width: 36px;

@@ -35,7 +35,8 @@ describe("skinQuizLink", () => {
   describe("getSkinQuizMessage", () => {
     it("returns message containing the link", () => {
       const msg = getSkinQuizMessage(client);
-      expect(msg).toContain("Skin Type Quiz");
+      expect(msg).toContain("perfect products for your skin");
+      expect(msg).toContain("Take our quiz");
       expect(msg).toContain("rec123");
     });
   });

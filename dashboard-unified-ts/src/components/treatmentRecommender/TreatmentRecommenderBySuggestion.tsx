@@ -46,6 +46,7 @@ import {
   RECOMMENDED_PRODUCT_REASONS,
 } from "../../data/skinTypeQuiz";
 import { showToast } from "../../utils/toast";
+import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
 import { groupIssuesByConcern } from "../../config/issueToConcernMapping";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
@@ -386,19 +387,12 @@ export default function TreatmentRecommenderBySuggestion({
     ];
 
     if (!client || client.tableSource !== "Patients") {
-      if (
-        client?.frontPhoto &&
-        Array.isArray(client.frontPhoto) &&
-        client.frontPhoto.length > 0
-      ) {
-        const url = getUrlFromAttachment(client.frontPhoto[0]);
-        setClientFrontPhotoUrl(url ?? null);
-      } else {
-        setClientFrontPhotoUrl(null);
-      }
+      setClientFrontPhotoUrl(getClientFrontPhotoDisplayUrl(client?.frontPhoto));
       setAreaPhotoUrls({});
       return;
     }
+
+    setClientFrontPhotoUrl(getClientFrontPhotoDisplayUrl(client.frontPhoto));
 
     let mounted = true;
     const fieldsToFetch = ["Front Photo", ...areaPhotoFieldList];
@@ -415,7 +409,9 @@ export default function TreatmentRecommenderBySuggestion({
           const url = getUrlFromAttachment(front[0]);
           setClientFrontPhotoUrl(url ?? null);
         } else {
-          setClientFrontPhotoUrl(null);
+          setClientFrontPhotoUrl(
+            getClientFrontPhotoDisplayUrl(client.frontPhoto),
+          );
         }
 
         const areaUrls: Record<string, string> = {};
@@ -431,7 +427,9 @@ export default function TreatmentRecommenderBySuggestion({
         setAreaPhotoUrls(areaUrls);
       })
       .catch(() => {
-        setClientFrontPhotoUrl(null);
+        setClientFrontPhotoUrl(
+          getClientFrontPhotoDisplayUrl(client.frontPhoto),
+        );
         setAreaPhotoUrls({});
       });
     return () => {

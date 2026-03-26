@@ -112,7 +112,7 @@
   font-size: 0.9375rem;
 }
 
-/* Hero: front photo + score gauge */
+/* Hero: front photo */
 .analysis-overview-modal__hero {
   display: flex;
   flex-direction: column;
@@ -188,22 +188,6 @@
 
 .analysis-overview-modal__client-photo-wrap--clickable:hover .analysis-overview-modal__client-photo {
   transform: scale(1.02);
-}
-
-.analysis-overview-modal__score-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.analysis-overview-modal__tier {
-  font-size: 0.8125rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 /* Aesthetic Intelligence – AI summary */

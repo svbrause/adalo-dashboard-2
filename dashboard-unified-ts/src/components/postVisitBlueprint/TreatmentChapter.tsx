@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  orderBlueprintVideosForPlan,
-  POST_VISIT_BLUEPRINT_VIDEOS,
-} from "../../config/postVisitBlueprintVideos";
 import type { TreatmentChapter } from "../../utils/blueprintTreatmentChapters";
 import type {
   BlueprintCasePhoto,
@@ -25,9 +21,14 @@ import { buildChapterOverviewSpeechText } from "../../utils/pvbOverviewSpeechTex
 import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
 import { PvbChapterOverviewTypewriter } from "./PvbChapterOverviewTypewriter";
 import { PvbNarrativeAudioControls } from "./PvbNarrativeAudioControls";
+import { WellnestThumbnail } from "./WellnestThumbnail";
 import { buildSkincareChapterProductSlots } from "../../utils/pvbSkincareDisplay";
 import { fetchTreatmentChapterOverview } from "../../services/api";
 import "./TreatmentChapter.css";
+
+/** When Vimeo CDN poster URLs 403, swap to this local asset (Wellnest Dr. Reddy clips). */
+const WELLNEST_VIMEO_POSTER_FALLBACK =
+  "/post-visit-blueprint/videos/wellnest/Dr-Reddy-qr-code.png";
 
 interface TreatmentChapterViewProps {
   chapter: TreatmentChapter;
@@ -89,11 +90,8 @@ export function TreatmentChapterView({
     [chapter.planItems, isSkincareChapter],
   );
 
-  /** Full catalog (3) ordered by relevance to this chapter — shown as compact thumbnails */
-  const catalogVideos = useMemo(
-    () => orderBlueprintVideosForPlan(chapter.planItems, POST_VISIT_BLUEPRINT_VIDEOS),
-    [chapter.planItems],
-  );
+  /** Pre-scored subset for this chapter (Wellnest: top few; aesthetic: keyword matches). */
+  const catalogVideos = chapter.videos;
   const chapterOverview = useMemo(
     () =>
       buildChapterOverviewContent(
@@ -171,6 +169,10 @@ export function TreatmentChapterView({
     [chapterOverviewResolved, chapterGlossaryTerms],
   );
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
+  /** Vimeo poster URLs that failed to load (e.g. CDN 403) — show branded fallback. */
+  const [vimeoPosterLoadFailed, setVimeoPosterLoadFailed] = useState<
+    Record<string, true>
+  >({});
   const expandedVideo = expandedVideoId
     ? catalogVideos.find((v) => v.id === expandedVideoId) ?? null
     : null;
@@ -337,15 +339,43 @@ export function TreatmentChapterView({
                 aria-label={`Open video: ${mod.title}`}
               >
                 <span className="tc-video-thumb-frame">
-                  {mod.posterUrl ? (
+                  {(() => {
+                    const customThumbKey = mod.wellnestThumbnailImageKey;
+                    if (customThumbKey) {
+                      return (
+                        <WellnestThumbnail
+                          imageKey={customThumbKey}
+                          className="tc-video-thumb-wellnest"
+                          compact
+                          alt={mod.title}
+                        />
+                      );
+                    }
+                    const thumbSrc =
+                      mod.vimeoId && vimeoPosterLoadFailed[mod.id]
+                        ? WELLNEST_VIMEO_POSTER_FALLBACK
+                        : mod.posterUrl;
+                    return thumbSrc ? (
                     <img
                       className="tc-video-thumb-img"
-                      src={mod.posterUrl}
+                      src={thumbSrc}
                       alt=""
                       loading="lazy"
                       decoding="async"
+                      onError={() => {
+                        if (
+                          mod.vimeoId &&
+                          !vimeoPosterLoadFailed[mod.id] &&
+                          thumbSrc !== WELLNEST_VIMEO_POSTER_FALLBACK
+                        ) {
+                          setVimeoPosterLoadFailed((p) => ({
+                            ...p,
+                            [mod.id]: true,
+                          }));
+                        }
+                      }}
                     />
-                  ) : (
+                  ) : mod.sources?.length ? (
                     <video
                       className="tc-video-thumb-video"
                       muted
@@ -366,7 +396,10 @@ export function TreatmentChapterView({
                         <source key={source.src} src={source.src} type={source.mimeType} />
                       ))}
                     </video>
-                  )}
+                  ) : mod.vimeoId ? (
+                    <div className="tc-video-thumb-vimeo-placeholder" aria-hidden />
+                  ) : null;
+                  })()}
                   <span className="tc-video-thumb-play" aria-hidden>
                     <span className="tc-video-thumb-play-icon">▶</span>
                   </span>
@@ -410,28 +443,41 @@ export function TreatmentChapterView({
               </h4>
               <p className="tc-video-modal-sub">{expandedVideo.subtitle}</p>
               <div className="tc-video-modal-frame">
-                <video
-                  key={expandedVideo.id}
-                  className="tc-video-modal-player"
-                  controls
-                  playsInline
-                  preload="metadata"
-                  poster={expandedVideo.posterUrl}
-                  autoPlay
-                  onPlay={() => onVideoPlay(expandedVideo.id, expandedVideo.title)}
-                >
-                  {expandedVideo.sources.map((source) => (
-                    <source key={source.src} src={source.src} type={source.mimeType} />
-                  ))}
-                </video>
+                {expandedVideo.vimeoId ? (
+                  <iframe
+                    key={expandedVideo.id}
+                    title={expandedVideo.title}
+                    src={`https://player.vimeo.com/video/${expandedVideo.vimeoId}?autoplay=1`}
+                    className="tc-video-modal-player tc-video-modal-player--vimeo"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                    onLoad={() =>
+                      onVideoPlay(expandedVideo.id, expandedVideo.title)
+                    }
+                  />
+                ) : (
+                  <video
+                    key={expandedVideo.id}
+                    className="tc-video-modal-player"
+                    controls
+                    playsInline
+                    preload="metadata"
+                    poster={expandedVideo.posterUrl}
+                    autoPlay
+                    onPlay={() =>
+                      onVideoPlay(expandedVideo.id, expandedVideo.title)
+                    }
+                  >
+                    {(expandedVideo.sources ?? []).map((source) => (
+                      <source
+                        key={source.src}
+                        src={source.src}
+                        type={source.mimeType}
+                      />
+                    ))}
+                  </video>
+                )}
               </div>
-              <button
-                type="button"
-                className="tc-video-modal-done"
-                onClick={() => setExpandedVideoId(null)}
-              >
-                Done
-              </button>
             </div>
           </div>,
           document.body,
@@ -453,7 +499,14 @@ export function TreatmentChapterView({
             <div className="tc-carousel" onScroll={() => trackCaseGallery()}>
               {photos.map((photo) => {
                 const pd = processPhoto(photo, card);
-                const hasCaption = Boolean(pd.storyDisplay || pd.tagSummary || pd.ageDisplay || pd.skinTypeDisplay || pd.skinToneDisplay);
+                const hasCaption = Boolean(
+                  pd.storyDisplay ||
+                    pd.captionDisplay ||
+                    pd.tagSummary ||
+                    pd.ageDisplay ||
+                    pd.skinTypeDisplay ||
+                    pd.skinToneDisplay,
+                );
                 return (
                   <div key={photo.id} className="tc-carousel-card">
                     <div className="tc-carousel-img-wrap">
@@ -462,6 +515,7 @@ export function TreatmentChapterView({
                     {hasCaption && (
                       <div className="tc-carousel-caption">
                         {pd.storyDisplay && <p className="tc-carousel-story">{pd.storyDisplay}</p>}
+                        {pd.captionDisplay && <p className="tc-carousel-body">{pd.captionDisplay}</p>}
                         {pd.tagSummary && <p className="tc-carousel-tags">{pd.tagSummary}</p>}
                         {(pd.ageDisplay || pd.skinTypeDisplay || pd.skinToneDisplay) && (
                           <p className="tc-carousel-demo">

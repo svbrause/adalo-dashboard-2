@@ -1,8 +1,18 @@
 // Status formatting utilities
 
+import type { Client } from "../types";
+import { isWellnestWellnessProviderCode } from "../data/wellnestOfferings";
 import { WEB_POPUP_LEAD_NO_ANALYSIS_STATUS } from "./clientMapper";
+import {
+  parseInterestedIssuesList,
+  partitionInterestedIssuesForFacialVsWellness,
+} from "./partitionInterestedIssuesWellnessFacial";
 
-export function formatFacialStatus(status: string | null | undefined): string {
+export function formatFacialStatus(
+  status: string | null | undefined,
+  providerCode?: string | null,
+): string {
+  const wellnest = isWellnestWellnessProviderCode(providerCode ?? undefined);
   // Web Popup Leads with no analysis: show "Not started" instead of "Pending"
   if (status === WEB_POPUP_LEAD_NO_ANALYSIS_STATUS) {
     return "Not started";
@@ -19,7 +29,9 @@ export function formatFacialStatus(status: string | null | undefined): string {
   const normalized = String(status).trim();
 
   // Handle common variations
-  if (normalized.toLowerCase() === "pending") return "Pending";
+  if (normalized.toLowerCase() === "pending") {
+    return wellnest ? "Not started" : "Pending";
+  }
   if (normalized.toLowerCase() === "ready") return "Ready for Review";
   if (
     normalized.toLowerCase().includes("patient reviewed") ||
@@ -42,6 +54,14 @@ export function hasInterestedTreatments(client: {
   return String(v).trim().length > 0;
 }
 
+/** Facial analysis badge / list: only aesthetic intake interests, not wellness (gut, sleep, etc.). */
+export function hasFacialInterestedTreatments(client: Client): boolean {
+  const facial = partitionInterestedIssuesForFacialVsWellness(
+    parseInterestedIssuesList(client),
+  ).facialInterests;
+  return facial.length > 0;
+}
+
 /**
  * Display version of facial status: when status is "Ready for Review" and the
  * patient has interested treatments, show "Reviewed by Patient" instead.
@@ -49,8 +69,9 @@ export function hasInterestedTreatments(client: {
 export function formatFacialStatusForDisplay(
   status: string | null | undefined,
   hasInterestedTreatments: boolean,
+  providerCode?: string | null,
 ): string {
-  const base = formatFacialStatus(status);
+  const base = formatFacialStatus(status, providerCode);
   if (base === "Ready for Review" && hasInterestedTreatments) {
     return "Reviewed by Patient";
   }
@@ -64,12 +85,17 @@ export function formatFacialStatusForDisplay(
 export function getFacialStatusColorForDisplay(
   status: string | null | undefined,
   hasInterestedTreatments: boolean,
+  providerCode?: string | null,
 ): string {
-  const display = formatFacialStatusForDisplay(status, hasInterestedTreatments);
+  const display = formatFacialStatusForDisplay(
+    status,
+    hasInterestedTreatments,
+    providerCode,
+  );
   if (display === "Reviewed by Patient") {
-    return getFacialStatusColor("patient reviewed");
+    return getFacialStatusColor("patient reviewed", providerCode);
   }
-  return getFacialStatusColor(status);
+  return getFacialStatusColor(status, providerCode);
 }
 
 /**
@@ -78,19 +104,27 @@ export function getFacialStatusColorForDisplay(
 export function getFacialStatusBorderColorForDisplay(
   status: string | null | undefined,
   hasInterestedTreatments: boolean,
+  providerCode?: string | null,
 ): string {
-  const display = formatFacialStatusForDisplay(status, hasInterestedTreatments);
+  const display = formatFacialStatusForDisplay(
+    status,
+    hasInterestedTreatments,
+    providerCode,
+  );
   if (display === "Reviewed by Patient") {
-    return getFacialStatusBorderColor("patient reviewed");
+    return getFacialStatusBorderColor("patient reviewed", providerCode);
   }
-  return getFacialStatusBorderColor(status);
+  return getFacialStatusBorderColor(status, providerCode);
 }
 
-export function getFacialStatusColor(status: string | null | undefined): string {
+export function getFacialStatusColor(
+  status: string | null | undefined,
+  providerCode?: string | null,
+): string {
   if (!status) return "#E0E0E0"; // Gray for "Not Started"
 
   // First format the status to get the display version, then match
-  const formattedStatus = formatFacialStatus(status);
+  const formattedStatus = formatFacialStatus(status, providerCode);
   const normalized = String(status).trim().toLowerCase();
   const formattedNormalized = formattedStatus.toLowerCase();
 
@@ -124,11 +158,14 @@ export function getFacialStatusColor(status: string | null | undefined): string 
   return "#E0E0E0"; // Default gray
 }
 
-export function getFacialStatusBorderColor(status: string | null | undefined): string {
+export function getFacialStatusBorderColor(
+  status: string | null | undefined,
+  providerCode?: string | null,
+): string {
   if (!status) return "#E0E0E0"; // Gray for "Not Started"
 
   // First format the status to get the display version, then match
-  const formattedStatus = formatFacialStatus(status);
+  const formattedStatus = formatFacialStatus(status, providerCode);
   const normalized = String(status).trim().toLowerCase();
   const formattedNormalized = formattedStatus.toLowerCase();
 

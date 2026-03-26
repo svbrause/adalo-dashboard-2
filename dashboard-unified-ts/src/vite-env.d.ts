@@ -33,6 +33,8 @@ interface ImportMetaEnv {
    * Example: `https://storage.googleapis.com/my-bucket/blueprints/{token}/front.jpg`
    */
   readonly VITE_BLUEPRINT_HERO_PHOTO_URL_TEMPLATE?: string;
+  /** Wellnest1300 demo patients: `false`/`0` off, `true`/`1` on; default on in dev only. */
+  readonly VITE_WELLNEST_SAMPLE_CLIENTS?: string;
 }
 
 interface ImportMeta {

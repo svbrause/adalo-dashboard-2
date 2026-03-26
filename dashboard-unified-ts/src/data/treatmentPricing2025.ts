@@ -3,6 +3,12 @@
  * Sourced from PRICE LIST 2025.pdf. Use for display and treatment meta price ranges.
  */
 
+import {
+  getWellnestOfferingByTreatmentName,
+  getWellnestPeptideMeta,
+  parseWellnestPriceMin,
+} from "./wellnestOfferings";
+
 export interface TreatmentPriceItem {
   name: string;
   price: number;
@@ -999,6 +1005,24 @@ export function getCheckoutSummaryWithSkus(
       });
       total += match.totalPrice;
     } else {
+      const wellnest = getWellnestOfferingByTreatmentName(cat);
+      if (wellnest) {
+        const minPrice = parseWellnestPriceMin(wellnest.pricing);
+        const wmeta = getWellnestPeptideMeta(cat);
+        lineItems.push({
+          label,
+          skuName: wellnest.treatmentName,
+          price: minPrice,
+          displayPrice: wellnest.pricing,
+          longevity: wmeta?.longevity,
+          downtime: wmeta?.downtime,
+          isEstimate: minPrice <= 0,
+          quoteLineKind: treatmentLineKind,
+        });
+        total += minPrice;
+        if (minPrice <= 0) hasUnknownPrices = true;
+        continue;
+      }
       const range = getPriceRangeNumeric2025(cat);
       const categoryMetaFallback = meta(cat);
       if (range && (range.min > 0 || range.max > 0)) {

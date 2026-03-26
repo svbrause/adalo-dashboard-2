@@ -27,7 +27,9 @@ export function getSkinQuizMessage(client: Client): string {
   if (hasCompletedSkinQuiz(client)) {
     return `View your Skin Type Quiz results and personalized product recommendations: ${link}`;
   }
-  return `Take our free Skin Type Quiz and get personalized product recommendations: ${link}`;
+  return `Let's find the perfect products for your skin! 🧴
+Take our quiz and get expert recommendations tailored just for you:
+${link}`;
 }
 
 export function getQuizPath(): string {

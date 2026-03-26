@@ -34,6 +34,31 @@ export function shouldLoadPhotoForClient(client: Client): boolean {
 }
 
 /**
+ * Display URL for a client's front photo: Airtable attachment array, or a direct HTTPS/HTTP URL string
+ * (e.g. Wellnest demo clients). Runtime `Client.frontPhoto` may be an array despite the type alias.
+ */
+export function getClientFrontPhotoDisplayUrl(frontPhoto: unknown): string | null {
+  if (!frontPhoto) return null;
+  if (typeof frontPhoto === "string") {
+    const u = frontPhoto.trim();
+    return u || null;
+  }
+  if (Array.isArray(frontPhoto) && frontPhoto.length > 0) {
+    const attachment = frontPhoto[0] as {
+      thumbnails?: { large?: { url?: string }; full?: { url?: string } };
+      url?: string;
+    };
+    return (
+      attachment?.thumbnails?.large?.url ||
+      attachment?.thumbnails?.full?.url ||
+      attachment?.url ||
+      null
+    );
+  }
+  return null;
+}
+
+/**
  * Fetch front photo for a client (single client)
  */
 export async function fetchClientFrontPhoto(clientId: string): Promise<any[] | null> {

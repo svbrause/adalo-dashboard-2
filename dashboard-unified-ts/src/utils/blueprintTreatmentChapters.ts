@@ -1,11 +1,12 @@
 import type { DiscussedItem } from "../types";
 import type { PostVisitBlueprintVideo } from "../config/postVisitBlueprintVideos";
 import {
-  orderBlueprintVideosForPlan,
   POST_VISIT_BLUEPRINT_VIDEOS,
+  selectVideosForChapterPlanItems,
 } from "../config/postVisitBlueprintVideos";
 import type { TreatmentResultsCard } from "./postVisitBlueprintCases";
 import { TREATMENT_META } from "../components/modals/DiscussedTreatmentsModal/constants";
+import { getWellnestPeptideMeta } from "../data/wellnestOfferings";
 import {
   getTreatmentDisplayName,
   getDisplayAreaForItem,
@@ -158,16 +159,7 @@ function videosForItems(
   items: DiscussedItem[],
   catalog: PostVisitBlueprintVideo[],
 ): PostVisitBlueprintVideo[] {
-  const haystack = items
-    .flatMap((i) => [i.treatment, i.product, i.region, ...(i.findings ?? [])])
-    .filter(Boolean)
-    .map((x) => normalizeBlueprintAnalysisText(String(x)))
-    .join(" ")
-    .toLowerCase();
-  if (!haystack.trim()) return [];
-  return orderBlueprintVideosForPlan(items, catalog).filter((v) =>
-    v.matchKeywords.some((kw) => haystack.includes(kw.toLowerCase())),
-  );
+  return selectVideosForChapterPlanItems(items, catalog);
 }
 
 /**
@@ -193,7 +185,7 @@ export function buildTreatmentChapters(
     const planItems = discussedItems.filter(
       (i) => norm(i.treatment ?? "") === key,
     );
-    const meta = TREATMENT_META[t] ?? {};
+    const meta = TREATMENT_META[t] ?? getWellnestPeptideMeta(t) ?? {};
     const caseCard = treatmentCards.find((c) => c.key === key) ?? null;
     const { priceRange, priceFactLabel } = resolveChapterPriceDisplay(
       key,

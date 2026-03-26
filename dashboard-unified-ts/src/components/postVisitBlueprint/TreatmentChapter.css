@@ -209,6 +209,15 @@
   box-shadow: 0 4px 16px rgba(157, 214, 203, 0.45);
 }
 
+.tc-video-thumb-wellnest {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  pointer-events: none;
+}
+
 /* Static JPG thumbnails (preferred) — instant paint, no video decode */
 .tc-video-thumb-img {
   position: absolute;
@@ -230,6 +239,15 @@
   display: block;
   pointer-events: none;
   background: #3a3c3e;
+}
+
+.tc-video-thumb-vimeo-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(145deg, #1e3a4c 0%, #0f766e 55%, #134e4a 100%);
+  pointer-events: none;
 }
 
 .tc-video-thumb-play {
@@ -294,13 +312,13 @@
 .tc-video-modal {
   position: relative;
   width: 100%;
-  max-width: 480px;
-  max-height: min(92vh, 860px);
+  max-width: min(96vw, 900px);
+  max-height: min(96vh, 960px);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   background: #ffffff;
   border-radius: 20px;
-  padding: 20px 18px 18px;
+  padding: 20px 18px 20px;
   box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
   box-sizing: border-box;
 }
@@ -353,29 +371,18 @@
 .tc-video-modal-player {
   display: block;
   width: 100%;
-  max-height: min(58vh, 480px);
+  max-height: min(84vh, 820px);
   object-fit: contain;
   background: #000;
   vertical-align: middle;
 }
 
-.tc-video-modal-done {
-  margin-top: 14px;
+.tc-video-modal-player--vimeo {
+  max-height: none;
+  aspect-ratio: 16 / 9;
   width: 100%;
-  padding: 14px 18px;
-  border: none;
-  border-radius: 14px;
-  background: #3a3c3e;
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.25);
-}
-
-.tc-video-modal-done:active {
-  transform: scale(0.99);
+  min-height: min(58vw, 440px);
+  border: 0;
 }
 
 /* Swipeable Photo Carousel */
@@ -459,6 +466,18 @@
   font-weight: 600;
   color: #3a3c3e;
   line-height: 1.3;
+}
+
+.tc-carousel-body {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #64748b;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
 }
 
 .tc-carousel-tags {

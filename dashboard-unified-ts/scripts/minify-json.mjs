@@ -2,7 +2,7 @@
 /**
  * Minify JSON to one line (e.g. GCP service account for Vercel GCS_SERVICE_ACCOUNT_JSON).
  *
- *   node scripts/minify-json.mjs ./path/to/your-service-account.json
+ *   node scripts/minify-json.mjs ./plasma-matter-469702-s1-1a4bffa04341.json
  *   node scripts/minify-json.mjs ./key.json | pbcopy   # macOS → clipboard
  */
 
