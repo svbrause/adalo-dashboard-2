@@ -24,6 +24,15 @@ import { PvbNarrativeAudioControls } from "./PvbNarrativeAudioControls";
 import { WellnestThumbnail } from "./WellnestThumbnail";
 import { buildSkincareChapterProductSlots } from "../../utils/pvbSkincareDisplay";
 import { fetchTreatmentChapterOverview } from "../../services/api";
+import {
+  getWellnestOfferingByTreatmentName,
+  WELLNEST_REGULATORY_NOTICE,
+} from "../../data/wellnestOfferings";
+import {
+  getWellnestExternalExamplesForOffering,
+  WELLNEST_EXTERNAL_LINKS_DISCLAIMER,
+  type WellnestExternalExampleKind,
+} from "../../data/wellnestExternalExamples";
 import "./TreatmentChapter.css";
 
 /** When Vimeo CDN poster URLs 403, swap to this local asset (Wellnest Dr. Reddy clips). */
@@ -85,6 +94,29 @@ export function TreatmentChapterView({
   const photos = card?.photos ?? [];
   const len = photos.length;
   const isSkincareChapter = chapter.treatment.trim().toLowerCase() === "skincare";
+
+  const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
+  const externalExamples = wellnestOffering
+    ? getWellnestExternalExamplesForOffering(wellnestOffering)
+    : [];
+  const externalKindLabel = (k: WellnestExternalExampleKind) => {
+    switch (k) {
+      case "news":
+        return "News";
+      case "youtube":
+        return "YouTube";
+      case "reddit":
+        return "Reddit";
+      case "podcast":
+        return "Podcast";
+      case "government":
+        return "Gov";
+      case "research":
+        return "Research";
+      case "investigation":
+        return "Report";
+    }
+  };
   const skincareProductSlots = useMemo(
     () => (isSkincareChapter ? buildSkincareChapterProductSlots(chapter.planItems) : []),
     [chapter.planItems, isSkincareChapter],
@@ -535,6 +567,41 @@ export function TreatmentChapterView({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Wellnest: curated articles/resources for this treatment */}
+      {wellnestOffering && externalExamples.length > 0 && (
+        <div className="tc-external-section">
+          <h3 className="tc-section-label">Articles & resources</h3>
+          <p className="tc-external-disclaimer tc-external-disclaimer--compact">
+            {WELLNEST_EXTERNAL_LINKS_DISCLAIMER}
+          </p>
+          <ul className="tc-external-list">
+            {externalExamples.map((ex) => (
+              <li key={`tp-ex-${ex.id}`} className="tc-external-item">
+                <span
+                  className="tc-external-kind"
+                  title={ex.kind}
+                  aria-label={`Category: ${externalKindLabel(ex.kind)}`}
+                >
+                  {externalKindLabel(ex.kind)}
+                </span>
+                <a
+                  href={ex.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tc-external-link"
+                >
+                  {ex.title}
+                </a>
+                {ex.note ? (
+                  <span className="tc-external-note">{ex.note}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <p className="tc-external-disclaimer">{WELLNEST_REGULATORY_NOTICE}</p>
         </div>
       )}
 
