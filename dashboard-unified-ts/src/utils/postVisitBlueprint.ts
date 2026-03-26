@@ -137,6 +137,44 @@ export interface PostVisitBlueprintPayload {
 /** Max bytes to embed as base64 in the blueprint payload (keeps SMS links usable). */
 export const BLUEPRINT_HERO_PHOTO_MAX_EMBED_BYTES = 150 * 1024;
 
+/** Cap narrative length when embedding in URL hash (avoids browser / SMS fragment limits). */
+const BLUEPRINT_URL_EMBED_NARRATIVE_MAX_CHARS = 12_000;
+
+/**
+ * Strips the hero data URL and trims long text before putting payload in the URL.
+ * Used only when server storage failed — keeps the HTTP request path short (`?t=` only)
+ * and the hash fragment smaller than a giant base64 image would allow.
+ */
+function slimBlueprintPayloadForUrlEmbed(
+  payload: PostVisitBlueprintPayload,
+): PostVisitBlueprintPayload {
+  const patient = { ...payload.patient, frontPhotoDataUrl: undefined };
+  const as = payload.analysisSummary;
+  if (!as) return { ...payload, patient };
+
+  const os = as.overviewSnapshot;
+  const narrative = os?.aiNarrative;
+  if (
+    typeof narrative === "string" &&
+    narrative.length > BLUEPRINT_URL_EMBED_NARRATIVE_MAX_CHARS
+  ) {
+    return {
+      ...payload,
+      patient,
+      analysisSummary: {
+        ...as,
+        overviewSnapshot: os
+          ? {
+              ...os,
+              aiNarrative: `${narrative.slice(0, BLUEPRINT_URL_EMBED_NARRATIVE_MAX_CHARS)}…`,
+            }
+          : os,
+      },
+    };
+  }
+  return { ...payload, patient };
+}
+
 export function normalizeFrontPhotoUrl(value: unknown): string | null {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -293,12 +331,20 @@ export function buildPostVisitBlueprintLink(
   const base = typeof window !== "undefined" ? window.location.origin : "";
   const params = new URLSearchParams();
   params.set("t", token);
-  if (payload) params.set("d", encodeBlueprintPayload(payload));
   /** Prefer `/tp` so SMS and copy-paste links stay shorter than `/treatment-plan`. */
-  return `${base}${POST_VISIT_BLUEPRINT_SHORT_PATH}?${params.toString()}`;
+  const query = params.toString();
+  if (!payload) {
+    return `${base}${POST_VISIT_BLUEPRINT_SHORT_PATH}?${query}`;
+  }
+  /**
+   * Put embedded JSON in the fragment, not the query string. Long `?d=` URLs hit
+   * reverse-proxy limits (e.g. Vercel `URI_TOO_LONG`) before the SPA loads.
+   */
+  const encoded = encodeBlueprintPayload(payload);
+  return `${base}${POST_VISIT_BLUEPRINT_SHORT_PATH}?${query}#d=${encodeURIComponent(encoded)}`;
 }
 
-/** Try server persist a few times so we avoid the very long `?d=` fallback when the API is flaky. */
+/** Try server persist a few times so we avoid the URL-embedded fallback when the API is flaky. */
 async function storePostVisitBlueprintOnServerWithRetry(
   payload: Record<string, unknown>,
   maxAttempts = 3,
@@ -580,7 +626,7 @@ export async function createAndStorePostVisitBlueprint(input: {
   }
   const link = storedRemote
     ? buildPostVisitBlueprintLink(token)
-    : buildPostVisitBlueprintLink(token, payloadOut);
+    : buildPostVisitBlueprintLink(token, slimBlueprintPayloadForUrlEmbed(payloadOut));
   return { token, link, payload: payloadOut };
 }
 
@@ -603,7 +649,8 @@ export function getStoredPostVisitBlueprint(
 /**
  * Saves a decoded blueprint to localStorage so the same link keeps working on repeat visits
  * (and short `?t=` links work on this device after the patient has opened the full link once).
- * Does not make links work across devices if the URL was truncated — the full `d` param is still required for the first open.
+ * Does not make links work across devices if the URL was truncated — the full embedded
+ * payload (`#d=` or legacy `?d=`) is still required for the first open when the server has no copy.
  */
 export function persistPostVisitBlueprint(
   payload: PostVisitBlueprintPayload,
@@ -628,7 +675,18 @@ export function getPostVisitBlueprintFromUrlData():
   | null {
   if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.search);
-  const encoded = params.get("d")?.trim() ?? "";
+  let encoded = params.get("d")?.trim() ?? "";
+  if (!encoded) {
+    const hash = window.location.hash;
+    if (hash.startsWith("#d=")) {
+      const raw = hash.slice(3);
+      try {
+        encoded = decodeURIComponent(raw).trim();
+      } catch {
+        encoded = raw.trim();
+      }
+    }
+  }
   if (!encoded) return null;
   return decodeBlueprintPayload(encoded);
 }
