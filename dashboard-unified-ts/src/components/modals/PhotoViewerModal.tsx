@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Client } from '../../types';
 import { fetchTableRecords, updateLeadRecord, uploadPatientPhoto } from '../../services/api';
+import { getWellnestDemoPhotoUrls } from '../../debug/wellnestDemoPhotos';
 import { showToast, showError } from '../../utils/toast';
 import './PhotoViewerModal.css';
 
@@ -78,6 +79,7 @@ export default function PhotoViewerModal({ client, initialPhotoType, onClose, on
     if (!TABLES_WITH_PHOTOS.includes(client.tableSource as any)) return;
 
     setLoading(true);
+    const demoPhotos = getWellnestDemoPhotoUrls(client.id);
     try {
       const records = await fetchTableRecords(client.tableSource, {
         filterFormula: `RECORD_ID() = "${client.id}"`,
@@ -118,9 +120,16 @@ export default function PhotoViewerModal({ client, initialPhotoType, onClose, on
 
         const preferredFront = normalizeFrontPreferred(fields[PREFERRED_FRONT_FIELD]);
         if (preferredFront) setFrontPhotoSource(preferredFront);
+      } else if (demoPhotos) {
+        setFrontPhotoUrl(demoPhotos.front);
+        setSidePhotoUrl(demoPhotos.side);
       }
     } catch (error) {
       console.error('Error loading photos:', error);
+      if (demoPhotos) {
+        setFrontPhotoUrl(demoPhotos.front);
+        setSidePhotoUrl(demoPhotos.side);
+      }
     } finally {
       setLoading(false);
     }

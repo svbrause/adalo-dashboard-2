@@ -60,7 +60,7 @@ function urlForImageKey(key: string): string {
  */
 const WELLNESS_QUIZ_ID_TO_IMAGE_KEY: Record<string, string> = {
   "bpc-157": "muscle1",
-  "tb-500": "muscle2",
+  "tb-500": "muscle6",
   "cjc-1295": "muscle3",
   ipamorelin: "muscle4",
   "ghrp-2-6": "muscle5",
@@ -71,7 +71,7 @@ const WELLNESS_QUIZ_ID_TO_IMAGE_KEY: Record<string, string> = {
   "aod-9604": "weight2",
   "ghk-cu": "skin1",
   "melanotan-2": "skin2",
-  sermorelin: "skin3",
+  sermorelin: "skin2",
   epitalon: "skin4",
   semax: "brain1",
   selank: "brain2",
@@ -228,8 +228,8 @@ function photoForImageKey(key: string): string {
  * Extra case images per quiz id (different from primary in {@link WELLNESS_QUIZ_ID_TO_IMAGE_KEY}).
  */
 const WELLNESS_QUIZ_ALT_IMAGE_KEYS: Record<string, [string, string]> = {
-  "bpc-157": ["muscle2", "muscle5"],
-  "tb-500": ["muscle1", "muscle4"],
+  "bpc-157": ["muscle3", "muscle7"],
+  "tb-500": ["muscle2", "muscle4"],
   "cjc-1295": ["muscle4", "muscle6"],
   ipamorelin: ["muscle3", "muscle5"],
   "ghrp-2-6": ["muscle1", "muscle6"],
@@ -243,7 +243,7 @@ const WELLNESS_QUIZ_ALT_IMAGE_KEYS: Record<string, [string, string]> = {
   sermorelin: ["skin2", "skin1"],
   epitalon: ["skin3", "skin2"],
   semax: ["brain2", "brain4"],
-  selank: ["brain1", "brain3"],
+  selank: ["brain1", "brain4"],
   p21: ["brain2", "brain4"],
   pinealon: ["brain1", "brain3"],
 };

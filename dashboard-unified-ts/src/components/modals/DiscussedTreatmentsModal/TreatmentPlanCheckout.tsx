@@ -18,7 +18,10 @@ import {
   TREATMENTS_WITH_NO_REGION,
 } from "./constants";
 import { REGION_OPTIONS, TIMELINE_OPTIONS } from "./constants";
-import { getWellnestOfferingByTreatmentName } from "../../../data/wellnestOfferings";
+import {
+  getWellnestOfferingByTreatmentName,
+  isWellnestWellnessProviderCode,
+} from "../../../data/wellnestOfferings";
 import { RECOMMENDED_PRODUCT_REASONS } from "../../../data/skinTypeQuiz";
 import { CheckoutFinancingSection } from "./CheckoutFinancingSection";
 
@@ -336,17 +339,19 @@ export default function TreatmentPlanCheckout({
 
   if (items.length === 0) return null;
 
+  const allowMintMembership = !isWellnestWellnessProviderCode(providerCode);
+  const effectiveMintMember = allowMintMembership ? isMintMember : false;
   const subtotal = quoteData.total;
-  const mintDiscount = isMintMember && subtotal > 0 ? subtotal * 0.1 : 0;
+  const mintDiscount = effectiveMintMember && subtotal > 0 ? subtotal * 0.1 : 0;
   const totalAfterMint = subtotal - mintDiscount;
 
   const orderSummaryBlock = (
     <div className="treatment-plan-checkout-summary treatment-plan-checkout-order-summary">
-      {onMintMemberChange && (
+      {allowMintMembership && onMintMemberChange && (
         <label className="treatment-plan-checkout-mint-toggle">
           <input
             type="checkbox"
-            checked={isMintMember}
+            checked={effectiveMintMember}
             onChange={(e) => onMintMemberChange(e.target.checked)}
           />
           <span>Mint member</span>

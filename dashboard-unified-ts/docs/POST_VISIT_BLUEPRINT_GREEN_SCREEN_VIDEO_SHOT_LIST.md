@@ -8,6 +8,10 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 - When a clip is ready: add an entry to `POST_VISIT_BLUEPRINT_VIDEOS` with `id`, file paths under `public/post-visit-blueprint/videos/`, and **`matchKeywords`** copied or refined from the column below.
 - Align spoken words and on-screen lower-thirds with the **suggested keywords** so facial-analysis **findings** (e.g. “Nasolabial Folds”, “Crow's feet”) and plan rows (e.g. “Moxi Full Face”) reliably match.
 
+**Treatment usage tiers**
+
+Clip tables are grouped into **High**, **Medium**, and **Low** *treatment usage* from frequency in a **Treatments Discussed** column (Patients grid export: `Patients-Grid view (7) - Patients-Grid view (7).csv`). Clip numbers (**1–102**, **S-***) are unchanged for tracking and filenames.
+
 **Naming files (suggested)**
 
 - Slug: lowercase, hyphens, e.g. `neurotoxin-glabella-frown-lines.mp4`
@@ -15,7 +19,33 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 1. Neurotoxin (Botox / Dysport) — indication-specific
+## Data basis (Treatments Discussed export)
+
+| Tier | Typical modalities | Line items in sample |
+| :-- | :-- | :-- |
+| **High** | Skincare, Neurotoxin, Filler | **46** + **41** + **33** = **120** / **202** (~59%) |
+| **Medium** | Laser, Microneedling, Biostimulators | **25** + **23** + **13** = **61** / **202** (~30%) |
+| **Low** | Chemical peel, Sofwave, Ultherapy, Kybella, standalone Energy Device, long-tail retail | **Peels 10**; other modalities single-digit counts in this export |
+
+**Sample coverage:** **77** patient rows contained parseable **Treatments Discussed** JSON; **202** plan line items total. Empty discussion fields were skipped — tiers rank *relative* priority among modalities that show up in dashboard plans.
+
+**Region tokens** (comma-split `region`; use to prioritize neurotoxin / filler scripts): forehead **31**, glabella **20**, crow's feet **15**, face (general) **14**, under eyes **11**, chin **8**, cheeks **8**, jawline **5**, lower face **4**, lips **4**, neck **3**, temples **3**, nasolabial **2**, prejowl sulcus **1**, jelly roll **1**, nose **1**.
+
+**Product / device strings** (stack + homecare): PLLA / Sculptra **11**, Moxi + BBL **8**, SkinCeuticals P-Tiox **5**, PDGF **4**, Moxi **4**, PRP **3**, Gentle Cleanser **3**, Simply Clean **3**, “Other” **3**, BBL **2**, Ultherapy **2**, Fraxel **2**, Halo **2**, C E Ferulic **2**, H.A. Intensifier **2**, Retinol 0.3% **2**, etc.
+
+**Clip sequencing tips**
+
+- **Neurotoxin (1–20):** Shoot **1–3** (glabella, forehead, crow’s feet) before optional rows; add **4** (bunny/nose) and **8–9** / **11–13** as you scale — they map to common region tokens.
+- **Filler (21–40):** Lead with **21–29**, **24–27** (folds, lips, chin, jawline, cheeks, tear trough) before hands, earlobe, and acne-scar specials.
+- **Tier S:** Skincare *rows* are high frequency, but *per-product* clips are optional — use the **Tier S priority** blurb under **Low** before filming the full catalog.
+
+Full **counts by modality, area token, product, and treatment-specific breakdowns** are in the **Appendix** at the end of this doc (same export as the tier table).
+
+---
+
+## High treatment usage (schedule first)
+
+### 1. Neurotoxin (Botox / Dysport) — indication-specific
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
@@ -42,7 +72,7 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 2. Dermal filler — area / concern-specific
+### 2. Dermal filler — area / concern-specific
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
@@ -69,7 +99,25 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 3. Biostimulators (collagen stimulators)
+### 3. Skincare & in-office facials (Facial Services → Skincare chapter)
+
+| # | Video concept (title) | Suggested `matchKeywords` |
+|---|------------------------|---------------------------|
+| 88 | Acne facial — in-office | `acne facial`, `acne`, `facial`, `skincare` |
+| 89 | Calming facial — redness-prone skin | `calming`, `sensitive`, `facial`, `skincare` |
+| 90 | Signature / maintenance facial | `signature facial`, `facial`, `maintenance`, `skincare` |
+| 91 | Glass Skin facial | `glass skin`, `facial`, `glow`, `skincare` |
+| 92 | Dermaplaning — what it is & aftercare | `dermaplaning`, `peach fuzz`, `exfoliat`, `facial` |
+| 93 | Dermasweep — exfoliation & infusion | `dermasweep`, `exfoliat`, `infusion`, `facial` |
+| 94 | At-home medical-grade routine — cleanser to SPF | `skincare`, `routine`, `spf`, `vitamin c`, `retin` |
+| 95 | Retinoids — starting slow & irritation | `retin`, `tretinoin`, `irritation`, `skincare` |
+| 96 | Daily SPF — photoaging prevention | `spf`, `sunscreen`, `sun damage`, `skincare` |
+
+---
+
+## Medium treatment usage
+
+### 4. Biostimulators (collagen stimulators)
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
@@ -80,7 +128,7 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 4. Energy — Moxi / BBL / combo (2025 Laser list)
+### 5. Energy — Moxi / BBL / combo (2025 Laser list)
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
@@ -103,7 +151,35 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 5. Sofwave (2025 Sofwave section)
+### 6. Microneedling & PRFM (2025 Medical Spa section)
+
+| # | Video concept (title) | Suggested `matchKeywords` |
+|---|------------------------|---------------------------|
+| 80 | Microneedling — collagen induction (face) | `microneedling`, `collagen`, `texture`, `pore` |
+| 81 | PRFM microneedling — glow & recovery | `prfm`, `microneedling`, `growth factor`, `glow` |
+| 82 | PRFM add-on — neck or chest with microneedling | `prfm`, `neck`, `chest`, `add-on`, `microneedling` |
+| 83 | Microneedling — acne scars | `microneedling`, `acne scar`, `texture` |
+| 84 | PRFM hair restoration — scalp overview | `prfm`, `hair`, `restoration`, `scalp` |
+| 85 | PRFM injections — facial (non-microneedling) | `prfm`, `injection`, `facial` |
+
+---
+
+### 7. Cross-cutting & assessment-finding hooks (concern bridges)
+
+These help when the plan or **facial analysis findings** name the concern but the modality varies.
+
+| # | Video concept (title) | Suggested `matchKeywords` |
+|---|------------------------|---------------------------|
+| 97 | Under-eye area — filler vs energy vs skincare | `under eye`, `hollow`, `wrinkle`, `dark`, `bag` |
+| 98 | Jowls — energy vs filler vs biostimulator | `jowl`, `jawline`, `lift`, `tighten`, `filler` |
+| 99 | Dark spots — BBL vs peel vs Cosmelan | `dark spot`, `pigment`, `sun spot`, `bbl`, `cosmelan` |
+| 100 | Fine lines vs volume loss — how we choose | `fine lines`, `volume`, `wrinkle`, `filler`, `laser` |
+
+---
+
+## Low treatment usage
+
+### 8. Sofwave (2025 Sofwave section)
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
@@ -115,7 +191,7 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 6. Ultherapy (2025 Ultherapy section)
+### 9. Ultherapy (2025 Ultherapy section)
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
@@ -127,7 +203,7 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 7. Chemical peels (2025 Chemical Peel section)
+### 10. Chemical peels (2025 Chemical Peel section)
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
@@ -143,20 +219,7 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 8. Microneedling & PRFM (2025 Medical Spa section)
-
-| # | Video concept (title) | Suggested `matchKeywords` |
-|---|------------------------|---------------------------|
-| 80 | Microneedling — collagen induction (face) | `microneedling`, `collagen`, `texture`, `pore` |
-| 81 | PRFM microneedling — glow & recovery | `prfm`, `microneedling`, `growth factor`, `glow` |
-| 82 | PRFM add-on — neck or chest with microneedling | `prfm`, `neck`, `chest`, `add-on`, `microneedling` |
-| 83 | Microneedling — acne scars | `microneedling`, `acne scar`, `texture` |
-| 84 | PRFM hair restoration — scalp overview | `prfm`, `hair`, `restoration`, `scalp` |
-| 85 | PRFM injections — facial (non-microneedling) | `prfm`, `injection`, `facial` |
-
----
-
-## 9. Kybella & targeted body
+### 11. Kybella & targeted body
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
@@ -165,38 +228,18 @@ Clinic-facing production brief. Each row is a **distinct vertical (9:16) green-s
 
 ---
 
-## 10. Skincare & in-office facials (Facial Services → Skincare chapter)
+### 12. Cross-cutting & assessment-finding hooks (comfort & niche)
 
 | # | Video concept (title) | Suggested `matchKeywords` |
 |---|------------------------|---------------------------|
-| 88 | Acne facial — in-office | `acne facial`, `acne`, `facial`, `skincare` |
-| 89 | Calming facial — redness-prone skin | `calming`, `sensitive`, `facial`, `skincare` |
-| 90 | Signature / maintenance facial | `signature facial`, `facial`, `maintenance`, `skincare` |
-| 91 | Glass Skin facial | `glass skin`, `facial`, `glow`, `skincare` |
-| 92 | Dermaplaning — what it is & aftercare | `dermaplaning`, `peach fuzz`, `exfoliat`, `facial` |
-| 93 | Dermasweep — exfoliation & infusion | `dermasweep`, `exfoliat`, `infusion`, `facial` |
-| 94 | At-home medical-grade routine — cleanser to SPF | `skincare`, `routine`, `spf`, `vitamin c`, `retin` |
-| 95 | Retinoids — starting slow & irritation | `retin`, `tretinoin`, `irritation`, `skincare` |
-| 96 | Daily SPF — photoaging prevention | `spf`, `sunscreen`, `sun damage`, `skincare` |
-
----
-
-## 11. Cross-cutting & assessment-finding hooks
-
-These help when the plan or **facial analysis findings** name the concern but the modality varies.
-
-| # | Video concept (title) | Suggested `matchKeywords` |
-|---|------------------------|---------------------------|
-| 97 | Under-eye area — filler vs energy vs skincare | `under eye`, `hollow`, `wrinkle`, `dark`, `bag` |
-| 98 | Jowls — energy vs filler vs biostimulator | `jowl`, `jawline`, `lift`, `tighten`, `filler` |
-| 99 | Dark spots — BBL vs peel vs Cosmelan | `dark spot`, `pigment`, `sun spot`, `bbl`, `cosmelan` |
-| 100 | Fine lines vs volume loss — how we choose | `fine lines`, `volume`, `wrinkle`, `filler`, `laser` |
 | 101 | Pronox / comfort options for anxious patients | `pronox`, `anxiety`, `comfort`, `nitrous` |
 | 102 | Spider vein treatment (face/legs) — overview | `spider vein`, `vein`, `vascular` |
 
 ---
 
-## 12. Tier S — optional product-specific clips (boutique catalog)
+### 13. Tier S — optional product-specific clips (boutique catalog)
+
+**Film Tier S in this order first (matches export product frequency):** S-35 P-Tiox, S-25 Gentle Cleanser, S-52 Simply Clean, S-16 C E Ferulic, S-20 Discoloration Defense, S-47 / S-48 Retinol 0.3% / 0.5%, S-39 Phyto Corrective Gel, S-27 H.A. Intensifier, S-26 Glycolic 10 Renew Overnight, S-51 Silymarin CF, S-6 On The Daily SPF 45 — then continue through the full catalog tables.
 
 **Source of truth for names in the plan:** `src/components/modals/DiscussedTreatmentsModal/treatmentBoutiqueProducts.ts` (`TREATMENT_BOUTIQUE_SKINCARE`). When a plan row has `treatment: Skincare` and `product` set to one of these strings, keyword matching can surface the right clip.
 
@@ -292,24 +335,272 @@ The **“Other”** retail row is omitted — there is no single product string 
 
 ---
 
+## Appendix: Treatments Discussed frequency detail
+
+Counts come from the same Patients grid export used for **Data basis** (`Patients-Grid view (7) - Patients-Grid view (7).csv`). **77** rows contained parseable **Treatments Discussed** JSON; **202** plan line items total. Rows with empty discussion were excluded.
+
+**How counts were built**
+
+| Field | Rule |
+| :-- | :-- |
+| **Modality** | `treatment` on each line item (exact string from the dashboard). |
+| **Area token** | `region` split on comma or semicolon; **trimmed and lowercased** so `Cheeks` and `cheeks` count together. |
+| **Product / type / brand** | `product` string split on **first `|`** (first segment only); long Shopify-style titles count as one row; bundled lists (“A, B, C”) are **not** split into separate SKUs. |
+| **Exact combo** | Full `treatment` + **verbatim** `region` string (before splitting) for “top pairs” — useful when staff copy the same phrasing repeatedly. |
+
+Re-export the grid and re-run the same parsing if you need updated numbers.
+
+### A. All modalities (`treatment`)
+
+| Modality | Count |
+| :-- | --: |
+| Skincare | 46 |
+| Neurotoxin | 41 |
+| Filler | 33 |
+| Laser | 25 |
+| Microneedling | 23 |
+| Biostimulators | 13 |
+| Chemical Peel | 10 |
+| Energy Device | 2 |
+| BPC-157 | 1 |
+| Epicutis Lipid Mask | 1 |
+| Epicutis Lipid Masks | 1 |
+| Goal only | 1 |
+| Neck lift | 1 |
+| Oral/Topical | 1 |
+| PRP | 1 |
+| Radiofrequency | 1 |
+| Skinvive | 1 |
+
+### B. All area tokens (`region` substrings)
+
+| Area token | Count |
+| :-- | --: |
+| forehead | 31 |
+| glabella | 20 |
+| crow's feet | 15 |
+| face | 14 |
+| under eyes | 11 |
+| chin | 8 |
+| cheeks | 8 |
+| jawline | 5 |
+| lower face | 4 |
+| lips | 4 |
+| neck | 3 |
+| temples | 3 |
+| skin | 3 |
+| chest | 2 |
+| nasolabial | 2 |
+| eyes | 1 |
+| jelly roll | 1 |
+| jawline all | 1 |
+| multiple | 1 |
+| nose | 1 |
+| prejowl sulcus | 1 |
+
+### C. Top exact `treatment` + verbatim `region` pairs
+
+| Pair | Count |
+| :-- | --: |
+| Neurotoxin \| Forehead | 13 |
+| Microneedling \| Face | 12 |
+| Neurotoxin \| Forehead, Glabella, Crow's feet | 6 |
+| Filler \| Chin | 4 |
+| Neurotoxin \| Glabella, Crow's feet | 3 |
+| Neurotoxin \| Forehead, Glabella | 2 |
+| Neurotoxin \| Forehead, Glabella, Crow's feet | 2 |
+| Neurotoxin \| Glabella, Forehead, Crow's feet | 2 |
+| Filler \| Cheeks, Under eyes | 2 |
+| Filler \| cheeks | 2 |
+| Filler \| Jawline | 2 |
+| Filler \| Lips | 2 |
+| Filler \| Temples | 2 |
+| Filler \| Under eyes | 2 |
+| Chemical Peel \| Skin | 2 |
+
+*(Additional pairs with count **1** appear in the raw CSV — e.g. `Neurotoxin \| Glabella, Forehead, Crow's feet, Jelly Roll, Nose`, `Microneedling \| Face, Neck, Chest`, `Filler \| Under eyes, Nasolabial, Cheeks`.)*
+
+### D. Subcomponents by modality
+
+#### Neurotoxin — regions (tokens) and products (first segment)
+
+| `region` token | Count |
+| :-- | --: |
+| forehead | 29 |
+| glabella | 20 |
+| crow's feet | 15 |
+| lower face | 3 |
+| jawline | 3 |
+| chin | 2 |
+| under eyes | 2 |
+| jelly roll | 1 |
+| nose | 1 |
+| neck | 1 |
+
+| Product / brand (first segment) | Count |
+| :-- | --: |
+| AbobotulinumtoxinA (Dysport) | 2 |
+| DaxibotulinumtoxinA (Daxxify) | 1 |
+| Gentle cleanser | 1 |
+| OnabotulinumtoxinA (Botox) | 1 |
+
+#### Filler — regions (tokens) and products (first segment)
+
+| `region` token | Count |
+| :-- | --: |
+| cheeks | 8 |
+| chin | 6 |
+| under eyes | 6 |
+| lips | 3 |
+| temples | 3 |
+| jawline | 2 |
+| forehead | 1 |
+| jawline all | 1 |
+| lower face | 1 |
+| nasolabial | 1 |
+| prejowl sulcus | 1 |
+
+| Product / type (first segment) | Count |
+| :-- | --: |
+| Hyaluronic acid (HA) – lip | 4 |
+| Hyaluronic acid (HA) – nasolabial | 1 |
+
+#### Laser — products and regions
+
+| Product / device (first segment) | Count |
+| :-- | --: |
+| Moxi + BBL | 8 |
+| Moxi | 2 |
+| BBL (BroadBand Light) | 2 |
+| Fraxel | 2 |
+| Halo | 2 |
+| Ultherapy | 2 |
+| Heat/Energy | 1 |
+| Other | 1 |
+
+| `region` token | Count |
+| :-- | --: |
+| multiple | 1 |
+| skin | 1 |
+| under eyes | 1 |
+
+#### Microneedling — regions and products
+
+| `region` token | Count |
+| :-- | --: |
+| face | 14 |
+| chest | 2 |
+| neck | 2 |
+| under eyes | 1 |
+
+| Product / type (first segment) | Count |
+| :-- | --: |
+| PDGF | 4 |
+| PRP | 3 |
+| With growth factors / PRP | 2 |
+| Other | 1 |
+| Subcision, TCA / TCA cross (acne scars) | 1 |
+| TCA, PRP | 1 |
+
+#### Biostimulators — products and regions
+
+| Product (first segment) | Count |
+| :-- | --: |
+| PLLA (e.g. Sculptra) | 11 |
+
+| `region` token | Count |
+| :-- | --: |
+| forehead | 1 |
+| nasolabial | 1 |
+
+#### Chemical Peel — products and regions
+
+| Product (first segment) | Count |
+| :-- | --: |
+| Jessner’s Peel | 1 |
+| Lactic acid | 1 |
+
+| `region` token | Count |
+| :-- | --: |
+| skin | 2 |
+
+#### Energy Device — products
+
+| Product (first segment) | Count |
+| :-- | --: |
+| Moxi | 2 |
+
+#### Skincare — products (first segment; long titles preserved) and regions
+
+| Product (first segment) | Count |
+| :-- | --: |
+| SkinCeuticals P-Tiox | 5 |
+| SkinCeuticals Gentle Cleanser | 3 |
+| SkinCeuticals Simply Clean | 3 |
+| EltaMD UV Clear | 2 |
+| SkinCeuticals C E Ferulic | 2 |
+| SkinCeuticals Discoloration Defense | 2 |
+| SkinCeuticals Hyaluronic Acid Intensifier | 2 |
+| Skinceuticals Retinol 0.3 | 2 |
+| The Treatment Don't Be A Flake Moisturizer – Restorative Antioxidant Cream for Glowing Skin | 2 |
+| Anti-aging cream, Moisturizer | 1 |
+| Arnica | 1 |
+| Hydrating moisturizer | 1 |
+| Lip balm (for lip filler) | 1 |
+| Neostrata Glycolic Renewal | 1 |
+| Other | 1 |
+| SkinCeuticals A.G.E. Advanced Eye Cream | 1 |
+| SkinCeuticals Glycolic 10 Renew Overnight | 1 |
+| Skinceuticals Hyaluronic Acid | 1 |
+| SkinCeuticals Phyto Corrective Gel | 1 |
+| SkinCeuticals Retinol 0.5% | 1 |
+| Skinceuticals Retinol 1.0 | 1 |
+| SkinCeuticals Silymarin CF | 1 |
+| SkinCeuticals Triple Lipid Restore 2:4:2 | 1 |
+| SkinMedica HA5 Rejuvenating Hydrator | 1 |
+| The Treatment Don't Be A Flake Moisturizer – Restorative Antioxidant Cream for Glowing Skin, SkinCeuticals Hyaluronic Acid Intensifier | 1 |
+| The Treatment Don't Be A Flake Moisturizer – Restorative Antioxidant Cream for Glowing Skin, The Treatment Dream Lover | 1 |
+| The Treatment On The Daily SPF 45 | 1 |
+| Topical/Skincare | 1 |
+| Vitamin C serum, Cleansers, Sunscreen | 1 |
+
+| `region` token | Count |
+| :-- | --: |
+| under eyes | 1 |
+| eyes | 1 |
+
+---
+
 ## Count
 
-- **102** core concepts (sections 1–11) — drop any that don’t fit brand/medical-legal review.
-- **62** optional **Tier S** product modules (section 12) — film selectively; catalog syncs with `treatmentBoutiqueProducts.ts`.
+- **102** core concepts — grouped above into High / Medium / Low tiers; drop any rows that don’t fit brand/medical-legal review.
+- **62** optional **Tier S** product modules — film selectively using the **Tier S priority** list, then the full catalog in `treatmentBoutiqueProducts.ts`.
 
 ---
 
 ## Production batching (suggested shoot days)
 
-1. **Neurotoxin day** — rows 1–20  
-2. **Filler + biostim day** — rows 21–44  
-3. **Laser day (Moxi/BBL)** — rows 45–60  
-4. **Sofwave + Ultherapy** — rows 61–70  
-5. **Peels** — rows 71–79  
-6. **Microneedling / PRFM / Kybella** — rows 80–87  
-7. **Facials + skincare education** — rows 88–96  
-8. **Cross-cutting + misc** — rows 97–102  
-9. **Optional: Tier S retail** — pick high-velocity SKUs from section 12 (can be many short reads on one shoot day)
+Order follows **High → Medium → Low** usage tiers (see **Data basis**).
+
+**High tier**
+
+1. **Neurotoxin day** — clips **1–20** (lead with **1–3**, then **4–5** per region-token notes).  
+2. **Filler day** — clips **21–40** (lead with folds, lips, chin, jawline, cheeks, tear trough).  
+3. **In-office facials + skincare education** — clips **88–96**.
+
+**Medium tier**
+
+4. **Biostimulators + laser stack** — clips **41–44**, then **45–60** (Moxi / BBL / combo / post-laser homecare).  
+5. **Microneedling / PRFM** — clips **80–85**.  
+6. **Cross-cutting concern bridges** — clips **97–100**.
+
+**Low tier**
+
+7. **Sofwave + Ultherapy** — clips **61–70**.  
+8. **Chemical peels** — clips **71–79**.  
+9. **Kybella** — clips **86–87**.  
+10. **Comfort + niche** — clips **101–102** (Pronox, spider veins).  
+11. **Tier S retail** — follow the **Tier S priority** list, then remaining SKUs as capacity allows.
 
 ---
 

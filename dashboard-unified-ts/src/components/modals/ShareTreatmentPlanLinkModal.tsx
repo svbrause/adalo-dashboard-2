@@ -271,6 +271,14 @@ export default function ShareTreatmentPlanLinkModal({
     provider?.name,
   ]);
 
+  const handlePreviewLink = useCallback(() => {
+    if (!pendingBlueprintLink) {
+      showError("Link is not ready yet.");
+      return;
+    }
+    window.open(pendingBlueprintLink, "_blank", "noopener,noreferrer");
+  }, [pendingBlueprintLink]);
+
   if (!isPostVisitBlueprintSender(provider)) {
     return (
       <div
@@ -411,6 +419,14 @@ export default function ShareTreatmentPlanLinkModal({
                 disabled={sending}
               >
                 Back
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handlePreviewLink}
+                disabled={sending || !pendingBlueprintLink}
+              >
+                Preview link
               </button>
               <button
                 type="button"

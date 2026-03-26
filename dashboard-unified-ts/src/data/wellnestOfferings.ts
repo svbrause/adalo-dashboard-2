@@ -283,13 +283,17 @@ export function getWellnestProductOptionsForTreatment(
 export function getWellnestPeptideMeta(treatment: string): {
   longevity?: string;
   downtime?: string;
+  downtimeFactLabel?: string;
+  notes?: string;
   priceRange?: string;
 } | null {
   const o = getWellnestOfferingByTreatmentName(treatment);
   if (!o) return null;
   return {
     longevity: o.resultsTimeline,
-    downtime: "Per protocol; discuss with your clinician",
+    downtime: o.delivery,
+    downtimeFactLabel: "Delivery",
+    notes: o.notes,
     priceRange: o.pricing,
   };
 }

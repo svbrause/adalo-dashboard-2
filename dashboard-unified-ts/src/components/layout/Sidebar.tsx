@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import { ViewType } from "../../types";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
+import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import HelpRequestModal from "../modals/HelpRequestModal";
 import "./Sidebar.css";
 
@@ -23,6 +24,9 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse 
 
   const getLogoUrl = (): string | null => {
     if (!provider) return null;
+    if (isWellnestWellnessProviderCode(provider.code)) {
+      return "https://wellnestmd.com/wp-content/uploads/2024/12/nav-logo-5.svg";
+    }
 
     const logo = provider.logo || provider.Logo;
     if (!logo) return null;

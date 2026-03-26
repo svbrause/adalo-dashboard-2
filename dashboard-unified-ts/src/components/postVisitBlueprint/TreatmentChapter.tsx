@@ -264,7 +264,9 @@ export function TreatmentChapterView({
           )}
           {chapter.meta.downtime && (
             <div className="tc-fact">
-              <span className="tc-fact-label">Downtime</span>
+              <span className="tc-fact-label">
+                {chapter.meta.downtimeFactLabel || "Downtime"}
+              </span>
               <span className="tc-fact-val">{chapter.meta.downtime}</span>
             </div>
           )}
@@ -278,6 +280,7 @@ export function TreatmentChapterView({
           )}
         </div>
       )}
+      {chapter.meta.notes && <p className="tc-fact-note">{chapter.meta.notes}</p>}
 
       {chapterGlossaryTerms && chapterGlossaryTerms.length > 0 && (
         <details className="pvb-plan-glossary pvb-plan-glossary--collapsible tc-chapter-glossary">
@@ -387,7 +390,7 @@ export function TreatmentChapterView({
                         const v = e.currentTarget;
                         try {
                           v.currentTime = 0.1;
-                        } catch {
+                        } catch (_error) {
                           /* seek can fail before enough data */
                         }
                       }}

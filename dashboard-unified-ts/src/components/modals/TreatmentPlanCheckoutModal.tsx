@@ -9,6 +9,7 @@ import { CheckoutFinancingSection } from "./DiscussedTreatmentsModal/CheckoutFin
 import type { CheckoutLineItemDetail } from "../../data/treatmentPricing2025";
 import { formatPrice } from "../../data/treatmentPricing2025";
 import { useDashboard } from "../../context/DashboardContext";
+import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import "./TreatmentPlanCheckoutModal.css";
 import "../treatmentRecommender/TreatmentRecommenderByTreatment.css";
 
@@ -196,6 +197,10 @@ export default function TreatmentPlanCheckoutModal({
     ).trim();
     return val || "https://www.carecredit.com";
   }, [provider]);
+  const allowMintMembership = !isWellnestWellnessProviderCode(
+    providerCode ?? provider?.code,
+  );
+  const effectiveMintMember = allowMintMembership ? isMintMember : false;
 
   return (
     <div
@@ -252,8 +257,10 @@ export default function TreatmentPlanCheckoutModal({
               onCheckoutDataChange={setQuoteData}
               onRemoveItem={onRemoveItem}
               onUpdateItem={onUpdateItem}
-              isMintMember={isMintMember}
-              onMintMemberChange={setIsMintMember}
+              isMintMember={effectiveMintMember}
+              onMintMemberChange={
+                allowMintMembership ? setIsMintMember : undefined
+              }
               providerCode={providerCode}
             />
           )}
@@ -325,7 +332,7 @@ export default function TreatmentPlanCheckoutModal({
               </table>
             </div>
             <div className="treatment-plan-quote-sheet-footer">
-              {isMintMember && quoteData.total > 0 && (
+              {allowMintMembership && effectiveMintMember && quoteData.total > 0 && (
                 <div className="treatment-plan-quote-sheet-total-row treatment-plan-quote-sheet-mint-line">
                   <span className="treatment-plan-quote-sheet-total-label">
                     Mint member 10% off
@@ -343,7 +350,9 @@ export default function TreatmentPlanCheckoutModal({
                   {quoteData.hasUnknownPrices && quoteData.total === 0
                     ? "—"
                     : formatPrice(
-                        isMintMember && quoteData.total > 0
+                        allowMintMembership &&
+                          effectiveMintMember &&
+                          quoteData.total > 0
                           ? quoteData.total - quoteData.total * 0.1
                           : quoteData.total,
                       )}
@@ -354,7 +363,9 @@ export default function TreatmentPlanCheckoutModal({
                   totalAmount={
                     quoteData.hasUnknownPrices && quoteData.total === 0
                       ? 0
-                      : isMintMember && quoteData.total > 0
+                      : allowMintMembership &&
+                          effectiveMintMember &&
+                          quoteData.total > 0
                         ? quoteData.total - quoteData.total * 0.1
                         : quoteData.total
                   }

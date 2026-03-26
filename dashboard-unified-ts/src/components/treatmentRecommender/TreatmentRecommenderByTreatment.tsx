@@ -9,6 +9,7 @@ import { Client, TreatmentPhoto, DiscussedItem } from "../../types";
 import {
   fetchTreatmentPhotos,
   fetchTableRecords,
+  sendSMSNotification,
   fetchTreatmentRecommenderCustomOptions,
   createTreatmentRecommenderCustomOption,
   deleteTreatmentRecommenderOption,
@@ -17,12 +18,14 @@ import {
   type TreatmentRecommenderOptionType,
 } from "../../services/api";
 import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
+import { getWellnestDemoPhotoUrls } from "../../debug/wellnestDemoPhotos";
 import {
   getWellnestOfferingByTreatmentName,
   getWellnestProductOptionsForTreatment,
   isWellnestWellnessProviderCode,
   WELLNEST_REGULATORY_NOTICE,
 } from "../../data/wellnestOfferings";
+import { WELLNESS_TREATMENTS } from "../../data/wellnessQuiz";
 import {
   getWellnestExampleTalkingPoints,
   getWellnestRecommenderImageUrl,
@@ -30,6 +33,7 @@ import {
 import {
   getWellnestExternalExamplesForOffering,
   WELLNEST_EXTERNAL_LINKS_DISCLAIMER,
+  type WellnestExternalExample,
   type WellnestExternalExampleKind,
 } from "../../data/wellnestExternalExamples";
 import type { TreatmentRecommenderCustomOption } from "../../services/api";
@@ -76,8 +80,18 @@ import {
   SKIN_TYPE_DISPLAY_LABELS,
   SKIN_TYPE_SCORE_ORDER,
 } from "../../data/skinTypeQuiz";
-import { showToast } from "../../utils/toast";
+import { showError, showToast } from "../../utils/toast";
+import {
+  cleanPhoneNumber,
+  formatPhoneDisplay,
+  isValidPhone,
+} from "../../utils/validation";
 import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
+import { WELLNEST_CURATED_BLUEPRINT_CASES } from "../../data/wellnestCuratedBlueprintCases";
+import {
+  photoMatchesPlanTreatment,
+  type BlueprintCasePhoto,
+} from "../../utils/postVisitBlueprintCases";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
 
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
@@ -362,6 +376,95 @@ function FeatureBreakdownSection({
   );
 }
 
+type WellnestGoalSignal = {
+  score: number;
+  matchedGoals: string[];
+};
+
+const WELLNESS_TREATMENT_KEYWORDS_BY_ID: Record<string, string[]> = Object.fromEntries(
+  WELLNESS_TREATMENTS.map((t) => [t.id, t.matchKeywords ?? []]),
+);
+const WELLNESS_TREATMENT_SUMMARY_BY_ID: Record<string, string> = Object.fromEntries(
+  WELLNESS_TREATMENTS.map((t) => [t.id, t.summary ?? ""]),
+);
+const WELLNEST_CASE_IMAGE_FALLBACK =
+  "/post-visit-blueprint/videos/wellnest/images.jpeg";
+
+function normalizeGoalToken(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function expandGoalAliases(goal: string): string[] {
+  const g = normalizeGoalToken(goal);
+  const aliases: Record<string, string[]> = {
+    recovery: ["recovery", "injury", "muscle", "mobility", "training"],
+    "training support": ["training", "recovery", "muscle", "performance"],
+    energy: ["energy", "fatigue", "metabolic"],
+    sleep: ["sleep", "rest"],
+    focus: ["focus", "memory", "cognitive", "brain fog"],
+    longevity: ["longevity", "anti-aging", "cellular aging", "metabolism"],
+    "stress balance": ["stress", "anxiety", "mood"],
+    "body composition": ["body composition", "fat", "weight", "metabolic"],
+    "metabolic support": ["metabolic", "fat metabolism", "weight", "visceral fat"],
+    gut: ["gut", "gi", "inflammation"],
+    "gut comfort": ["gut", "gi", "inflammation"],
+  };
+  const mapped = aliases[g] ?? [];
+  return Array.from(new Set([g, ...mapped]));
+}
+
+function scoreWellnestGoalMatch(
+  goals: string[],
+  treatmentCorpus: string,
+  matchKeywords: string[],
+): WellnestGoalSignal {
+  const matchedGoals = new Set<string>();
+  const normalizedCorpus = normalizeGoalToken(treatmentCorpus);
+  const keywords = (matchKeywords ?? [])
+    .map((k) => normalizeGoalToken(k))
+    .filter((k) => k.length >= 3);
+  let score = 0;
+  for (const rawGoal of goals) {
+    const goal = rawGoal.trim();
+    const goalL = normalizeGoalToken(goal);
+    if (!goalL) continue;
+    const goalCandidates = expandGoalAliases(goal);
+    let matched = false;
+    for (const candidate of goalCandidates) {
+      if (candidate.length >= 3 && normalizedCorpus.includes(candidate)) {
+        score += 2;
+        matched = true;
+        break;
+      }
+      for (const kw of keywords) {
+        if (
+          candidate.includes(kw) ||
+          kw.includes(candidate) ||
+          candidate
+            .split(/\s+/)
+            .some((part) => part.length >= 3 && kw.includes(part))
+        ) {
+          score += 1;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) break;
+    }
+    if (matched) matchedGoals.add(goal);
+  }
+  return { score, matchedGoals: Array.from(matchedGoals) };
+}
+
+function getWellnestPatientFriendlyAddressCopy(
+  offering: ReturnType<typeof getWellnestOfferingByTreatmentName>,
+): string {
+  if (!offering) return "";
+  const summary =
+    WELLNESS_TREATMENT_SUMMARY_BY_ID[offering.wellnessQuizId ?? ""]?.trim() ?? "";
+  return summary || offering.addresses;
+}
+
 export interface TreatmentRecommenderByTreatmentProps {
   client: Client;
   onBack: () => void;
@@ -460,6 +563,16 @@ export default function TreatmentRecommenderByTreatment({
   const [wellnestDetailTreatment, setWellnestDetailTreatment] = useState<
     string | null
   >(null);
+  const [showWellnestArticleShare, setShowWellnestArticleShare] =
+    useState(false);
+  const [wellnestArticleSelection, setWellnestArticleSelection] = useState<
+    Record<string, boolean>
+  >({});
+  const [wellnestArticlePhone, setWellnestArticlePhone] = useState("");
+  const [wellnestArticleDraft, setWellnestArticleDraft] = useState("");
+  const [wellnestArticleSending, setWellnestArticleSending] = useState(false);
+  const [wellnestSelectedResultCase, setWellnestSelectedResultCase] =
+    useState<BlueprintCasePhoto | null>(null);
   const [treatmentPhotos, setTreatmentPhotos] = useState<TreatmentPhoto[]>([]);
   const [clientPhotoView, setClientPhotoView] = useState<"front" | "side">(
     "front",
@@ -477,6 +590,36 @@ export default function TreatmentRecommenderByTreatment({
     useState(true);
   /** Refs to treatment cards for scroll-into-view when opening Add to plan from recommended section */
   const cardRefsMap = useRef<Record<string, HTMLDivElement | null>>({});
+  const wellnestSharePanelRef = useRef<HTMLDivElement | null>(null);
+  const wellnestCasePanelRef = useRef<HTMLDivElement | null>(null);
+
+  const wellnessIntakeGoals = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (Array.isArray(client.goals) ? client.goals : [])
+            .map((g) => String(g ?? "").trim())
+            .filter(Boolean),
+        ),
+      ),
+    [client.goals],
+  );
+
+  const getWellnestGoalSignalForTreatment = (treatmentName: string) => {
+    const wellnestOffering = getWellnestOfferingByTreatmentName(treatmentName);
+    if (!wellnestOffering || wellnessIntakeGoals.length === 0) return null;
+    return scoreWellnestGoalMatch(
+      wellnessIntakeGoals,
+      [
+        wellnestOffering.category,
+        wellnestOffering.addresses,
+        wellnestOffering.demographics,
+        wellnestOffering.notes,
+      ].join(" "),
+      WELLNESS_TREATMENT_KEYWORDS_BY_ID[wellnestOffering.wellnessQuizId ?? ""] ??
+        [],
+    );
+  };
 
   useEffect(() => {
     if (!showClientPhotoModal) return;
@@ -495,6 +638,26 @@ export default function TreatmentRecommenderByTreatment({
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [wellnestDetailTreatment]);
+
+  useEffect(() => {
+    if (!wellnestSelectedResultCase) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setWellnestSelectedResultCase(null);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [wellnestSelectedResultCase]);
+
+  useEffect(() => {
+    if (!showWellnestArticleShare) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !wellnestArticleSending) {
+        setShowWellnestArticleShare(false);
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [showWellnestArticleShare, wellnestArticleSending]);
 
   useEffect(() => {
     if (!editOptionsContext) return;
@@ -524,8 +687,10 @@ export default function TreatmentRecommenderByTreatment({
 
   useEffect(() => {
     if (client.tableSource !== "Patients") return;
+    const demoPhotos = getWellnestDemoPhotoUrls(client.id);
     const inline = getClientFrontPhotoDisplayUrl(client.frontPhoto);
-    setFrontPhotoUrl(inline);
+    setFrontPhotoUrl(inline ?? demoPhotos?.front ?? null);
+    setSidePhotoUrl(demoPhotos?.side ?? null);
     let mounted = true;
     fetchTableRecords("Patients", {
       filterFormula: `RECORD_ID() = "${client.id}"`,
@@ -537,7 +702,11 @@ export default function TreatmentRecommenderByTreatment({
       ],
     })
       .then((records) => {
-        if (!mounted || records.length === 0) return;
+        if (!mounted) return;
+        if (records.length === 0) {
+          if (demoPhotos) setSidePhotoUrl(demoPhotos.side);
+          return;
+        }
         const fields = records[0].fields;
         const front =
           fields["Front Photo"] ??
@@ -565,11 +734,15 @@ export default function TreatmentRecommenderByTreatment({
           unprocessedLeft.length > 0
         ) {
           setSidePhotoUrl(getUrl(unprocessedLeft[0]) ?? null);
+        } else if (demoPhotos?.side) {
+          setSidePhotoUrl(demoPhotos.side);
         } else {
           setSidePhotoUrl(null);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (mounted && demoPhotos?.side) setSidePhotoUrl(demoPhotos.side);
+      });
     return () => {
       mounted = false;
     };
@@ -866,13 +1039,28 @@ export default function TreatmentRecommenderByTreatment({
     const hasCompletedSkinQuiz = Boolean(
       client.skincareQuiz?.completedAt ?? client.skincareQuiz?.result,
     );
-    return hasCompletedSkinQuiz
+    const base = hasCompletedSkinQuiz
       ? suggestedTreatments.filter((t) => t !== "Skincare")
       : suggestedTreatments;
+    if (!isWellnestWellnessProviderCode(provider?.code)) return base;
+    if (wellnessIntakeGoals.length === 0) return base;
+    return [...base].sort((a, b) => {
+      const aSignal = getWellnestGoalSignalForTreatment(a);
+      const bSignal = getWellnestGoalSignalForTreatment(b);
+      const aScore = aSignal?.score ?? -1;
+      const bScore = bSignal?.score ?? -1;
+      if (aScore !== bScore) return bScore - aScore;
+      const aMatchedCount = aSignal?.matchedGoals.length ?? 0;
+      const bMatchedCount = bSignal?.matchedGoals.length ?? 0;
+      if (aMatchedCount !== bMatchedCount) return bMatchedCount - aMatchedCount;
+      return 0;
+    });
   }, [
     suggestedTreatments,
     client.skincareQuiz?.completedAt,
     client.skincareQuiz?.result,
+    provider?.code,
+    wellnessIntakeGoals,
   ]);
 
   /** Skincare product details for the recommendations section (same shape as quiz modal cards) */
@@ -1009,9 +1197,11 @@ export default function TreatmentRecommenderByTreatment({
   const getWhyExplanation = (treatment: string): string => {
     const wellnestO = getWellnestOfferingByTreatmentName(treatment);
     if (wellnestO) {
-      const lead =
-        wellnestO.addresses.split(",")[0]?.trim() || wellnestO.category;
-      return `${wellnestO.treatmentName} — ${wellnestO.category}. Often discussed for: ${lead}.`;
+      const demographicLead =
+        wellnestO.demographics.split(/[.;,]/)[0]?.trim() ||
+        "selected based on your intake goals";
+      const categoryLead = wellnestO.category.trim().toLowerCase();
+      return `A ${categoryLead} option often considered for ${demographicLead.toLowerCase()}.`;
     }
     const relevant = getRelevantFindingsForTreatment(treatment);
     const findingsText =
@@ -1495,6 +1685,18 @@ export default function TreatmentRecommenderByTreatment({
               treatmentsToShow.map((treatment) => {
                 const wellnestOffering =
                   getWellnestOfferingByTreatmentName(treatment);
+                const wellnestAddressCopy =
+                  getWellnestPatientFriendlyAddressCopy(wellnestOffering);
+                const wellnestGoalSignal = getWellnestGoalSignalForTreatment(treatment);
+                const showWellnestGoalMatchBadge = Boolean(
+                  wellnestGoalSignal && wellnestGoalSignal.score > 0,
+                );
+                const wellnestGoalMatchLabel = showWellnestGoalMatchBadge
+                  ? wellnestGoalSignal!.matchedGoals.length >=
+                    wellnessIntakeGoals.length
+                    ? `Matches all goals: ${wellnestGoalSignal!.matchedGoals.join(", ")}`
+                    : `Matches goals: ${wellnestGoalSignal!.matchedGoals.join(", ")}`
+                  : "";
                 const cardPhotos = getPhotosForTreatment(treatment);
                 const cardPhoto = cardPhotos[0];
                 const wellnestHeroUrl = wellnestOffering
@@ -1559,8 +1761,22 @@ export default function TreatmentRecommenderByTreatment({
                     {wellnestOffering && (
                       <div className="treatment-recommender-wellnest-card">
                         <div className="treatment-recommender-wellnest-card__chips">
+                          {showWellnestGoalMatchBadge ? (
+                            <span
+                              className={`treatment-recommender-wellnest-card__chip treatment-recommender-wellnest-card__chip--goal${
+                                wellnestGoalSignal &&
+                                wellnestGoalSignal.matchedGoals.length >=
+                                  wellnessIntakeGoals.length
+                                  ? " treatment-recommender-wellnest-card__chip--goal-strong"
+                                  : " treatment-recommender-wellnest-card__chip--goal-medium"
+                              }`}
+                              title="Matched against intake wellness goals"
+                            >
+                              {wellnestGoalMatchLabel}
+                            </span>
+                          ) : null}
                           <span className="treatment-recommender-wellnest-card__chip">
-                            Timeline: {wellnestOffering.resultsTimeline}
+                            Visible results: {wellnestOffering.resultsTimeline}
                           </span>
                           <span className="treatment-recommender-wellnest-card__chip">
                             {wellnestOffering.pricing}
@@ -1571,7 +1787,7 @@ export default function TreatmentRecommenderByTreatment({
                             <h4 className="treatment-recommender-wellnest-card__label">
                               What it may address
                             </h4>
-                            <p>{wellnestOffering.addresses}</p>
+                            <p>{wellnestAddressCopy}</p>
                           </div>
                           <div>
                             <h4 className="treatment-recommender-wellnest-card__label">
@@ -2590,12 +2806,21 @@ export default function TreatmentRecommenderByTreatment({
             wellnestDetailTreatment,
           );
           if (!detailOffering) return null;
+          const detailAddressCopy =
+            getWellnestPatientFriendlyAddressCopy(detailOffering);
           const detailImg = getWellnestRecommenderImageUrl(
             wellnestDetailTreatment,
           );
+          const detailResultCases = WELLNEST_CURATED_BLUEPRINT_CASES.filter((p) =>
+            photoMatchesPlanTreatment(p, detailOffering.treatmentName),
+          ).slice(0, 6);
           const talking = getWellnestExampleTalkingPoints(detailOffering);
           const externalExamples =
             getWellnestExternalExamplesForOffering(detailOffering);
+          const selectedExternalExamples = externalExamples.filter(
+            (ex) => wellnestArticleSelection[ex.id],
+          );
+          const selectedExternalCount = selectedExternalExamples.length;
           const externalKindLabel = (k: WellnestExternalExampleKind) => {
             switch (k) {
               case "news":
@@ -2612,6 +2837,72 @@ export default function TreatmentRecommenderByTreatment({
                 return "Research";
               case "investigation":
                 return "Report";
+            }
+          };
+          const buildExternalShareDraft = (
+            treatmentName: string,
+            examples: WellnestExternalExample[],
+          ) => {
+            const firstName = client.name?.trim().split(/\s+/)[0] || "there";
+            const lines = examples.map((ex) => `- ${ex.title}: ${ex.url}`);
+            return `Hi ${firstName}, here are the ${treatmentName} resources we discussed:\n${lines.join(
+              "\n",
+            )}`;
+          };
+          const openArticleShare = () => {
+            const defaults: Record<string, boolean> = {};
+            for (const ex of externalExamples.slice(0, 2)) defaults[ex.id] = true;
+            const preselected = externalExamples.filter((ex) => defaults[ex.id]);
+            setWellnestArticleSelection(defaults);
+            setWellnestArticlePhone(formatPhoneDisplay(client.phone));
+            setWellnestArticleDraft(
+              buildExternalShareDraft(detailOffering.treatmentName, preselected),
+            );
+            setShowWellnestArticleShare(true);
+            window.setTimeout(() => {
+              wellnestSharePanelRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+              });
+            }, 30);
+          };
+          const toggleArticleSelection = (id: string) => {
+            setWellnestArticleSelection((prev) => {
+              const next = { ...prev, [id]: !prev[id] };
+              const selected = externalExamples.filter((ex) => next[ex.id]);
+              setWellnestArticleDraft(
+                buildExternalShareDraft(detailOffering.treatmentName, selected),
+              );
+              return next;
+            });
+          };
+          const sendSelectedArticles = async () => {
+            if (selectedExternalCount === 0) {
+              showError("Select at least one article to share.");
+              return;
+            }
+            const formattedPhone = formatPhoneDisplay(wellnestArticlePhone);
+            if (!isValidPhone(formattedPhone)) {
+              showError("Enter a valid recipient phone number.");
+              return;
+            }
+            if (!wellnestArticleDraft.trim()) {
+              showError("Message is empty.");
+              return;
+            }
+            setWellnestArticleSending(true);
+            try {
+              await sendSMSNotification(
+                cleanPhoneNumber(formattedPhone),
+                wellnestArticleDraft.trim(),
+                client.name,
+              );
+              showToast("Articles sent");
+              setShowWellnestArticleShare(false);
+            } catch (err) {
+              showError(err instanceof Error ? err.message : "Failed to send SMS.");
+            } finally {
+              setWellnestArticleSending(false);
             }
           };
           return (
@@ -2651,7 +2942,7 @@ export default function TreatmentRecommenderByTreatment({
                     {detailOffering.category}
                   </p>
                   <dl className="wellnest-recommender-info-dl">
-                    <dt>Typical timeline</dt>
+                    <dt>Visible results</dt>
                     <dd>{detailOffering.resultsTimeline}</dd>
                     <dt>Price guide (from sheet)</dt>
                     <dd>{detailOffering.pricing}</dd>
@@ -2666,7 +2957,7 @@ export default function TreatmentRecommenderByTreatment({
                     What it may address
                   </h3>
                   <p className="wellnest-recommender-info-para">
-                    {detailOffering.addresses}
+                    {detailAddressCopy}
                   </p>
                   <h3 className="wellnest-recommender-info-subhead">
                     Example talking points (education only)
@@ -2676,6 +2967,106 @@ export default function TreatmentRecommenderByTreatment({
                       <li key={`${i}-${line.slice(0, 40)}`}>{line}</li>
                     ))}
                   </ul>
+                  {detailResultCases.length > 0 ? (
+                    <>
+                      <h3 className="wellnest-recommender-info-subhead">
+                        Relevant cases
+                      </h3>
+                      <div className="wellnest-recommender-info-results">
+                        {detailResultCases.map((c) => (
+                          <article
+                            key={`wellnest-case-${c.id}`}
+                            className="wellnest-recommender-info-result-card"
+                          >
+                            <img
+                              src={c.photoUrl}
+                              alt={c.storyTitle || "Illustrative wellness case"}
+                              className="wellnest-recommender-info-result-image"
+                              loading="lazy"
+                              onError={(e) => {
+                                const img = e.currentTarget;
+                                img.onerror = null;
+                                img.src = WELLNEST_CASE_IMAGE_FALLBACK;
+                              }}
+                            />
+                            <div className="wellnest-recommender-info-result-body">
+                              <p className="wellnest-recommender-info-result-title">
+                                {c.storyTitle || "Case highlight"}
+                              </p>
+                              {c.caption ? (
+                                <p className="wellnest-recommender-info-result-caption">
+                                  {c.caption}
+                                </p>
+                              ) : null}
+                              <button
+                                type="button"
+                                className="wellnest-recommender-info-result-learn-more"
+                                onClick={() => {
+                                  setWellnestSelectedResultCase(c);
+                                  window.setTimeout(() => {
+                                    wellnestCasePanelRef.current?.scrollIntoView({
+                                      behavior: "smooth",
+                                      block: "nearest",
+                                    });
+                                  }, 30);
+                                }}
+                              >
+                                Learn more
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                      {wellnestSelectedResultCase && (
+                        <div
+                          ref={wellnestCasePanelRef}
+                          className="wellnest-recommender-case-inline"
+                        >
+                          <div className="wellnest-recommender-case-inline-head">
+                            <h4
+                              id="wellnest-case-title"
+                              className="wellnest-recommender-case-title"
+                            >
+                              {wellnestSelectedResultCase.storyTitle || "Case detail"}
+                            </h4>
+                            <button
+                              type="button"
+                              className="wellnest-recommender-case-inline-close"
+                              onClick={() => setWellnestSelectedResultCase(null)}
+                            >
+                              Close
+                            </button>
+                          </div>
+                          <img
+                            src={wellnestSelectedResultCase.photoUrl}
+                            alt={
+                              wellnestSelectedResultCase.storyTitle || "Wellness case"
+                            }
+                            className="wellnest-recommender-case-image"
+                            onError={(e) => {
+                              const img = e.currentTarget;
+                              img.onerror = null;
+                              img.src = WELLNEST_CASE_IMAGE_FALLBACK;
+                            }}
+                          />
+                          {wellnestSelectedResultCase.caption ? (
+                            <p className="wellnest-recommender-case-copy">
+                              {wellnestSelectedResultCase.caption}
+                            </p>
+                          ) : null}
+                          {wellnestSelectedResultCase.treatments?.length ? (
+                            <p className="wellnest-recommender-case-tags">
+                              Related:{" "}
+                              {wellnestSelectedResultCase.treatments
+                                .filter(Boolean)
+                                .slice(0, 3)
+                                .join(", ")}
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
+                    </>
+                  ) : null}
                   <h3 className="wellnest-recommender-info-subhead">
                     Third-party perspectives (open web)
                   </h3>
@@ -2707,6 +3098,88 @@ export default function TreatmentRecommenderByTreatment({
                       </li>
                     ))}
                   </ul>
+                  <button
+                    type="button"
+                    className="wellnest-recommender-info-share-btn"
+                    onClick={openArticleShare}
+                  >
+                    Share selected articles via SMS
+                  </button>
+                  {showWellnestArticleShare && (
+                    <div
+                      ref={wellnestSharePanelRef}
+                      className="wellnest-recommender-share-inline"
+                    >
+                      <h3 id="wellnest-share-articles-title">Share articles with client</h3>
+                      <p className="wellnest-recommender-share-hint">
+                        Choose which links to include, then send by SMS.
+                      </p>
+                      <ul className="wellnest-recommender-share-list">
+                        {externalExamples.map((ex) => (
+                          <li key={`share-${ex.id}`}>
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(wellnestArticleSelection[ex.id])}
+                                onChange={() => toggleArticleSelection(ex.id)}
+                              />
+                              <span>{ex.title}</span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                      <label
+                        className="wellnest-recommender-share-label"
+                        htmlFor="wellnest-share-phone"
+                      >
+                        Recipient phone
+                      </label>
+                      <input
+                        id="wellnest-share-phone"
+                        type="tel"
+                        className="wellnest-recommender-share-input"
+                        value={wellnestArticlePhone}
+                        placeholder="(555) 555-5555"
+                        onChange={(e) => setWellnestArticlePhone(e.target.value)}
+                      />
+                      <label
+                        className="wellnest-recommender-share-label"
+                        htmlFor="wellnest-share-message"
+                      >
+                        Message
+                      </label>
+                      <textarea
+                        id="wellnest-share-message"
+                        className="wellnest-recommender-share-textarea"
+                        value={wellnestArticleDraft}
+                        onChange={(e) => setWellnestArticleDraft(e.target.value)}
+                        rows={7}
+                      />
+                      <div className="wellnest-recommender-share-actions">
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => setShowWellnestArticleShare(false)}
+                          disabled={wellnestArticleSending}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={sendSelectedArticles}
+                          disabled={
+                            wellnestArticleSending ||
+                            selectedExternalCount === 0 ||
+                            !wellnestArticleDraft.trim() ||
+                            !isValidPhone(formatPhoneDisplay(wellnestArticlePhone))
+                          }
+                        >
+                          {wellnestArticleSending ? "Sending…" : "Send SMS"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <p className="wellnest-recommender-info-disclaimer">
                     {WELLNEST_REGULATORY_NOTICE}
                   </p>

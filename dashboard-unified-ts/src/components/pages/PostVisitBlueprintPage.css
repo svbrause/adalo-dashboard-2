@@ -34,20 +34,41 @@
 /* ── Brand (The Treatment Skin Boutique) ── */
 .pvb-brand-bar {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   padding: 18px 20px 10px;
   background: #ffffff;
   border-bottom: 1px solid rgba(58, 60, 62, 0.1);
+  position: relative;
 }
 
 .pvb-brand-logo {
   width: auto;
-  max-width: min(220px, 78vw);
+  max-width: min(220px, calc(100vw - 140px));
   height: auto;
   max-height: 56px;
   object-fit: contain;
   display: block;
+}
+
+.pvb-brand-exit-link {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #0f766e;
+  text-decoration: none;
+  border: 1px solid rgba(15, 118, 110, 0.35);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #ffffff;
+}
+
+.pvb-brand-exit-link:hover {
+  background: rgba(15, 118, 110, 0.08);
 }
 
 .pvb-error {
@@ -1879,7 +1900,7 @@
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  padding: 12px 16px 28px;
+  padding: 10px 16px max(12px, env(safe-area-inset-bottom));
   background: linear-gradient(to top, var(--pvb-canvas) 72%, transparent);
   z-index: 50;
   box-sizing: border-box;
@@ -1939,7 +1960,7 @@
   max-width: 480px;
   background: #ffffff;
   border-radius: 24px 24px 0 0;
-  padding: 14px 22px 36px;
+  padding: 14px 22px max(18px, env(safe-area-inset-bottom));
   box-sizing: border-box;
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);

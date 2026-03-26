@@ -35,6 +35,10 @@ interface ImportMetaEnv {
   readonly VITE_BLUEPRINT_HERO_PHOTO_URL_TEMPLATE?: string;
   /** Wellnest1300 demo patients: `false`/`0` off, `true`/`1` on; default on in dev only. */
   readonly VITE_WELLNEST_SAMPLE_CLIENTS?: string;
+  /** Optional override URLs for demo Wellnest headshots (use real demo-environment photos). */
+  readonly VITE_WELLNEST_DEMO_HEADSHOT_ALEX?: string;
+  readonly VITE_WELLNEST_DEMO_HEADSHOT_JORDAN?: string;
+  readonly VITE_WELLNEST_DEMO_HEADSHOT_TAYLOR?: string;
 }
 
 interface ImportMeta {

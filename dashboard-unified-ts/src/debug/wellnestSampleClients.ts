@@ -3,20 +3,45 @@
  * Merged in dev by default; disable with VITE_WELLNEST_SAMPLE_CLIENTS=false.
  * Treatment plan edits persist in sessionStorage (ids `wellnest-demo-*`) — see wellnestDemoPlanPersistence.
  *
- * Headshots are stock portraits from Unsplash (https://unsplash.com/license) — not real patients.
+ * Default headshots use local demo-environment assets under
+ * `public/post-visit-blueprint/videos/wellnest/patient-photos`.
+ * Optional env overrides remain supported for quick swaps.
  */
 
 import type { Client, DiscussedItem } from "../types";
 import { isWellnestWellnessProviderCode } from "../data/wellnestOfferings";
+import { getWellnestDemoPhotoUrls } from "./wellnestDemoPhotos";
 
-/** Face-cropped portraits; stable Unsplash image IDs. */
-const DEMO_HEADSHOTS = {
+const DEFAULT_DEMO_HEADSHOTS = {
   alex:
     "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&w=480&h=480&fit=crop&crop=faces&q=85",
   jordan:
     "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&w=480&h=480&fit=crop&crop=faces&q=85",
   taylor:
     "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&w=480&h=480&fit=crop&crop=faces&q=85",
+} as const;
+
+function resolveDemoHeadshotUrl(envValue: string | undefined, fallback: string): string {
+  const trimmed = (envValue ?? "").trim();
+  return trimmed || fallback;
+}
+
+const DEMO_HEADSHOTS = {
+  alex: resolveDemoHeadshotUrl(
+    import.meta.env.VITE_WELLNEST_DEMO_HEADSHOT_ALEX,
+    getWellnestDemoPhotoUrls("wellnest-demo-alex")?.front ??
+      DEFAULT_DEMO_HEADSHOTS.alex,
+  ),
+  jordan: resolveDemoHeadshotUrl(
+    import.meta.env.VITE_WELLNEST_DEMO_HEADSHOT_JORDAN,
+    getWellnestDemoPhotoUrls("wellnest-demo-jordan")?.front ??
+      DEFAULT_DEMO_HEADSHOTS.jordan,
+  ),
+  taylor: resolveDemoHeadshotUrl(
+    import.meta.env.VITE_WELLNEST_DEMO_HEADSHOT_TAYLOR,
+    getWellnestDemoPhotoUrls("wellnest-demo-taylor")?.front ??
+      DEFAULT_DEMO_HEADSHOTS.taylor,
+  ),
 } as const;
 
 function baseClient(overrides: Partial<Client> & Pick<Client, "id" | "name">): Client {

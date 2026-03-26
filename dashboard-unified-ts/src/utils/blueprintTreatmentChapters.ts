@@ -31,6 +31,10 @@ export type TreatmentChapter = {
   meta: {
     longevity?: string;
     downtime?: string;
+    /** Label for the second quick-fact slot (defaults to "Downtime"). */
+    downtimeFactLabel?: string;
+    /** Optional chapter-level notes shown beneath quick facts. */
+    notes?: string;
     priceRange?: string;
     /** Quick fact label: "Price" when tied to quote/SKU; "Range" for category-wide band */
     priceFactLabel?: "price" | "range";
@@ -42,6 +46,14 @@ export type TreatmentChapter = {
   planItems: DiscussedItem[];
   /** Terms for AiMirrorCanvas highlight when viewing this chapter */
   mirrorHighlightTerms: string[];
+};
+
+type ChapterMetaSource = {
+  longevity?: string;
+  downtime?: string;
+  downtimeFactLabel?: string;
+  notes?: string;
+  priceRange?: string;
 };
 
 function norm(s: string): string {
@@ -185,7 +197,10 @@ export function buildTreatmentChapters(
     const planItems = discussedItems.filter(
       (i) => norm(i.treatment ?? "") === key,
     );
-    const meta = TREATMENT_META[t] ?? getWellnestPeptideMeta(t) ?? {};
+    const meta: ChapterMetaSource =
+      (TREATMENT_META[t] as ChapterMetaSource | undefined) ??
+      getWellnestPeptideMeta(t) ??
+      {};
     const caseCard = treatmentCards.find((c) => c.key === key) ?? null;
     const { priceRange, priceFactLabel } = resolveChapterPriceDisplay(
       key,
@@ -210,6 +225,8 @@ export function buildTreatmentChapters(
       meta: {
         longevity: meta.longevity,
         downtime: meta.downtime,
+        downtimeFactLabel: meta.downtimeFactLabel,
+        notes: meta.notes,
         priceRange,
         priceFactLabel,
       },

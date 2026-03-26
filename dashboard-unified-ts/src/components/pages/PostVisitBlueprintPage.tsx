@@ -72,20 +72,39 @@ import { patientFacingSkincareShortName } from "../../utils/pvbSkincareDisplay";
 import "./PostVisitBlueprintPage.css";
 
 /** The Treatment Skin Boutique — patient-facing blueprint branding */
-const PVB_BRAND_LOGO_SRC =
+const THE_TREATMENT_BRAND_LOGO_SRC =
   "/post-visit-blueprint/videos/The%20Treatment%20Mint%20and%20Gray.png";
+const WELLNEST_BRAND_LOGO_SRC =
+  "https://wellnestmd.com/wp-content/uploads/2024/12/nav-logo-5.svg";
+const WELLNEST_MARKETING_SITE_URL = "https://wellnestmd.com/";
 
-function PvbBrandBar() {
+function PvbBrandBar({ providerCode }: { providerCode?: string | null }) {
+  const isWellnest = isWellnestWellnessProviderCode(providerCode);
+  const brandLogoSrc = isWellnest
+    ? WELLNEST_BRAND_LOGO_SRC
+    : THE_TREATMENT_BRAND_LOGO_SRC;
+  const brandLabel = isWellnest ? "Wellnest MD" : "The Treatment Skin Boutique";
   return (
-    <header className="pvb-brand-bar" aria-label="The Treatment Skin Boutique">
+    <header className="pvb-brand-bar" aria-label={brandLabel}>
       <img
-        src={PVB_BRAND_LOGO_SRC}
-        alt="The Treatment Skin Boutique"
+        src={brandLogoSrc}
+        alt={brandLabel}
         className="pvb-brand-logo"
         width={220}
         height={72}
         decoding="async"
       />
+      {isWellnest && (
+        <a
+          href={WELLNEST_MARKETING_SITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="pvb-brand-exit-link"
+          aria-label="Visit Wellnest MD website (opens in a new tab)"
+        >
+          Visit Website
+        </a>
+      )}
     </header>
   );
 }
@@ -642,7 +661,7 @@ export default function PostVisitBlueprintPage() {
   if (!blueprintAllowed) {
     return (
       <div className="pvb">
-        <PvbBrandBar />
+        <PvbBrandBar providerCode={blueprint?.providerCode} />
         <div className="pvb-error">
           <h1>Blueprint unavailable</h1>
           <p>
@@ -694,6 +713,25 @@ export default function PostVisitBlueprintPage() {
       ? blueprint.recommenderFocusRegions.slice(0, 8)
       : discussedHotspotLabels;
 
+  const concernPills = Array.from(
+    new Set([
+      ...(analysisDisplay?.overviewSnapshot?.detectedIssueLabels ?? []),
+      ...(analysisDisplay?.globalPlanInsights?.findings ?? []),
+      ...blueprint.discussedItems.flatMap((item) => [
+        ...(item.findings ?? []),
+        item.interest ?? "",
+      ]),
+    ]),
+  )
+    .map((v) => normalizeBlueprintAnalysisText(String(v).trim()))
+    .filter(Boolean)
+    .slice(0, 8);
+
+  const heroPills = Array.from(new Set([...visibleHotspots, ...concernPills])).slice(
+    0,
+    12,
+  );
+
   const lineItems = blueprint.quote.lineItems;
   const { skincare: skincareQuoteIdxs, treatment: treatmentQuoteIdxs } = quotePartition;
 
@@ -706,9 +744,17 @@ export default function PostVisitBlueprintPage() {
     return sum + (lineItems[idx].price ?? 0);
   }, 0);
   const toggledTotal = toggledSkincareSub + toggledTreatmentsSub;
-  const showMintBreakdown = previewMintMember && toggledTotal > 0;
+  const allowMintMembership = !isWellnestWellnessProviderCode(
+    blueprint.providerCode,
+  );
+  const effectivePreviewMintMember = allowMintMembership
+    ? previewMintMember
+    : false;
+  const showMintBreakdown = effectivePreviewMintMember && toggledTotal > 0;
   const mintDiscountAmount = showMintBreakdown ? toggledTotal * 0.1 : 0;
-  const finalTotal = previewMintMember ? toggledTotal * 0.9 : toggledTotal;
+  const finalTotal = effectivePreviewMintMember
+    ? toggledTotal * 0.9
+    : toggledTotal;
 
   /** Treatments share of total after Mint discount — used only for financing examples */
   const treatmentFinancingAmount =
@@ -729,7 +775,7 @@ export default function PostVisitBlueprintPage() {
   return (
     <div className="pvb">
       <main className="pvb-shell" aria-label="Post Visit Blueprint">
-        <PvbBrandBar />
+        <PvbBrandBar providerCode={blueprint?.providerCode} />
 
         {/* ═══ 1. HERO: Mirror + Welcome ═══ */}
         <section className="pvb-hero">
@@ -747,7 +793,6 @@ export default function PostVisitBlueprintPage() {
           </div>
 
           <div className="pvb-hero-welcome">
-            <span className="pvb-hero-clinic">{blueprint.clinicName}</span>
             <h1 className="pvb-hero-title">Hi {patientFirst}</h1>
             <p className="pvb-hero-subtitle">
               {providerFirst} put together this personalized treatment guide based
@@ -756,9 +801,9 @@ export default function PostVisitBlueprintPage() {
             </p>
           </div>
 
-          {visibleHotspots.length > 0 && (
+          {heroPills.length > 0 && (
             <div className="pvb-hero-pills">
-              {visibleHotspots.map((spot) => (
+              {heroPills.map((spot) => (
                 <span key={spot} className="pvb-pill">{spot}</span>
               ))}
             </div>
@@ -1100,20 +1145,22 @@ export default function PostVisitBlueprintPage() {
                 </div>
               ) : null}
 
-              <div className="pvb-quote-mint-toggle-wrap">
-                <label className="pvb-quote-mint-toggle">
-                  <input
-                    type="checkbox"
-                    checked={previewMintMember}
-                    disabled={toggledTotal <= 0}
-                    onChange={(e) => setPreviewMintMember(e.target.checked)}
-                  />
-                  <span>Mint member — 10% off this plan</span>
-                </label>
-                <p className="pvb-quote-mint-hint">
-                  The Treatment Mint members save on eligible services and boutique skincare.
-                </p>
-              </div>
+              {allowMintMembership ? (
+                <div className="pvb-quote-mint-toggle-wrap">
+                  <label className="pvb-quote-mint-toggle">
+                    <input
+                      type="checkbox"
+                      checked={effectivePreviewMintMember}
+                      disabled={toggledTotal <= 0}
+                      onChange={(e) => setPreviewMintMember(e.target.checked)}
+                    />
+                    <span>Mint member — 10% off this plan</span>
+                  </label>
+                  <p className="pvb-quote-mint-hint">
+                    The Treatment Mint members save on eligible services and boutique skincare.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="pvb-quote-footer-totals">
                 {showMintBreakdown ? (
