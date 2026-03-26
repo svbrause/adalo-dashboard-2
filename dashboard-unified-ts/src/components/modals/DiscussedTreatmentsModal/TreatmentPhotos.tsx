@@ -5,12 +5,13 @@ import { useDashboard } from "../../../context/DashboardContext";
 import type { TreatmentPhoto, DiscussedItem } from "../../../types";
 import type { Client } from "../../../types";
 import { fetchTreatmentPhotos, AirtableRecord } from "../../../services/api";
-import { fetchTableRecords, updateLeadRecord } from "../../../services/api";
+import { fetchTableRecords } from "../../../services/api";
 import { TREATMENT_META, SURGICAL_TREATMENTS } from "./constants";
 import { issueToSuggestionMap, getIssueArea } from "../../../utils/issueMapping";
 import { getTreatmentsForInterest } from "./utils";
 import { generateId } from "./utils";
-import { AIRTABLE_FIELD, REGION_OPTIONS, TIMELINE_OPTIONS, SKINCARE_QUICK_ADD_WHAT_OPTIONS } from "./constants";
+import { REGION_OPTIONS, TIMELINE_OPTIONS, SKINCARE_QUICK_ADD_WHAT_OPTIONS } from "./constants";
+import { persistClientDiscussedItems } from "../../../utils/wellnestDemoPlanPersistence";
 import { SUGGESTION_TO_AREA, ALL_TREATMENT_INTERESTS } from "./suggestionsMapping";
 import { showToast, showError } from "../../../utils/toast";
 
@@ -704,9 +705,7 @@ export default function TreatmentPhotos({
       const nextItems = [...(client.discussedItems || []), newItem];
       setAddingId(photo.id);
       try {
-        await updateLeadRecord(client.id, client.tableSource, {
-          [AIRTABLE_FIELD]: nextItems.length > 0 ? JSON.stringify(nextItems) : "",
-        });
+        await persistClientDiscussedItems(client, nextItems);
         showToast(`Added ${normalizedTreatment} to plan`);
         await onUpdate();
       } catch (e) {

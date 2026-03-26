@@ -1,6 +1,7 @@
 /**
  * Demo patients for Wellnest MD (`Wellnest1300`) when Airtable has no rows yet.
  * Merged in dev by default; disable with VITE_WELLNEST_SAMPLE_CLIENTS=false.
+ * Treatment plan edits persist in sessionStorage (ids `wellnest-demo-*`) — see wellnestDemoPlanPersistence.
  *
  * Headshots are stock portraits from Unsplash (https://unsplash.com/license) — not real patients.
  */

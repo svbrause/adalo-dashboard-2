@@ -63,9 +63,9 @@ import {
 import {
   PLAN_SECTIONS,
   SKINCARE_SECTION_LABEL,
-  AIRTABLE_FIELD,
   getSkincareCarouselItems,
 } from "../modals/DiscussedTreatmentsModal/constants";
+import { persistClientDiscussedItems } from "../../utils/wellnestDemoPlanPersistence";
 import { getSkinQuizMessage } from "../../utils/skinQuizLink";
 import {
   parseInterestedIssuesList,
@@ -572,9 +572,7 @@ export default function ClientDetailPanel({
                   };
                   const nextItems = [...(client.discussedItems || []), newItem];
                   try {
-                    await updateLeadRecord(client.id, client.tableSource, {
-                      [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-                    });
+                    await persistClientDiscussedItems(client, nextItems);
                     showToast("Added to treatment plan");
                     onUpdate();
                     return newItem;
@@ -606,9 +604,7 @@ export default function ClientDetailPanel({
                     (i) => i.id !== itemId,
                   );
                   try {
-                    await updateLeadRecord(client.id, client.tableSource, {
-                      [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-                    });
+                    await persistClientDiscussedItems(client, nextItems);
                     showToast("Removed from plan");
                     onUpdate();
                   } catch (e) {
@@ -654,9 +650,7 @@ export default function ClientDetailPanel({
                   };
                   const nextItems = [...(client.discussedItems || []), newItem];
                   try {
-                    await updateLeadRecord(client.id, client.tableSource, {
-                      [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-                    });
+                    await persistClientDiscussedItems(client, nextItems);
                     showToast("Added to treatment plan");
                     onUpdate();
                     return newItem;
@@ -1836,12 +1830,9 @@ export default function ClientDetailPanel({
                               newItem,
                             ];
                             try {
-                              await updateLeadRecord(
-                                client.id,
-                                client.tableSource,
-                                {
-                                  [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-                                },
+                              await persistClientDiscussedItems(
+                                client,
+                                nextItems,
                               );
                               showToast("Added to treatment plan");
                               onUpdate();
@@ -2049,9 +2040,7 @@ export default function ClientDetailPanel({
               notes: prefill.notes?.trim() || undefined,
             };
             const nextItems = [...(client.discussedItems || []), newItem];
-            await updateLeadRecord(client.id, client.tableSource, {
-              [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-            });
+                    await persistClientDiscussedItems(client, nextItems);
             showToast("Added to treatment plan");
             onUpdate();
           }}
@@ -2075,9 +2064,7 @@ export default function ClientDetailPanel({
               notes: prefill.notes?.trim() || undefined,
             };
             const nextItems = [...(client.discussedItems || []), newItem];
-            await updateLeadRecord(client.id, client.tableSource, {
-              [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-            });
+                    await persistClientDiscussedItems(client, nextItems);
             showToast("Added to treatment plan");
             setSelectedSkinProduct(null);
             onUpdate();
@@ -2108,9 +2095,7 @@ export default function ClientDetailPanel({
             };
             const nextItems = [...(client.discussedItems || []), newItem];
             try {
-              await updateLeadRecord(client.id, client.tableSource, {
-                [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-              });
+                    await persistClientDiscussedItems(client, nextItems);
               showToast("Added to treatment plan");
               onUpdate();
             } catch (e) {
@@ -2133,9 +2118,7 @@ export default function ClientDetailPanel({
               (_, i) => i !== index
             );
             try {
-              await updateLeadRecord(client.id, client.tableSource, {
-                [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-              });
+                    await persistClientDiscussedItems(client, nextItems);
               showToast("Removed from plan");
               onUpdate();
             } catch (e) {
@@ -2150,9 +2133,7 @@ export default function ClientDetailPanel({
               i === index ? { ...it, ...patch } : it
             );
             try {
-              await updateLeadRecord(client.id, client.tableSource, {
-                [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-              });
+                    await persistClientDiscussedItems(client, nextItems);
               showToast("Plan updated");
               onUpdate();
             } catch (e) {
@@ -2205,9 +2186,7 @@ export default function ClientDetailPanel({
               notes: prefill.notes?.trim() || undefined,
             };
             const nextItems = [...(client.discussedItems || []), newItem];
-            await updateLeadRecord(client.id, client.tableSource, {
-              [AIRTABLE_FIELD]: JSON.stringify(nextItems),
-            });
+                    await persistClientDiscussedItems(client, nextItems);
             showToast("Added to treatment plan");
             setIssuePhotosContext(null);
             onUpdate();

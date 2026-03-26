@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { DiscussedItem } from "../../../types";
-import { updateLeadRecord } from "../../../services/api";
+import { persistClientDiscussedItems } from "../../../utils/wellnestDemoPlanPersistence";
 import { showToast, showError } from "../../../utils/toast";
 import { formatDateTime } from "../../../utils/dateFormatting";
 import { groupIssuesByArea } from "../../../utils/issueMapping";
 import type { DiscussedTreatmentsModalProps, AddByMode } from "./types";
 import { useIsNarrowScreen } from "./hooks";
 import {
-  AIRTABLE_FIELD,
   OTHER_LABEL,
   TREATMENT_GOAL_ONLY,
   ASSESSMENT_FINDINGS,
@@ -827,10 +826,7 @@ export default function DiscussedTreatmentsModal({
   }, [onClose, editingId]);
 
   const persistItems = async (nextItems: DiscussedItem[]) => {
-    const payload = nextItems.length > 0 ? JSON.stringify(nextItems) : "";
-    await updateLeadRecord(client.id, client.tableSource, {
-      [AIRTABLE_FIELD]: payload,
-    });
+    await persistClientDiscussedItems(client, nextItems);
   };
 
   const handleAdd = async () => {

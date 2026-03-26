@@ -25,6 +25,7 @@ import {
 import { mapRecordToClient } from "../utils/clientMapper";
 import { mergeDuplicateLeadAndPatient } from "../utils/mergeLeadPatient";
 import { getWellnestSampleClientsIfEnabled } from "../debug/wellnestSampleClients";
+import { withWellnestDemoDiscussedItemsOverlay } from "../utils/wellnestDemoPlanPersistence";
 
 /** Provider codes that share one combined patient list (frontend merge, no backend change). */
 const MERGED_PROVIDER_CODES = ["TheTreatment250", "TheTreatment447"] as const;
@@ -316,7 +317,9 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         );
         if (wellnestSamples.length > 0) {
           const liveIds = new Set(allClients.map((c) => c.id));
-          const extras = wellnestSamples.filter((c) => !liveIds.has(c.id));
+          const extras = wellnestSamples
+            .filter((c) => !liveIds.has(c.id))
+            .map(withWellnestDemoDiscussedItemsOverlay);
           allClients = [...allClients, ...extras];
         }
 
