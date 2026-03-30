@@ -23,7 +23,7 @@ import {
   isWellnestWellnessProviderCode,
 } from "../../../data/wellnestOfferings";
 import { RECOMMENDED_PRODUCT_REASONS } from "../../../data/skinTypeQuiz";
-import { CheckoutFinancingSection } from "./CheckoutFinancingSection";
+import { MintMembershipInfoTrigger } from "../../shared/MintMembershipInfoTrigger";
 
 export interface TreatmentPlanCheckoutProps {
   items: DiscussedItem[];
@@ -31,8 +31,6 @@ export interface TreatmentPlanCheckoutProps {
   getPhotoForItem?: (item: DiscussedItem) => string | null;
   /** When set (e.g. modal), render the total into this DOM id instead of inline (bottom bar) */
   totalSlotId?: string;
-  /** Patient financing URL (CareCredit, Cherry, etc.) — shows pay-over-time copy + link */
-  financingUrl?: string;
   /** Called when checkout summary changes so parent can show quote sheet (lineItems use skuName from pricing e.g. "Moxi Full Face") */
   onCheckoutDataChange?: (data: {
     lineItems: CheckoutLineItemDetail[];
@@ -177,7 +175,6 @@ export default function TreatmentPlanCheckout({
   items,
   getPhotoForItem,
   totalSlotId: _totalSlotId,
-  financingUrl,
   onCheckoutDataChange,
   onRemoveItem,
   onUpdateItem,
@@ -354,7 +351,10 @@ export default function TreatmentPlanCheckout({
             checked={effectiveMintMember}
             onChange={(e) => onMintMemberChange(e.target.checked)}
           />
-          <span>Mint member</span>
+          <span className="treatment-plan-checkout-mint-toggle-label">
+            <span>Mint member</span>
+            <MintMembershipInfoTrigger zIndex={12000} />
+          </span>
         </label>
       )}
       {skincareSubtotal > 0 && (
@@ -397,15 +397,6 @@ export default function TreatmentPlanCheckout({
             : formatPrice(totalAfterMint)}
         </span>
       </div>
-      {financingUrl?.trim() ? (
-        <CheckoutFinancingSection
-          totalAmount={totalAfterMint}
-          hasUnknownPrices={quoteData.hasUnknownPrices}
-          financingUrl={financingUrl.trim()}
-          variant="integrated"
-          integratedSurface="order-summary"
-        />
-      ) : null}
     </div>
   );
 

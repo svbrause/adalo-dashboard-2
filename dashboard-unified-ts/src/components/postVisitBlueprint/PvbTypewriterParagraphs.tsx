@@ -1,3 +1,4 @@
+import { useInViewOnce } from "../../hooks/useInViewOnce";
 import { useSequentialTypewriter } from "../../hooks/useSequentialTypewriter";
 import "./PvbNarrative.css";
 
@@ -10,19 +11,20 @@ export function PvbTypewriterParagraphs({
   paragraphClassName?: string;
   msPerChar?: number;
 }) {
-  const lines = useSequentialTypewriter(paragraphs, msPerChar);
+  const [containerRef, inView] = useInViewOnce<HTMLDivElement>();
+  const lines = useSequentialTypewriter(paragraphs, msPerChar, inView);
   const firstIncomplete = lines.findIndex((l, i) => l.length < (paragraphs[i]?.length ?? 0));
 
   if (paragraphs.length === 0) return null;
 
   return (
-    <>
+    <div ref={containerRef}>
       {paragraphs.map((_, i) => (
         <p key={i} className={paragraphClassName}>
           {lines[i]}
           {firstIncomplete === i ? <span className="pvb-typewriter-caret" aria-hidden /> : null}
         </p>
       ))}
-    </>
+    </div>
   );
 }

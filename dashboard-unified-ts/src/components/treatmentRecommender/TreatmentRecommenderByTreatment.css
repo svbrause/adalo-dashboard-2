@@ -506,10 +506,78 @@
   color: var(--theme-text-primary, #212121);
 }
 
+.treatment-recommender-wellnest-filters {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(
+    165deg,
+    rgba(13, 148, 136, 0.07) 0%,
+    rgba(248, 250, 252, 0.95) 100%
+  );
+  border: 1px solid var(--theme-border, #e2e8f0);
+}
+
+.treatment-recommender-wellnest-filters__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.treatment-recommender-wellnest-filters__row:last-child {
+  margin-bottom: 0;
+}
+
+.treatment-recommender-wellnest-filters__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--theme-text-muted, #64748b);
+}
+
+.treatment-recommender-wellnest-filters__count {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.treatment-recommender-by-treatment__wellnest-browse-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.treatment-recommender-by-treatment__chip--secondary {
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--theme-border, #e2e8f0);
+}
+
+.treatment-recommender-by-treatment__chip--secondary.treatment-recommender-by-treatment__chip--selected {
+  border-color: rgba(13, 148, 136, 0.45);
+}
+
 .treatment-recommender-by-treatment__active-filters {
   margin: 0 0 12px;
   font-size: 0.8125rem;
   color: var(--theme-text-muted, #757575);
+}
+
+.treatment-recommender-by-treatment__search-row {
+  margin: 0 0 10px;
+}
+
+.treatment-recommender-by-treatment__search-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--theme-text-primary, #212121);
+  background: #fff;
 }
 
 .treatment-recommender-by-treatment__cards {
@@ -2265,6 +2333,13 @@
 .treatment-recommender-wellnest-card__chip--goal-weak {
   background: rgba(148, 163, 184, 0.16);
   border-color: rgba(100, 116, 139, 0.3);
+}
+
+.treatment-recommender-wellnest-card__chip--addresses {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  font-weight: 500;
+  color: var(--theme-text, #1e293b);
 }
 
 .treatment-recommender-wellnest-card__grid {

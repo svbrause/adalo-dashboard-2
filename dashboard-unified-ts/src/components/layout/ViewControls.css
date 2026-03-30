@@ -241,6 +241,11 @@
   transform: rotate(180deg);
 }
 
+/* ── Bottom-sheet backdrop (mobile only, rendered via portal) ── */
+.control-sheet-backdrop {
+  display: none;
+}
+
 /* Responsive breakpoints to prevent overlap */
 @media (max-width: 1200px) {
   .search-box-main {
@@ -284,5 +289,234 @@
   
   .view-toggle-section {
     order: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .view-controls-container {
+    padding: 6px 6px 8px;
+    gap: 2px;
+    flex-wrap: nowrap;
+    align-items: center;
+    background: #fff;
+    border-bottom: none;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* View toggles: hide entirely on mobile */
+  .view-toggle-section {
+    display: none;
+  }
+
+  /* Search: use full width between edges and icon buttons */
+  .view-controls-container .search-section.control-section {
+    flex: 1 1 0;
+    flex-shrink: 1;
+    order: 1;
+    min-width: 0 !important;
+    max-width: 100%;
+    width: 0;
+  }
+
+  .view-controls-container .search-box-main {
+    min-width: 0 !important;
+    max-width: none !important;
+    width: 100%;
+  }
+
+  .search-input-main {
+    font-size: 15px;
+    height: 34px;
+    line-height: 34px;
+    border-radius: 10px;
+    padding-left: 32px;
+    background: rgba(118, 118, 128, 0.12);
+    border: none;
+  }
+
+  .search-input-main:focus {
+    background: rgba(118, 118, 128, 0.18);
+    box-shadow: none;
+  }
+
+  .search-box-main > svg {
+    left: 8px;
+    width: 16px;
+    height: 16px;
+    color: #8e8e93;
+  }
+
+  .search-clear-btn {
+    width: 18px;
+    height: 18px;
+    right: 8px;
+    background: #c7c7cc;
+    color: #fff;
+  }
+
+  .search-clear-btn:hover {
+    background: #aeaeb2;
+  }
+
+  /* Filter + sort: icon-only (override index.css min-width / filled button styles) */
+  .filter-section {
+    order: 2;
+    flex-shrink: 0;
+  }
+
+  .sort-section {
+    order: 3;
+    flex-shrink: 0;
+  }
+
+  .view-controls-container .filter-section .control-toggle-btn,
+  .view-controls-container .sort-section .control-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    min-width: 0 !important;
+    max-width: 40px;
+    min-height: 40px;
+    padding: 0 !important;
+    margin: 0;
+    border: none !important;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #8e8e93;
+    white-space: nowrap;
+    font-size: 0;
+    line-height: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .view-controls-container .filter-section .control-toggle-btn:hover,
+  .view-controls-container .sort-section .control-toggle-btn:hover {
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .view-controls-container .filter-section .control-toggle-btn:active,
+  .view-controls-container .sort-section .control-toggle-btn:active {
+    color: #000;
+    background: transparent !important;
+    opacity: 0.55;
+  }
+
+  .view-controls-container .control-toggle-btn span {
+    display: none;
+  }
+
+  .view-controls-container .control-toggle-btn .control-toggle-icon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .view-controls-container .control-toggle-btn svg {
+    margin: 0;
+  }
+
+  /* Hide the old chevron decorators on mobile */
+  .filter-icon-rotate,
+  .sort-icon-rotate {
+    display: none;
+  }
+
+  /* Backdrop scrim behind bottom sheet */
+  .control-sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 1199;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Bottom sheet panel */
+  .control-content {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    margin: 0;
+    border-radius: 14px 14px 0 0;
+    padding: 12px 20px 20px;
+    padding-bottom: max(20px, calc(8px + env(safe-area-inset-bottom)));
+    gap: 14px;
+    z-index: 1200;
+    box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.08);
+    max-height: 80vh;
+    overflow-y: auto;
+    background: #fff;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .control-content::before {
+    content: "";
+    display: block;
+    width: 36px;
+    height: 5px;
+    background: #c7c7cc;
+    border-radius: 3px;
+    margin: 0 auto 12px;
+    flex-shrink: 0;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-group label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #8e8e93;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .filter-select,
+  .filter-input {
+    width: 100%;
+    font-size: 16px;
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(118, 118, 128, 0.08);
+    border: none;
+    color: #000;
+  }
+
+  .filter-age-range {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .filter-input-narrow {
+    flex: 1;
+    min-width: 80px;
+    width: auto;
+    min-height: 44px;
+  }
+
+  .filter-clear-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+    border-radius: 10px;
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 600;
+    background: rgba(118, 118, 128, 0.08);
+    border: none;
+    color: #ff3b30;
   }
 }

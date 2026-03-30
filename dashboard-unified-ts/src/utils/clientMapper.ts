@@ -30,6 +30,35 @@ export function parseSkincareQuizFromFields(fields: Record<string, unknown>): Sk
   }
 }
 
+/** Normalize Airtable "Wellness Goals": long text (comma / JSON array), or multi-select string array. */
+export function parseWellnessGoalsFromAirtable(value: unknown): string[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((x) => String(x).trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    const t = value.trim();
+    if (!t) return [];
+    try {
+      const p = JSON.parse(t) as unknown;
+      if (Array.isArray(p)) {
+        return p
+          .filter((x) => x != null && String(x).trim())
+          .map((x) => String(x).trim());
+      }
+    } catch {
+      /* plain comma-separated text */
+    }
+    return t
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 /**
  * Map Airtable status field to dashboard status
  */
@@ -168,6 +197,10 @@ export function mapRecordToClient(
   tableName: string,
 ): Client {
   const fields = record.fields || {};
+  const patientWellnessGoals =
+    tableName === "Patients"
+      ? parseWellnessGoalsFromAirtable(fields["Wellness Goals"])
+      : [];
 
   const client: Client = {
     id: record.id,
@@ -178,7 +211,7 @@ export function mapRecordToClient(
         : fields["Email Address"] || "",
     phone:
       tableName === "Patients"
-        ? fields["Patient Phone Number"] || ""
+        ? fields["Patient Phone Number"] || fields["Phone Number"] || ""
         : fields["Phone Number"] || "",
     zipCode:
       fields["Zip Code"] || fields["Zip"] || fields["Postal Code"] || null,
@@ -193,12 +226,37 @@ export function mapRecordToClient(
         : fields["Date of Birth"] || null,
     goals:
       tableName === "Patients"
-        ? Array.isArray(fields["Name (from Interest Items)"])
-          ? fields["Name (from Interest Items)"]
-          : []
+        ? (() => {
+            const fromItems = fields["Name (from Interest Items)"];
+            let base: string[] = [];
+            if (Array.isArray(fromItems) && fromItems.length) {
+              base = fromItems.map((x) => String(x));
+            } else if (typeof fromItems === "string" && fromItems.trim()) {
+              base = fromItems
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean);
+            } else {
+              const goalsField = fields["Goals"];
+              if (Array.isArray(goalsField) && goalsField.length) {
+                base = goalsField.map((x) => String(x));
+              }
+            }
+            if (patientWellnessGoals.length === 0) return base;
+            const seen = new Set(base.map((s) => s.trim().toLowerCase()));
+            const out = [...base];
+            for (const w of patientWellnessGoals) {
+              const k = w.trim().toLowerCase();
+              if (!k || seen.has(k)) continue;
+              seen.add(k);
+              out.push(w);
+            }
+            return out;
+          })()
         : Array.isArray(fields["Goals"])
           ? fields["Goals"]
           : [],
+    wellnessGoals: patientWellnessGoals,
     concerns:
       tableName === "Patients"
         ? fields["Areas of Interest (from Form Submissions)"] ||
@@ -225,6 +283,7 @@ export function mapRecordToClient(
       let value =
         tableName === "Patients"
           ? fields["What would you like to improve? (from Form Submissions)"] ||
+            fields["Aesthetic Goals"] ||
             fields["Notes"] ||
             ""
           : fields["Aesthetic Goals"] || fields["Notes"] || "";
@@ -307,9 +366,28 @@ export function mapRecordToClient(
         : "",
     interestedIssues:
       tableName === "Patients"
-        ? Array.isArray(fields["Name (from Interest Items)"])
-          ? fields["Name (from Interest Items)"].join(", ")
-          : fields["Name (from Interest Items)"] || ""
+        ? (() => {
+            const fromInterestItems = Array.isArray(
+              fields["Name (from Interest Items)"],
+            )
+              ? fields["Name (from Interest Items)"].join(", ")
+              : fields["Name (from Interest Items)"] || "";
+            if (String(fromInterestItems).trim()) {
+              return String(fromInterestItems).trim();
+            }
+            /** Free-text wellness intake (comma-separated) → "Goals from intake" chips after partition */
+            const fromWellnessText = (v: unknown): string => {
+              if (typeof v === "string" && v.trim()) return v.trim();
+              if (Array.isArray(v) && v.length)
+                return v.filter(Boolean).join(", ");
+              return "";
+            };
+            return (
+              fromWellnessText(fields["Aesthetic Goals"]) ||
+              fromWellnessText(fields["Wellness Intake Goals"]) ||
+              ""
+            );
+          })()
         : "",
     whichRegions:
       tableName === "Patients"

@@ -135,3 +135,171 @@
   outline: none;
   border-color: var(--theme-accent);
 }
+
+/* ── Mobile: compact iOS Contacts-style list ───────────────────── */
+@media (max-width: 768px) {
+  .list-view {
+    padding: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    background: #fff;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .list-view-content {
+    overflow-x: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .leads-table-container {
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: visible;
+    background: transparent;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .leads-table {
+    display: block;
+    min-width: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+    box-sizing: border-box;
+  }
+
+  .leads-table thead {
+    display: none;
+  }
+
+  .leads-table tbody {
+    display: flex;
+    flex-direction: column;
+    padding: 0 14px;
+    gap: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Row: one continuous bottom border (never split across mismatched cell heights) */
+  .leads-table tbody tr {
+    display: flex;
+    align-items: stretch;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    border-bottom: 0.5px solid #c6c6c8;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+  }
+
+  .leads-table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .leads-table tbody tr:active {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .leads-table td {
+    padding: 0;
+    border-bottom: none !important;
+    font-size: 13px;
+    min-width: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* Col 1: Name — takes all available space */
+  .leads-table td:nth-child(1) {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 8px 8px 0;
+  }
+
+  .table-lead-name {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: -0.15px;
+    margin-bottom: 0;
+    color: #000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .table-lead-email {
+    font-size: 11px;
+    color: #8e8e93;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+
+  /* Col 2: Interested treatments — hide on list to keep rows tight */
+  .leads-table td:nth-child(2) {
+    display: none;
+  }
+
+  /* Col 3: Analysis status — hide */
+  .leads-table td:nth-child(3) {
+    display: none;
+  }
+
+  /* Col 4: Lead stage select — hide */
+  .leads-table td:nth-child(4) {
+    display: none;
+  }
+
+  /* Col 5: Date — same row height as name; text baseline-aligned via flex center */
+  .leads-table td:nth-child(5) {
+    flex: 0 1 auto;
+    max-width: 36%;
+    min-width: 0;
+    padding: 8px 0 8px 8px;
+    font-size: 12px;
+    color: #8e8e93;
+    text-align: right;
+    align-items: flex-end;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Col 6: View button — hide (whole row is tappable) */
+  .leads-table td:nth-child(6) {
+    display: none;
+  }
+
+  .interest-tag {
+    font-size: 12px;
+    padding: 2px 6px;
+    background: rgba(118, 118, 128, 0.12);
+    color: #3c3c43;
+    border: none;
+    border-radius: 6px;
+  }
+
+  .status-badge-offer {
+    display: none;
+  }
+
+  .status-badge {
+    display: none;
+  }
+}

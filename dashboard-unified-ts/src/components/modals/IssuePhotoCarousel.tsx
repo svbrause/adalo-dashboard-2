@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Client, TreatmentPhoto } from '../../types';
 import { fetchTreatmentPhotos, AirtableRecord } from '../../services/api';
+import { getTreatmentPhotoDisplayTitle } from '../../utils/treatmentPhotoTitle';
 import './IssuePhotoCarousel.css';
 
 interface IssuePhotoCarouselProps {
@@ -240,7 +241,7 @@ export default function IssuePhotoCarousel({
             >
               <img
                 src={photo.thumbnailUrl || photo.photoUrl}
-                alt={photo.name?.trim() || photo.caption || 'Treatment example'}
+                alt={getTreatmentPhotoDisplayTitle(photo)}
                 className="issue-photo-carousel-image"
                 loading="lazy"
               />

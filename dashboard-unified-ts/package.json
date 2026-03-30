@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --max-http-header-size=4194304 ./node_modules/vite/bin/vite.js",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && cp scripts/patients-discussed-analytics.html dist/patients-discussed-analytics.html",
+    "build:analytics": "node scripts/build-analytics-static.mjs",
     "preview": "node --max-http-header-size=4194304 ./node_modules/vite/bin/vite.js preview",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
@@ -12,7 +13,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "healthcheck": "node scripts/healthcheck.js",
-    "extract:blueprint-posters": "node scripts/extract-blueprint-posters.mjs"
+    "extract:blueprint-posters": "node scripts/extract-blueprint-posters.mjs",
+    "seed:wellnest-demo-patients": "node scripts/seed-wellnest-demo-patients.mjs",
+    "compare:wellnest-demo-airtable": "node scripts/compare-wellnest-demo-airtable.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.21",

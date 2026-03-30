@@ -6,6 +6,7 @@ import {
   type SmsTemplateEventConfig,
 } from "../../config/smsSettingsCatalog";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
+import { providerHasSmsAndSettingsAccess } from "../../utils/providerPrivileges";
 import SmsConfigChangeRequestModal from "../modals/SmsConfigChangeRequestModal";
 import "./SettingsView.css";
 
@@ -30,6 +31,7 @@ export default function SettingsView() {
   );
 
   const providerLabel = formatProviderDisplayName(provider?.name) || "Your clinic";
+  const canOpenMessages = providerHasSmsAndSettingsAccess(provider);
 
   return (
     <div className="settings-page">
@@ -130,10 +132,23 @@ export default function SettingsView() {
         <button
           type="button"
           className="settings-secondary-btn"
-          onClick={() => setCurrentView("sms-history")}
+          disabled={!canOpenMessages}
+          title={
+            !canOpenMessages
+              ? "Text messages are only available for The Treatment or admin login."
+              : undefined
+          }
+          onClick={() => {
+            if (canOpenMessages) setCurrentView("sms-history");
+          }}
         >
           Open text messages
         </button>
+        {!canOpenMessages ? (
+          <p className="settings-muted" style={{ marginTop: "0.75rem" }}>
+            Text messages are only available when signed in with The Treatment or the admin login.
+          </p>
+        ) : null}
       </section>
 
       <section className="settings-card" aria-labelledby="settings-workspace-heading">

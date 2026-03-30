@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useInViewOnce } from "../../hooks/useInViewOnce";
 import {
   fetchBlueprintFrontPhotoFreshUrl,
   fetchPatientRecords,
   fetchPostVisitBlueprintFromServer,
   fetchTreatmentPhotos,
+  submitPostVisitBlueprintBookingIntent,
   parsePatientRecordsToCards,
   type AirtableRecord,
   type PatientSuggestionCard,
@@ -25,10 +27,7 @@ import {
   type BlueprintCasePhoto,
   type CaseDetailPayload,
 } from "../../utils/postVisitBlueprintCases";
-import {
-  isPostVisitBlueprintAllowedForPatient,
-  THE_TREATMENT_BOOKING_URL,
-} from "../../utils/providerHelpers";
+import { isPostVisitBlueprintAllowedForPatient } from "../../utils/providerHelpers";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { buildWellnestBlueprintCasePhotos } from "../../utils/wellnestBlueprintCases";
 import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
@@ -43,7 +42,10 @@ import {
   PVB_ANALYSIS_SECTION_ID,
   treatmentChapterAnchorId,
 } from "../../utils/postVisitBlueprintAnalysis";
-import { buildPvbPlanBridgeParagraph } from "../../utils/pvbOverviewNarratives";
+import {
+  buildPvbMainPlanFramingParagraphs,
+  buildPvbPlanBridgeParagraph,
+} from "../../utils/pvbOverviewNarratives";
 import {
   buildPvbMainOverviewSpeechText,
   buildPvbMainOverviewTypewriterParagraphs,
@@ -66,7 +68,7 @@ import {
   PvbTreatmentPlanDetailSubpage,
 } from "../postVisitBlueprint/PvbAnalysisSubpages";
 import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
-import { CheckoutFinancingSection } from "../modals/DiscussedTreatmentsModal/CheckoutFinancingSection";
+import { MintMembershipInfoTrigger } from "../shared/MintMembershipInfoTrigger";
 import { partitionQuoteLineIndices } from "../../utils/pvbQuotePartition";
 import { patientFacingSkincareShortName } from "../../utils/pvbSkincareDisplay";
 import "./PostVisitBlueprintPage.css";
@@ -78,7 +80,13 @@ const WELLNEST_BRAND_LOGO_SRC =
   "https://wellnestmd.com/wp-content/uploads/2024/12/nav-logo-5.svg";
 const WELLNEST_MARKETING_SITE_URL = "https://wellnestmd.com/";
 
-function PvbBrandBar({ providerCode }: { providerCode?: string | null }) {
+function PvbBrandBar({
+  providerCode,
+  onWellnestWebsiteClick,
+}: {
+  providerCode?: string | null;
+  onWellnestWebsiteClick?: () => void;
+}) {
   const isWellnest = isWellnestWellnessProviderCode(providerCode);
   const brandLogoSrc = isWellnest
     ? WELLNEST_BRAND_LOGO_SRC
@@ -101,6 +109,7 @@ function PvbBrandBar({ providerCode }: { providerCode?: string | null }) {
           rel="noopener noreferrer"
           className="pvb-brand-exit-link"
           aria-label="Visit Wellnest MD website (opens in a new tab)"
+          onClick={() => onWellnestWebsiteClick?.()}
         >
           Visit Website
         </a>
@@ -151,6 +160,8 @@ function mapPhotoRecord(record: AirtableRecord): BlueprintCasePhoto | null {
 
   const caption = String(fields["Caption"] ?? "").trim() || undefined;
   const storyTitle = String(fields["Story Title"] ?? "").trim() || undefined;
+  const storyDetailed =
+    String(fields["Story Detailed"] ?? "").trim() || undefined;
 
   return {
     id: record.id,
@@ -168,6 +179,7 @@ function mapPhotoRecord(record: AirtableRecord): BlueprintCasePhoto | null {
       String(fields["Ethnic Background"] ?? "").trim() || undefined,
     caption,
     storyTitle,
+    storyDetailed,
   };
 }
 
@@ -229,8 +241,15 @@ export default function PostVisitBlueprintPage() {
   const [caseGalleryTracked, setCaseGalleryTracked] = useState(false);
   const videoPlayTrackedRef = useRef<Set<string>>(new Set());
   const [isQuoteOpen, setIsQuoteOpen] = useState(false);
+  /** Quote drawer: line items vs. post–“Proceed to book” confirmation. */
+  const [quoteBookStep, setQuoteBookStep] = useState<"quote" | "book_confirm">(
+    "quote",
+  );
   /** Patient can preview Mint member 10% off (defaults from plan at send time). */
   const [previewMintMember, setPreviewMintMember] = useState(false);
+  /** POST /api/post-visit-blueprint/booking-intent (Airtable row for Slack / email / SMS). */
+  const [bookingIntentSubmitting, setBookingIntentSubmitting] = useState(false);
+  const [bookingIntentError, setBookingIntentError] = useState<string | null>(null);
   /** Hero / AI Mirror image: embedded data URL, fresh API URL, or stale Airtable URL. */
   const [heroPhotoUrl, setHeroPhotoUrl] = useState<string | null>(null);
   const [overviewGaugeAnimate, setOverviewGaugeAnimate] = useState(false);
@@ -398,13 +417,66 @@ export default function PostVisitBlueprintPage() {
     );
   }, [analysisDisplay, chapters]);
 
+  const mainOverviewPlanShape = useMemo(() => {
+    if (chapters.length === 0) return null;
+    const includesSkincare = chapters.some(
+      (c) => c.treatment.trim().toLowerCase() === "skincare",
+    );
+    const includesInOfficeOrProcedures = chapters.some(
+      (c) => c.treatment.trim().toLowerCase() !== "skincare",
+    );
+    return {
+      chapterCount: chapters.length,
+      includesSkincare,
+      includesInOfficeOrProcedures,
+    };
+  }, [chapters]);
+
+  const mainOverviewPersonalization = useMemo(() => {
+    if (!analysisDisplay) return null;
+    const focusAreas =
+      analysisDisplay.overviewSnapshot?.areas
+        ?.filter((a) => a.hasInterest)
+        .map((a) => a.name)
+        .slice(0, 4) ?? [];
+    return {
+      goals: analysisDisplay.goals.slice(0, 4),
+      findings: analysisDisplay.globalPlanInsights.findings.slice(0, 4),
+      focusAreas,
+      chapterNames: chapters.map((c) => c.displayName).slice(0, 5),
+    };
+  }, [analysisDisplay, chapters]);
+
+  const mainPlanFramingParagraphs = useMemo(() => {
+    if (!mainOverviewPlanShape) return [];
+    return buildPvbMainPlanFramingParagraphs(
+      mainOverviewPlanShape,
+      mainOverviewPersonalization,
+    );
+  }, [mainOverviewPlanShape, mainOverviewPersonalization]);
+
+  const chapterPatientPriorities = useMemo(() => {
+    if (!analysisDisplay) return [] as string[];
+    const focusAreas =
+      analysisDisplay.overviewSnapshot?.areas
+        ?.filter((a) => a.hasInterest)
+        .map((a) => a.name)
+        .slice(0, 2) ?? [];
+    return [
+      ...analysisDisplay.goals.slice(0, 2),
+      ...analysisDisplay.globalPlanInsights.findings.slice(0, 2),
+      ...focusAreas,
+    ];
+  }, [analysisDisplay]);
+
   const mainOverviewTwParagraphs = useMemo(() => {
     if (!analysisDisplay) return [];
     return buildPvbMainOverviewTypewriterParagraphs(
       analysisDisplay,
       overviewBridgeParagraph,
+      mainPlanFramingParagraphs,
     );
-  }, [analysisDisplay, overviewBridgeParagraph]);
+  }, [analysisDisplay, overviewBridgeParagraph, mainPlanFramingParagraphs]);
 
   const planGlossaryTerms = useMemo(() => {
     if (!blueprint || !blueprintAllowed || !analysisDisplay) return [];
@@ -416,17 +488,24 @@ export default function PostVisitBlueprintPage() {
       overviewSnippets.push(`${row.label}: ${row.text}`);
     }
     if (overviewBridgeParagraph) overviewSnippets.push(overviewBridgeParagraph);
+    if (mainPlanFramingParagraphs.length > 0) {
+      overviewSnippets.push(mainPlanFramingParagraphs.join(" "));
+    }
     return getResolvedPlanGlossaryTerms(
       blueprint.discussedItems,
       blueprint.quote.lineItems,
       overviewSnippets,
     );
-  }, [blueprint, blueprintAllowed, analysisDisplay, overviewBridgeParagraph]);
+  }, [blueprint, blueprintAllowed, analysisDisplay, overviewBridgeParagraph, mainPlanFramingParagraphs]);
 
   const mainOverviewSpeechText = useMemo(() => {
     if (!analysisDisplay) return "";
-    return buildPvbMainOverviewSpeechText(analysisDisplay, overviewBridgeParagraph);
-  }, [analysisDisplay, overviewBridgeParagraph]);
+    return buildPvbMainOverviewSpeechText(
+      analysisDisplay,
+      overviewBridgeParagraph,
+      mainPlanFramingParagraphs,
+    );
+  }, [analysisDisplay, overviewBridgeParagraph, mainPlanFramingParagraphs]);
 
   const quotePartition = useMemo(() => {
     if (!blueprint || !blueprintAllowed) {
@@ -434,6 +513,8 @@ export default function PostVisitBlueprintPage() {
     }
     return partitionQuoteLineIndices(blueprint.quote.lineItems, blueprint.discussedItems);
   }, [blueprint, blueprintAllowed]);
+
+  const [overviewSectionRef, overviewSectionInView] = useInViewOnce<HTMLElement>("0px 0px -5% 0px", 0.05);
 
   /** Open link with #fragment → scroll to chapter after load */
   useEffect(() => {
@@ -447,6 +528,13 @@ export default function PostVisitBlueprintPage() {
     }, 100);
     return () => window.clearTimeout(t);
   }, [chapters]);
+
+  useEffect(() => {
+    if (isQuoteOpen) {
+      setQuoteBookStep("quote");
+      setBookingIntentError(null);
+    }
+  }, [isQuoteOpen]);
 
   /* ── Callbacks ── */
 
@@ -613,6 +701,69 @@ export default function PostVisitBlueprintPage() {
     });
   }, [blueprint, blueprintAllowed, caseGalleryTracked]);
 
+  const blueprintPatientAnalytics = useMemo(() => {
+    if (!blueprint || !blueprintAllowed) return null;
+    return { token: blueprint.token, patient_id: blueprint.patient.id };
+  }, [blueprint, blueprintAllowed]);
+
+  const analysisSubpageTrackKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!blueprintPatientAnalytics) return;
+    if (!analysisSubpage) {
+      analysisSubpageTrackKeyRef.current = null;
+      return;
+    }
+    const subKey =
+      analysisSubpage.type === "area"
+        ? `area:${analysisSubpage.name}`
+        : `${analysisSubpage.type}:${analysisSubpage.key}`;
+    if (analysisSubpageTrackKeyRef.current === subKey) return;
+    analysisSubpageTrackKeyRef.current = subKey;
+    trackPostVisitBlueprintEvent("blueprint_analysis_subpage_viewed", {
+      ...blueprintPatientAnalytics,
+      subpage_type: analysisSubpage.type,
+      subpage_key:
+        analysisSubpage.type === "area" ? analysisSubpage.name : analysisSubpage.key,
+    });
+  }, [blueprintPatientAnalytics, analysisSubpage]);
+
+  const openQuoteDrawer = useCallback(() => {
+    if (!blueprint || !blueprintAllowed) return;
+    setIsQuoteOpen(true);
+    trackPostVisitBlueprintEvent("blueprint_quote_opened", {
+      token: blueprint.token,
+      patient_id: blueprint.patient.id,
+    });
+  }, [blueprint, blueprintAllowed]);
+
+  const closeQuoteDrawer = useCallback(
+    (reason: "overlay" | "handle" | "x") => {
+      if (!blueprint || !blueprintAllowed) return;
+      setIsQuoteOpen(false);
+      trackPostVisitBlueprintEvent("blueprint_quote_closed", {
+        token: blueprint.token,
+        patient_id: blueprint.patient.id,
+        close_reason: reason,
+      });
+    },
+    [blueprint, blueprintAllowed],
+  );
+
+  const openCaseDetailForAnalytics = useCallback(
+    (detail: CaseDetailPayload) => {
+      if (blueprint && blueprintAllowed) {
+        trackPostVisitBlueprintEvent("blueprint_case_detail_opened", {
+          token: blueprint.token,
+          patient_id: blueprint.patient.id,
+          card_title: detail.cardTitle,
+          treatment_label: detail.treatment,
+        });
+      }
+      setSelectedCaseDetail(detail);
+    },
+    [blueprint, blueprintAllowed],
+  );
+
   /* ── Guard ── */
 
   if (waitingForRemoteBlueprint) {
@@ -676,11 +827,6 @@ export default function PostVisitBlueprintPage() {
 
   /* ── Derived render data ── */
 
-  const bookingHref =
-    blueprint.cta.bookingUrl?.trim() ||
-    (isWellnestWellnessProviderCode(blueprint.providerCode)
-      ? ""
-      : THE_TREATMENT_BOOKING_URL);
   const patientFirst = blueprint.patient.name.split(/\s+/)[0] || "there";
   const providerFirst = (blueprint.providerName ?? "").split(",")[0]?.trim() || blueprint.providerName;
 
@@ -756,26 +902,22 @@ export default function PostVisitBlueprintPage() {
     ? toggledTotal * 0.9
     : toggledTotal;
 
-  /** Treatments share of total after Mint discount — used only for financing examples */
-  const treatmentFinancingAmount =
-    toggledTotal > 0 && toggledTreatmentsSub > 0
-      ? (toggledTreatmentsSub / toggledTotal) * finalTotal
-      : 0;
-
-  const hasUnknownTreatmentPrices = treatmentQuoteIdxs.some(
-    (idx) =>
-      lineItems[idx].isEstimate ||
-      lineItems[idx].displayPrice === "Price varies",
-  );
-
-  const showTreatmentFinancingBlock = treatmentQuoteIdxs.length > 0;
-
   /* ── Render ── */
 
   return (
     <div className="pvb">
       <main className="pvb-shell" aria-label="Post Visit Blueprint">
-        <PvbBrandBar providerCode={blueprint?.providerCode} />
+        <PvbBrandBar
+          providerCode={blueprint?.providerCode}
+          onWellnestWebsiteClick={
+            blueprintPatientAnalytics
+              ? () =>
+                  trackPostVisitBlueprintEvent("blueprint_brand_website_clicked", {
+                    ...blueprintPatientAnalytics,
+                  })
+              : undefined
+          }
+        />
 
         {/* ═══ 1. HERO: Mirror + Welcome ═══ */}
         <section className="pvb-hero">
@@ -812,18 +954,28 @@ export default function PostVisitBlueprintPage() {
 
         {/* ═══ 2. OVERVIEW (assessment narrative + plan bridge) ═══ */}
         {analysisDisplay && (
-          <section className="pvb-analysis" id={PVB_ANALYSIS_SECTION_ID}>
+          <section
+            ref={overviewSectionRef}
+            className={`pvb-analysis${overviewSectionInView ? " pvb-section--visible" : ""}`}
+            id={PVB_ANALYSIS_SECTION_ID}
+          >
             <div className="pvb-overview-heading-row">
               <div className="pvb-overview-heading-brand">
                 <AiSparkleLogo size={18} className="pvb-ai-sparkle" />
                 <h2 className="pvb-analysis-title" id="pvb-analysis-heading">
-                  Overview
+                  Personalized Treatment Overview
                 </h2>
                 <GeminiWordmark />
               </div>
               <PvbNarrativeAudioControls
                 text={mainOverviewSpeechText}
-                ariaLabel="Listen to overview"
+                ariaLabel="Listen to Personalized Treatment Overview"
+                ariaLabelStop="Stop audio"
+                analytics={
+                  blueprintPatientAnalytics
+                    ? { ...blueprintPatientAnalytics, scope: "main_overview" }
+                    : undefined
+                }
               />
             </div>
             <p className="pvb-analysis-lead">
@@ -912,24 +1064,9 @@ export default function PostVisitBlueprintPage() {
           <section className="pvb-toc" id={PVB_TOC_ID}>
             <h2 className="pvb-toc-title">What we discussed</h2>
             <p className="pvb-toc-sub">
-              {analysisDisplay ? "Overview, then " : ""}
               {chapters.length} {chapters.length !== 1 ? "treatments" : "treatment"} in your plan
             </p>
             <ol className="pvb-toc-list">
-              {analysisDisplay && (
-                <li className="pvb-toc-item">
-                  <a
-                    className="pvb-toc-link"
-                    href={`#${PVB_ANALYSIS_SECTION_ID}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      scrollToSection(PVB_ANALYSIS_SECTION_ID);
-                    }}
-                  >
-                    <span className="pvb-toc-item-name">Overview</span>
-                  </a>
-                </li>
-              )}
               {chapters.map((c) => {
                 const tocId = treatmentChapterAnchorId(c.key);
                 return (
@@ -939,6 +1076,13 @@ export default function PostVisitBlueprintPage() {
                       href={`#${tocId}`}
                       onClick={(e) => {
                         e.preventDefault();
+                        if (blueprintPatientAnalytics) {
+                          trackPostVisitBlueprintEvent("blueprint_toc_navigated", {
+                            ...blueprintPatientAnalytics,
+                            chapter_key: c.key,
+                            chapter_display_name: c.displayName,
+                          });
+                        }
                         scrollToChapter(c.key);
                       }}
                     >
@@ -979,8 +1123,20 @@ export default function PostVisitBlueprintPage() {
                 chapter.key,
               )}
               onVideoPlay={handleBlueprintVideoPlay}
-              onCaseDetail={setSelectedCaseDetail}
+              onCaseDetail={openCaseDetailForAnalytics}
               trackCaseGallery={trackCaseGalleryOnce}
+              blueprintPatientAnalytics={blueprintPatientAnalytics ?? undefined}
+              chapterComplementContext={
+                mainOverviewPlanShape
+                  ? {
+                      chapterIndex: i,
+                      totalChapters: chapters.length,
+                      allChapterDisplayNames: chapters.map((c) => c.displayName),
+                      planShape: mainOverviewPlanShape,
+                      patientPriorities: chapterPatientPriorities,
+                    }
+                  : null
+              }
             />
           ))}
         </div>
@@ -989,8 +1145,8 @@ export default function PostVisitBlueprintPage() {
         <section className="pvb-closing">
           <h2 className="pvb-closing-title">That&apos;s your plan</h2>
           <p className="pvb-closing-text">
-            Questions? Tap below to view your personalized quote, check financing,
-            or book directly. You can also text {providerFirst} anytime.
+            Questions? Tap below to view your personalized quote or book directly.
+            You can also text {providerFirst} anytime.
           </p>
         </section>
 
@@ -1013,6 +1169,7 @@ export default function PostVisitBlueprintPage() {
                   heroPhotoFallbackUrl={heroPhotoUrl}
                   onBack={backFromTreatmentSubpage}
                   onJumpToTreatment={jumpToTreatmentFromSubpage}
+                  blueprintAnalyticsBase={blueprintPatientAnalytics ?? undefined}
                 />
               );
             }
@@ -1032,6 +1189,7 @@ export default function PostVisitBlueprintPage() {
                   onOpenTreatmentDetails={(r) => openTreatmentPlanSubpage(r.key)}
                   onOpenEyeAreaDetails={() => openAreaSubpage("Eyes")}
                   patientPhotoUrl={heroPhotoUrl}
+                  blueprintAnalyticsBase={blueprintPatientAnalytics ?? undefined}
                 />
               );
             }
@@ -1049,6 +1207,7 @@ export default function PostVisitBlueprintPage() {
                 onBack={closeAnalysisSubpage}
                 onOpenTreatmentDetails={(r) => openTreatmentPlanSubpage(r.key)}
                 patientPhotoUrl={heroPhotoUrl}
+                blueprintAnalyticsBase={blueprintPatientAnalytics ?? undefined}
               />
             );
           })()
@@ -1056,7 +1215,7 @@ export default function PostVisitBlueprintPage() {
 
       {/* ═══ STICKY BOTTOM BAR ═══ */}
       <div className="pvb-bar">
-        <button className="pvb-bar-btn" onClick={() => setIsQuoteOpen(true)} aria-expanded={isQuoteOpen}>
+        <button className="pvb-bar-btn" onClick={openQuoteDrawer} aria-expanded={isQuoteOpen}>
           <span>View Quote &amp; Book</span>
           <span className="pvb-bar-price">{formatPrice(finalTotal)}</span>
         </button>
@@ -1065,162 +1224,292 @@ export default function PostVisitBlueprintPage() {
       {/* ═══ QUOTE DRAWER ═══ */}
       <div
         className={`pvb-drawer-overlay${isQuoteOpen ? " is-open" : ""}`}
-        onClick={() => setIsQuoteOpen(false)}
+        onClick={() => closeQuoteDrawer("overlay")}
         aria-hidden={!isQuoteOpen}
       >
         <div className={`pvb-drawer${isQuoteOpen ? " is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
-          <div className="pvb-drawer-handle" onClick={() => setIsQuoteOpen(false)} />
+          <div className="pvb-drawer-handle" onClick={() => closeQuoteDrawer("handle")} />
           <div className="pvb-drawer-head">
-            <h2>Your quote</h2>
-            <button className="pvb-drawer-x" onClick={() => setIsQuoteOpen(false)}>&times;</button>
+            <h2>{quoteBookStep === "quote" ? "Your quote" : "Booking request"}</h2>
+            <button className="pvb-drawer-x" onClick={() => closeQuoteDrawer("x")}>&times;</button>
           </div>
           <div className="pvb-drawer-scroll">
-            <p className="pvb-drawer-intro">
-              Toggle skincare products and treatments on or off to update the total.
-            </p>
-            <div className="pvb-quote">
-              {skincareQuoteIdxs.length > 0 ? (
-                <div className="pvb-quote-section">
-                  <h3 className="pvb-quote-section-title">Skincare products</h3>
-                  {skincareQuoteIdxs.map((idx) => {
-                    const line = lineItems[idx];
-                    return (
-                      <label
-                        key={`${line.skuName ?? line.label}-${idx}`}
-                        className="pvb-quote-row"
-                      >
+            {quoteBookStep === "quote" ? (
+              <>
+                <p className="pvb-drawer-intro">
+                  Toggle skincare products and treatments on or off to update the total.
+                </p>
+                <div className="pvb-quote">
+                  {skincareQuoteIdxs.length > 0 ? (
+                    <div className="pvb-quote-section">
+                      <h3 className="pvb-quote-section-title">Skincare products</h3>
+                      {skincareQuoteIdxs.map((idx) => {
+                        const line = lineItems[idx];
+                        return (
+                          <label
+                            key={`${line.skuName ?? line.label}-${idx}`}
+                            className="pvb-quote-row"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedRows[idx])}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setSelectedRows((prev) => ({
+                                  ...prev,
+                                  [idx]: checked,
+                                }));
+                                trackPostVisitBlueprintEvent("blueprint_quote_line_toggled", {
+                                  token: blueprint.token,
+                                  patient_id: blueprint.patient.id,
+                                  line_index: idx,
+                                  line_category: "skincare",
+                                  included: checked,
+                                  label: (line.skuName ?? line.label).slice(0, 200),
+                                });
+                              }}
+                            />
+                            <span>
+                              {patientFacingSkincareShortName(line.skuName ?? line.label)}
+                            </span>
+                            <strong>{formatPrice(line.price ?? 0)}</strong>
+                          </label>
+                        );
+                      })}
+                      <div className="pvb-quote-subtotal">
+                        <span>Skincare subtotal</span>
+                        <strong>{formatPrice(toggledSkincareSub)}</strong>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {treatmentQuoteIdxs.length > 0 ? (
+                    <div className="pvb-quote-section">
+                      <h3 className="pvb-quote-section-title">Treatments</h3>
+                      {treatmentQuoteIdxs.map((idx) => {
+                        const line = lineItems[idx];
+                        return (
+                          <label
+                            key={`${line.skuName ?? line.label}-${idx}`}
+                            className="pvb-quote-row"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedRows[idx])}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setSelectedRows((prev) => ({
+                                  ...prev,
+                                  [idx]: checked,
+                                }));
+                                trackPostVisitBlueprintEvent("blueprint_quote_line_toggled", {
+                                  token: blueprint.token,
+                                  patient_id: blueprint.patient.id,
+                                  line_index: idx,
+                                  line_category: "treatment",
+                                  included: checked,
+                                  label: (line.skuName ?? line.label).slice(0, 200),
+                                });
+                              }}
+                            />
+                            <span>{line.skuName ?? line.label}</span>
+                            <strong>{formatPrice(line.price ?? 0)}</strong>
+                          </label>
+                        );
+                      })}
+                      <div className="pvb-quote-subtotal">
+                        <span>Treatments subtotal</span>
+                        <strong>{formatPrice(toggledTreatmentsSub)}</strong>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {allowMintMembership ? (
+                    <div className="pvb-quote-mint-toggle-wrap">
+                      <label className="pvb-quote-mint-toggle">
                         <input
                           type="checkbox"
-                          checked={Boolean(selectedRows[idx])}
-                          onChange={(e) =>
-                            setSelectedRows((prev) => ({
-                              ...prev,
-                              [idx]: e.target.checked,
-                            }))
-                          }
+                          checked={effectivePreviewMintMember}
+                          disabled={toggledTotal <= 0}
+                          onChange={(e) => {
+                            const on = e.target.checked;
+                            setPreviewMintMember(on);
+                            trackPostVisitBlueprintEvent("blueprint_mint_preview_toggled", {
+                              token: blueprint.token,
+                              patient_id: blueprint.patient.id,
+                              mint_preview_enabled: on,
+                            });
+                          }}
                         />
-                        <span>
-                          {patientFacingSkincareShortName(line.skuName ?? line.label)}
+                        <span className="pvb-quote-mint-toggle-label">
+                          <span className="pvb-quote-mint-toggle-main">
+                            If you&apos;re already a Mint member—or plan to join—check this box to
+                            preview your total with the 10% member discount.
+                          </span>
+                          <MintMembershipInfoTrigger
+                            zIndex={120}
+                            onInfoOpen={() =>
+                              trackPostVisitBlueprintEvent("blueprint_mint_info_opened", {
+                                token: blueprint.token,
+                                patient_id: blueprint.patient.id,
+                              })
+                            }
+                          />
                         </span>
-                        <strong>{formatPrice(line.price ?? 0)}</strong>
                       </label>
-                    );
-                  })}
-                  <div className="pvb-quote-subtotal">
-                    <span>Skincare subtotal</span>
-                    <strong>{formatPrice(toggledSkincareSub)}</strong>
+                      <p className="pvb-quote-mint-hint">
+                        The Treatment Mint members save on eligible services and boutique skincare.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="pvb-quote-footer-totals">
+                    {showMintBreakdown ? (
+                      <>
+                        <div className="pvb-quote-summary-row">
+                          <span>Subtotal</span>
+                          <strong>{formatPrice(toggledTotal)}</strong>
+                        </div>
+                        <div className="pvb-quote-mint-line">
+                          <span>Mint member 10% off</span>
+                          <strong>−{formatPrice(mintDiscountAmount)}</strong>
+                        </div>
+                      </>
+                    ) : null}
+                    <div className="pvb-quote-total">
+                      <span>{showMintBreakdown ? "Total with Mint" : "Total"}</span>
+                      <strong>{formatPrice(finalTotal)}</strong>
+                    </div>
                   </div>
                 </div>
-              ) : null}
-
-              {treatmentQuoteIdxs.length > 0 ? (
-                <div className="pvb-quote-section">
-                  <h3 className="pvb-quote-section-title">Treatments</h3>
-                  {treatmentQuoteIdxs.map((idx) => {
-                    const line = lineItems[idx];
-                    return (
-                      <label
-                        key={`${line.skuName ?? line.label}-${idx}`}
-                        className="pvb-quote-row"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={Boolean(selectedRows[idx])}
-                          onChange={(e) =>
-                            setSelectedRows((prev) => ({
-                              ...prev,
-                              [idx]: e.target.checked,
-                            }))
-                          }
-                        />
-                        <span>{line.skuName ?? line.label}</span>
-                        <strong>{formatPrice(line.price ?? 0)}</strong>
-                      </label>
-                    );
-                  })}
-                  <div className="pvb-quote-subtotal">
-                    <span>Treatments subtotal</span>
-                    <strong>{formatPrice(toggledTreatmentsSub)}</strong>
-                  </div>
-                </div>
-              ) : null}
-
-              {allowMintMembership ? (
-                <div className="pvb-quote-mint-toggle-wrap">
-                  <label className="pvb-quote-mint-toggle">
-                    <input
-                      type="checkbox"
-                      checked={effectivePreviewMintMember}
-                      disabled={toggledTotal <= 0}
-                      onChange={(e) => setPreviewMintMember(e.target.checked)}
-                    />
-                    <span>Mint member — 10% off this plan</span>
-                  </label>
-                  <p className="pvb-quote-mint-hint">
-                    The Treatment Mint members save on eligible services and boutique skincare.
+                {bookingIntentError ? (
+                  <p className="pvb-booking-intent-error" role="alert">
+                    {bookingIntentError}
                   </p>
-                </div>
-              ) : null}
-
-              <div className="pvb-quote-footer-totals">
-                {showMintBreakdown ? (
-                  <>
-                    <div className="pvb-quote-summary-row">
-                      <span>Subtotal</span>
-                      <strong>{formatPrice(toggledTotal)}</strong>
-                    </div>
-                    <div className="pvb-quote-mint-line">
-                      <span>Mint member 10% off</span>
-                      <strong>−{formatPrice(mintDiscountAmount)}</strong>
-                    </div>
-                  </>
                 ) : null}
-                <div className="pvb-quote-total">
-                  <span>{showMintBreakdown ? "Total with Mint" : "Total"}</span>
-                  <strong>{formatPrice(finalTotal)}</strong>
+                <div className="pvb-drawer-ctas">
+                  <button
+                    type="button"
+                    className="pvb-cta pvb-cta--book"
+                    disabled={bookingIntentSubmitting}
+                    onClick={() => {
+                      void (async () => {
+                        setBookingIntentError(null);
+                        const selectedLineIndices = Object.entries(selectedRows)
+                          .filter(([, on]) => on)
+                          .map(([k]) => Number(k))
+                          .filter((n) => Number.isInteger(n) && n >= 0)
+                          .sort((a, b) => a - b);
+                        const mintPreview = effectivePreviewMintMember;
+                        setBookingIntentSubmitting(true);
+                        const result = await submitPostVisitBlueprintBookingIntent({
+                          token: blueprint.token,
+                          patientId: blueprint.patient.id,
+                          selectedLineIndices,
+                          mintPreview,
+                        });
+                        setBookingIntentSubmitting(false);
+                        if (!result.ok) {
+                          setBookingIntentError(
+                            result.details
+                              ? `${result.error} ${result.details.slice(0, 280)}`
+                              : result.error,
+                          );
+                          return;
+                        }
+                        trackPostVisitBlueprintEvent("booking_clicked", {
+                          token: blueprint.token,
+                          patient_id: blueprint.patient.id,
+                        });
+                        trackPostVisitBlueprintEvent("blueprint_booking_confirm_viewed", {
+                          token: blueprint.token,
+                          patient_id: blueprint.patient.id,
+                        });
+                        setQuoteBookStep("book_confirm");
+                      })();
+                    }}
+                  >
+                    {bookingIntentSubmitting ? "Submitting…" : "Proceed to book"}
+                  </button>
+                  {blueprint.cta.textProviderPhone ? (
+                    <div className="pvb-drawer-ctas-row">
+                      <a
+                        className="pvb-cta pvb-cta--ghost"
+                        href={`sms:${blueprint.cta.textProviderPhone}`}
+                        onClick={() =>
+                          trackPostVisitBlueprintEvent("blueprint_text_provider_clicked", {
+                            token: blueprint.token,
+                            patient_id: blueprint.patient.id,
+                            source: "quote_drawer",
+                          })
+                        }
+                      >
+                        Text provider
+                      </a>
+                    </div>
+                  ) : null}
                 </div>
-                {showTreatmentFinancingBlock ? (
-                  <CheckoutFinancingSection
-                    totalAmount={treatmentFinancingAmount}
-                    hasUnknownPrices={hasUnknownTreatmentPrices}
-                    financingUrl={
-                      blueprint.cta.financingUrl || "https://www.carecredit.com"
-                    }
-                    variant="integrated"
-                    integratedSurface="pvb-drawer"
-                    financingScope="treatments_only"
-                    showFinancingLink={false}
-                  />
-                ) : null}
+              </>
+            ) : (
+              <div className="pvb-drawer-book-confirm">
+                <h3 className="pvb-drawer-book-confirm-title">You&rsquo;re all set</h3>
+                <p className="pvb-drawer-book-confirm-text">
+                  We&rsquo;ll reach out to{" "}
+                  {providerFirst ? (
+                    <>
+                      {providerFirst}&rsquo;s team
+                    </>
+                  ) : (
+                    "your provider team"
+                  )}{" "}
+                  with this booking request. Someone from the office will connect with you shortly to help
+                  you schedule.
+                </p>
+                <div className="pvb-drawer-book-confirm-actions">
+                  <button
+                    type="button"
+                    className="pvb-cta pvb-cta--ghost"
+                    onClick={() => {
+                      trackPostVisitBlueprintEvent("blueprint_booking_back_to_quote", {
+                        token: blueprint.token,
+                        patient_id: blueprint.patient.id,
+                      });
+                      setQuoteBookStep("quote");
+                    }}
+                  >
+                    Back to quote
+                  </button>
+                  <button
+                    type="button"
+                    className="pvb-cta pvb-cta--book"
+                    onClick={() => {
+                      trackPostVisitBlueprintEvent("blueprint_booking_done", {
+                        token: blueprint.token,
+                        patient_id: blueprint.patient.id,
+                      });
+                      setIsQuoteOpen(false);
+                    }}
+                  >
+                    Done
+                  </button>
+                  {blueprint.cta.textProviderPhone ? (
+                    <a
+                      className="pvb-cta pvb-cta--ghost"
+                      href={`sms:${blueprint.cta.textProviderPhone}`}
+                      onClick={() =>
+                        trackPostVisitBlueprintEvent("blueprint_text_provider_clicked", {
+                          token: blueprint.token,
+                          patient_id: blueprint.patient.id,
+                          source: "booking_confirm",
+                        })
+                      }
+                    >
+                      Text provider
+                    </a>
+                  ) : null}
+                </div>
               </div>
-            </div>
-            <div className="pvb-drawer-ctas">
-              {bookingHref ? (
-                <a
-                  className="pvb-cta pvb-cta--book"
-                  href={bookingHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() =>
-                    trackPostVisitBlueprintEvent("booking_clicked", {
-                      token: blueprint.token,
-                      patient_id: blueprint.patient.id,
-                    })
-                  }
-                >
-                  Book my plan
-                </a>
-              ) : (
-                <span className="pvb-cta pvb-cta--book pvb-cta--muted" role="note">
-                  Contact your care team to schedule your plan.
-                </span>
-              )}
-              {blueprint.cta.textProviderPhone ? (
-                <div className="pvb-drawer-ctas-row">
-                  <a className="pvb-cta pvb-cta--ghost" href={`sms:${blueprint.cta.textProviderPhone}`}>Text provider</a>
-                </div>
-              ) : null}
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -1288,7 +1577,9 @@ export default function PostVisitBlueprintPage() {
                 <p className="pvb-case-demo">{selectedCaseDetail.demographics}</p>
               ) : null}
 
-              {selectedCaseDetail.story || selectedCaseDetail.caption ? (
+              {selectedCaseDetail.story ||
+              selectedCaseDetail.caption ||
+              selectedCaseDetail.storyDetailed ? (
                 <section className="pvb-case-block">
                   <h3 className="pvb-case-block-title">About this case</h3>
                   {selectedCaseDetail.story ? (
@@ -1296,6 +1587,11 @@ export default function PostVisitBlueprintPage() {
                   ) : null}
                   {selectedCaseDetail.caption ? (
                     <p className="pvb-case-prose">{selectedCaseDetail.caption}</p>
+                  ) : null}
+                  {selectedCaseDetail.storyDetailed ? (
+                    <p className="pvb-case-prose pvb-case-prose--detailed">
+                      {selectedCaseDetail.storyDetailed}
+                    </p>
                   ) : null}
                 </section>
               ) : null}

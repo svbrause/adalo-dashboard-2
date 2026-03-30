@@ -31,3 +31,37 @@
   padding: 8px 12px;
   font-size: 13px;
 }
+
+@media (max-width: 768px) {
+  .pagination-container {
+    padding: 10px 14px;
+    gap: 6px;
+    flex-wrap: nowrap;
+    justify-content: center;
+  }
+
+  .pagination-info {
+    display: none;
+  }
+
+  .pagination-controls {
+    gap: 4px;
+  }
+
+  .pagination-controls .btn-sm {
+    min-height: 36px;
+    min-width: 36px;
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pagination-page-info {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 0 6px;
+  }
+}

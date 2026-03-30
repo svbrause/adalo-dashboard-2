@@ -1662,6 +1662,8 @@ body.theme-warm .kanban-cards.drag-over {
 
 .modal-overlay.active {
   display: flex;
+  /* Above client-detail-panel (250), mobile tab bar (100), filter bottom-sheet (1200) */
+  z-index: 10050;
 }
 
 /* Full-screen modal for lead details */
@@ -2358,66 +2360,37 @@ body.theme-warm .kanban-cards.drag-over {
 }
 
 @media (max-width: 768px) {
-  .dashboard-wrapper {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 12px 16px;
-  }
-
-  .sidebar-header {
-    padding: 0;
-    border-bottom: none;
-  }
-
-  .sidebar-nav {
-    display: flex;
-    padding: 0;
-    gap: 8px;
-  }
-
-  .nav-item {
-    padding: 8px 12px;
-    margin-bottom: 0;
-  }
-
-  .nav-item span:not(.nav-item svg) {
-    display: none;
-  }
-
-  .sidebar-stats {
-    display: none;
-  }
-
   .main-content {
     margin-left: 0;
   }
 
+  /* Keep logo and actions on one row (Header.tsx mobile layout) */
   .main-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-    padding: 16px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 12px;
   }
 
   .header-right {
-    width: 100%;
-    flex-direction: column;
+    width: auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* List view: no side padding so patient rows use full viewport width */
+  .list-view {
+    padding-left: 0;
+    padding-right: 0;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   .search-box input {
     width: 100%;
-  }
-
-  .btn-primary {
-    width: 100%;
-    justify-content: center;
   }
 
   .kanban-board {
@@ -2857,4 +2830,229 @@ body.theme-warm .kanban-cards.drag-over {
 .debug-photos-overlay {
   position: relative;
   padding: 1rem;
+}
+
+/* ── Mobile: modals, photo headers, general UI ─────────────────── */
+@media (max-width: 768px) {
+  /* List/Cards view toggle: hidden on phone (also omitted from DOM in ViewControls) */
+  .view-toggle-section {
+    display: none !important;
+  }
+
+  /* ── Typography: enforce readable minimum sizes ─────── */
+  body {
+    font-size: 15px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* ── No horizontal page overflow: narrow min widths, clip stray flex children ─ */
+  html {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  /* ── Safe areas for iPhone notch & home indicator ───── */
+  .dashboard-wrapper {
+    padding-top: env(safe-area-inset-top);
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  .main-content {
+    padding-bottom: 0;
+    min-width: 0 !important;
+    max-width: 100%;
+    width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  .dashboard-views-wrap {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .main-header {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .view-controls-container {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .control-content {
+    min-width: 0 !important;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Global control-toggle min-width (120px) is too wide on small screens */
+  .main-content .control-toggle-btn {
+    min-width: 0 !important;
+  }
+
+  /* ── Touch targets: 44px minimum per Apple HIG ──────── */
+  button,
+  .btn-primary,
+  .btn-secondary,
+  select,
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="number"] {
+    min-height: 44px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 10px 16px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    font-size: 14px;
+  }
+
+  /* ── Modals: bottom-sheet pattern ───────────────────── */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    border-radius: 20px 20px 0 0;
+    max-height: 94vh;
+    max-width: 100%;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .modal-header {
+    padding: 18px 16px;
+  }
+
+  .modal-title {
+    font-size: 17px;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  #lead-modal .modal-body {
+    padding: 16px;
+  }
+
+  /* ── Photo header: stack vertically ────────────────── */
+  .modal-header-with-photo {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .modal-photo-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    max-height: 200px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .modal-photo {
+    min-height: 160px;
+    max-height: 200px;
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  .modal-photo-placeholder-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    max-height: 180px;
+  }
+
+  .modal-photo-placeholder-wrapper .photo-placeholder-container {
+    min-height: 140px;
+    padding: 24px 16px;
+  }
+
+  .modal-contact-section .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  /* ── Detail grids: single column, larger text ──────── */
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .detail-value {
+    font-size: 15px;
+  }
+
+  .detail-item label {
+    font-size: 12px;
+  }
+
+  .detail-section-title {
+    font-size: 16px;
+  }
+
+  /* ── Buttons / page ────────────────────────────────── */
+  .page-title {
+    font-size: 18px;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+  }
+
+  /* ── Patient issues modal ──────────────────────────── */
+  .patient-issues-modal {
+    max-height: 94vh;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .patient-issues-modal-body {
+    padding: 16px;
+  }
+
+  .issues-chips-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .issue-chip {
+    padding: 14px;
+  }
+
+  /* ── Contact / general layout ──────────────────────── */
+  .contact-info-with-actions {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── Status badges ─────────────────────────────────── */
+  .status-badge {
+    font-size: 13px;
+    padding: 5px 10px;
+  }
+
+  .status-badge-base {
+    font-size: 13px;
+  }
 }

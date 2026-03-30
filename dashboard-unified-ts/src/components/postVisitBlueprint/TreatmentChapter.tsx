@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useInViewOnce } from "../../hooks/useInViewOnce";
 import { createPortal } from "react-dom";
 import type { TreatmentChapter } from "../../utils/blueprintTreatmentChapters";
 import type {
@@ -13,7 +14,12 @@ import {
   buildPhotoTagSummary,
 } from "../../utils/postVisitBlueprintCases";
 import {
+  trackPostVisitBlueprintEvent,
+  type BlueprintPatientAnalyticsBase,
+} from "../../utils/postVisitBlueprint";
+import {
   buildChapterOverviewContent,
+  type ChapterComplementSandwichContext,
   type ChapterOverviewBuildOptions,
 } from "../../utils/pvbOverviewNarratives";
 import type { PvbResolvedPlanGlossaryTerm } from "../../utils/pvbPlanTermGlossary";
@@ -52,6 +58,10 @@ interface TreatmentChapterViewProps {
   onVideoPlay: (videoId: string, title: string) => void;
   onCaseDetail: (detail: CaseDetailPayload) => void;
   trackCaseGallery: () => void;
+  /** When set, chapter-level engagement is reported to PostHog. */
+  blueprintPatientAnalytics?: BlueprintPatientAnalyticsBase;
+  /** Complement sandwich: top = what’s strong about this modality; bottom = how it fits the full plan. */
+  chapterComplementContext?: ChapterComplementSandwichContext | null;
 }
 
 function buildDemographics(photo: BlueprintCasePhoto): string | null {
@@ -69,9 +79,26 @@ function processPhoto(photo: BlueprintCasePhoto, card: TreatmentResultsCard) {
   const storyDisplay = storyScrubbed && !isRedundantTreatmentSubtitle(storyScrubbed, card) ? storyScrubbed : null;
   const captionScrubbed = photo.caption ? scrubAirtableRecordIds(photo.caption) : "";
   const captionDisplay = captionScrubbed && !isRedundantTreatmentSubtitle(captionScrubbed, card) ? captionScrubbed : null;
+  const detailedScrubbed = photo.storyDetailed
+    ? scrubAirtableRecordIds(photo.storyDetailed)
+    : "";
+  const detailedTrim = detailedScrubbed.trim();
+  const detailedNorm = detailedTrim.toLowerCase();
+  const captionNorm = captionScrubbed.trim().toLowerCase();
+  const storyNorm = storyScrubbed.trim().toLowerCase();
+  let storyDetailedDisplay: string | null = null;
+  if (
+    detailedTrim &&
+    !isRedundantTreatmentSubtitle(detailedScrubbed, card) &&
+    detailedNorm !== captionNorm &&
+    detailedNorm !== storyNorm
+  ) {
+    storyDetailedDisplay = detailedTrim;
+  }
   return {
     storyDisplay,
     captionDisplay,
+    storyDetailedDisplay,
     tagSummary: buildPhotoTagSummary(photo, card).trim(),
     ageDisplay: photo.age && !looksLikeAirtableRecordId(photo.age) ? photo.age : null,
     skinTypeDisplay: photo.skinType && !looksLikeAirtableRecordId(photo.skinType) ? photo.skinType : null,
@@ -89,6 +116,8 @@ export function TreatmentChapterView({
   onVideoPlay,
   onCaseDetail,
   trackCaseGallery,
+  blueprintPatientAnalytics,
+  chapterComplementContext,
 }: TreatmentChapterViewProps) {
   const card = chapter.caseCard;
   const photos = card?.photos ?? [];
@@ -129,8 +158,9 @@ export function TreatmentChapterView({
       buildChapterOverviewContent(
         chapter,
         chapterAnalysisContext ?? undefined,
+        chapterComplementContext ?? undefined,
       ),
-    [chapter, chapterAnalysisContext],
+    [chapter, chapterAnalysisContext, chapterComplementContext],
   );
   const [aiChapterAnalysis, setAiChapterAnalysis] = useState<string | null>(null);
   const aiChapterPayload = useMemo(() => {
@@ -179,19 +209,7 @@ export function TreatmentChapterView({
       if (aiChapterAnalysis) {
         return { ...chapterOverview, analysis: aiChapterAnalysis };
       }
-      // Fallback copy: keep it paragraph-style so it reads less like generated list output.
-      if (chapterOverview.planBullets.length === 0) return chapterOverview;
-      const details = chapterOverview.planBullets
-        .map((b) => b.trim())
-        .filter(Boolean)
-        .join("; ");
-      return {
-        ...chapterOverview,
-        planBullets: [],
-        analysis: details
-          ? `Your plan details include ${details}. ${chapterOverview.analysis}`
-          : chapterOverview.analysis,
-      };
+      return chapterOverview;
     },
     [chapterOverview, aiChapterAnalysis],
   );
@@ -232,6 +250,7 @@ export function TreatmentChapterView({
         photoUrl: photo.photoUrl,
         story: p.storyDisplay,
         caption: p.captionDisplay,
+        storyDetailed: p.storyDetailedDisplay,
         tags: p.tagSummary || null,
         demographics: buildDemographics(photo),
         longevity: treatmentCard.longevity,
@@ -243,8 +262,15 @@ export function TreatmentChapterView({
     [onCaseDetail],
   );
 
+  const [cardRef, cardInView] = useInViewOnce<HTMLElement>("0px 0px -5% 0px", 0.05);
+
   return (
-    <article id={anchorId} className="tc" aria-label={chapter.displayName}>
+    <article
+      id={anchorId}
+      ref={cardRef}
+      className={`tc${cardInView ? " tc--visible" : ""}`}
+      aria-label={chapter.displayName}
+    >
       {/* Chapter number badge */}
       <div className="tc-badge">
         <span className="tc-badge-num">{index + 1}</span>
@@ -274,12 +300,23 @@ export function TreatmentChapterView({
         <div className="tc-overview-head">
           <div className="tc-overview-brand">
             <AiSparkleLogo size={15} className="tc-overview-ai-logo" />
-            <h3 className="tc-label">Overview</h3>
+            <h3 className="tc-label">Personalized Treatment Overview</h3>
             <GeminiWordmark />
           </div>
           <PvbNarrativeAudioControls
             text={chapterOverviewSpeech}
-            ariaLabel={`Listen to ${chapter.displayName} overview`}
+            ariaLabel={`Listen to Personalized Treatment Overview for ${chapter.displayName}`}
+            ariaLabelStop="Stop audio"
+            analytics={
+              blueprintPatientAnalytics
+                ? {
+                    ...blueprintPatientAnalytics,
+                    scope: "chapter",
+                    chapter_key: chapter.key,
+                    chapter_display_name: chapter.displayName,
+                  }
+                : undefined
+            }
           />
         </div>
         <PvbChapterOverviewTypewriter chapterOverview={chapterOverviewResolved} />
@@ -315,14 +352,22 @@ export function TreatmentChapterView({
       {chapter.meta.notes && <p className="tc-fact-note">{chapter.meta.notes}</p>}
 
       {chapterGlossaryTerms && chapterGlossaryTerms.length > 0 && (
-        <details className="pvb-plan-glossary pvb-plan-glossary--collapsible tc-chapter-glossary">
+        <details
+          className="pvb-plan-glossary pvb-plan-glossary--collapsible tc-chapter-glossary"
+          open
+          onToggle={(e) => {
+            if (!blueprintPatientAnalytics) return;
+            const el = e.currentTarget;
+            trackPostVisitBlueprintEvent("blueprint_glossary_section_toggled", {
+              ...blueprintPatientAnalytics,
+              chapter_key: chapter.key,
+              section_open: el.open,
+            });
+          }}
+        >
           <summary className="pvb-plan-glossary__section-summary">
             <span className="pvb-plan-glossary__section-summary-text">
-              <span className="pvb-plan-glossary__section-title">What these terms mean</span>
-              <span className="pvb-plan-glossary__section-hint">
-                {chapterGlossaryTerms.length}{" "}
-                {chapterGlossaryTerms.length === 1 ? "term" : "terms"}
-              </span>
+              <span className="pvb-plan-glossary__section-title">Technical terms</span>
             </span>
             <span className="pvb-plan-glossary__section-chev" aria-hidden>
               ▼
@@ -332,7 +377,7 @@ export function TreatmentChapterView({
             <p className="pvb-plan-glossary-lead">
               Quick definitions for abbreviations and add-ons that appear in this part of your plan.
             </p>
-            <ul className="pvb-plan-glossary-list" aria-label="Terms explained for this treatment">
+            <ul className="pvb-plan-glossary-list" aria-label="Technical terms for this treatment">
               {chapterGlossaryTerms.map((term) => (
                 <li key={term.id} className="pvb-plan-glossary-item">
                   <details className="pvb-plan-glossary-term-details">
@@ -368,7 +413,17 @@ export function TreatmentChapterView({
                 type="button"
                 role="listitem"
                 className={`tc-video-thumb${expandedVideoId === mod.id ? " tc-video-thumb--active" : ""}`}
-                onClick={() => setExpandedVideoId(mod.id)}
+                onClick={() => {
+                  if (blueprintPatientAnalytics) {
+                    trackPostVisitBlueprintEvent("blueprint_video_modal_opened", {
+                      ...blueprintPatientAnalytics,
+                      chapter_key: chapter.key,
+                      video_id: mod.id,
+                      module_title: mod.title,
+                    });
+                  }
+                  setExpandedVideoId(mod.id);
+                }}
                 aria-haspopup="dialog"
                 aria-expanded={expandedVideoId === mod.id}
                 aria-label={`Open video: ${mod.title}`}
@@ -518,57 +573,51 @@ export function TreatmentChapterView({
           document.body,
         )}
 
-      {/* Photo Carousel */}
-      {card && (
+      {/* Photo carousel — omit entire section when there are no matching case photos */}
+      {card && len > 0 ? (
         <div className="tc-cases-section">
           <div className="tc-cases-head">
             <h3 className="tc-section-label">Results like yours</h3>
             {len > 1 && <span className="tc-swipe-hint">Swipe &rarr;</span>}
           </div>
-          {len === 0 ? (
-            <p className="tc-muted">
-              We&apos;re curating more examples for this treatment. Your provider
-              can show you additional cases in-office.
-            </p>
-          ) : (
-            <div className="tc-carousel" onScroll={() => trackCaseGallery()}>
-              {photos.map((photo) => {
-                const pd = processPhoto(photo, card);
-                const hasCaption = Boolean(
-                  pd.storyDisplay ||
-                    pd.captionDisplay ||
-                    pd.tagSummary ||
-                    pd.ageDisplay ||
-                    pd.skinTypeDisplay ||
-                    pd.skinToneDisplay,
-                );
-                return (
-                  <div key={photo.id} className="tc-carousel-card">
-                    <div className="tc-carousel-img-wrap">
-                      <img src={photo.photoUrl} alt={pd.storyDisplay || pd.captionDisplay || `${chapter.displayName} result`} className="tc-carousel-img" loading="lazy" />
-                    </div>
-                    {hasCaption && (
-                      <div className="tc-carousel-caption">
-                        {pd.storyDisplay && <p className="tc-carousel-story">{pd.storyDisplay}</p>}
-                        {pd.captionDisplay && <p className="tc-carousel-body">{pd.captionDisplay}</p>}
-                        {pd.tagSummary && <p className="tc-carousel-tags">{pd.tagSummary}</p>}
-                        {(pd.ageDisplay || pd.skinTypeDisplay || pd.skinToneDisplay) && (
-                          <p className="tc-carousel-demo">
-                            {[pd.ageDisplay && `Age: ${pd.ageDisplay}`, pd.skinTypeDisplay && `Skin: ${pd.skinTypeDisplay}`, pd.skinToneDisplay && `Tone: ${pd.skinToneDisplay}`].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <button type="button" className="tc-carousel-detail-btn" onClick={() => openCaseDetail(photo, card)}>
-                      View details
-                    </button>
+          <div className="tc-carousel" onScroll={() => trackCaseGallery()}>
+            {photos.map((photo) => {
+              const pd = processPhoto(photo, card);
+              const showDemoLine = Boolean(
+                pd.ageDisplay || pd.skinTypeDisplay || pd.skinToneDisplay,
+              );
+              return (
+                <div key={photo.id} className="tc-carousel-card">
+                  <div className="tc-carousel-img-wrap">
+                    <img
+                      src={photo.photoUrl}
+                      alt={`Before and after example for ${chapter.displayName}`}
+                      className="tc-carousel-img"
+                      loading="lazy"
+                    />
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  {showDemoLine ? (
+                    <div className="tc-carousel-caption tc-carousel-caption--compact">
+                      <p className="tc-carousel-demo">
+                        {[
+                          pd.ageDisplay && `Age: ${pd.ageDisplay}`,
+                          pd.skinTypeDisplay && `Skin: ${pd.skinTypeDisplay}`,
+                          pd.skinToneDisplay && `Tone: ${pd.skinToneDisplay}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                  ) : null}
+                  <button type="button" className="tc-carousel-detail-btn" onClick={() => openCaseDetail(photo, card)}>
+                    View details
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      )}
+      ) : null}
 
       {/* Wellnest: curated articles/resources for this treatment */}
       {wellnestOffering && externalExamples.length > 0 && (
@@ -592,6 +641,16 @@ export function TreatmentChapterView({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="tc-external-link"
+                  onClick={() => {
+                    if (blueprintPatientAnalytics) {
+                      trackPostVisitBlueprintEvent("blueprint_external_link_clicked", {
+                        ...blueprintPatientAnalytics,
+                        chapter_key: chapter.key,
+                        resource_id: ex.id,
+                        resource_kind: ex.kind,
+                      });
+                    }
+                  }}
                 >
                   {ex.title}
                 </a>

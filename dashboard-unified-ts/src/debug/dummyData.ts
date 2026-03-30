@@ -21,6 +21,7 @@ export function getDummyClient(): Client {
     ageRange: "30-39",
     dateOfBirth: null,
     goals: ["Balance Lips", "Smoothen Fine Lines"],
+    wellnessGoals: [],
     concerns: "",
     areas: ["Lips", "Forehead"],
     aestheticGoals: "",

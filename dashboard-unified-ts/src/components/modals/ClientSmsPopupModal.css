@@ -19,6 +19,21 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Sit slightly above vertical center / bottom sheet so it clears thumb zone */
+  transform: translateY(-16px);
+}
+
+@media (max-width: 768px) {
+  .modal-overlay.client-sms-popup-overlay {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px 12px max(36px, calc(12px + env(safe-area-inset-bottom, 0px)));
+  }
+
+  .client-sms-popup-modal {
+    transform: translateY(-28px);
+    max-height: 82vh;
+  }
 }
 
 .client-sms-popup-header {

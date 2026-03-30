@@ -12,6 +12,11 @@ import { getTreatmentsForInterest } from "./utils";
 import { generateId } from "./utils";
 import { REGION_OPTIONS, TIMELINE_OPTIONS, SKINCARE_QUICK_ADD_WHAT_OPTIONS } from "./constants";
 import { persistClientDiscussedItems } from "../../../utils/wellnestDemoPlanPersistence";
+import {
+  getTreatmentPhotoAreaDisplayList,
+  getTreatmentPhotoDisplayTitle,
+  getTreatmentPhotoSearchHaystack,
+} from "../../../utils/treatmentPhotoTitle";
 import { SUGGESTION_TO_AREA, ALL_TREATMENT_INTERESTS } from "./suggestionsMapping";
 import { showToast, showError } from "../../../utils/toast";
 
@@ -158,13 +163,6 @@ function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
     ethnicBackground: fields["Ethnic Background"] || undefined,
     skinType: fields["Skin Type"] || undefined,
   };
-}
-
-/** Area names for display: remove trailing " All" and omit standalone "All". */
-function getDisplayAreaNames(areaNames: string[]): string[] {
-  return areaNames
-    .map((a) => String(a).replace(/\s*All$/i, "").trim())
-    .filter((a) => a && a.toLowerCase() !== "all");
 }
 
 /** True if photo's areaNames match the selected region (e.g. "Skin All" matches "Skin"). */
@@ -408,9 +406,9 @@ export default function TreatmentPhotos({
   const getMatchScore = useCallback(
     (photo: TreatmentPhoto): number => {
       if (matchCriteriaTerms.length === 0) return 0;
-      const nameLower = (photo.name || "").toLowerCase();
+      const hay = getTreatmentPhotoSearchHaystack(photo);
       return matchCriteriaTerms.filter((term) =>
-        nameLower.includes(term.toLowerCase())
+        hay.includes(term.toLowerCase())
       ).length;
     },
     [matchCriteriaTerms]
@@ -433,11 +431,11 @@ export default function TreatmentPhotos({
       const matchType = getMatchType(photo);
       if (!matchType) return "";
       if (matchType === "exact") return "Exact match";
-      const nameLower = (photo.name || "").toLowerCase();
-      if (filterIssue?.trim() && nameLower.includes(filterIssue.trim().toLowerCase())) {
+      const hay = getTreatmentPhotoSearchHaystack(photo);
+      if (filterIssue?.trim() && hay.includes(filterIssue.trim().toLowerCase())) {
         return `✓ Matches Issue: ${filterIssue.trim()}`;
       }
-      if (filterInterest?.trim() && nameLower.includes(filterInterest.trim().toLowerCase())) {
+      if (filterInterest?.trim() && hay.includes(filterInterest.trim().toLowerCase())) {
         return `✓ Matches Interest: ${filterInterest.trim()}`;
       }
       if (filterRegion?.trim() && photoMatchesRegion(photo.areaNames, filterRegion)) {
@@ -454,7 +452,9 @@ export default function TreatmentPhotos({
       const scoreA = getMatchScore(a);
       const scoreB = getMatchScore(b);
       if (scoreB !== scoreA) return scoreB - scoreA; // higher score first
-      return (a.name || "").localeCompare(b.name || "");
+      return getTreatmentPhotoDisplayTitle(a).localeCompare(
+        getTreatmentPhotoDisplayTitle(b)
+      );
     });
   }, [photos, getMatchScore]);
 
@@ -612,17 +612,6 @@ export default function TreatmentPhotos({
     [allPhotos]
   );
 
-  /** Title for a photo: use Name field (clinical) from Photos table. */
-  const getPhotoTitle = useCallback((photo: TreatmentPhoto): string => {
-    if (photo.name?.trim()) return photo.name.trim();
-    const tx = photo.generalTreatments.join(", ");
-    const area = getDisplayAreaNames(photo.areaNames).join(", ");
-    if (tx && area) return `${tx} – ${area}`;
-    if (tx) return tx;
-    if (area) return area;
-    return "Treatment example";
-  }, []);
-
   /** Open the inline Where/When form for adding this photo to plan */
   const openAddToPlanForm = useCallback((photo: TreatmentPhoto) => {
     setAddToPlanForm({
@@ -640,7 +629,7 @@ export default function TreatmentPhotos({
     (photo: TreatmentPhoto, form: { where: string[]; when: string; product?: string; quantity?: string; notes?: string }): TreatmentPlanPrefill => {
       const rawTreatment = photo.generalTreatments[0] || photo.treatments[0] || "";
       const normalizedTreatment = normalizeTreatment(rawTreatment) || rawTreatment || "Treatment";
-      const regionName = form.where.length > 0 ? form.where.join(", ") : (getDisplayAreaNames(photo.areaNames)[0] || filterRegion || effectiveRegion || "");
+      const regionName = form.where.length > 0 ? form.where.join(", ") : (getTreatmentPhotoAreaDisplayList(photo.areaNames)[0] || filterRegion || effectiveRegion || "");
       return {
         interest: filterInterest || "",
         region: regionName,
@@ -691,7 +680,7 @@ export default function TreatmentPhotos({
       }
       const rawTreatment = photo.generalTreatments[0] || photo.treatments[0] || "";
       const normalizedTreatment = normalizeTreatment(rawTreatment) || rawTreatment || "Treatment";
-      const regionName = getDisplayAreaNames(photo.areaNames)[0] || filterRegion || effectiveRegion || "";
+      const regionName = getTreatmentPhotoAreaDisplayList(photo.areaNames)[0] || filterRegion || effectiveRegion || "";
       if (!onUpdate) return;
       const newItem: DiscussedItem = {
         id: generateId(),
@@ -738,7 +727,7 @@ export default function TreatmentPhotos({
       const normalizedTreatment =
         normalizeTreatment(rawTreatment) || rawTreatment || "";
       const regionName =
-        getDisplayAreaNames(photo.areaNames)[0] || filterRegion || effectiveRegion || "";
+        getTreatmentPhotoAreaDisplayList(photo.areaNames)[0] || filterRegion || effectiveRegion || "";
       const interestVal = filterInterest || "";
       return planItems.some((item) => {
         const treatmentMatch =
@@ -1118,7 +1107,7 @@ export default function TreatmentPhotos({
                               <div className="treatment-photo-image-wrap treatment-photo-image-wrap-wide">
                                 <img
                                   src={photo.thumbnailUrl || photo.photoUrl}
-                                  alt={getPhotoTitle(photo)}
+                                  alt={getTreatmentPhotoDisplayTitle(photo)}
                                   className="treatment-photo-image"
                                   loading="lazy"
                                 />
@@ -1144,7 +1133,7 @@ export default function TreatmentPhotos({
                                 )}
                               </div>
                               <div className="treatment-photo-card-label">
-                                {getPhotoTitle(photo)}
+                                {getTreatmentPhotoDisplayTitle(photo)}
                               </div>
                             </button>
                           );
@@ -1178,7 +1167,7 @@ export default function TreatmentPhotos({
                               <div className="treatment-photo-image-wrap treatment-photo-image-wrap-wide">
                                 <img
                                   src={photo.thumbnailUrl || photo.photoUrl}
-                                  alt={getPhotoTitle(photo)}
+                                  alt={getTreatmentPhotoDisplayTitle(photo)}
                                   className="treatment-photo-image"
                                   loading="lazy"
                                 />
@@ -1204,7 +1193,7 @@ export default function TreatmentPhotos({
                                 )}
                               </div>
                               <div className="treatment-photo-card-label">
-                                {getPhotoTitle(photo)}
+                                {getTreatmentPhotoDisplayTitle(photo)}
                               </div>
                             </button>
                           );
@@ -1231,7 +1220,7 @@ export default function TreatmentPhotos({
                         <div className="treatment-photo-image-wrap treatment-photo-image-wrap-wide">
                           <img
                             src={photo.thumbnailUrl || photo.photoUrl}
-                            alt={getPhotoTitle(photo)}
+                            alt={getTreatmentPhotoDisplayTitle(photo)}
                             className="treatment-photo-image"
                             loading="lazy"
                           />
@@ -1247,7 +1236,7 @@ export default function TreatmentPhotos({
                           )}
                         </div>
                         <div className="treatment-photo-card-label">
-                          {getPhotoTitle(photo)}
+                          {getTreatmentPhotoDisplayTitle(photo)}
                         </div>
                       </button>
                     );
@@ -1368,7 +1357,7 @@ export default function TreatmentPhotos({
                 </div>
                 <img
                   src={selectedPhoto.photoUrl}
-                  alt={getPhotoTitle(selectedPhoto)}
+                  alt={getTreatmentPhotoDisplayTitle(selectedPhoto)}
                   className="treatment-photo-detail-image"
                 />
               </div>
@@ -1377,7 +1366,7 @@ export default function TreatmentPhotos({
               <div className="treatment-photo-detail-info">
                 <div className="treatment-photo-detail-title-row">
                   <h4 className="treatment-photo-detail-title">
-                    {getPhotoTitle(selectedPhoto)}
+                    {getTreatmentPhotoDisplayTitle(selectedPhoto)}
                   </h4>
                   {getMatchReason(selectedPhoto) && (
                     <span
@@ -1395,10 +1384,10 @@ export default function TreatmentPhotos({
                       {selectedPhoto.generalTreatments.join(", ")}
                     </div>
                   )}
-                  {getDisplayAreaNames(selectedPhoto.areaNames).length > 0 && (
+                  {getTreatmentPhotoAreaDisplayList(selectedPhoto.areaNames).length > 0 && (
                     <div className="treatment-photo-detail-meta-item">
                       <strong>Area:</strong>{" "}
-                      {getDisplayAreaNames(selectedPhoto.areaNames).join(", ")}
+                      {getTreatmentPhotoAreaDisplayList(selectedPhoto.areaNames).join(", ")}
                     </div>
                   )}
                   {selectedPhoto.longevity && (

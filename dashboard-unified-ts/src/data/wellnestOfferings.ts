@@ -11,6 +11,8 @@ export type WellnestOffering = {
   treatmentName: string;
   /** Broad bucket for recommender grouping */
   category: string;
+  /** Stable id for Wellnest recommender browse chips (see `WELLNEST_BROWSE_GROUP_LABELS`) */
+  browseGroup: string;
   addresses: string;
   demographics: string;
   delivery: string;
@@ -32,8 +34,9 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "BPC-157",
     category: "Recovery, inflammation & gut",
+    browseGroup: "recovery-tissue",
     addresses:
-      "Soft tissue repair support, tendon/ligament recovery, chronic GI issues, GI lining support, anti-inflammatory properties",
+      "Soft tissue repair support, Tendon/ligament recovery, Chronic GI issues, GI lining support, Anti-inflammatory properties",
     demographics:
       "Adults 30+ with contact sports, intense workouts, or active lifestyle; often 40+ male and female",
     delivery: "SC injection preferred; oral and nasal spray available",
@@ -46,8 +49,9 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Thymosin Beta-4 (TB-500)",
     category: "Musculoskeletal injury",
+    browseGroup: "recovery-tissue",
     addresses:
-      "Accelerated muscle recovery, reduced inflammation, improved mobility",
+      "Accelerated muscle recovery, Reduced inflammation, Improved mobility",
     demographics:
       "Adults 30+ with contact sports, intense workouts, or active lifestyle; often 40+",
     delivery: "SC injection preferred; nasal spray available",
@@ -60,7 +64,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "CJC-1295",
     category: "Energy & recovery",
-    addresses: "Low energy, poor recovery, metabolic optimization",
+    browseGroup: "gh-performance",
+    addresses: "",
     demographics: "Poor muscle mass gain / toning, men and women",
     delivery: "SC injection",
     pricing: "$250",
@@ -71,8 +76,9 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Ipamorelin",
     category: "Sleep & muscle",
+    browseGroup: "gh-performance",
     addresses:
-      "Selective ghrelin receptor agonist, stimulates natural GH release, minimal cortisol elevation, lean mass preservation",
+      "Selective ghrelin receptor agonist, Stimulates natural GH release, Minimal cortisol elevation, Supports lean mass preservation",
     demographics: "Aged 40+, both sexes",
     delivery: "SC injection only",
     pricing: "$250",
@@ -83,6 +89,7 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Semax",
     category: "Cognitive",
+    browseGroup: "cognition-mood",
     addresses: "Brain fog, focus, cognitive decline",
     demographics: "Aged 30+",
     delivery: "SC injection; nasal spray available",
@@ -94,7 +101,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Selank",
     category: "Stress & mood",
-    addresses: "Anxiolytic effects, improved cognition, mood balance",
+    browseGroup: "cognition-mood",
+    addresses: "Anxiolytic effects, Improved cognition, Mood balance",
     demographics: "Aged 30+, both sexes",
     delivery: "SC injection ideal",
     pricing: "$300–$500",
@@ -105,6 +113,7 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "P-21",
     category: "Cognitive",
+    browseGroup: "cognition-mood",
     addresses: "Synapse regeneration",
     demographics: "Aged 60+",
     delivery: "SC injection",
@@ -116,7 +125,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Pinealon",
     category: "Cognitive",
-    addresses: "Brain oxidative defense, cognitive decline",
+    browseGroup: "cognition-mood",
+    addresses: "Brain oxidative defence, cognitive decline",
     demographics: "Aged 60+",
     delivery: "SC injection",
     pricing: "$500",
@@ -127,6 +137,7 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "GHRP-2 / GHRP-6",
     category: "Muscle & composition",
+    browseGroup: "gh-performance",
     addresses: "Recovery, body composition",
     demographics: "Aged 35+",
     delivery: "SC injection",
@@ -138,7 +149,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "IGF-1 LR3",
     category: "Muscle & composition",
-    addresses: "Muscle growth support",
+    browseGroup: "gh-performance",
+    addresses: "Muscle growth",
     demographics: "Aged 35+",
     delivery: "SC injection",
     pricing: "$250",
@@ -149,7 +161,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "GHK-Cu",
     category: "Skin",
-    addresses: "Skin firmness, laxity, elastin stimulation",
+    browseGroup: "skin-aesthetic",
+    addresses: "Skin firmness, skin laxity and elastin stimulation",
     demographics: "Aged 40+",
     delivery: "SC injection or topical peptide cream",
     pricing: "$250–$350",
@@ -160,7 +173,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Melanotan 2",
     category: "Skin & tanning",
-    addresses: "Melanin increase, libido (patient selection)",
+    browseGroup: "skin-aesthetic",
+    addresses: "Melanin increase, libido increase",
     demographics: "Natural tanning peptide pathway; provider discretion",
     delivery: "SC injection",
     pricing: "$200+",
@@ -171,7 +185,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "MK-677",
     category: "Bone & joint",
-    addresses: "Osteoporosis, osteoarthritis, bone density decline prevention",
+    browseGroup: "bone-joint",
+    addresses: "Bone density decline prevention",
     demographics: "Often 65+",
     delivery: "SC injection",
     pricing: "$350–$600",
@@ -182,7 +197,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Sermorelin",
     category: "Longevity & GH axis",
-    addresses: "Physiologic GH stimulation, anti-aging interest",
+    browseGroup: "gh-performance",
+    addresses: "Physiologic GH stimulation, Anti-aging interest",
     demographics: "Aged 40+",
     delivery: "SC injection",
     pricing: "$300–$500",
@@ -193,7 +209,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Tesamorelin",
     category: "Metabolic & body composition",
-    addresses: "Visceral fat excess, obesity adjunct therapy",
+    browseGroup: "metabolic-composition",
+    addresses: "Obesity adjunct therapy",
     demographics: "Aged 40+",
     delivery: "SC injection",
     pricing: "$500",
@@ -204,7 +221,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Epitalon",
     category: "Longevity",
-    addresses: "Cellular aging, metabolism reset",
+    browseGroup: "longevity",
+    addresses: "Metabolism reset",
     demographics: "Aged 40+",
     delivery: "SC injection",
     pricing: "$400–$500",
@@ -215,7 +233,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "AOD-9604",
     category: "Metabolic & body composition",
-    addresses: "Fat metabolism, obesity adjunct therapy",
+    browseGroup: "metabolic-composition",
+    addresses: "Obesity adjunct therapy",
     demographics: "Aged 30+, both sexes",
     delivery: "SC injection",
     pricing: "$300–$500",
@@ -226,7 +245,8 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
   {
     treatmentName: "Cartalax",
     category: "Bone & joint",
-    addresses: "Osteoarthritis, cartilage repair support",
+    browseGroup: "bone-joint",
+    addresses: "Cartilage repair",
     demographics: "Aged 50+",
     delivery: "SC injection",
     pricing: "$350–$500",
@@ -235,6 +255,76 @@ export const WELLNEST_OFFERINGS: WellnestOffering[] = [
     wellnessQuizId: "cartalax",
   },
 ];
+
+/** Display order for Wellnest peptide “focus” browse chips in the treatment recommender. */
+export const WELLNEST_BROWSE_GROUP_ORDER = [
+  "recovery-tissue",
+  "gh-performance",
+  "cognition-mood",
+  "metabolic-composition",
+  "skin-aesthetic",
+  "bone-joint",
+  "longevity",
+] as const;
+
+export const WELLNEST_BROWSE_GROUP_LABELS: Record<string, string> = {
+  "recovery-tissue": "Recovery & tissue",
+  "gh-performance": "GH · performance · sleep",
+  "cognition-mood": "Cognition & mood",
+  "metabolic-composition": "Metabolic & composition",
+  "skin-aesthetic": "Skin & tanning",
+  "bone-joint": "Bone & joint",
+  longevity: "Longevity",
+};
+
+export type WellnestPriceBand = "budget" | "mid" | "premium" | "variable";
+
+/** Bucket list pricing for filter chips (uses highest number in the price string). */
+export function getWellnestPriceBand(
+  pricing: string | null | undefined,
+): WellnestPriceBand {
+  const s = (pricing ?? "").replace(/,/g, "");
+  const nums = s.match(/\d+/g)?.map(Number) ?? [];
+  if (nums.length === 0) return "variable";
+  const hi = Math.max(...nums);
+  if (hi >= 500) return "premium";
+  if (hi >= 300) return "mid";
+  return "budget";
+}
+
+export function wellnestDeliveryHasNasal(delivery: string): boolean {
+  return /\bnasal\b/i.test(delivery);
+}
+
+export function wellnestDeliveryHasOral(delivery: string): boolean {
+  return /\boral\b/i.test(delivery);
+}
+
+export function wellnestDeliveryHasTopical(delivery: string): boolean {
+  return /\btopical\b/i.test(delivery) || /\bcream\b/i.test(delivery);
+}
+
+/**
+ * Split Dr Reddy sheet column "What It Addresses" (comma-separated phrases) into chip labels.
+ */
+export function parseWellnestWhatItAddressesChips(
+  raw: string | null | undefined,
+): string[] {
+  if (raw == null || !String(raw).trim()) return [];
+  const parts = String(raw)
+    .split(",")
+    .map((s) => s.trim().replace(/\s+/g, " "))
+    .filter((s) => s.length > 0);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const p of parts) {
+    const k = p.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(p);
+  }
+  return out;
+}
 
 const offeringByName = new Map(
   WELLNEST_OFFERINGS.map((o) => [normalizeWellnestTreatmentKey(o.treatmentName), o]),

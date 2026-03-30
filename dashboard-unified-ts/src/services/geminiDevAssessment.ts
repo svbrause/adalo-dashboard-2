@@ -254,7 +254,9 @@ Quick facts: ${quickFacts || "not specified"}
 Context: ${contextChunks.join(" | ") || "none"}
 
 Requirements:
-- Explain why this treatment fits THIS patient, using at least 2 specific context details.
+- This paragraph is the “middle” of a complement sandwich. The page already shows (1) why this type of treatment is a strong, credible choice, (2) how it can help this patient look and feel their best, then plan bullets, then (3) a short closing that ties back to the full coordinated plan. Your job is to deepen the middle: concrete ways this modality improves appearance or confidence for this patient’s situation—without repeating the opening “help you” line or the bookends verbatim.
+- Build on the patient-specific targets already stated; add nuance (mechanism, timeline, what changes first) rather than restating the same concern list.
+- Use at least 2 specific context details from the inputs.
 - Include a practical expectation (timeline, sessions, downtime, or maintenance) when possible.
 - Keep tone warm, specific, and insightful; avoid generic filler language.
 - Do NOT use bullets, headings, emojis, or diagnosis claims.

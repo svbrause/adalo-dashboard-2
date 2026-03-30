@@ -1303,3 +1303,164 @@
   display: inline-flex;
   align-items: center;
 }
+
+@media (max-width: 768px) {
+  .client-detail-modal {
+    max-width: 100%;
+    max-height: 94vh;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .detail-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+  }
+
+  .detail-section-title {
+    font-size: 16px;
+    margin-bottom: 14px;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .detail-grid-custom {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .detail-grid-demographics {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .detail-value {
+    font-size: 15px;
+  }
+
+  .detail-item label {
+    font-size: 12px;
+  }
+
+  .modal-header-activity-container {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal-header-activity-badge {
+    padding: 6px 12px;
+    border-radius: 8px;
+  }
+
+  .modal-header-activity-value {
+    font-size: 15px;
+  }
+
+  .detail-actions-container {
+    gap: 10px;
+  }
+
+  .detail-action-button {
+    padding: 10px 14px;
+    font-size: 14px;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+
+  .detail-section-with-border,
+  .detail-section-facial-analysis,
+  .detail-section-skin-analysis,
+  .detail-section-wellness-quiz,
+  .detail-section-contact-history,
+  .detail-section-archive {
+    padding: 16px;
+    margin-top: 16px;
+    border-radius: 12px;
+  }
+
+  .skin-analysis-score-label {
+    flex: 0 0 6.5rem;
+    font-size: 13px;
+  }
+
+  .skin-analysis-score-row {
+    gap: 8px;
+    min-height: 28px;
+  }
+
+  .skin-analysis-description {
+    font-size: 14px;
+  }
+
+  .skin-analysis-product-chip {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .modal-contact-section-with-offers {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .detail-coupon-row-inline {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .contact-info-with-actions {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .detail-section-header-flex {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .edit-input {
+    width: 100%;
+    font-size: 16px;
+    min-height: 44px;
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+
+  .contact-history-item {
+    padding: 14px;
+  }
+
+  .contact-type {
+    font-size: 14px;
+  }
+
+  .contact-notes {
+    font-size: 14px;
+  }
+
+  .detail-goals-box {
+    font-size: 15px;
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  .detail-tag {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  .detail-status-select {
+    font-size: 14px;
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 10px;
+  }
+
+  .archive-button {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}

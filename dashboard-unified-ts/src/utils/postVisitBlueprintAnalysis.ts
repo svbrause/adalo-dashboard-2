@@ -8,7 +8,6 @@ import {
   computeOverall,
   normalizeIssue,
   scoreTier,
-  tierLabel,
 } from "../config/analysisOverviewConfig";
 import { getTreatmentDisplayName } from "../components/modals/DiscussedTreatmentsModal/utils";
 import {
@@ -153,18 +152,6 @@ function formatEnglishList(items: string[]): string {
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 }
 
-function tierInterpretationSentence(overallScore: number): string {
-  if (overallScore >= 90) {
-    return "That reflects strong balance across the features we measured.";
-  }
-  if (overallScore >= 75) {
-    return "That indicates a strong baseline with a few clear opportunities to refine, if you choose.";
-  }
-  if (overallScore >= 60) {
-    return "There’s a solid foundation with meaningful room to improve specific areas that matter to you.";
-  }
-  return "There are clear opportunities where the right treatments can align with your goals.";
-}
 
 /**
  * Rich, patient-readable overview for the Post-Visit Blueprint hero (replaces the short
@@ -184,19 +171,16 @@ export function generateBlueprintPatientOverview(params: {
   focusCount: number;
 }): string {
   const {
-    overallScore,
-    overallTier,
     categories,
     areas,
     detectedIssueLabels,
     focusCount,
   } = params;
 
-  const tierWord = tierLabel(overallTier);
   const paragraphs: string[] = [];
 
   paragraphs.push(
-    `Your overall aesthetic score is ${overallScore} (${tierWord}). ${tierInterpretationSentence(overallScore)}`,
+    "This overview connects what your scan highlighted with the priorities you discussed, so each next step feels clear and coordinated.",
   );
 
   const findings = detectedIssueLabels.slice(0, 10);

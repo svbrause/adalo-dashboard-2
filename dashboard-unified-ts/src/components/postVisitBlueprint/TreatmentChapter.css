@@ -1,3 +1,15 @@
+/* ── Scroll-reveal animation ── */
+@keyframes tc-fade-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tc--visible {
+    animation: tc-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
 /* ── Treatment Chapter Card ── */
 
 .tc {
@@ -462,6 +474,11 @@
   margin: 0 0 18px;
 }
 
+/* Extra separation when results follow the technical-terms block (with or without video in between). */
+.tc-chapter-glossary ~ .tc-cases-section {
+  margin-top: 24px;
+}
+
 .tc-cases-head {
   display: flex;
   align-items: baseline;
@@ -532,6 +549,10 @@
   flex: 0 0 auto; /* was flex:1 — grew to match tallest card and left huge gap above the button */
 }
 
+.tc-carousel-caption--compact {
+  padding: 10px 14px 8px;
+}
+
 .tc-carousel-story {
   margin: 0 0 4px;
   font-size: 0.88rem;
@@ -549,6 +570,18 @@
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 5;
+  overflow: hidden;
+}
+
+.tc-carousel-story-detailed {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: #475569;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 12;
   overflow: hidden;
 }
 
@@ -586,7 +619,9 @@
 /* Glossary (shared pvb-plan-glossary classes from PostVisitBlueprintPage.css) */
 .tc-chapter-glossary {
   margin-top: 18px;
+  margin-bottom: 32px;
   padding-top: 18px;
+  padding-bottom: 22px;
   border-top: 1px solid rgba(150, 152, 154, 0.22);
 }
 

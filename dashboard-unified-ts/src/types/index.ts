@@ -94,6 +94,8 @@ export interface Client {
   ageRange: string | null;
   dateOfBirth: string | null;
   goals: string[];
+  /** Patients: parsed from Airtable "Wellness Goals" (long text, multi-select, or JSON array). Shown under Wellness → Goals from intake. */
+  wellnessGoals: string[];
   concerns: string | string[];
   areas: string[] | null;
   aestheticGoals: string;

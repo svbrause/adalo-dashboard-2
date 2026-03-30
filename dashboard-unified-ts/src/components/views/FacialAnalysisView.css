@@ -224,3 +224,97 @@
   border-color: rgba(13, 148, 136, 0.35);
   color: var(--theme-text-primary, #134e4a);
 }
+
+@media (max-width: 768px) {
+  .facial-analysis-view {
+    padding: 12px;
+  }
+
+  .facial-analysis-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .facial-analysis-card {
+    border-radius: 0 14px 14px 0;
+  }
+
+  .facial-card-content {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 14px !important;
+  }
+
+  .facial-card-photo-container {
+    width: auto;
+    min-width: auto;
+    max-width: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .facial-card-photo {
+    width: 52px;
+    height: 52px;
+  }
+
+  .facial-card-details {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .facial-card-name {
+    font-size: 15px;
+  }
+
+  .facial-card-email,
+  .facial-card-phone {
+    font-size: 13px;
+  }
+
+  .facial-card-date {
+    font-size: 12px;
+  }
+
+  /* Expanded section: remove fixed left padding, full width */
+  .facial-card-expanded {
+    padding: 14px 16px;
+    padding-left: 16px;
+  }
+
+  .facial-card-section {
+    margin-bottom: 14px;
+  }
+
+  .facial-card-section-title {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+
+  .facial-card-tags {
+    gap: 8px;
+  }
+
+  .facial-tag {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  .facial-card-text {
+    font-size: 14px;
+  }
+
+  .facial-card-text-italic {
+    font-size: 13px;
+  }
+
+  .expand-card-btn {
+    padding: 8px;
+    font-size: 14px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+}

@@ -5,7 +5,6 @@ import type { Client, DiscussedItem } from "../../types";
 import { fetchTreatmentPhotos, type AirtableRecord } from "../../services/api";
 import { getSkincareCarouselItems } from "./DiscussedTreatmentsModal/constants";
 import TreatmentPlanCheckout from "./DiscussedTreatmentsModal/TreatmentPlanCheckout";
-import { CheckoutFinancingSection } from "./DiscussedTreatmentsModal/CheckoutFinancingSection";
 import type { CheckoutLineItemDetail } from "../../data/treatmentPricing2025";
 import { formatPrice } from "../../data/treatmentPricing2025";
 import { useDashboard } from "../../context/DashboardContext";
@@ -187,16 +186,6 @@ export default function TreatmentPlanCheckoutModal({
     [treatmentPhotos, skincareCarousel],
   );
 
-  const financingUrl = useMemo(() => {
-    const val = String(
-      provider?.["Financing Link"] ??
-        provider?.["Financing URL"] ??
-        provider?.["CareCredit Link"] ??
-        provider?.["Cherry Link"] ??
-        "",
-    ).trim();
-    return val || "https://www.carecredit.com";
-  }, [provider]);
   const allowMintMembership = !isWellnestWellnessProviderCode(
     providerCode ?? provider?.code,
   );
@@ -253,7 +242,6 @@ export default function TreatmentPlanCheckoutModal({
               items={items}
               getPhotoForItem={getPhotoForItem}
               totalSlotId="treatment-plan-checkout-modal-total-slot"
-              financingUrl={financingUrl}
               onCheckoutDataChange={setQuoteData}
               onRemoveItem={onRemoveItem}
               onUpdateItem={onUpdateItem}
@@ -358,23 +346,6 @@ export default function TreatmentPlanCheckoutModal({
                       )}
                 </span>
               </div>
-              {financingUrl.trim() ? (
-                <CheckoutFinancingSection
-                  totalAmount={
-                    quoteData.hasUnknownPrices && quoteData.total === 0
-                      ? 0
-                      : allowMintMembership &&
-                          effectiveMintMember &&
-                          quoteData.total > 0
-                        ? quoteData.total - quoteData.total * 0.1
-                        : quoteData.total
-                  }
-                  hasUnknownPrices={quoteData.hasUnknownPrices}
-                  financingUrl={financingUrl.trim()}
-                  variant="integrated"
-                  integratedSurface="quote-footer"
-                />
-              ) : null}
             </div>
           </div>
         </div>

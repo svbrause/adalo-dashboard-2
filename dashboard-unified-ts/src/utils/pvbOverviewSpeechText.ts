@@ -38,37 +38,39 @@ export function buildPvbPlanGlossarySpeechAppendix(
   return s;
 }
 
+function stripOverallScoreLanguage(text: string): string {
+  const clean = normalizeSpaces(text);
+  if (!clean) return "";
+  const parts = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const kept = parts.filter((raw) => {
+    const t = raw.toLowerCase();
+    if (t.includes("overall aesthetic score")) return false;
+    if (t.includes("overall assessment")) return false;
+    if (t.includes("overall score")) return false;
+    if (/overall\s*[:\-]?\s*\d+/.test(t)) return false;
+    return true;
+  });
+  return kept.join(" ").trim();
+}
+
 /** Plain text for TTS — main blueprint overview (matches on-screen narrative blocks). */
 export function buildPvbMainOverviewSpeechText(
   analysisDisplay: BlueprintAnalysisDisplay,
   bridgeParagraph: string | null,
+  planFramingParagraphs?: string[] | null,
   glossarySpeechAppendix?: string,
 ): string {
   const parts: string[] = [];
 
-  if (analysisDisplay.overviewSnapshot) {
-    parts.push(
-      conciseText(analysisDisplay.overviewSnapshot.assessmentParagraph, {
-        maxSentences: 2,
-        maxChars: 320,
-      }),
-    );
-    const ai = analysisDisplay.overviewSnapshot.aiNarrative?.trim();
-    if (ai) {
-      parts.push(
-        `Additional perspective: ${conciseText(ai, {
-          maxSentences: 1,
-          maxChars: 220,
-        })}`,
-      );
-    }
-  } else {
-    for (const row of analysisDisplay.clinicalSnapshotLines) {
-      parts.push(`${row.label}: ${row.text}`);
-    }
+  /** Same strings and order as {@link buildPvbMainOverviewTypewriterParagraphs} (then meta below). */
+  const narrativeParas = buildPvbMainOverviewTypewriterParagraphs(
+    analysisDisplay,
+    bridgeParagraph,
+    planFramingParagraphs,
+  );
+  if (narrativeParas.length > 0) {
+    parts.push(narrativeParas.join(". "));
   }
-
-  if (bridgeParagraph?.trim()) parts.push(bridgeParagraph.trim());
 
   if (analysisDisplay.profileLabels.length > 0) {
     parts.push(
@@ -93,25 +95,33 @@ export function buildPvbMainOverviewSpeechText(
   return parts.filter(Boolean).join(" ");
 }
 
-/** Paragraph strings for the typewriter (primary narrative + bridge; meta is static below). */
+/** Paragraph strings for the typewriter (holistic framing, primary narrative, bridge; meta is static below). */
 export function buildPvbMainOverviewTypewriterParagraphs(
   analysisDisplay: BlueprintAnalysisDisplay,
   bridgeParagraph: string | null,
+  planFramingParagraphs?: string[] | null,
 ): string[] {
   const out: string[] = [];
 
+  for (const block of planFramingParagraphs ?? []) {
+    const t = block.trim();
+    if (t) out.push(t);
+  }
+
   if (analysisDisplay.overviewSnapshot) {
     const concisePrimary = conciseText(
-      analysisDisplay.overviewSnapshot.assessmentParagraph,
-      { maxSentences: 2, maxChars: 320 },
+      stripOverallScoreLanguage(analysisDisplay.overviewSnapshot.assessmentParagraph),
+      { maxSentences: 1, maxChars: 220 },
     );
     if (concisePrimary) out.push(concisePrimary);
-    const ai = analysisDisplay.overviewSnapshot.aiNarrative?.trim();
+    const ai = stripOverallScoreLanguage(
+      analysisDisplay.overviewSnapshot.aiNarrative?.trim() ?? "",
+    );
     if (ai) {
       out.push(
         `Additional perspective: ${conciseText(ai, {
           maxSentences: 1,
-          maxChars: 220,
+          maxChars: 170,
         })}`,
       );
     }
@@ -130,8 +140,8 @@ export function buildChapterOverviewSpeechText(
   o: ChapterOverviewParts,
   glossaryTerms?: PvbResolvedPlanGlossaryTerm[],
 ): string {
-  const chunks = [o.intro, ...o.planBullets, o.analysis].map((s) => s.trim()).filter(Boolean);
-  let s = chunks.join(" ");
+  const paras = buildChapterOverviewTypewriterParagraphs(o);
+  let s = paras.join(". ");
   if (glossaryTerms?.length) {
     const g = buildPvbPlanGlossarySpeechAppendix(glossaryTerms, 4);
     if (g) s = `${s} ${g}`;
@@ -139,12 +149,53 @@ export function buildChapterOverviewSpeechText(
   return s;
 }
 
-export function buildChapterOverviewTypewriterParagraphs(o: ChapterOverviewParts): string[] {
-  const lines: string[] = [];
-  for (const b of o.planBullets) {
-    const t = b.trim();
-    if (t) lines.push(t);
+export type ChapterOverviewTypewriterRole =
+  | { kind: "top" }
+  | { kind: "intro" }
+  | { kind: "bullet"; bulletIndex: number }
+  | { kind: "analysis" }
+  | { kind: "bottom" };
+
+/** Paragraph strings + roles for the chapter typewriter (keeps bullet indices correct when some lines are empty). */
+export function buildChapterOverviewTypewriterLayout(o: ChapterOverviewParts): {
+  paragraphs: string[];
+  roles: ChapterOverviewTypewriterRole[];
+} {
+  const paragraphs: string[] = [];
+  const roles: ChapterOverviewTypewriterRole[] = [];
+  const top = o.complementTop?.trim();
+  if (top) {
+    paragraphs.push(top);
+    roles.push({ kind: "top" });
   }
-  lines.push(o.analysis.trim());
-  return lines.filter((s) => s.length > 0);
+  const intro = o.intro.trim();
+  if (intro) {
+    paragraphs.push(intro);
+    roles.push({ kind: "intro" });
+  }
+  o.planBullets.forEach((b, i) => {
+    const t = b.trim();
+    if (!t) return;
+    paragraphs.push(t);
+    roles.push({ kind: "bullet", bulletIndex: i });
+  });
+  const analysis = o.analysis.trim();
+  if (analysis) {
+    paragraphs.push(analysis);
+    roles.push({ kind: "analysis" });
+  }
+  const bottom = o.complementBottom?.trim();
+  if (bottom) {
+    paragraphs.push(bottom);
+    roles.push({ kind: "bottom" });
+  }
+  return { paragraphs, roles };
+}
+
+/**
+ * Order matches the chapter overview typewriter:
+ * complement top → intro → plan bullets → analysis → complement bottom (“complement sandwich”).
+ */
+export function buildChapterOverviewTypewriterParagraphs(o: ChapterOverviewParts): string[] {
+  return buildChapterOverviewTypewriterLayout(o).paragraphs;
 }

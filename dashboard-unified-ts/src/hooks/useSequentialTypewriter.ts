@@ -3,11 +3,14 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 /**
  * Reveals each paragraph character-by-character in order.
- * When `prefers-reduced-motion` is set, returns full paragraphs immediately.
+ * When `prefers-reduced-motion` is set, or `active` is false,
+ * the animation is paused / returns full paragraphs immediately.
  */
 export function useSequentialTypewriter(
   paragraphs: readonly string[],
   msPerChar: number,
+  /** When false the typewriter stays paused. Defaults to true. */
+  active = true,
 ): readonly string[] {
   const reducedMotion = usePrefersReducedMotion();
   const stableKey = paragraphs.join("\u0001");
@@ -21,6 +24,7 @@ export function useSequentialTypewriter(
 
   useEffect(() => {
     if (reducedMotion) return;
+    if (!active) return;
     if (paragraphs.length === 0) return;
     if (lineIdx >= paragraphs.length) return;
 
@@ -48,7 +52,7 @@ export function useSequentialTypewriter(
       }, 0);
       return () => window.clearTimeout(t);
     }
-  }, [reducedMotion, paragraphs, stableKey, lineIdx, col, msPerChar]);
+  }, [reducedMotion, active, paragraphs, stableKey, lineIdx, col, msPerChar]);
 
   return useMemo(() => {
     if (reducedMotion) return [...paragraphs];

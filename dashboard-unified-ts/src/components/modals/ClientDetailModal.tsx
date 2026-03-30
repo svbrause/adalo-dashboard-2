@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Client, DiscussedItem } from "../../types";
-import { formatDate, formatRelativeDate } from "../../utils/dateFormatting";
+import {
+  formatDate,
+  formatDateOfBirth,
+  formatRelativeDate,
+} from "../../utils/dateFormatting";
 import {
   formatFacialStatusForDisplay,
   getFacialStatusColorForDisplay,
@@ -63,6 +67,7 @@ import {
 import { persistClientDiscussedItems } from "../../utils/wellnestDemoPlanPersistence";
 import { getSkinQuizMessage } from "../../utils/skinQuizLink";
 import {
+  mergeWellnessIntakeFromField,
   parseInterestedIssuesList,
   partitionInterestedIssuesForFacialVsWellness,
 } from "../../utils/partitionInterestedIssuesWellnessFacial";
@@ -109,10 +114,17 @@ export default function ClientDetailModal({
     if (!client) {
       return { facialInterests: [] as string[], wellnessInterests: [] as string[] };
     }
-    return partitionInterestedIssuesForFacialVsWellness(
+    const part = partitionInterestedIssuesForFacialVsWellness(
       parseInterestedIssuesList(client),
     );
-  }, [client?.id, client?.interestedIssues]);
+    return {
+      facialInterests: part.facialInterests,
+      wellnessInterests: mergeWellnessIntakeFromField(
+        part.wellnessInterests,
+        client.wellnessGoals,
+      ),
+    };
+  }, [client?.id, client?.interestedIssues, client?.wellnessGoals]);
   const intakeWellnessInterests = intakeIssuePartition.wellnessInterests;
   const intakeFacialInterests = intakeIssuePartition.facialInterests;
 
@@ -787,7 +799,7 @@ export default function ClientDetailModal({
                         <label>Date of Birth</label>
                         <div className="detail-value">
                           <span className="detail-value-date">
-                            {formatDate(client.dateOfBirth)}
+                            {formatDateOfBirth(client.dateOfBirth)}
                           </span>
                         </div>
                       </div>

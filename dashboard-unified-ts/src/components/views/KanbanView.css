@@ -193,3 +193,58 @@
     transform: rotate(360deg);
   }
 }
+
+@media (max-width: 768px) {
+  .kanban-view {
+    padding: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .kanban-board {
+    gap: 12px;
+  }
+
+  .kanban-column {
+    min-width: 260px;
+    max-width: 260px;
+    padding: 12px;
+  }
+
+  .kanban-column-header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
+  .column-title h3 {
+    font-size: 13px;
+  }
+
+  .kanban-cards {
+    gap: 10px;
+  }
+
+  .client-card {
+    padding: 10px;
+  }
+
+  .lead-photo {
+    height: 90px;
+  }
+
+  .client-name {
+    font-size: 13px;
+  }
+
+  .lead-contact {
+    font-size: 11px;
+  }
+
+  .lead-date {
+    font-size: 10px;
+  }
+
+  .empty-state {
+    padding: 24px 12px;
+  }
+}

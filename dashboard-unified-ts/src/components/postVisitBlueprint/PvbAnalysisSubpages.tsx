@@ -27,6 +27,10 @@ import {
   pickSuggestionOrCasePhotoForPlanRow,
   type BlueprintCasePhoto,
 } from "../../utils/postVisitBlueprintCases";
+import {
+  trackPostVisitBlueprintEvent,
+  type BlueprintPatientAnalyticsBase,
+} from "../../utils/postVisitBlueprint";
 import "./PvbAnalysisSubpages.css";
 
 type SnapshotCategory = BlueprintAnalysisOverviewSnapshot["categories"][number];
@@ -317,6 +321,7 @@ export function PvbTreatmentPlanDetailSubpage({
   heroPhotoFallbackUrl,
   onBack,
   onJumpToTreatment,
+  blueprintAnalyticsBase,
 }: {
   row: PlanTreatmentRow;
   casePhotos?: BlueprintCasePhoto[];
@@ -326,6 +331,7 @@ export function PvbTreatmentPlanDetailSubpage({
   heroPhotoFallbackUrl?: string | null;
   onBack: () => void;
   onJumpToTreatment: (anchorId: string) => void;
+  blueprintAnalyticsBase?: BlueprintPatientAnalyticsBase;
 }) {
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -351,7 +357,20 @@ export function PvbTreatmentPlanDetailSubpage({
     .toUpperCase();
 
   const setReactionToggle = (next: TxReaction) => {
-    setReaction((r) => (r === next ? null : next));
+    setReaction((r) => {
+      const neu = r === next ? null : next;
+      if (blueprintAnalyticsBase) {
+        queueMicrotask(() => {
+          trackPostVisitBlueprintEvent("blueprint_plan_feedback_reaction", {
+            ...blueprintAnalyticsBase,
+            context: "treatment_subpage",
+            treatment_key: row.key,
+            reaction: neu,
+          });
+        });
+      }
+      return neu;
+    });
   };
 
   const metaLine =
@@ -438,7 +457,16 @@ export function PvbTreatmentPlanDetailSubpage({
         <button
           type="button"
           className="pvb-suggestion-page__outcomes-btn"
-          onClick={() => onJumpToTreatment(row.anchorId)}
+          onClick={() => {
+            if (blueprintAnalyticsBase) {
+              trackPostVisitBlueprintEvent("blueprint_subpage_jump_to_guide", {
+                ...blueprintAnalyticsBase,
+                treatment_key: row.key,
+                anchor_id: row.anchorId,
+              });
+            }
+            onJumpToTreatment(row.anchorId);
+          }}
         >
           <IconGuideOutline className="pvb-suggestion-page__outcomes-icon" />
           <span>View full section in your guide</span>
@@ -483,20 +511,33 @@ function PvbRelatedPlanTreatmentsSection({
   casePhotos = [],
   patientPhotoFallbackUrl,
   onOpenTreatmentDetails,
+  blueprintAnalyticsBase,
 }: {
   rows: PlanTreatmentRow[];
   casePhotos?: BlueprintCasePhoto[];
   /** When no Treatment Explorer match, show patient photo so cards stay personal */
   patientPhotoFallbackUrl?: string | null;
   onOpenTreatmentDetails: (row: PlanTreatmentRow) => void;
+  blueprintAnalyticsBase?: BlueprintPatientAnalyticsBase;
 }) {
   const [reactionByRow, setReactionByRow] = useState<Record<string, TxReaction | null>>({});
 
-  const setReaction = (key: string, next: TxReaction) => {
-    setReactionByRow((prev) => ({
-      ...prev,
-      [key]: prev[key] === next ? null : next,
-    }));
+  const setRowReaction = (key: string, next: TxReaction) => {
+    setReactionByRow((prev) => {
+      const cur = prev[key] ?? null;
+      const neu = cur === next ? null : next;
+      if (blueprintAnalyticsBase) {
+        queueMicrotask(() => {
+          trackPostVisitBlueprintEvent("blueprint_plan_feedback_reaction", {
+            ...blueprintAnalyticsBase,
+            context: "analysis_plan_list",
+            treatment_key: key,
+            reaction: neu,
+          });
+        });
+      }
+      return { ...prev, [key]: neu };
+    });
   };
 
   if (rows.length === 0) return null;
@@ -556,7 +597,19 @@ function PvbRelatedPlanTreatmentsSection({
                         <button
                           type="button"
                           className="pvb-tx-card__expand-btn"
-                          onClick={() => onOpenTreatmentDetails(row)}
+                          onClick={() => {
+                            if (blueprintAnalyticsBase) {
+                              trackPostVisitBlueprintEvent(
+                                "blueprint_subpage_treatment_details_opened",
+                                {
+                                  ...blueprintAnalyticsBase,
+                                  treatment_key: row.key,
+                                  source: "plan_list",
+                                },
+                              );
+                            }
+                            onOpenTreatmentDetails(row);
+                          }}
                         >
                           <span className="pvb-tx-card__expand-label">Details</span>
                           <span className="pvb-tx-card__expand-chevron" aria-hidden>
@@ -607,7 +660,7 @@ function PvbRelatedPlanTreatmentsSection({
                     }`}
                     aria-pressed={reactionByRow[row.key] === "dislike"}
                     aria-label="Not interested"
-                    onClick={() => setReaction(row.key, "dislike")}
+                    onClick={() => setRowReaction(row.key, "dislike")}
                   >
                     <IconThumbDown className="pvb-tx-card__action-icon" />
                   </button>
@@ -617,7 +670,7 @@ function PvbRelatedPlanTreatmentsSection({
                       reactionByRow[row.key] === "like" ? " pvb-tx-card__action--active-like" : ""
                     }`}
                     aria-pressed={reactionByRow[row.key] === "like"}
-                    onClick={() => setReaction(row.key, "like")}
+                    onClick={() => setRowReaction(row.key, "like")}
                   >
                     <IconThumbUp className="pvb-tx-card__action-icon pvb-tx-card__action-icon--inline" />
                     <span>I&apos;m interested</span>
@@ -642,6 +695,7 @@ export function PvbCategoryDetailSubpage({
   onOpenTreatmentDetails,
   onOpenEyeAreaDetails,
   patientPhotoUrl,
+  blueprintAnalyticsBase,
 }: {
   cat: SnapshotCategory;
   animate: boolean;
@@ -656,6 +710,7 @@ export function PvbCategoryDetailSubpage({
   onOpenEyeAreaDetails?: () => void;
   /** Front / scan reference (same as page hero) */
   patientPhotoUrl?: string | null;
+  blueprintAnalyticsBase?: BlueprintPatientAnalyticsBase;
 }) {
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -706,7 +761,15 @@ export function PvbCategoryDetailSubpage({
             <button
               type="button"
               className="pvb-subpage__cta-eye"
-              onClick={onOpenEyeAreaDetails}
+              onClick={() => {
+                if (blueprintAnalyticsBase) {
+                  trackPostVisitBlueprintEvent("blueprint_subpage_eye_area_cta_clicked", {
+                    ...blueprintAnalyticsBase,
+                    category_key: cat.key,
+                  });
+                }
+                onOpenEyeAreaDetails?.();
+              }}
             >
               View Eye area details
               <span aria-hidden> →</span>
@@ -742,6 +805,7 @@ export function PvbCategoryDetailSubpage({
           casePhotos={casePhotos}
           patientPhotoFallbackUrl={patientPhotoUrl}
           onOpenTreatmentDetails={onOpenTreatmentDetails}
+          blueprintAnalyticsBase={blueprintAnalyticsBase}
         />
 
         <button type="button" className="pvb-subpage__footer-cta" onClick={onBack}>
@@ -761,6 +825,7 @@ export function PvbAreaDetailSubpage({
   onBack,
   onOpenTreatmentDetails,
   patientPhotoUrl,
+  blueprintAnalyticsBase,
 }: {
   area: SnapshotArea;
   animate: boolean;
@@ -770,6 +835,7 @@ export function PvbAreaDetailSubpage({
   onBack: () => void;
   onOpenTreatmentDetails: (row: PlanTreatmentRow) => void;
   patientPhotoUrl?: string | null;
+  blueprintAnalyticsBase?: BlueprintPatientAnalyticsBase;
 }) {
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -916,6 +982,7 @@ export function PvbAreaDetailSubpage({
           casePhotos={casePhotos}
           patientPhotoFallbackUrl={patientPhotoUrl}
           onOpenTreatmentDetails={onOpenTreatmentDetails}
+          blueprintAnalyticsBase={blueprintAnalyticsBase}
         />
 
         <button type="button" className="pvb-subpage__footer-cta" onClick={onBack}>

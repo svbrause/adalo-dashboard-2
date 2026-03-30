@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Post-visit video priority (from Patients export)</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #7c9cbf;
+      --next: #6ab88a;
+      --wish: #c9a227;
+      --now: #6b8cce;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1.5rem;
+      line-height: 1.45;
+      max-width: 1200px;
+      margin-inline: auto;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem; }
+    p.lead { color: var(--muted); margin: 0 0 1rem; font-size: 0.95rem; }
+    input[type="file"] {
+      margin: 0.75rem 0 1.25rem;
+      color: var(--muted);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    label { color: var(--muted); font-size: 0.85rem; }
+    input[type="number"] {
+      width: 4rem;
+      background: var(--panel);
+      border: 1px solid #333;
+      color: var(--text);
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+    }
+    button {
+      background: var(--accent);
+      color: #111;
+      border: none;
+      padding: 0.45rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.08); }
+    section {
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+      border: 1px solid #2a3440;
+    }
+    section h2 {
+      font-size: 0.95rem;
+      margin: 0 0 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.next { background: var(--next); }
+    .dot.wish { background: var(--wish); }
+    .dot.now { background: var(--now); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.45rem 0.5rem;
+      border-bottom: 1px solid #2a3440;
+    }
+    th { color: var(--muted); font-weight: 500; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .err { color: #e57373; font-size: 0.85rem; margin-top: 0.5rem; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Post-visit video priority</h1>
+  <p class="lead">
+    Drop your Airtable/Grid <strong>Patients</strong> export (CSV with column <code>Treatments Discussed</code> as JSON).
+    Rows are grouped into a suggested video topic; counts are <strong>unique patients</strong> who had that line item with each timeline.
+  </p>
+  <input type="file" id="file" accept=".csv,text/csv" />
+  <div class="controls">
+    <div>
+      <label>Weight: Add next visit</label><br />
+      <input type="number" id="wNext" value="3" min="0" step="0.5" />
+    </div>
+    <div>
+      <label>Weight: Wishlist</label><br />
+      <input type="number" id="wWish" value="2" min="0" step="0.5" />
+    </div>
+    <div>
+      <label>Weight: Now (reference)</label><br />
+      <input type="number" id="wNow" value="0.5" min="0" step="0.5" />
+    </div>
+    <button type="button" id="recalc">Recalculate</button>
+    <button type="button" id="download">Download ranked CSV</button>
+  </div>
+  <div id="err" class="err hidden"></div>
+  <div id="summary"></div>
+  <section>
+    <h2><span class="dot next"></span> Focus: Add next visit + Wishlist (ranked by score)</h2>
+    <div id="mainTable"></div>
+  </section>
+  <section>
+    <h2><span class="dot now"></span> Reference: Now (top by patient count)</h2>
+    <div id="nowTable"></div>
+  </section>
+
+  <script>
+    let lastRows = [];
+    let lastRecords = [];
+
+    function norm(s) {
+      if (s == null || String(s).trim() === "") return "";
+      return String(s).replace(/\s+/g, " ").trim();
+    }
+
+    function videoLabel(o) {
+      let t = norm(o.treatment);
+      if (!t && o.interest) t = norm(o.interest);
+      const p = norm(o.product);
+      const r = norm(o.region);
+      const bits = t ? [t] : ["(no treatment)"];
+      if (p) bits.push(p);
+      if (r) bits.push(r);
+      if (bits.length === 1) return bits[0];
+      return bits[0] + " — " + bits.slice(1).join(" — ");
+    }
+
+    function canonicalKey(o) {
+      return [
+        norm(o.treatment || "").toLowerCase() || "(none)",
+        norm(o.product || "").toLowerCase(),
+        norm(o.region || "").toLowerCase(),
+      ].join("|");
+    }
+
+    function timelineBucket(tl) {
+      const t = norm(tl);
+      if (t === "Add next visit") return "next";
+      if (t === "Wishlist") return "wish";
+      if (t === "Now") return "now";
+      if (t === "Skincare") return "skincare";
+      return "other";
+    }
+
+    function parseTreatments(cell) {
+      if (!cell) return [];
+      let j = String(cell).replace(/""/g, '"');
+      if (j.startsWith('"') && j.endsWith('"')) j = j.slice(1, -1);
+      try {
+        const arr = JSON.parse(j);
+        return Array.isArray(arr) ? arr : [arr];
+      } catch {
+        return [];
+      }
+    }
+
+    function aggregate(dataRows) {
+      const byKey = new Map();
+      function ensure(k, label) {
+        if (!byKey.has(k)) {
+          byKey.set(k, {
+            label,
+            next: new Set(),
+            wish: new Set(),
+            now: new Set(),
+            skincare: new Set(),
+            other: new Set(),
+          });
+        }
+        return byKey.get(k);
+      }
+
+      let timelineCounts = {};
+
+      for (const row of dataRows) {
+        const name = norm(row.Name || row.name);
+        const raw = row["Treatments Discussed"] ?? row["Treatments Discussed "] ?? "";
+        const items = parseTreatments(raw);
+        for (const o of items) {
+          if (!o || typeof o !== "object") continue;
+          const tl = norm(o.timeline);
+          timelineCounts[tl || "(empty)"] = (timelineCounts[tl || "(empty)"] || 0) + 1;
+          const key = canonicalKey(o);
+          const label = videoLabel(o);
+          const d = ensure(key, label);
+          const b = timelineBucket(tl);
+          if (name) d[b].add(name);
+        }
+      }
+
+      const wNext = parseFloat(document.getElementById("wNext").value) || 0;
+      const wWish = parseFloat(document.getElementById("wWish").value) || 0;
+      const wNow = parseFloat(document.getElementById("wNow").value) || 0;
+
+      const records = [];
+      for (const [, d] of byKey) {
+        const pn = d.next.size;
+        const pw = d.wish.size;
+        const pnow = d.now.size;
+        const score = wNext * pn + wWish * pw + wNow * pnow;
+        records.push({
+          topic: d.label,
+          patients_add_next_visit: pn,
+          patients_wishlist: pw,
+          patients_now: pnow,
+          patients_skincare: d.skincare.size,
+          patients_other: d.other.size,
+          priority_score: Math.round(score * 10) / 10,
+        });
+      }
+
+      records.sort((a, b) => {
+        if (b.priority_score !== a.priority_score) return b.priority_score - a.priority_score;
+        if (b.patients_add_next_visit !== a.patients_add_next_visit)
+          return b.patients_add_next_visit - a.patients_add_next_visit;
+        if (b.patients_wishlist !== a.patients_wishlist) return b.patients_wishlist - a.patients_wishlist;
+        return a.topic.localeCompare(b.topic);
+      });
+
+      return { records, timelineCounts };
+    }
+
+    function renderTable(container, records, limit, filterFn) {
+      const list = records.filter(filterFn).slice(0, limit);
+      if (!list.length) {
+        container.innerHTML = "<p class=\"lead\">No rows.</p>";
+        return;
+      }
+      let h =
+        "<table><thead><tr><th>#</th><th>Suggested video topic</th><th class=\"num\">Next visit</th><th class=\"num\">Wishlist</th><th class=\"num\">Now</th><th class=\"num\">Score</th></tr></thead><tbody>";
+      list.forEach((r, i) => {
+        h += `<tr><td>${i + 1}</td><td>${escapeHtml(r.topic)}</td><td class="num">${r.patients_add_next_visit}</td><td class="num">${r.patients_wishlist}</td><td class="num">${r.patients_now}</td><td class="num">${r.priority_score}</td></tr>`;
+      });
+      h += "</tbody></table>";
+      container.innerHTML = h;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderSummary(timelineCounts) {
+      const entries = Object.entries(timelineCounts).sort((a, b) => b[1] - a[1]);
+      const el = document.getElementById("summary");
+      el.innerHTML =
+        "<section><h2>Line items by timeline (raw)</h2><p class=\"lead\" style=\"margin:0\">" +
+        entries.map(([k, v]) => `<strong>${escapeHtml(k)}</strong>: ${v}`).join(" · ") +
+        "</p></section>";
+    }
+
+    function toCsv(records) {
+      const headers = [
+        "rank",
+        "suggested_video_topic",
+        "patients_add_next_visit",
+        "patients_wishlist",
+        "patients_now",
+        "patients_skincare",
+        "patients_other_timeline",
+        "priority_score",
+      ];
+      const lines = [headers.join(",")];
+      records.forEach((r, i) => {
+        const row = [
+          i + 1,
+          csvEscape(r.topic),
+          r.patients_add_next_visit,
+          r.patients_wishlist,
+          r.patients_now,
+          r.patients_skincare,
+          r.patients_other,
+          r.priority_score,
+        ];
+        lines.push(row.join(","));
+      });
+      return lines.join("\n");
+    }
+
+    function csvEscape(s) {
+      const t = String(s);
+      if (/[",\n]/.test(t)) return '"' + t.replace(/"/g, '""') + '"';
+      return t;
+    }
+
+    function run() {
+      const err = document.getElementById("err");
+      err.classList.add("hidden");
+      if (!lastRows.length) return;
+      const { records, timelineCounts } = aggregate(lastRows);
+      lastRecords = records;
+      renderSummary(timelineCounts);
+      renderTable(
+        document.getElementById("mainTable"),
+        records,
+        80,
+        (r) => r.patients_add_next_visit + r.patients_wishlist + r.patients_now > 0
+      );
+      const nowSorted = [...records].sort(
+        (a, b) => b.patients_now - a.patients_now || b.priority_score - a.priority_score
+      );
+      renderTable(document.getElementById("nowTable"), nowSorted, 40, (r) => r.patients_now > 0);
+    }
+
+    document.getElementById("file").addEventListener("change", (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      Papa.parse(f, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
+          lastRows = res.data || [];
+          document.getElementById("err").classList.add("hidden");
+          run();
+        },
+        error: (err) => {
+          document.getElementById("err").textContent = err.message;
+          document.getElementById("err").classList.remove("hidden");
+        },
+      });
+    });
+
+    document.getElementById("recalc").addEventListener("click", run);
+    document.getElementById("download").addEventListener("click", () => {
+      if (!lastRecords.length) return;
+      const blob = new Blob([toCsv(lastRecords)], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "pvb-video-priority-report.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  </script>
+</body>
+</html>

@@ -9,8 +9,26 @@ import {
   formatProviderDisplayName,
   isUniqueAestheticsProvider,
 } from "../../utils/providerHelpers";
+import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { showToast } from "../../utils/toast";
 import "./Header.css";
+
+const THE_TREATMENT_LOGO_PATH = "/post-visit-blueprint/videos/The Treatment Mint and Gray.png";
+
+function getProviderLogoUrl(provider: any): string | null {
+  if (!provider) return null;
+  if (isWellnestWellnessProviderCode(provider.code)) {
+    return "https://wellnestmd.com/wp-content/uploads/2024/12/nav-logo-5.svg";
+  }
+  const logo = provider.logo || provider.Logo;
+  if (!logo) return null;
+  if (Array.isArray(logo) && logo.length > 0) {
+    return logo[0].url || logo[0].thumbnails?.large?.url || logo[0].thumbnails?.full?.url || null;
+  }
+  if (typeof logo === "string") return logo;
+  if (logo.url) return logo.url;
+  return null;
+}
 
 /** Provider codes that share one dashboard title and merged client list */
 const THE_TREATMENT_CODES = ["TheTreatment250", "TheTreatment447"];
@@ -29,6 +47,12 @@ function isTheTreatmentProvider(provider: {
   const nameTrimmed = (provider.name || "").trim();
   const nameMatch = THE_TREATMENT_DISPLAY_NAMES.some((n) => n === nameTrimmed);
   return codeMatch || nameMatch;
+}
+
+function getMobileLogoUrl(provider: any): string | null {
+  if (!provider) return null;
+  if (isTheTreatmentProvider(provider)) return THE_TREATMENT_LOGO_PATH;
+  return getProviderLogoUrl(provider);
 }
 
 interface HeaderProps {
@@ -79,10 +103,20 @@ export default function Header({ onLogout }: HeaderProps) {
     showToast("Opening scan form for in-clinic scan");
   };
 
+  const mobileLogoUrl = getMobileLogoUrl(provider);
+
   return (
     <>
       <header className="main-header">
         <div className="header-left">
+          {mobileLogoUrl && (
+            <img
+              src={mobileLogoUrl}
+              alt=""
+              className="header-mobile-logo"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          )}
           <h2 className="page-title">{pageTitle}</h2>
         </div>
         <div className="header-right">

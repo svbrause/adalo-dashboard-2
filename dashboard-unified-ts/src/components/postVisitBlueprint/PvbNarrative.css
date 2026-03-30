@@ -18,10 +18,10 @@
 
 .pvb-overview-heading-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
 .pvb-overview-heading-row .pvb-analysis-title {
@@ -32,7 +32,7 @@
 
 .pvb-narrative-audio {
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 0;
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid rgba(90, 158, 148, 0.45);
@@ -69,12 +69,27 @@
   color: #1e293b;
 }
 
+.pvb-narrative-audio--icon {
+  padding: 0;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pvb-narrative-audio--icon .pvb-narrative-audio__glyph {
+  flex-shrink: 0;
+  color: currentColor;
+}
+
 .tc-overview-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .tc-overview-brand {
@@ -88,6 +103,35 @@
 
 .tc-overview-brand .tc-label {
   margin-bottom: 0;
+  text-transform: none;
+  letter-spacing: -0.02em;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #3a3c3e;
+}
+
+.tc-overview-complement {
+  margin: 0 0 10px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #52616a;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border-left: 3px solid rgba(90, 158, 148, 0.55);
+  background: rgba(157, 214, 203, 0.12);
+}
+
+.tc-overview-complement--bottom {
+  margin-top: 12px;
+  border-left-color: rgba(90, 158, 148, 0.38);
+  background: rgba(241, 245, 244, 0.85);
+}
+
+.tc-overview-category-intro {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #475569;
 }
 
 .tc-overview-ai-logo {

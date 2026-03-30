@@ -211,9 +211,14 @@
   font-family: inherit;
 }
 
-.settings-secondary-btn:hover {
+.settings-secondary-btn:hover:not(:disabled) {
   background: #f8fafc;
   border-color: #94a3b8;
+}
+
+.settings-secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .settings-muted {

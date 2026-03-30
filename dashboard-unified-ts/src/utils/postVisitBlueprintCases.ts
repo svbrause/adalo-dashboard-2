@@ -17,6 +17,8 @@ export type BlueprintCasePhoto = {
   ethnicBackground?: string;
   caption?: string;
   storyTitle?: string;
+  /** Photos table “Story Detailed” — longer narrative shown in Results like yours + case sheet. */
+  storyDetailed?: string;
 };
 
 export type TreatmentResultsCard = {
@@ -278,6 +280,7 @@ export type CaseDetailPayload = {
   photoUrl: string;
   story?: string | null;
   caption?: string | null;
+  storyDetailed?: string | null;
   tags?: string | null;
   demographics?: string | null;
   longevity?: string;

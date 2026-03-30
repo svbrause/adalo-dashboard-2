@@ -255,6 +255,14 @@
   margin-bottom: 4px;
 }
 
+.treatment-plan-checkout-mint-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
 .treatment-plan-checkout-mint-line .treatment-plan-checkout-subtotal-value {
   color: var(--theme-success, #059669);
 }

@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Client, DiscussedItem } from "../../types";
-import { formatDate, formatRelativeDate } from "../../utils/dateFormatting";
+import {
+  formatDate,
+  formatDateOfBirth,
+  formatRelativeDate,
+} from "../../utils/dateFormatting";
 import {
   formatFacialStatusForDisplay,
   getFacialStatusColorForDisplay,
@@ -68,6 +72,7 @@ import {
 import { persistClientDiscussedItems } from "../../utils/wellnestDemoPlanPersistence";
 import { getSkinQuizMessage } from "../../utils/skinQuizLink";
 import {
+  mergeWellnessIntakeFromField,
   parseInterestedIssuesList,
   partitionInterestedIssuesForFacialVsWellness,
 } from "../../utils/partitionInterestedIssuesWellnessFacial";
@@ -95,6 +100,7 @@ import {
 } from "../../utils/photoLoading";
 import { formatZipCodeInput } from "../../utils/validation";
 import { useDashboard } from "../../context/DashboardContext";
+import { createPortal } from "react-dom";
 import "./ClientDetailPanel.css";
 
 interface ClientDetailPanelProps {
@@ -114,10 +120,17 @@ export default function ClientDetailPanel({
     if (!client) {
       return { facialInterests: [] as string[], wellnessInterests: [] as string[] };
     }
-    return partitionInterestedIssuesForFacialVsWellness(
+    const part = partitionInterestedIssuesForFacialVsWellness(
       parseInterestedIssuesList(client),
     );
-  }, [client?.id, client?.interestedIssues]);
+    return {
+      facialInterests: part.facialInterests,
+      wellnessInterests: mergeWellnessIntakeFromField(
+        part.wellnessInterests,
+        client.wellnessGoals,
+      ),
+    };
+  }, [client?.id, client?.interestedIssues, client?.wellnessGoals]);
   const intakeWellnessInterests = intakeIssuePartition.wellnessInterests;
   const intakeFacialInterests = intakeIssuePartition.facialInterests;
 
@@ -504,7 +517,8 @@ export default function ClientDetailPanel({
 
   return (
     <>
-      <div className="client-detail-panel" ref={panelRef}>
+      {createPortal(
+        <div className="client-detail-panel" ref={panelRef}>
         <div className="client-detail-panel-header">
           <div className="client-detail-panel-header-info">
             {recommenderMode && (
@@ -692,22 +706,25 @@ export default function ClientDetailPanel({
                   }`}
                 >
                   {frontPhotoUrl && (
-                    <div
+                    <button
+                      type="button"
                       className="modal-photo-container modal-photo-container-clickable"
                       onClick={() => {
                         setPhotoViewerType("front");
                         setShowPhotoViewer(true);
                       }}
-                      title="Click to view photos"
+                      title="View photos"
+                      aria-label="View photos"
                     >
                       <img
                         src={frontPhotoUrl}
-                        alt={client.name}
+                        alt=""
                         className="modal-photo"
                         loading="eager"
+                        draggable={false}
                       />
-                      <div className="modal-photo-overlay">Click to view</div>
-                    </div>
+                      <span className="modal-photo-overlay">Click to view</span>
+                    </button>
                   )}
                   {photoLoading && !frontPhotoUrl && (
                     <div className="modal-photo-container modal-photo-loading">
@@ -868,7 +885,7 @@ export default function ClientDetailPanel({
                           <div className="detail-item">
                             <label>Date of Birth</label>
                             <div className="detail-value">
-                              {formatDate(client.dateOfBirth)}
+                              {formatDateOfBirth(client.dateOfBirth)}
                             </div>
                           </div>
                         )}
@@ -1918,281 +1935,287 @@ export default function ClientDetailPanel({
             ) : null}
           </div>
         </div>
-      </div>
+      </div>,
+        document.body,
+      )}
 
-      {/* Modals */}
-
-      {showTelehealthSMS && (
-        <TelehealthSMSModal
-          client={client}
-          onClose={() => setShowTelehealthSMS(false)}
-          onSuccess={() => {
-            setShowTelehealthSMS(false);
-            onUpdate();
-          }}
-        />
-      )}
-      {showShareAnalysis && client && (
-        <ShareAnalysisModal
-          client={client}
-          onClose={() => setShowShareAnalysis(false)}
-          onSuccess={() => {
-            setShowShareAnalysis(false);
-            onUpdate();
-          }}
-        />
-      )}
-      {showAnalysisOverview && client && (
-        <AnalysisOverviewModal
-          client={client}
-          onClose={() => {
-            setShowAnalysisOverview(false);
-            setReturnToOverviewView(null);
-          }}
-          initialDetailView={returnToOverviewView ?? undefined}
-          onAddToPlan={(prefill, detailView) => {
-            setShowAnalysisOverview(false);
-            setReturnToOverviewView(detailView ?? null);
-            setInitialAddFormPrefill(prefill);
-            setShowDiscussedTreatments(true);
-          }}
-        />
-      )}
-      {showShareTreatmentPlan && client && (
-        <ShareTreatmentPlanModal
-          client={client}
-          onClose={() => setShowShareTreatmentPlan(false)}
-          onSuccess={() => {
-            setShowShareTreatmentPlan(false);
-            onUpdate();
-          }}
-        />
-      )}
-      {showShareTreatmentPlanLink && client && (
-        <ShareTreatmentPlanLinkModal
-          client={client}
-          discussedItems={client.discussedItems ?? []}
-          recommenderFocusRegions={recommenderFocusRegions}
-          onClose={() => setShowShareTreatmentPlanLink(false)}
-          onSuccess={() => {
-            setShowShareTreatmentPlanLink(false);
-            onUpdate();
-          }}
-        />
-      )}
-      {showPhotoViewer && client && (
-        <PhotoViewerModal
-          client={client}
-          initialPhotoType={photoViewerType}
-          onClose={() => setShowPhotoViewer(false)}
-          onPhotoUpdated={onUpdate}
-        />
-      )}
-      {showNewClientSMS && (
-        <NewClientSMSModal
-          onClose={() => setShowNewClientSMS(false)}
-          onSuccess={() => {
-            setShowNewClientSMS(false);
-            onUpdate();
-          }}
-        />
-      )}
-      {showSmsPopup && client && (
-        <ClientSmsPopupModal
-          client={client}
-          onClose={() => setShowSmsPopup(false)}
-          onSuccess={onUpdate}
-        />
-      )}
-      {showSendSMS && client && (
-        <SendSMSModal
-          client={client}
-          onClose={() => {
-            setShowSendSMS(false);
-            setSMSInitialMessage(null);
-          }}
-          onSuccess={() => {
-            setShowSendSMS(false);
-            setSMSInitialMessage(null);
-            onUpdate();
-          }}
-          initialMessage={smsInitialMessage ?? undefined}
-        />
-      )}
-      {showSkinTypeQuiz && client && (
-        <SkinTypeQuizModal
-          client={client}
-          onClose={() => setShowSkinTypeQuiz(false)}
-          onSuccess={onUpdate}
-          savedQuiz={skincareQuiz ?? undefined}
-          providerName={formatProviderDisplayName(provider?.name) || provider?.name}
-          onAddToPlan={async (prefill) => {
-            const newItem: DiscussedItem = {
-              id: generateId(),
-              addedAt: new Date().toISOString(),
-              interest: prefill.interest?.trim() || undefined,
-              findings: prefill.findings?.length ? prefill.findings : undefined,
-              treatment: prefill.treatment?.trim() || "",
-              product: prefill.treatmentProduct?.trim() || undefined,
-              region: prefill.region?.trim() || undefined,
-              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
-              quantity: prefill.quantity?.trim() || undefined,
-              notes: prefill.notes?.trim() || undefined,
-            };
-            const nextItems = [...(client.discussedItems || []), newItem];
-                    await persistClientDiscussedItems(client, nextItems);
-            showToast("Added to treatment plan");
-            onUpdate();
-          }}
-        />
-      )}
-      {selectedSkinProduct && client && (
-        <SkinQuizProductModal
-          product={selectedSkinProduct}
-          onClose={() => setSelectedSkinProduct(null)}
-          onAddToPlan={async (prefill) => {
-            const newItem: DiscussedItem = {
-              id: generateId(),
-              addedAt: new Date().toISOString(),
-              interest: prefill.interest?.trim() || undefined,
-              findings: prefill.findings?.length ? prefill.findings : undefined,
-              treatment: prefill.treatment?.trim() || "",
-              product: prefill.treatmentProduct?.trim() || undefined,
-              region: prefill.region?.trim() || undefined,
-              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
-              quantity: prefill.quantity?.trim() || undefined,
-              notes: prefill.notes?.trim() || undefined,
-            };
-            const nextItems = [...(client.discussedItems || []), newItem];
-                    await persistClientDiscussedItems(client, nextItems);
-            showToast("Added to treatment plan");
-            setSelectedSkinProduct(null);
-            onUpdate();
-          }}
-        />
-      )}
-      {WELLNESS_QUIZ_ENABLED && showWellnessQuiz && client && (
-        <WellnessQuizModal
-          client={client}
-          onClose={() => setShowWellnessQuiz(false)}
-          onSuccess={() => {
-            setShowWellnessQuiz(false);
-            onUpdate();
-          }}
-          savedQuiz={client.wellnessQuiz ?? undefined}
-          onAddToPlan={async (prefill) => {
-            const newItem: DiscussedItem = {
-              id: generateId(),
-              addedAt: new Date().toISOString(),
-              interest: prefill.interest?.trim() || undefined,
-              findings: prefill.findings?.length ? prefill.findings : undefined,
-              treatment: prefill.treatment?.trim() || "",
-              product: prefill.treatmentProduct?.trim() || undefined,
-              region: prefill.region?.trim() || undefined,
-              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
-              quantity: prefill.quantity?.trim() || undefined,
-              notes: prefill.notes?.trim() || undefined,
-            };
-            const nextItems = [...(client.discussedItems || []), newItem];
-            try {
-                    await persistClientDiscussedItems(client, nextItems);
-              showToast("Added to treatment plan");
-              onUpdate();
-            } catch (e) {
-              showError(
-                e instanceof Error ? e.message : "Failed to add to plan",
-              );
-              throw e;
-            }
-          }}
-        />
-      )}
-      {showCheckoutModal && client && (
-        <TreatmentPlanCheckoutModal
-          clientName={client.name ?? ""}
-          client={client}
-          items={client.discussedItems ?? []}
-          onClose={() => setShowCheckoutModal(false)}
-          onRemoveItem={async (_item, index) => {
-            const nextItems = (client.discussedItems ?? []).filter(
-              (_, i) => i !== index
-            );
-            try {
-                    await persistClientDiscussedItems(client, nextItems);
-              showToast("Removed from plan");
-              onUpdate();
-            } catch (e) {
-              showError(
-                e instanceof Error ? e.message : "Failed to remove from plan"
-              );
-            }
-          }}
-          onUpdateItem={async (index, patch) => {
-            const current = client.discussedItems ?? [];
-            const nextItems = current.map((it, i) =>
-              i === index ? { ...it, ...patch } : it
-            );
-            try {
-                    await persistClientDiscussedItems(client, nextItems);
-              showToast("Plan updated");
-              onUpdate();
-            } catch (e) {
-              showError(
-                e instanceof Error ? e.message : "Failed to update plan"
-              );
-            }
-          }}
-          providerCode={provider?.code}
-        />
-      )}
-      {showDiscussedTreatments && client && (
-        <DiscussedTreatmentsModal
-          client={client}
-          onClose={() => {
-            setShowDiscussedTreatments(false);
-            setInitialAddFormPrefill(null);
-            setInitialEditingItem(null);
-            treatmentPlanModalClosedRef.current?.();
-            onUpdate();
-            if (returnToOverviewView !== null) {
-              setShowAnalysisOverview(true);
-            }
-          }}
-          onUpdate={onUpdate}
-          initialAddFormPrefill={initialAddFormPrefill}
-          onClearInitialPrefill={() => setInitialAddFormPrefill(null)}
-          initialEditingItem={initialEditingItem}
-        />
-      )}
-      {issuePhotosContext && client && (
-        <TreatmentPhotosModal
-          client={client}
-          issue={issuePhotosContext.issue}
-          region={issuePhotosContext.region}
-          interest={issuePhotosContext.interest}
-          onClose={() => setIssuePhotosContext(null)}
-          onUpdate={onUpdate}
-          onAddToPlanDirect={async (prefill) => {
-            const newItem: DiscussedItem = {
-              id: generateId(),
-              addedAt: new Date().toISOString(),
-              interest: prefill.interest?.trim() || undefined,
-              findings: prefill.findings?.length ? prefill.findings : undefined,
-              treatment: prefill.treatment?.trim() || "",
-              product: prefill.treatmentProduct?.trim() || undefined,
-              region: prefill.region?.trim() || undefined,
-              timeline: (prefill.timeline?.trim() || "Wishlist") as string,
-              quantity: prefill.quantity?.trim() || undefined,
-              notes: prefill.notes?.trim() || undefined,
-            };
-            const nextItems = [...(client.discussedItems || []), newItem];
-                    await persistClientDiscussedItems(client, nextItems);
-            showToast("Added to treatment plan");
-            setIssuePhotosContext(null);
-            onUpdate();
-          }}
-          planItems={client.discussedItems ?? []}
-        />
+      {/* Modals: portal to body so fixed overlays stack above the portaled detail panel (WebKit / mobile) */}
+      {createPortal(
+        <>
+          {showTelehealthSMS && (
+            <TelehealthSMSModal
+              client={client}
+              onClose={() => setShowTelehealthSMS(false)}
+              onSuccess={() => {
+                setShowTelehealthSMS(false);
+                onUpdate();
+              }}
+            />
+          )}
+          {showShareAnalysis && client && (
+            <ShareAnalysisModal
+              client={client}
+              onClose={() => setShowShareAnalysis(false)}
+              onSuccess={() => {
+                setShowShareAnalysis(false);
+                onUpdate();
+              }}
+            />
+          )}
+          {showAnalysisOverview && client && (
+            <AnalysisOverviewModal
+              client={client}
+              onClose={() => {
+                setShowAnalysisOverview(false);
+                setReturnToOverviewView(null);
+              }}
+              initialDetailView={returnToOverviewView ?? undefined}
+              onAddToPlan={(prefill, detailView) => {
+                setShowAnalysisOverview(false);
+                setReturnToOverviewView(detailView ?? null);
+                setInitialAddFormPrefill(prefill);
+                setShowDiscussedTreatments(true);
+              }}
+            />
+          )}
+          {showShareTreatmentPlan && client && (
+            <ShareTreatmentPlanModal
+              client={client}
+              onClose={() => setShowShareTreatmentPlan(false)}
+              onSuccess={() => {
+                setShowShareTreatmentPlan(false);
+                onUpdate();
+              }}
+            />
+          )}
+          {showShareTreatmentPlanLink && client && (
+            <ShareTreatmentPlanLinkModal
+              client={client}
+              discussedItems={client.discussedItems ?? []}
+              recommenderFocusRegions={recommenderFocusRegions}
+              onClose={() => setShowShareTreatmentPlanLink(false)}
+              onSuccess={() => {
+                setShowShareTreatmentPlanLink(false);
+                onUpdate();
+              }}
+            />
+          )}
+          {showPhotoViewer && client && (
+            <PhotoViewerModal
+              client={client}
+              initialPhotoType={photoViewerType}
+              onClose={() => setShowPhotoViewer(false)}
+              onPhotoUpdated={onUpdate}
+            />
+          )}
+          {showNewClientSMS && (
+            <NewClientSMSModal
+              onClose={() => setShowNewClientSMS(false)}
+              onSuccess={() => {
+                setShowNewClientSMS(false);
+                onUpdate();
+              }}
+            />
+          )}
+          {showSmsPopup && client && (
+            <ClientSmsPopupModal
+              client={client}
+              onClose={() => setShowSmsPopup(false)}
+              onSuccess={onUpdate}
+            />
+          )}
+          {showSendSMS && client && (
+            <SendSMSModal
+              client={client}
+              onClose={() => {
+                setShowSendSMS(false);
+                setSMSInitialMessage(null);
+              }}
+              onSuccess={() => {
+                setShowSendSMS(false);
+                setSMSInitialMessage(null);
+                onUpdate();
+              }}
+              initialMessage={smsInitialMessage ?? undefined}
+            />
+          )}
+          {showSkinTypeQuiz && client && (
+            <SkinTypeQuizModal
+              client={client}
+              onClose={() => setShowSkinTypeQuiz(false)}
+              onSuccess={onUpdate}
+              savedQuiz={skincareQuiz ?? undefined}
+              providerName={formatProviderDisplayName(provider?.name) || provider?.name}
+              onAddToPlan={async (prefill) => {
+                const newItem: DiscussedItem = {
+                  id: generateId(),
+                  addedAt: new Date().toISOString(),
+                  interest: prefill.interest?.trim() || undefined,
+                  findings: prefill.findings?.length ? prefill.findings : undefined,
+                  treatment: prefill.treatment?.trim() || "",
+                  product: prefill.treatmentProduct?.trim() || undefined,
+                  region: prefill.region?.trim() || undefined,
+                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+                  quantity: prefill.quantity?.trim() || undefined,
+                  notes: prefill.notes?.trim() || undefined,
+                };
+                const nextItems = [...(client.discussedItems || []), newItem];
+                await persistClientDiscussedItems(client, nextItems);
+                showToast("Added to treatment plan");
+                onUpdate();
+              }}
+            />
+          )}
+          {selectedSkinProduct && client && (
+            <SkinQuizProductModal
+              product={selectedSkinProduct}
+              onClose={() => setSelectedSkinProduct(null)}
+              onAddToPlan={async (prefill) => {
+                const newItem: DiscussedItem = {
+                  id: generateId(),
+                  addedAt: new Date().toISOString(),
+                  interest: prefill.interest?.trim() || undefined,
+                  findings: prefill.findings?.length ? prefill.findings : undefined,
+                  treatment: prefill.treatment?.trim() || "",
+                  product: prefill.treatmentProduct?.trim() || undefined,
+                  region: prefill.region?.trim() || undefined,
+                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+                  quantity: prefill.quantity?.trim() || undefined,
+                  notes: prefill.notes?.trim() || undefined,
+                };
+                const nextItems = [...(client.discussedItems || []), newItem];
+                await persistClientDiscussedItems(client, nextItems);
+                showToast("Added to treatment plan");
+                setSelectedSkinProduct(null);
+                onUpdate();
+              }}
+            />
+          )}
+          {WELLNESS_QUIZ_ENABLED && showWellnessQuiz && client && (
+            <WellnessQuizModal
+              client={client}
+              onClose={() => setShowWellnessQuiz(false)}
+              onSuccess={() => {
+                setShowWellnessQuiz(false);
+                onUpdate();
+              }}
+              savedQuiz={client.wellnessQuiz ?? undefined}
+              onAddToPlan={async (prefill) => {
+                const newItem: DiscussedItem = {
+                  id: generateId(),
+                  addedAt: new Date().toISOString(),
+                  interest: prefill.interest?.trim() || undefined,
+                  findings: prefill.findings?.length ? prefill.findings : undefined,
+                  treatment: prefill.treatment?.trim() || "",
+                  product: prefill.treatmentProduct?.trim() || undefined,
+                  region: prefill.region?.trim() || undefined,
+                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+                  quantity: prefill.quantity?.trim() || undefined,
+                  notes: prefill.notes?.trim() || undefined,
+                };
+                const nextItems = [...(client.discussedItems || []), newItem];
+                try {
+                  await persistClientDiscussedItems(client, nextItems);
+                  showToast("Added to treatment plan");
+                  onUpdate();
+                } catch (e) {
+                  showError(
+                    e instanceof Error ? e.message : "Failed to add to plan",
+                  );
+                  throw e;
+                }
+              }}
+            />
+          )}
+          {showCheckoutModal && client && (
+            <TreatmentPlanCheckoutModal
+              clientName={client.name ?? ""}
+              client={client}
+              items={client.discussedItems ?? []}
+              onClose={() => setShowCheckoutModal(false)}
+              onRemoveItem={async (_item, index) => {
+                const nextItems = (client.discussedItems ?? []).filter(
+                  (_, i) => i !== index
+                );
+                try {
+                  await persistClientDiscussedItems(client, nextItems);
+                  showToast("Removed from plan");
+                  onUpdate();
+                } catch (e) {
+                  showError(
+                    e instanceof Error ? e.message : "Failed to remove from plan"
+                  );
+                }
+              }}
+              onUpdateItem={async (index, patch) => {
+                const current = client.discussedItems ?? [];
+                const nextItems = current.map((it, i) =>
+                  i === index ? { ...it, ...patch } : it
+                );
+                try {
+                  await persistClientDiscussedItems(client, nextItems);
+                  showToast("Plan updated");
+                  onUpdate();
+                } catch (e) {
+                  showError(
+                    e instanceof Error ? e.message : "Failed to update plan"
+                  );
+                }
+              }}
+              providerCode={provider?.code}
+            />
+          )}
+          {showDiscussedTreatments && client && (
+            <DiscussedTreatmentsModal
+              client={client}
+              onClose={() => {
+                setShowDiscussedTreatments(false);
+                setInitialAddFormPrefill(null);
+                setInitialEditingItem(null);
+                treatmentPlanModalClosedRef.current?.();
+                onUpdate();
+                if (returnToOverviewView !== null) {
+                  setShowAnalysisOverview(true);
+                }
+              }}
+              onUpdate={onUpdate}
+              initialAddFormPrefill={initialAddFormPrefill}
+              onClearInitialPrefill={() => setInitialAddFormPrefill(null)}
+              initialEditingItem={initialEditingItem}
+            />
+          )}
+          {issuePhotosContext && client && (
+            <TreatmentPhotosModal
+              client={client}
+              issue={issuePhotosContext.issue}
+              region={issuePhotosContext.region}
+              interest={issuePhotosContext.interest}
+              onClose={() => setIssuePhotosContext(null)}
+              onUpdate={onUpdate}
+              onAddToPlanDirect={async (prefill) => {
+                const newItem: DiscussedItem = {
+                  id: generateId(),
+                  addedAt: new Date().toISOString(),
+                  interest: prefill.interest?.trim() || undefined,
+                  findings: prefill.findings?.length ? prefill.findings : undefined,
+                  treatment: prefill.treatment?.trim() || "",
+                  product: prefill.treatmentProduct?.trim() || undefined,
+                  region: prefill.region?.trim() || undefined,
+                  timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+                  quantity: prefill.quantity?.trim() || undefined,
+                  notes: prefill.notes?.trim() || undefined,
+                };
+                const nextItems = [...(client.discussedItems || []), newItem];
+                await persistClientDiscussedItems(client, nextItems);
+                showToast("Added to treatment plan");
+                setIssuePhotosContext(null);
+                onUpdate();
+              }}
+              planItems={client.discussedItems ?? []}
+            />
+          )}
+        </>,
+        document.body,
       )}
     </>
   );

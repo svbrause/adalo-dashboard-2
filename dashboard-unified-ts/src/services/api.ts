@@ -190,6 +190,47 @@ export async function fetchPostVisitBlueprintFromServer(
 }
 
 /**
+ * Patient tapped “Proceed to book” on the Post-Visit Blueprint quote drawer.
+ * Backend writes one Airtable row (`Blueprint Booking Intents` by default) for Slack / email / SMS automations.
+ */
+export async function submitPostVisitBlueprintBookingIntent(body: {
+  token: string;
+  patientId: string;
+  selectedLineIndices: number[];
+  mintPreview: boolean;
+}): Promise<
+  | { ok: true; patientSmsSent?: boolean }
+  | { ok: false; error: string; details?: string }
+> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/post-visit-blueprint/booking-intent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      details?: string;
+      ok?: boolean;
+      patientSmsSent?: boolean;
+    };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: data.error || `Request failed (${res.status})`,
+        details: typeof data.details === "string" ? data.details : undefined,
+      };
+    }
+    return { ok: true, patientSmsSent: data.patientSmsSent };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Network error",
+    };
+  }
+}
+
+/**
  * Fetch records from an Airtable table with optional filtering
  */
 export async function fetchTableRecords(

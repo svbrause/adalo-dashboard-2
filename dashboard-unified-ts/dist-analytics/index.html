@@ -1,0 +1,2981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Patients — discussed treatments analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0c0e12;
+      --surface: #141820;
+      --elevated: #1c2430;
+      --border: #2a3444;
+      --text: #e6e9ef;
+      --muted: #8b939e;
+      --accent: #5b8fc7;
+      --accent2: #7eb87e;
+      --warn: #d4a84b;
+      --chart-font: 11px system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .wrap {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 1.25rem 1.5rem 3rem;
+    }
+    header {
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.35rem;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.9rem;
+      max-width: none;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-top: 1rem;
+    }
+    .toolbar input[type="file"] { color: var(--muted); font-size: 0.85rem; max-width: 100%; }
+    button, .btn {
+      background: var(--elevated);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button.primary, .btn.primary {
+      background: var(--accent);
+      border-color: #4a7ab0;
+      color: #0a0c10;
+    }
+    button:hover, .btn:hover { filter: brightness(1.08); }
+    .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      width: 100%;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+    .kpi .val { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .kpi .lab { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    nav.tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+    }
+    nav.tabs button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    nav.tabs button.active {
+      background: var(--elevated);
+      color: var(--text);
+      border-color: var(--accent);
+    }
+    .panel {
+      display: none;
+      animation: fade 0.2s ease;
+    }
+    .panel.active { display: block; }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    .grid2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+    }
+    .card h2 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 0 0 0.75rem;
+    }
+    .chart-box {
+      position: relative;
+      height: 280px;
+    }
+    .chart-box.tall { height: 360px; }
+    .chart-box.short { height: 220px; }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+    .filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    select, input[type="search"] {
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.4rem 0.55rem;
+      border-radius: 6px;
+      min-width: 10rem;
+      font-size: 0.85rem;
+    }
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    table.data th, table.data td {
+      text-align: left;
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    table.data th {
+      color: var(--muted);
+      font-weight: 500;
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+    }
+    table.data .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .scroll {
+      max-height: 420px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .err {
+      background: #3a2020;
+      border: 1px solid #6b3030;
+      color: #f0b0b0;
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+    }
+    .hidden { display: none !important; }
+    .heat-wrap { overflow: auto; max-width: 100%; }
+    .heat-matrix-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .heat-matrix-viewport {
+      overflow: auto;
+      max-width: 100%;
+      max-height: none;
+      height: calc(100svh - 15rem);
+      min-height: 22rem;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.15);
+    }
+    table.heat {
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+    table.heat td,
+    table.heat th {
+      padding: 0.35rem 0.45rem;
+      font-size: 0.72rem;
+      border: 1px solid var(--border);
+    }
+    table.heat thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: var(--elevated);
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      max-width: 15.25rem;
+      min-width: 13.25rem;
+      width: 14.35rem;
+      font-size: 0.64rem;
+      line-height: 1.3;
+      vertical-align: bottom;
+      font-weight: 600;
+      hyphens: auto;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    }
+    table.heat thead th:first-child {
+      left: 0;
+      z-index: 7;
+      width: 11rem;
+      min-width: 8.5rem;
+      max-width: 18rem;
+      font-size: 0.68rem;
+      box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.45);
+    }
+    table.heat tbody th {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: var(--elevated);
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      text-align: left;
+      font-weight: 500;
+      width: 11rem;
+      min-width: 8.5rem;
+      max-width: 18rem;
+      font-size: 0.64rem;
+      line-height: 1.25;
+      box-shadow: 4px 0 10px rgba(0, 0, 0, 0.35);
+    }
+    table.heat .cell {
+      text-align: left;
+      font-variant-numeric: tabular-nums;
+      white-space: normal;
+      vertical-align: top;
+      width: 14.35rem;
+      min-width: 13.5rem;
+      max-width: 15.25rem;
+      padding: 0.45rem 0.5rem 0.5rem;
+      font-size: 0.68rem;
+    }
+    table.heat .cell.stack {
+      background: linear-gradient(165deg, rgba(22, 28, 38, 0.98), rgba(14, 17, 24, 0.99)) !important;
+      box-shadow: inset 0 0 0 1px rgba(91, 143, 199, var(--heat, 0.12));
+    }
+    table.heat .tl-htotal {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      font-size: 0.56rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 0 0 0.2rem;
+      line-height: 1.2;
+    }
+    table.heat .tl-htotal .tl-htotal-n {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+    table.heat .tl-htotal--zero .tl-htotal-n {
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 0.78rem;
+    }
+    table.heat .tl-hchart {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      box-sizing: border-box;
+      gap: 0.28rem;
+      padding: 0.38rem 0.4rem 0.35rem;
+      background: rgba(0, 0, 0, 0.32);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    table.heat .tl-hchart--empty {
+      align-items: center;
+      justify-content: center;
+      min-height: 4.5rem;
+    }
+    table.heat .tl-h-empty {
+      color: var(--muted);
+      font-size: 1.1rem;
+      opacity: 0.45;
+    }
+    table.heat .tl-hrow {
+      display: grid;
+      grid-template-columns: minmax(4.6rem, 5.4rem) 1fr minmax(1.35rem, 1.65rem);
+      align-items: center;
+      gap: 0.4rem 0.45rem;
+      min-height: 0;
+    }
+    table.heat .tl-hlab {
+      font-size: 0.52rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: right;
+      line-height: 1.1;
+    }
+    table.heat .tl-htrack {
+      height: 13px;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: flex-start;
+      background: rgba(0, 0, 0, 0.45);
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    table.heat .tl-hfill {
+      height: 100%;
+      min-width: 0;
+      border-radius: 0 3px 3px 0;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+    table.heat .tl-hfill.seg-now {
+      background: linear-gradient(90deg, #8aaef0 0%, #4a67a8 100%);
+    }
+    table.heat .tl-hfill.seg-next {
+      background: linear-gradient(90deg, #6dce92 0%, #358a55 100%);
+    }
+    table.heat .tl-hfill.seg-wish {
+      background: linear-gradient(90deg, #e4c45e 0%, #9e7320 100%);
+    }
+    table.heat .tl-hfill.seg-skin {
+      background: linear-gradient(90deg, #e0a0c0 0%, #9a5278 100%);
+    }
+    table.heat .tl-hfill.seg-completed {
+      background: linear-gradient(90deg, #9aa3ad 0%, #5c656e 100%);
+    }
+    table.heat .tl-hfill.seg-empty {
+      background: linear-gradient(90deg, #7a7a82 0%, #4a4a52 100%);
+    }
+    table.heat .tl-hfill.seg-oth {
+      background: linear-gradient(90deg, #b5a6e8 0%, #6e5fa8 100%);
+    }
+    table.heat .tl-hfill.is-zero {
+      width: 0 !important;
+      min-width: 0 !important;
+      box-shadow: none;
+    }
+    table.heat .tl-hval {
+      font-size: 0.62rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      text-align: right;
+      line-height: 1;
+    }
+    table.heat .tl-hval.is-zero {
+      color: var(--muted);
+      font-weight: 600;
+      opacity: 0.45;
+    }
+    table.heat .tl-hsubchart {
+      margin-top: 0.32rem;
+      padding-top: 0.3rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.28rem;
+    }
+    table.heat .tl-hsubchart-h {
+      font-size: 0.52rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      line-height: 1.15;
+    }
+    table.heat .tl-hfill.tl-hfill--matrixcat {
+      border-radius: 0 3px 3px 0;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    table.heat .tl-hfill.tl-hfill--matrixcat.is-zero {
+      box-shadow: none;
+    }
+    .heat-legend {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin: 0 0 0.5rem;
+      line-height: 1.4;
+    }
+    .mono { font-family: ui-monospace, monospace; font-size: 0.78rem; }
+    .video-plan-list {
+      list-style: none;
+      margin: 0.75rem 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    .video-plan-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem 1rem;
+      border-left: 3px solid var(--accent);
+    }
+    .video-plan-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.5rem 0.75rem;
+      margin-bottom: 0.45rem;
+    }
+    .video-plan-rank {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+    .video-plan-title {
+      font-size: 1.02rem;
+      font-weight: 600;
+      flex: 1 1 12rem;
+      word-break: break-word;
+    }
+    .video-plan-score {
+      font-size: 0.72rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      background: var(--elevated);
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .video-plan-why {
+      margin: 0;
+      padding-left: 1.15rem;
+      color: var(--text);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .video-plan-why li { margin: 0.25rem 0; }
+    .video-plan-why strong { color: #c5d4ec; font-weight: 600; }
+    .video-plan-meta {
+      margin: 0.55rem 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .video-plan-hints {
+      margin: 0.5rem 0 0;
+      padding: 0.55rem 0.65rem;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+    .video-plan-hint-row { margin: 0.2rem 0; color: var(--text); }
+    .video-plan-hint-row strong { color: #c5d4ec; font-weight: 600; }
+    .video-plan-hint-angle { color: var(--muted); font-size: 0.78rem; margin-top: 0.35rem; }
+    .video-plan-hints .num { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.76rem; }
+    .heat-matrix-toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem 1.15rem;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0.65rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .heat-matrix-toggles .heat-tog-lab {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 0.25rem;
+    }
+    .heat-chart-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .heat-chart-toggle input { accent-color: var(--accent); }
+
+    .customer-report {
+      max-width: 52rem;
+    }
+    .customer-report .report-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+    .customer-report .report-toolbar .hint-inline {
+      font-size: 0.78rem;
+      color: var(--muted);
+      flex: 1 1 12rem;
+    }
+    .report-exec {
+      background: linear-gradient(165deg, rgba(30, 38, 52, 0.95), rgba(20, 26, 36, 0.98));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.15rem 1.35rem 1.25rem;
+      margin-bottom: 1.5rem;
+      border-left: 4px solid var(--accent);
+    }
+    .report-exec h3 {
+      margin: 0 0 0.65rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #d4e2f8;
+    }
+    .report-exec ul {
+      margin: 0;
+      padding-left: 1.2rem;
+      color: var(--text);
+      line-height: 1.55;
+      font-size: 0.95rem;
+    }
+    .report-exec li { margin: 0.35rem 0; }
+    .report-section {
+      margin-bottom: 1.75rem;
+    }
+    .report-section h3 {
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin: 0 0 0.65rem;
+      font-weight: 700;
+    }
+    .report-table-wrap { overflow-x: auto; }
+    table.report-data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    table.report-data th,
+    table.report-data td {
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.55rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.report-data th {
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    table.report-data .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .report-disclaimer {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    .report-chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+      gap: 1rem;
+      margin: 0.75rem 0 0.25rem;
+    }
+    .report-chart-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.6rem 0.65rem;
+      background: var(--surface);
+    }
+    .report-bar-svg { display: block; width: 100%; height: auto; }
+    .report-bar-svg--dark .chart-title,
+    .report-bar-svg--dark .bar-label { fill: var(--text); }
+    .report-bar-svg--dark .bar-value { fill: var(--muted); }
+    .report-bar-svg--light .chart-title { fill: #111827; }
+    .report-bar-svg--light .bar-label { fill: #1f2937; }
+    .report-bar-svg--light .bar-value { fill: #4b5563; }
+
+    @media print {
+      @page { margin: 1.2cm; }
+      body.printing-report {
+        background: #fff !important;
+        color: #111 !important;
+      }
+      body.printing-report .wrap {
+        padding: 0;
+        max-width: none;
+      }
+      body.printing-report header,
+      body.printing-report nav.tabs,
+      body.printing-report #kpis,
+      body.printing-report .panel:not(.report-panel),
+      body.printing-report .report-toolbar,
+      body.printing-report #loadErr {
+        display: none !important;
+      }
+      body.printing-report #app { display: block !important; }
+      body.printing-report .panel.report-panel {
+        display: block !important;
+      }
+      body.printing-report .customer-report,
+      body.printing-report .report-exec,
+      body.printing-report .card {
+        background: #fff !important;
+        color: #111 !important;
+        border-color: #ccc !important;
+        box-shadow: none !important;
+      }
+      body.printing-report .report-exec h3,
+      body.printing-report .report-section h3 {
+        color: #222 !important;
+      }
+      body.printing-report table.report-data th {
+        background: #f0f0f0 !important;
+        color: #333 !important;
+      }
+      body.printing-report .report-chart-card {
+        background: #fafafa !important;
+        border-color: #ccc !important;
+      }
+      body.printing-report .report-bar-svg--dark .chart-title,
+      body.printing-report .report-bar-svg--dark .bar-label {
+        fill: #111 !important;
+      }
+      body.printing-report .report-bar-svg--dark .bar-value {
+        fill: #444 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Discussed treatments — analytics</h1>
+      <p class="sub">
+        Explore patient exports (CSV with JSON in <span class="mono">Treatments Discussed</span>).
+        Charts cover service staff, treatments, timelines, products, and regions. Everything runs locally in your browser; no data is uploaded.
+      </p>
+      <div class="toolbar">
+        <input type="file" id="file" accept=".csv,text/csv" />
+        <button type="button" class="primary" id="btnSample">Load project CSV</button>
+        <button type="button" id="btnClear">Clear</button>
+        <span class="hint">
+          Over HTTP, the page tries to load bundled data (<span class="mono">patients-discussed-data.csv</span> next to this file or at the site root), then your last session (same browser), then the dev sample CSV.
+          Add <span class="mono">?nodata=1</span> to skip auto-load. Use <span class="mono">?data=/your-export.csv</span> for a specific file (same origin).
+          <strong>Vercel:</strong> after <span class="mono">npm run build</span>, the analytics HTML and <span class="mono">public/patients-discussed-data.csv</span> are in <span class="mono">dist/</span>; replace that CSV to change the default dataset.
+          Opening as <span class="mono">file://</span> still needs the file picker unless you use localStorage from a prior load.
+          <strong>Deploy:</strong> with the main app, <span class="mono">npm run build</span> → open <span class="mono">/patients-discussed-analytics.html</span> on your domain.
+          For a tiny site that is only this tool at <span class="mono">/</span>, run <span class="mono">npm run build:analytics</span> then <span class="mono">npx vercel dist-analytics --prod</span>.
+        </span>
+      </div>
+      <div id="loadErr" class="err hidden"></div>
+    </header>
+
+    <div id="app" class="hidden">
+      <div class="kpis" id="kpis"></div>
+
+      <nav class="tabs" id="tabs"></nav>
+
+      <div class="panel active" data-panel="overview">
+        <div class="grid2">
+          <div class="card">
+            <h2>Line items by timeline</h2>
+            <div class="chart-box short"><canvas id="cTimeline"></canvas></div>
+          </div>
+          <div class="card">
+            <h2>Top treatments (line items)</h2>
+            <div class="chart-box"><canvas id="cTreatment"></canvas></div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h2>Providers (patient rows)</h2>
+            <div class="chart-box short"><canvas id="cProviders"></canvas></div>
+          </div>
+          <div class="card">
+            <h2>Line items per patient</h2>
+            <div class="chart-box short"><canvas id="cItemsPerPatient"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="staff">
+        <div class="grid2">
+          <div class="card">
+            <h2>Patients per service staff</h2>
+            <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Unique patients with that staff on the row (comma-separated names in export are merged).</p>
+            <div class="chart-box tall"><canvas id="cStaffPatients"></canvas></div>
+          </div>
+          <div class="card">
+            <h2>Line items attributed to staff</h2>
+            <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Each discussed line is counted once per staff listed on that patient row.</p>
+            <div class="chart-box tall"><canvas id="cStaffLines"></canvas></div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:1rem">
+          <h2>Staff × timeline (line items, stacked)</h2>
+          <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Each line item is counted once per staff on that patient row. Compare Now vs Add next visit vs Wishlist side by side.</p>
+          <div class="chart-box tall"><canvas id="cStaffTimelineStack"></canvas></div>
+        </div>
+        <div class="card heat-matrix-card" style="margin-bottom:1rem">
+          <h2>Treatment × staff matrix</h2>
+          <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.75rem"><strong>Rows</strong> = modality / treatment; <strong>columns</strong> = service staff. Filter by <strong>when</strong> (timeline) and <strong>what</strong> (broad vs treatment + product). Optional treatment family. Each cell can show up to three mini-charts: <strong>timeline</strong> (seven rows), <strong>regions</strong>, and <strong>products / brands</strong> — toggle each under <strong>Cell charts</strong> (total line still shows when counts exist). Regions and products follow comma-split fields; optional JSON <span class="mono">brand</span> on products. Bar length scales to the max in each visible chart. The table below uses most of the viewport height; scroll inside it or widen the window as needed. <strong>Header row</strong> and <strong>modality column</strong> stay fixed while you scroll.</p>
+          <div class="filters" style="margin-bottom:0.75rem">
+            <label>Timeline
+              <select id="heatTimeline">
+                <option value="">All timelines</option>
+                <option value="Now">Now</option>
+                <option value="Add next visit">Add next visit</option>
+                <option value="Wishlist">Wishlist (later)</option>
+                <option value="Skincare">Skincare</option>
+                <option value="Completed">Completed</option>
+                <option value="other">Other / empty</option>
+              </select>
+            </label>
+            <label>Columns
+              <select id="heatColMode">
+                <option value="treatment">Treatment (broad)</option>
+                <option value="detail">Treatment + product</option>
+              </select>
+            </label>
+            <label>Treatment family
+              <select id="heatTreatmentFilter"><option value="">All families</option></select>
+            </label>
+            <label>Max staff (columns)
+              <select id="heatMaxStaff">
+                <option value="10">10</option>
+                <option value="14" selected>14</option>
+                <option value="20">20</option>
+              </select>
+            </label>
+            <label>Max modalities (rows)
+              <select id="heatMaxCols">
+                <option value="16">16</option>
+                <option value="22" selected>22</option>
+                <option value="30">30</option>
+              </select>
+            </label>
+            <label>Sort modalities (rows)
+              <select id="heatRowSort" title="Order of rows in the matrix">
+                <option value="count-desc" selected>Line count (high → low)</option>
+                <option value="count-asc">Line count (low → high)</option>
+                <option value="name-asc">Name (A → Z)</option>
+                <option value="name-desc">Name (Z → A)</option>
+              </select>
+            </label>
+            <label>Staff for row order
+              <select id="heatRowSortStaff" title="Leave on “All staff” to rank rows by total line items across everyone. Pick a person to rank modalities by that staff member’s count in each row (e.g. Erin high → low). Ignored for name sorts.">
+                <option value="">All staff (combined)</option>
+              </select>
+            </label>
+          </div>
+          <div class="heat-matrix-toggles" title="Show or hide the three mini bar blocks inside each matrix cell">
+            <span class="heat-tog-lab">Cell charts</span>
+            <label class="heat-chart-toggle"><input type="checkbox" id="heatChartTimeline" checked /> Timeline</label>
+            <label class="heat-chart-toggle"><input type="checkbox" id="heatChartRegions" checked /> Regions</label>
+            <label class="heat-chart-toggle"><input type="checkbox" id="heatChartProducts" checked /> Products / brands</label>
+          </div>
+          <div class="heat-wrap heat-matrix-viewport" id="heatStaffTreatment"></div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="timelines">
+        <div class="card" style="margin-bottom:1rem">
+          <h2>Treatment × timeline (stacked)</h2>
+          <div class="chart-box tall"><canvas id="cStacked"></canvas></div>
+        </div>
+        <div class="card" style="margin-bottom:1rem">
+          <h2>Timeline detail table</h2>
+          <div class="scroll" id="tableTimeline"></div>
+        </div>
+        <div class="card">
+          <h2>Modality × timeline (treatment + product)</h2>
+          <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Rows combine modality when a product is recorded (e.g. Microneedling — PRP). Pure treatment-only lines stay a single column.</p>
+          <div class="scroll" id="tableTopicTimeline"></div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="products">
+        <div class="filters">
+          <label>Filter by treatment
+            <select id="selTreatmentForProduct"></select>
+          </label>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h2>Top products (line items)</h2>
+            <div class="chart-box tall"><canvas id="cProducts"></canvas></div>
+          </div>
+          <div class="card">
+            <h2>Top region tokens</h2>
+            <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Regions split on commas (e.g. Forehead, Glabella → two tokens).</p>
+            <div class="chart-box tall"><canvas id="cRegions"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Products for selected treatment</h2>
+          <div class="scroll" id="tableProductsByTreatment"></div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="videos">
+        <div class="card">
+          <h2>Video production priorities</h2>
+          <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.65rem">
+            Suggested <strong>order</strong> for patient-education clips. A generic “Neurotoxin” video is weak next to something that matches how people actually talk in the chart — e.g. <strong>area</strong> (glabella, prejowl sulcus) and/or <strong>product / line detail</strong> from each JSON line.
+            Use <strong>Topic granularity</strong> to choose abstraction: broad family vs <strong>treatment + regions</strong> (comma tokens from the region field) vs <strong>treatment + product</strong> (same as matrix “detail” rows). “One row per area” modes split multi-area lines so each site surfaces its own priority (better for hyper-targeted assets; may duplicate the same consult across topics).
+            Ranking is driven mainly by <strong>Add next visit</strong> and <strong>Wishlist</strong> lines (pre-visit + nurture). <strong>Now</strong>, <strong>skincare</strong>, empty / other timelines are <strong>down-weighted</strong> so they rarely float a topic to the top unless volume is huge. Recency from <span class="mono">addedAt</span> still nudges fresh discussions. <strong>Brand</strong> stays in titles when present.
+            Each ranked row lists <strong>common brands and product/type lines</strong> from the underlying JSON (comma-split products, <span class="mono">brand</span> field) plus an <strong>example angle</strong> like “PRFM — microneedling” when data supports it.
+            Still blends staff/patient breadth and product spread. Heuristic only — align with clinical and marketing judgment.
+          </p>
+          <div class="filters" style="margin-bottom:0.75rem">
+            <label>Topic granularity
+              <select id="videoPlanGranularity" title="How each ranked row is labeled and grouped">
+                <option value="treatment">Treatment only (broadest)</option>
+                <option value="treatment_areas" selected>Treatment + area(s) — combined on each line</option>
+                <option value="treatment_per_area">Treatment + one topic per area (split lines)</option>
+                <option value="modality_detail">Treatment + product (line detail)</option>
+                <option value="modality_detail_areas">Treatment + product + area(s) combined</option>
+                <option value="modality_per_area">Treatment + product + one topic per area</option>
+              </select>
+            </label>
+            <label>Show top
+              <select id="videoPlanTopN">
+                <option value="8">8</option>
+                <option value="12" selected>12</option>
+                <option value="16">16</option>
+                <option value="20">20</option>
+              </select>
+            </label>
+          </div>
+          <div id="videoPlanConclusion"></div>
+        </div>
+      </div>
+
+      <div class="panel report-panel" data-panel="report">
+        <div class="card customer-report">
+          <h2>Customer report</h2>
+          <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.75rem">
+            Plain-language summary for sharing: what videos to prioritize and why, plus supporting numbers.
+            <strong>Print → Save as PDF</strong> includes the chart section below. You can also download a <strong>Markdown</strong> file (Mermaid charts for GitHub/Notion) or a <strong>standalone HTML</strong> file to email — it opens in any browser with the same graphs, no app required.
+            CSV exports still work for Excel. The interactive dashboard stays on the other tabs.
+          </p>
+          <div class="report-toolbar no-print">
+            <button type="button" class="primary" id="btnPrintReport">Print / Save as PDF</button>
+            <button type="button" id="btnHtmlReport">Download shareable HTML</button>
+            <button type="button" id="btnMdReport">Download Markdown</button>
+            <button type="button" id="btnCsvVideo">Download video plan (CSV)</button>
+            <button type="button" id="btnCsvSummary">Download summary (CSV)</button>
+            <button type="button" id="btnRefreshReport">Refresh from data</button>
+            <span class="hint-inline">Video rankings use the same rules as the <strong>Video plan</strong> tab (granularity + “show top” settings there).</span>
+          </div>
+          <div id="customerReportBody">
+            <p class="sub">Load a CSV to generate the report.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="explorer">
+        <div class="filters">
+          <label>Search
+            <input type="search" id="explorerSearch" placeholder="Patient, treatment, product…" style="min-width:16rem" />
+          </label>
+          <label>Timeline
+            <select id="explorerTimeline"><option value="">All</option></select>
+          </label>
+          <label>Treatment
+            <select id="explorerTreatment"><option value="">All</option></select>
+          </label>
+        </div>
+        <div class="scroll" id="explorerTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STAFF_FIRST_HINT = "Appointment Service Staff First";
+    const STAFF_LAST_HINT = "Appointment Service Staff Last";
+    const TREATMENTS_COL = "Treatments Discussed";
+
+    const TIMELINE_ORDER = ["Now", "Add next visit", "Wishlist", "Skincare", "Completed", "(empty)", "Other"];
+
+    /** Matrix cell mini-chart: keys match line item timeline after timelineKey(). */
+    const HEAT_MATRIX_TIMELINE_ROWS = [
+      { key: "Now", lab: "Now", cls: "seg-now", tit: "Now" },
+      { key: "Add next visit", lab: "Next visit", cls: "seg-next", tit: "Add next visit" },
+      { key: "Wishlist", lab: "Wishlist", cls: "seg-wish", tit: "Wishlist" },
+      { key: "Skincare", lab: "Skincare", cls: "seg-skin", tit: "Skincare" },
+      { key: "Completed", lab: "Completed", cls: "seg-completed", tit: "Completed" },
+      { key: "(empty)", lab: "Empty", cls: "seg-empty", tit: "No timeline in record" },
+      { key: "Other", lab: "Other", cls: "seg-oth", tit: "Other or unrecognized timeline" },
+    ];
+
+    const charts = {};
+
+    function norm(s) {
+      if (s == null) return "";
+      return String(s).replace(/\s+/g, " ").trim();
+    }
+
+    function parseStaff(firstCell, lastCell) {
+      const f = norm(firstCell);
+      const l = norm(lastCell);
+      if (!f || /^not applicable$/i.test(f)) return ["(unknown staff)"];
+      const fs = f.split(",").map((x) => x.trim()).filter(Boolean);
+      const ls = l.split(",").map((x) => x.trim()).filter(Boolean);
+      const n = Math.max(fs.length, ls.length, 1);
+      const out = new Set();
+      for (let i = 0; i < n; i++) {
+        const fn = fs[Math.min(i, Math.max(fs.length - 1, 0))] || "";
+        const ln = ls[Math.min(i, Math.max(ls.length - 1, 0))] || "";
+        const name = `${fn} ${ln}`.trim();
+        out.add(name || "(unknown staff)");
+      }
+      return [...out];
+    }
+
+    function parseTreatmentsJson(cell) {
+      if (!cell) return [];
+      let j = String(cell).replace(/""/g, '"');
+      if (j.startsWith('"') && j.endsWith('"')) j = j.slice(1, -1);
+      try {
+        const v = JSON.parse(j);
+        return Array.isArray(v) ? v : [v];
+      } catch {
+        return [];
+      }
+    }
+
+    function timelineKey(raw) {
+      const t = norm(raw);
+      if (!t) return "(empty)";
+      if (TIMELINE_ORDER.includes(t)) return t;
+      return "Other";
+    }
+
+    function treatmentLabel(o) {
+      return norm(o.treatment) || norm(o.interest) || "(no treatment)";
+    }
+
+    function productLabel(o) {
+      const p = norm(o.product);
+      return p || "—";
+    }
+
+    /** Microneedling — PRP, Laser — Moxi + BBL, or treatment-only if no product. */
+    function lineTopicDetailed(it) {
+      const t = it.treatment;
+      const p = it.product;
+      if (p && p !== "—") return `${t} — ${p}`;
+      return t;
+    }
+
+    function rawBrandFromItem(it) {
+      return norm(it.raw?.brand);
+    }
+
+    /** Broader video keys: brand in parentheses when JSON has it. */
+    function treatmentWithBrandForVideo(it) {
+      const t = it.treatment || "(no treatment)";
+      const b = rawBrandFromItem(it);
+      return b ? `${t} (${b})` : t;
+    }
+
+    /** Modality keys: treatment — brand — product when possible. */
+    function lineTopicVideoLabel(it) {
+      const t = it.treatment || "(no treatment)";
+      const p = it.product;
+      const b = rawBrandFromItem(it);
+      if (p && p !== "—") return b ? `${t} — ${b} — ${p}` : `${t} — ${p}`;
+      if (b) return `${t} — ${b}`;
+      return t;
+    }
+
+    function regionTokens(o) {
+      const r = norm(o.region);
+      if (!r) return [];
+      return r.split(",").map((x) => x.trim()).filter(Boolean);
+    }
+
+    /** Tags for matrix product chart: comma-split product; prefix with brand when present; brand-only lines ok. */
+    function productBrandTags(o) {
+      const b = norm(o.brand);
+      const pStr = norm(o.product);
+      const parts = pStr ? pStr.split(",").map((x) => x.trim()).filter(Boolean) : [];
+      if (parts.length) {
+        return parts.map((part) => (b ? `${b} — ${part}` : part));
+      }
+      if (b) return [b];
+      return ["—"];
+    }
+
+    function pickCol(row, needle) {
+      const k = Object.keys(row).find((key) => key.includes(needle));
+      return k ? row[k] : "";
+    }
+
+    function destroyChart(id) {
+      if (charts[id]) {
+        charts[id].destroy();
+        delete charts[id];
+      }
+    }
+
+    function countMap() {
+      return new Map();
+    }
+    function bump(m, k, n = 1) {
+      m.set(k, (m.get(k) || 0) + n);
+    }
+
+    function sortedEntries(m, desc = true) {
+      return [...m.entries()].sort((a, b) => (desc ? b[1] - a[1] : a[1] - b[1]));
+    }
+
+    function truncate(s, n) {
+      s = String(s);
+      return s.length <= n ? s : s.slice(0, n - 1) + "…";
+    }
+
+    const palette = [
+      "#5b8fc7", "#7eb87e", "#d4a84b", "#c97b9e", "#7ec4c4", "#b08fd4",
+      "#d4896b", "#8db85c", "#6b9bd4", "#c9c25e", "#d46b7e", "#5cc4a4",
+    ];
+
+    function buildLineItems(rows) {
+      const items = [];
+      for (const row of rows) {
+        const patient = norm(row.Name);
+        const providers = norm(row.Providers);
+        const staff = parseStaff(pickCol(row, STAFF_FIRST_HINT), pickCol(row, STAFF_LAST_HINT));
+        const objs = parseTreatmentsJson(row[TREATMENTS_COL] ?? pickCol(row, "Treatments Discussed"));
+        for (const o of objs) {
+          if (!o || typeof o !== "object") continue;
+          const treatment = treatmentLabel(o);
+          const timeline = timelineKey(o.timeline);
+          const product = productLabel(o);
+          const regions = regionTokens(o);
+          const productBrandTagList = productBrandTags(o);
+          const addedAt = norm(o.addedAt);
+          const row = {
+            patient,
+            providers,
+            staff,
+            treatment,
+            timeline,
+            product,
+            regions,
+            productBrandTags: productBrandTagList,
+            regionRaw: norm(o.region),
+            interest: norm(o.interest),
+            addedAt,
+            raw: o,
+          };
+          row.topicDetail = lineTopicDetailed(row);
+          items.push(row);
+        }
+      }
+      return items;
+    }
+
+    function aggregate(items) {
+      const patientSet = new Set(items.map((i) => i.patient).filter(Boolean));
+      const providers = countMap();
+      const timeline = countMap();
+      const treatment = countMap();
+      const staffPatients = new Map();
+      const staffLines = countMap();
+      const treatmentTimeline = new Map();
+      const productAll = countMap();
+      const productByTreatment = new Map();
+      const regionToken = countMap();
+      const regionByTreatment = new Map();
+      const itemsPerPatient = countMap();
+
+      const byPatient = new Map();
+      for (const it of items) {
+        if (!byPatient.has(it.patient)) {
+          byPatient.set(it.patient, { staff: it.staff, providers: it.providers, n: 0 });
+        }
+        byPatient.get(it.patient).n++;
+      }
+      for (const [pat, v] of byPatient) {
+        bump(itemsPerPatient, String(v.n), 1);
+        bump(providers, v.providers || "(empty)", 1);
+        for (const s of v.staff) {
+          if (!staffPatients.has(s)) staffPatients.set(s, new Set());
+          if (pat) staffPatients.get(s).add(pat);
+        }
+      }
+
+      for (const it of items) {
+        bump(timeline, it.timeline, 1);
+        bump(treatment, it.treatment, 1);
+        bump(productAll, it.product, 1);
+
+        const ttKey = it.treatment;
+        if (!treatmentTimeline.has(ttKey)) treatmentTimeline.set(ttKey, countMap());
+        bump(treatmentTimeline.get(ttKey), it.timeline, 1);
+
+        if (!productByTreatment.has(ttKey)) productByTreatment.set(ttKey, countMap());
+        bump(productByTreatment.get(ttKey), it.product, 1);
+
+        if (!regionByTreatment.has(ttKey)) regionByTreatment.set(ttKey, countMap());
+        for (const tok of it.regions.length ? it.regions : []) {
+          bump(regionToken, tok, 1);
+          bump(regionByTreatment.get(ttKey), tok, 1);
+        }
+
+        for (const s of it.staff) {
+          bump(staffLines, s, 1);
+        }
+      }
+
+      return {
+        patientCount: patientSet.size,
+        lineCount: items.length,
+        providers,
+        timeline,
+        treatment,
+        staffPatients,
+        staffLines,
+        treatmentTimeline,
+        productAll,
+        productByTreatment,
+        regionToken,
+        regionByTreatment,
+        itemsPerPatient,
+        byPatient,
+      };
+    }
+
+    function renderKpis(agg, items) {
+      const dates = items.map((i) => i.addedAt).filter(Boolean).sort();
+      const el = document.getElementById("kpis");
+      el.innerHTML = [
+        kpi("Patients", agg.patientCount),
+        kpi("Line items", agg.lineCount),
+        kpi("Avg items / patient", agg.patientCount ? (agg.lineCount / agg.patientCount).toFixed(1) : "—"),
+        kpi("Date range", dates.length ? `${dates[0].slice(0, 10)} → ${dates[dates.length - 1].slice(0, 10)}` : "—"),
+      ].join("");
+    }
+
+    function kpi(lab, val) {
+      return `<div class="kpi"><div class="val">${escapeHtml(String(val))}</div><div class="lab">${escapeHtml(lab)}</div></div>`;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function stripHtml(html) {
+      if (!html) return "";
+      const d = document.createElement("div");
+      d.innerHTML = html;
+      return (d.textContent || d.innerText || "").replace(/\s+/g, " ").trim();
+    }
+
+    function csvEscapeField(val) {
+      const s = String(val ?? "");
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    }
+
+    function downloadText(filename, text, mime = "text/csv;charset=utf-8", addBom = true) {
+      const blob = new Blob([(addBom ? "\ufeff" : "") + text], { type: mime });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    let reportCache = { agg: null, items: null };
+
+    function barChart(canvasId, labels, data, opts = {}) {
+      destroyChart(canvasId);
+      const ctx = document.getElementById(canvasId).getContext("2d");
+      const horizontal = opts.horizontal;
+      charts[canvasId] = new Chart(ctx, {
+        type: horizontal ? "bar" : "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              data,
+              backgroundColor: labels.map((_, i) => palette[i % palette.length]),
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          indexAxis: horizontal ? "y" : "x",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  const i = items[0].dataIndex;
+                  return opts.fullLabels ? opts.fullLabels[i] : labels[i];
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: "#8b939e", font: { size: 10 } },
+              grid: { color: "#2a3444" },
+              border: { color: "#2a3444" },
+            },
+            y: {
+              ticks: { color: "#8b939e", font: { size: 10 } },
+              grid: { color: "#2a3444" },
+              border: { color: "#2a3444" },
+            },
+          },
+        },
+      });
+    }
+
+    function stackedTreatmentTimeline(agg) {
+      destroyChart("cStacked");
+      const treatments = sortedEntries(agg.treatment, true).slice(0, 14).map(([k]) => k);
+      const timelines = [...TIMELINE_ORDER.filter((t) => t !== "Other"), "Other"];
+      const colors = {
+        Now: "#6b8cce",
+        "Add next visit": "#6ab88a",
+        Wishlist: "#d4a84b",
+        Skincare: "#c97b9e",
+        Completed: "#6a6a6a",
+        "(empty)": "#4a4a4a",
+        Other: "#8b7ec9",
+      };
+      const datasets = timelines.map((tl) => ({
+        label: tl,
+        data: treatments.map((tr) => agg.treatmentTimeline.get(tr)?.get(tl) || 0),
+        backgroundColor: colors[tl] || "#666",
+        stack: "s",
+      }));
+
+      const ctx = document.getElementById("cStacked").getContext("2d");
+      charts.cStacked = new Chart(ctx, {
+        type: "bar",
+        data: { labels: treatments.map((t) => truncate(t, 28)), datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#8b939e", boxWidth: 12, font: { size: 10 } } },
+          },
+          scales: {
+            x: { stacked: true, ticks: { color: "#8b939e", maxRotation: 45, minRotation: 0, font: { size: 9 } }, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true, ticks: { color: "#8b939e", font: { size: 10 } }, grid: { color: "#2a3444" } },
+          },
+        },
+      });
+    }
+
+    function renderOverview(agg) {
+      const tl = sortedEntries(agg.timeline, true);
+      barChart(
+        "cTimeline",
+        tl.map(([k]) => k),
+        tl.map(([, v]) => v),
+        { horizontal: false }
+      );
+
+      const tr = sortedEntries(agg.treatment, true).slice(0, 16);
+      const full = tr.map(([k]) => k);
+      barChart(
+        "cTreatment",
+        full.map((k) => truncate(k, 36)),
+        tr.map(([, v]) => v),
+        { horizontal: true, fullLabels: full }
+      );
+
+      const pr = sortedEntries(agg.providers, true).slice(0, 12);
+      barChart(
+        "cProviders",
+        pr.map(([k]) => truncate(k, 24)),
+        pr.map(([, v]) => v),
+        { horizontal: true, fullLabels: pr.map(([k]) => k) }
+      );
+
+      const ipp = sortedEntries(agg.itemsPerPatient, false);
+      barChart(
+        "cItemsPerPatient",
+        ipp.map(([k]) => `${k} items`),
+        ipp.map(([, v]) => v),
+        { horizontal: false }
+      );
+    }
+
+    function timelineSliceMatches(filter, timeline) {
+      if (!filter) return true;
+      if (filter === "other") {
+        return !["Now", "Add next visit", "Wishlist", "Skincare"].includes(timeline);
+      }
+      return timeline === filter;
+    }
+
+    function emptyHeatBreak() {
+      const o = {};
+      for (const r of HEAT_MATRIX_TIMELINE_ROWS) o[r.key] = 0;
+      return o;
+    }
+
+    function heatCellTotal(br) {
+      let s = 0;
+      for (const r of HEAT_MATRIX_TIMELINE_ROWS) s += br[r.key] || 0;
+      return s;
+    }
+
+    function heatCellTooltip(br) {
+      const bits = [];
+      for (const r of HEAT_MATRIX_TIMELINE_ROWS) {
+        const n = br[r.key] || 0;
+        if (n) bits.push(`${r.lab} ${n}`);
+      }
+      return bits.length ? bits.join(" · ") : "No line items";
+    }
+
+    function heatRegionColor(name) {
+      const n = String(name || "");
+      if (!n || n === "—") return "rgba(118, 124, 134, 0.88)";
+      if (n === "Other areas") return "rgba(139, 126, 200, 0.92)";
+      let h = 2166136261;
+      for (let i = 0; i < n.length; i++) h = Math.imul(h ^ n.charCodeAt(i), 16777619);
+      const hue = (h >>> 0) % 360;
+      return `hsl(${hue} 44% 50%)`;
+    }
+
+    /** Separate mini bar chart: one row per region, same scale rules as timeline rows (max count in cell). */
+    function heatRegionBarsHtml(rm) {
+      if (!rm || rm.size === 0) return { html: "", summary: "" };
+      const entries = sortedEntries(rm, true).filter(([, v]) => v > 0);
+      if (!entries.length) return { html: "", summary: "" };
+      const maxSeg = 8;
+      const top = entries.slice(0, maxSeg);
+      const otherN = entries.slice(maxSeg).reduce((s, [, v]) => s + v, 0);
+      const rowData = top.map(([name, n]) => ({ name, n }));
+      if (otherN > 0) rowData.push({ name: "Other areas", n: otherN });
+      const summary = entries.map(([k, v]) => `${k}: ${v}`).join(" · ");
+      const maxN = Math.max(1, ...rowData.map((r) => r.n));
+      const rows = rowData
+        .map((r) => {
+          const pct = r.n <= 0 ? 0 : (r.n / maxN) * 100;
+          const lab = truncate(r.name, 15);
+          const bg = heatRegionColor(r.name);
+          const z = r.n === 0 ? " is-zero" : "";
+          const fillCls = r.n === 0 ? "tl-hfill tl-hfill--matrixcat is-zero" : "tl-hfill tl-hfill--matrixcat";
+          return `<div class="tl-hrow" title="${escapeHtml(r.name + ": " + r.n)}"><span class="tl-hlab">${escapeHtml(lab)}</span><div class="tl-htrack"><div class="${fillCls}" style="width:${pct.toFixed(2)}%;background:${bg}"></div></div><span class="tl-hval${z}">${escapeHtml(String(r.n))}</span></div>`;
+        })
+        .join("");
+      const html = `<div class="tl-hsubchart"><div class="tl-hsubchart-h">Regions</div>${rows}</div>`;
+      return { html, summary };
+    }
+
+    function heatProductColor(name) {
+      const n = String(name || "");
+      if (!n || n === "—") return "rgba(118, 124, 134, 0.88)";
+      if (n === "Other products") return "rgba(196, 132, 88, 0.92)";
+      let h = 5381;
+      const s = `${n}|product|`;
+      for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+      const hue = (h >>> 0) % 360;
+      return `hsl(${hue} 42% 52%)`;
+    }
+
+    function heatProductBarsHtml(pm) {
+      if (!pm || pm.size === 0) return { html: "", summary: "" };
+      const entries = sortedEntries(pm, true).filter(([, v]) => v > 0);
+      if (!entries.length) return { html: "", summary: "" };
+      const maxSeg = 8;
+      const top = entries.slice(0, maxSeg);
+      const otherN = entries.slice(maxSeg).reduce((s, [, v]) => s + v, 0);
+      const rowData = top.map(([name, n]) => ({ name, n }));
+      if (otherN > 0) rowData.push({ name: "Other products", n: otherN });
+      const summary = entries.map(([k, v]) => `${k}: ${v}`).join(" · ");
+      const maxN = Math.max(1, ...rowData.map((r) => r.n));
+      const rows = rowData
+        .map((r) => {
+          const pct = r.n <= 0 ? 0 : (r.n / maxN) * 100;
+          const lab = truncate(r.name, 15);
+          const bg = heatProductColor(r.name);
+          const z = r.n === 0 ? " is-zero" : "";
+          const fillCls = r.n === 0 ? "tl-hfill tl-hfill--matrixcat is-zero" : "tl-hfill tl-hfill--matrixcat";
+          return `<div class="tl-hrow" title="${escapeHtml(r.name + ": " + r.n)}"><span class="tl-hlab">${escapeHtml(lab)}</span><div class="tl-htrack"><div class="${fillCls}" style="width:${pct.toFixed(2)}%;background:${bg}"></div></div><span class="tl-hval${z}">${escapeHtml(String(r.n))}</span></div>`;
+        })
+        .join("");
+      const html = `<div class="tl-hsubchart"><div class="tl-hsubchart-h">Product / brand</div>${rows}</div>`;
+      return { html, summary };
+    }
+
+    function getHeatMatrixChartToggles() {
+      const tl = document.getElementById("heatChartTimeline");
+      const rg = document.getElementById("heatChartRegions");
+      const pr = document.getElementById("heatChartProducts");
+      return {
+        timeline: !tl || tl.checked,
+        regions: !rg || rg.checked,
+        products: !pr || pr.checked,
+      };
+    }
+
+    function formatHeatCellVisual(br, regionMap, productMap, toggles) {
+      const t = toggles || getHeatMatrixChartToggles();
+      const total = heatCellTotal(br);
+      const reg = t.regions ? heatRegionBarsHtml(regionMap) : { html: "", summary: "" };
+      const prod = t.products ? heatProductBarsHtml(productMap) : { html: "", summary: "" };
+      const regSummary = reg.summary;
+      const prodSummary = prod.summary;
+      const tipParts = [];
+      if (t.timeline) tipParts.push(heatCellTooltip(br));
+      else if (total > 0) tipParts.push(`${total} line items (timeline chart off)`);
+      if (regSummary) tipParts.push(`Regions: ${regSummary}`);
+      if (prodSummary) tipParts.push(`Products: ${prodSummary}`);
+      const fullTip = tipParts.length ? tipParts.join(" · ") : "No breakdown";
+      const regAria = regSummary ? ` Regions: ${regSummary.replace(/ · /g, ". ")}` : "";
+      const prodAria = prodSummary ? ` Products: ${prodSummary.replace(/ · /g, ". ")}` : "";
+      const totalLine = (cls) =>
+        `<div class="tl-htotal${cls}" title="Total line items in this cell"><span>Total</span><span class="tl-htotal-n">${escapeHtml(String(total))}</span></div>`;
+      if (total === 0) {
+        const tip0 = t.timeline ? heatCellTooltip(br) : "No line items";
+        const al = `Total 0. ${tip0}`;
+        return `<div class="tl-hchart tl-hchart--empty" title="${escapeHtml(tip0)}" role="img" aria-label="${escapeHtml(al)}">${totalLine(
+          " tl-htotal--zero"
+        )}<span class="tl-h-empty">—</span></div>`;
+      }
+      const anyChart = t.timeline || t.regions || t.products;
+      if (!anyChart) {
+        const al = `Total ${total}. All charts hidden.`;
+        return `<div class="tl-hchart tl-hchart--minimal" title="Enable at least one cell chart below" role="img" aria-label="${escapeHtml(al)}">${totalLine(
+          ""
+        )}</div>`;
+      }
+      let inner = "";
+      if (t.timeline) {
+        const rows = HEAT_MATRIX_TIMELINE_ROWS.map((r) => ({
+          n: br[r.key] || 0,
+          cls: r.cls,
+          lab: r.lab,
+          tit: r.tit,
+        }));
+        const maxN = Math.max(1, ...rows.map((r) => r.n));
+        inner = rows
+          .map((r) => {
+            const pct = r.n <= 0 ? 0 : (r.n / maxN) * 100;
+            const z = r.n === 0 ? " is-zero" : "";
+            const val = r.n === 0 ? "–" : String(r.n);
+            const fillCls = r.n === 0 ? "tl-hfill is-zero" : "tl-hfill";
+            return `<div class="tl-hrow" title="${escapeHtml(r.tit + ": " + r.n)}"><span class="tl-hlab">${escapeHtml(r.lab)}</span><div class="tl-htrack"><div class="${fillCls} ${r.cls}" style="width:${pct.toFixed(2)}%"></div></div><span class="tl-hval${z}">${escapeHtml(val)}</span></div>`;
+          })
+          .join("");
+      }
+      const tipCore = t.timeline ? heatCellTooltip(br) : `${total} line items`;
+      const al = `Total ${total}. ${tipCore}.${regAria}${prodAria}`;
+      return `<div class="tl-hchart" title="${escapeHtml(fullTip)}" role="img" aria-label="${escapeHtml(al)}">${totalLine("")}${inner}${reg.html}${prod.html}</div>`;
+    }
+
+    function renderStaffHeatmap(items) {
+      const tlF = document.getElementById("heatTimeline").value;
+      const colMode = document.getElementById("heatColMode").value;
+      const treatFam = document.getElementById("heatTreatmentFilter").value;
+      const maxStaff = parseInt(document.getElementById("heatMaxStaff").value, 10) || 14;
+      const maxCols = parseInt(document.getElementById("heatMaxCols").value, 10) || 22;
+      const rowSort = document.getElementById("heatRowSort")?.value || "count-desc";
+
+      const colKey = (it) => (colMode === "detail" ? lineTopicDetailed(it) : it.treatment);
+
+      const filtered = items.filter((it) => {
+        if (!timelineSliceMatches(tlF, it.timeline)) return false;
+        if (treatFam && it.treatment !== treatFam) return false;
+        return true;
+      });
+
+      const cellBreak = new Map();
+      const cellRegions = new Map();
+      const cellProducts = new Map();
+      const staffLineTotals = countMap();
+      const colTotals = countMap();
+
+      for (const it of filtered) {
+        const c = colKey(it);
+        const regionTags = it.regions && it.regions.length ? it.regions : ["—"];
+        const productTags =
+          it.productBrandTags && it.productBrandTags.length ? it.productBrandTags : productBrandTags(it.raw || {});
+        for (const s of it.staff) {
+          bump(staffLineTotals, s, 1);
+          bump(colTotals, c, 1);
+          const k = `${s}\t${c}`;
+          if (!cellBreak.has(k)) cellBreak.set(k, emptyHeatBreak());
+          const b = cellBreak.get(k);
+          const tl = it.timeline;
+          if (Object.prototype.hasOwnProperty.call(b, tl)) b[tl]++;
+          else b.Other++;
+          if (!cellRegions.has(k)) cellRegions.set(k, countMap());
+          const rm = cellRegions.get(k);
+          for (const rg of regionTags) bump(rm, rg, 1);
+          if (!cellProducts.has(k)) cellProducts.set(k, countMap());
+          const pm = cellProducts.get(k);
+          for (const pg of productTags) bump(pm, pg, 1);
+        }
+      }
+
+      const staffList = sortedEntries(staffLineTotals, true)
+        .slice(0, maxStaff)
+        .map(([k]) => k);
+      const localeSort = (a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: "base" });
+
+      const sortStaffSel = document.getElementById("heatRowSortStaff");
+      if (sortStaffSel) {
+        const prev = sortStaffSel.value;
+        sortStaffSel.innerHTML = '<option value="">All staff (combined)</option>';
+        for (const name of [...staffLineTotals.keys()].sort(localeSort)) {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          sortStaffSel.appendChild(opt);
+        }
+        if ([...sortStaffSel.options].some((o) => o.value === prev)) sortStaffSel.value = prev;
+      }
+      const sortStaffPick = (sortStaffSel?.value || "").trim();
+
+      const scoreModalityForRowOrder = (c) =>
+        sortStaffPick
+          ? heatCellTotal(cellBreak.get(`${sortStaffPick}\t${c}`) || emptyHeatBreak())
+          : colTotals.get(c) || 0;
+
+      let colList;
+      if (rowSort === "count-asc") {
+        colList = [...colTotals.keys()]
+          .sort((a, b) => {
+            const d = scoreModalityForRowOrder(a) - scoreModalityForRowOrder(b);
+            if (d) return d;
+            return localeSort(a, b);
+          })
+          .slice(0, maxCols);
+      } else if (rowSort === "name-asc") {
+        colList = [...colTotals.keys()].sort(localeSort).slice(0, maxCols);
+      } else if (rowSort === "name-desc") {
+        colList = [...colTotals.keys()].sort((a, b) => localeSort(b, a)).slice(0, maxCols);
+      } else {
+        colList = [...colTotals.keys()]
+          .sort((a, b) => {
+            const d = scoreModalityForRowOrder(b) - scoreModalityForRowOrder(a);
+            if (d) return d;
+            return localeSort(a, b);
+          })
+          .slice(0, maxCols);
+      }
+
+      const sliceLabel = tlF
+        ? tlF === "other"
+          ? "Other / non-core timelines"
+          : tlF
+        : "All timelines";
+      const colHint = colMode === "detail" ? "Treatment + product" : "Treatment only";
+
+      if (!staffList.length || !colList.length) {
+        document.getElementById("heatStaffTreatment").innerHTML =
+          `<p class="sub" style="margin:0">No line items match: <strong>${sliceLabel}</strong>, ${colHint}${treatFam ? `, family: ${escapeHtml(treatFam)}` : ""}. Try “All timelines” or “All families”.</p>`;
+        return;
+      }
+
+      const rowOrderNote =
+        sortStaffPick && (rowSort === "count-desc" || rowSort === "count-asc")
+          ? ` Row order by <strong>${escapeHtml(sortStaffPick)}</strong>’s line items per modality (${rowSort === "count-desc" ? "high → low" : "low → high"}).`
+          : "";
+      const chartTog = getHeatMatrixChartToggles();
+      const onList = [];
+      if (chartTog.timeline) onList.push("timeline");
+      if (chartTog.regions) onList.push("regions");
+      if (chartTog.products) onList.push("products/brands");
+      const chartNote =
+        onList.length === 3
+          ? "Cell charts: <strong>all on</strong> (toggle above). "
+          : onList.length
+            ? `Cell charts on: <strong>${onList.join(", ")}</strong>. `
+            : "<strong>All cell charts off</strong> — totals only. ";
+      let html = `<p class="sub" style="margin:0 0 0.5rem;font-size:0.78rem">Showing <strong>${filtered.length}</strong> line items (${sliceLabel}, ${colHint}${treatFam ? `, family: ${escapeHtml(treatFam)}` : ""}). <strong>Rows</strong> = modalities, <strong>columns</strong> = staff. ${chartNote}Timeline = seven rows; regions / products use comma-split fields ( “—” = none); up to eight labels each; overflow → “Other areas” / “Other products”. Bar width scales per visible chart. <strong style="color:#b8cbf5">Now</strong> · <strong style="color:#9eddb8">Next visit</strong> · <strong style="color:#e8c96a">Wishlist</strong> · <strong style="color:#e5aac8">Skincare</strong> · <strong style="color:#b0b8c0">Completed</strong> · <strong style="color:#a0a0a8">Empty</strong> · <strong style="color:#c4b8ec">Other</strong>.${rowOrderNote}</p>`;
+      html += "<table class='heat'><thead><tr><th>Modality</th>";
+      for (const s of staffList) {
+        html += `<th>${escapeHtml(s)}</th>`;
+      }
+      html += "</tr></thead><tbody>";
+      const heatToggles = getHeatMatrixChartToggles();
+      for (const c of colList) {
+        html += `<tr><th>${escapeHtml(c)}</th>`;
+        for (const s of staffList) {
+          const br = cellBreak.get(`${s}\t${c}`) || emptyHeatBreak();
+          const rm = cellRegions.get(`${s}\t${c}`) || countMap();
+          const pm = cellProducts.get(`${s}\t${c}`) || countMap();
+          const tot = heatCellTotal(br);
+          const heat = tot === 0 ? 0.08 : Math.min(0.14 + tot * 0.038, 0.62);
+          html += `<td class="cell stack" style="--heat:${heat.toFixed(3)}">${formatHeatCellVisual(br, rm, pm, heatToggles)}</td>`;
+        }
+        html += "</tr>";
+      }
+      html += "</tbody></table>";
+      document.getElementById("heatStaffTreatment").innerHTML = html;
+    }
+
+    const TIMELINE_COLORS = {
+      Now: "#6b8cce",
+      "Add next visit": "#6ab88a",
+      Wishlist: "#d4a84b",
+      Skincare: "#c97b9e",
+      Completed: "#6a6a6a",
+      "(empty)": "#4a4a4a",
+      Other: "#8b7ec9",
+    };
+
+    function renderStaffTimelineStack(items) {
+      destroyChart("cStaffTimelineStack");
+      const perStaff = new Map();
+      for (const it of items) {
+        const tl =
+          it.timeline === "Now" ||
+          it.timeline === "Add next visit" ||
+          it.timeline === "Wishlist" ||
+          it.timeline === "Skincare"
+            ? it.timeline
+            : "Other";
+        for (const s of it.staff) {
+          if (!perStaff.has(s)) perStaff.set(s, countMap());
+          bump(perStaff.get(s), tl, 1);
+        }
+      }
+      const staffTotals = new Map(
+        [...perStaff.entries()].map(([s, m]) => [s, [...m.values()].reduce((a, b) => a + b, 0)])
+      );
+      const topStaff = sortedEntries(staffTotals, true)
+        .slice(0, 12)
+        .map(([k]) => k);
+      const order = ["Now", "Add next visit", "Wishlist", "Skincare", "Other"];
+      const datasets = order.map((tl) => ({
+        label: tl === "Other" ? "Other timelines" : tl,
+        data: topStaff.map((s) => perStaff.get(s)?.get(tl) || 0),
+        backgroundColor: TIMELINE_COLORS[tl] || "#666",
+        stack: "st",
+      }));
+
+      const ctx = document.getElementById("cStaffTimelineStack").getContext("2d");
+      charts.cStaffTimelineStack = new Chart(ctx, {
+        type: "bar",
+        data: { labels: topStaff.map((s) => truncate(s, 24)), datasets },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#8b939e", boxWidth: 12, font: { size: 10 } } },
+            tooltip: {
+              callbacks: {
+                title: (x) => topStaff[x[0].dataIndex],
+              },
+            },
+          },
+          scales: {
+            x: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: { color: "#8b939e", font: { size: 10 } },
+              grid: { color: "#2a3444" },
+              border: { color: "#2a3444" },
+            },
+            y: {
+              stacked: true,
+              ticks: { color: "#8b939e", font: { size: 10 } },
+              grid: { color: "#2a3444" },
+              border: { color: "#2a3444" },
+            },
+          },
+        },
+      });
+    }
+
+    function bindStaffMatrixControls(items) {
+      const rerender = () => renderStaffHeatmap(items);
+      ["heatTimeline", "heatColMode", "heatTreatmentFilter", "heatMaxStaff", "heatMaxCols", "heatRowSort", "heatRowSortStaff"].forEach((id) => {
+        const el = document.getElementById(id);
+        el.onchange = rerender;
+      });
+      ["heatChartTimeline", "heatChartRegions", "heatChartProducts"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && !el.dataset.heatBound) {
+          el.dataset.heatBound = "1";
+          el.addEventListener("change", rerender);
+        }
+      });
+    }
+
+    function renderStaff(agg, items) {
+      const sp = sortedEntries(
+        new Map([...agg.staffPatients.entries()].map(([k, set]) => [k, set.size])),
+        true
+      );
+      const topSp = sp.slice(0, 20);
+      barChart(
+        "cStaffPatients",
+        topSp.map(([k]) => truncate(k, 22)),
+        topSp.map(([, v]) => v),
+        { horizontal: true, fullLabels: topSp.map(([k]) => k) }
+      );
+
+      const sl = sortedEntries(agg.staffLines, true).slice(0, 20);
+      barChart(
+        "cStaffLines",
+        sl.map(([k]) => truncate(k, 22)),
+        sl.map(([, v]) => v),
+        { horizontal: true, fullLabels: sl.map(([k]) => k) }
+      );
+
+      renderStaffTimelineStack(items);
+
+      const treatments = sortedEntries(
+        items.reduce((m, i) => {
+          bump(m, i.treatment, 1);
+          return m;
+        }, countMap()),
+        true
+      ).map(([k]) => k);
+      const famSel = document.getElementById("heatTreatmentFilter");
+      const prevFam = famSel.value;
+      famSel.innerHTML = '<option value="">All families</option>';
+      for (const t of treatments) {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        famSel.appendChild(opt);
+      }
+      if ([...famSel.options].some((o) => o.value === prevFam)) famSel.value = prevFam;
+
+      bindStaffMatrixControls(items);
+      renderStaffHeatmap(items);
+    }
+
+    function renderTopicTimelineTable(items) {
+      const topicTimeline = new Map();
+      for (const it of items) {
+        const topic = lineTopicDetailed(it);
+        if (!topicTimeline.has(topic)) topicTimeline.set(topic, countMap());
+        bump(topicTimeline.get(topic), it.timeline, 1);
+      }
+      const rows = [...topicTimeline.entries()]
+        .map(([topic, m]) => {
+          const n0 = m.get("Now") || 0;
+          const nn = m.get("Add next visit") || 0;
+          const nw = m.get("Wishlist") || 0;
+          const ns = m.get("Skincare") || 0;
+          let other = 0;
+          let tot = 0;
+          for (const [tk, tv] of m) {
+            tot += tv;
+            if (!["Now", "Add next visit", "Wishlist", "Skincare"].includes(tk)) other += tv;
+          }
+          return { topic, n0, nn, nw, ns, other, tot };
+        })
+        .sort((a, b) => b.tot - a.tot)
+        .slice(0, 45);
+
+      let h =
+        "<table class='data'><thead><tr><th>Modality</th><th class='num'>Now</th><th class='num'>Next visit</th><th class='num'>Wishlist</th><th class='num'>Skincare</th><th class='num'>Other</th><th class='num'>Total</th></tr></thead><tbody>";
+      for (const r of rows) {
+        h += `<tr><td>${escapeHtml(r.topic)}</td><td class="num">${r.n0}</td><td class="num">${r.nn}</td><td class="num">${r.nw}</td><td class="num">${r.ns}</td><td class="num">${r.other}</td><td class="num">${r.tot}</td></tr>`;
+      }
+      h += "</tbody></table>";
+      document.getElementById("tableTopicTimeline").innerHTML = h;
+    }
+
+    function renderTimelineTable(agg) {
+      const treatments = sortedEntries(agg.treatment, true);
+      let h =
+        "<table class='data'><thead><tr><th>Treatment</th><th class='num'>Now</th><th class='num'>Next</th><th class='num'>Wishlist</th><th class='num'>Skincare</th><th class='num'>Other</th><th class='num'>Total</th></tr></thead><tbody>";
+      for (const [tr,] of treatments) {
+        const m = agg.treatmentTimeline.get(tr);
+        const n0 = m?.get("Now") || 0;
+        const nn = m?.get("Add next visit") || 0;
+        const nw = m?.get("Wishlist") || 0;
+        const ns = m?.get("Skincare") || 0;
+        let other = 0;
+        let tot = 0;
+        for (const [tk, tv] of m || []) {
+          tot += tv;
+          if (!["Now", "Add next visit", "Wishlist", "Skincare"].includes(tk)) other += tv;
+        }
+        h += `<tr><td>${escapeHtml(tr)}</td><td class="num">${n0}</td><td class="num">${nn}</td><td class="num">${nw}</td><td class="num">${ns}</td><td class="num">${other}</td><td class="num">${tot}</td></tr>`;
+      }
+      h += "</tbody></table>";
+      document.getElementById("tableTimeline").innerHTML = h;
+    }
+
+    function fillSelect(sel, options, withEmpty = true) {
+      const cur = sel.value;
+      sel.innerHTML = withEmpty ? '<option value="">All</option>' : "";
+      for (const o of options) {
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        sel.appendChild(opt);
+      }
+      if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
+    }
+
+    function renderProductsPanel(agg, items) {
+      const treatments = sortedEntries(agg.treatment, true).map(([k]) => k);
+      fillSelect(document.getElementById("selTreatmentForProduct"), treatments, true);
+      const sel = document.getElementById("selTreatmentForProduct");
+      const updateCharts = () => {
+        const t = sel.value;
+        let prodMap = agg.productAll;
+        let regMap = agg.regionToken;
+        if (t) {
+          prodMap = agg.productByTreatment.get(t) || countMap();
+          regMap = agg.regionByTreatment.get(t) || countMap();
+        }
+        const prods = sortedEntries(prodMap, true)
+          .filter(([k]) => k !== "—")
+          .slice(0, 18);
+        const fullP = prods.map(([k]) => k);
+        barChart(
+          "cProducts",
+          fullP.map((k) => truncate(k, 40)),
+          prods.map(([, v]) => v),
+          { horizontal: true, fullLabels: fullP }
+        );
+
+        const regs = sortedEntries(regMap, true).slice(0, 18);
+        const fullR = regs.map(([k]) => k);
+        barChart(
+          "cRegions",
+          fullR.map((k) => truncate(k, 28)),
+          regs.map(([, v]) => v),
+          { horizontal: true, fullLabels: fullR }
+        );
+
+        const m = t ? agg.productByTreatment.get(t) : null;
+        let tbl =
+          "<table class='data'><thead><tr><th>Product</th><th class='num'>Count</th></tr></thead><tbody>";
+        if (m) {
+          for (const [p, c] of sortedEntries(m, true)) {
+            tbl += `<tr><td>${escapeHtml(p)}</td><td class="num">${c}</td></tr>`;
+          }
+        } else {
+          tbl += "<tr><td colspan='2'>Select a treatment to see a breakdown.</td></tr>";
+        }
+        tbl += "</tbody></table>";
+        document.getElementById("tableProductsByTreatment").innerHTML = tbl;
+      };
+      sel.onchange = updateCharts;
+      updateCharts();
+    }
+
+    let allItems = [];
+
+    function renderExplorer(items) {
+      const timelines = [...new Set(items.map((i) => i.timeline))].sort((a, b) => {
+        const ia = TIMELINE_ORDER.indexOf(a);
+        const ib = TIMELINE_ORDER.indexOf(b);
+        const va = ia === -1 ? 999 : ia;
+        const vb = ib === -1 ? 999 : ib;
+        if (va !== vb) return va - vb;
+        return a.localeCompare(b);
+      });
+      const treats = sortedEntries(
+        items.reduce((m, i) => {
+          bump(m, i.treatment, 1);
+          return m;
+        }, countMap()),
+        true
+      ).map(([k]) => k);
+      fillSelect(document.getElementById("explorerTimeline"), timelines, true);
+      fillSelect(document.getElementById("explorerTreatment"), treats, true);
+
+      const redraw = () => {
+        const q = norm(document.getElementById("explorerSearch").value).toLowerCase();
+        const ft = document.getElementById("explorerTimeline").value;
+        const ftr = document.getElementById("explorerTreatment").value;
+        const cap = 400;
+        const filterOne = (i) => {
+          if (ft && i.timeline !== ft) return false;
+          if (ftr && i.treatment !== ftr) return false;
+          if (!q) return true;
+          const blob = [i.patient, i.treatment, i.product, i.topicDetail, i.regionRaw, i.interest, i.staff.join(" ")]
+            .join(" ")
+            .toLowerCase();
+          return blob.includes(q);
+        };
+        const allMatch = items.filter(filterOne);
+        const more = allMatch.length > cap;
+        const rows = allMatch.slice(0, cap);
+        let h =
+          "<table class='data'><thead><tr><th>Patient</th><th>Staff</th><th>Modality</th><th>Treatment</th><th>Product</th><th>Region</th><th>Timeline</th></tr></thead><tbody>";
+        for (const i of rows) {
+          h += `<tr><td>${escapeHtml(i.patient)}</td><td>${escapeHtml(i.staff.join(", "))}</td><td>${escapeHtml(truncate(i.topicDetail, 40))}</td><td>${escapeHtml(i.treatment)}</td><td>${escapeHtml(truncate(i.product, 36))}</td><td>${escapeHtml(truncate(i.regionRaw, 28))}</td><td>${escapeHtml(i.timeline)}</td></tr>`;
+        }
+        h += "</tbody></table>";
+        if (more) {
+          h += `<p class="sub" style="margin:0.5rem 0 0">Showing first ${cap} of ${allMatch.length} matches — narrow search or filters.</p>`;
+        }
+        document.getElementById("explorerTable").innerHTML = h;
+      };
+
+      document.getElementById("explorerSearch").oninput = redraw;
+      document.getElementById("explorerTimeline").onchange = redraw;
+      document.getElementById("explorerTreatment").onchange = redraw;
+      redraw();
+    }
+
+    /**
+     * Video-plan scoring: next visit + wishlist are the primary signal; Now / skincare / blank / other are minor.
+     */
+    const VIDEO_PLAN_TIMELINE_WEIGHTS = {
+      "Add next visit": 12,
+      Wishlist: 10,
+      Now: 0.42,
+      Skincare: 0.38,
+      Completed: 0.07,
+      "(empty)": 0.05,
+      Other: 0.1,
+    };
+
+    function videoPlanUrgencyFromTimelines(m) {
+      let p = 0;
+      for (const [k, v] of m.entries()) {
+        p += v * (VIDEO_PLAN_TIMELINE_WEIGHTS[k] ?? 0.08);
+      }
+      return p;
+    }
+
+    /** 0.7–1.15; favors lines with recent addedAt (discussion just logged). */
+    function videoPlanRecencyWeight(addedAtStr) {
+      const s = addedAtStr && String(addedAtStr).trim();
+      if (!s) return 0.78;
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return 0.78;
+      const days = (Date.now() - d.getTime()) / 86400000;
+      if (days < 0) return 1.12;
+      if (days <= 10) return 1.12;
+      if (days <= 35) return 1.0;
+      if (days <= 100) return 0.9;
+      return 0.74;
+    }
+
+    const VIDEO_PLAN_NO_AREA = "(no area specified)";
+
+    function sortedRegionsForVideo(it) {
+      return [...(it.regions || [])]
+        .map((x) => String(x).trim())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    }
+
+    /**
+     * Bucket key(s) per line item. Split modes emit multiple keys when several region tokens exist
+     * (same consult can fuel more than one ranked topic).
+     */
+    function videoTopicKeysForItem(it, mode) {
+      const t = treatmentWithBrandForVideo(it);
+      const detail = lineTopicVideoLabel(it);
+      const regs = sortedRegionsForVideo(it);
+
+      switch (mode) {
+        case "treatment":
+          return [t];
+        case "treatment_areas":
+          return [regs.length ? `${t} · ${regs.join(", ")}` : `${t} · ${VIDEO_PLAN_NO_AREA}`];
+        case "treatment_per_area":
+          return regs.length ? regs.map((r) => `${t} · ${r}`) : [`${t} · ${VIDEO_PLAN_NO_AREA}`];
+        case "modality_detail":
+          return [detail];
+        case "modality_detail_areas":
+          return [regs.length ? `${detail} · ${regs.join(", ")}` : `${detail} · ${VIDEO_PLAN_NO_AREA}`];
+        case "modality_per_area":
+          return regs.length ? regs.map((r) => `${detail} · ${r}`) : [`${detail} · ${VIDEO_PLAN_NO_AREA}`];
+        default:
+          return [t];
+      }
+    }
+
+    function buildVideoPlanHintData(o, topic) {
+      const brands = sortedEntries(o.brandCounts, true).filter(([, v]) => v > 0).slice(0, 4);
+      const ptags = sortedEntries(o.productTagCounts, true).filter(([k]) => k && k !== "—").slice(0, 6);
+      const head = topic.split(" · ")[0].trim();
+      const headShort = head.replace(/\s+\([^)]*\)\s*$/, "").trim() || head;
+      const topP = ptags[0]?.[0];
+      const exampleAngle = topP ? truncate(`${topP} — ${headShort}`, 102) : "";
+      const brandsPlain = brands.map(([k, v]) => `${k} (${v})`).join(", ");
+      const tagsPlain = ptags.map(([k, v]) => `${k} (${v})`).join(" · ");
+      return {
+        brands,
+        ptags,
+        headShort,
+        exampleAngle,
+        brandsPlain,
+        tagsPlain,
+        hasHints: brands.length > 0 || ptags.length > 0,
+      };
+    }
+
+    function buildVideoPlanHintsHtml(topic, o) {
+      const d = buildVideoPlanHintData(o, topic);
+      if (!d.hasHints) return "";
+      let html = `<div class="video-plan-hints">`;
+      if (d.brands.length) {
+        html += `<p class="video-plan-hint-row"><strong>Brands</strong> — ${d.brands
+          .map(([k, v]) => `${escapeHtml(k)} <span class="num">(${v})</span>`)
+          .join(", ")}</p>`;
+      }
+      if (d.ptags.length) {
+        html += `<p class="video-plan-hint-row"><strong>Product / type lines</strong> — ${d.ptags
+          .map(([k, v]) => `${escapeHtml(truncate(k, 52))} <span class="num">(${v})</span>`)
+          .join(" · ")}</p>`;
+      }
+      if (d.exampleAngle) {
+        html += `<p class="video-plan-hint-row video-plan-hint-angle"><strong>Example angle</strong> — ${escapeHtml(d.exampleAngle)}</p>`;
+      }
+      html += `</div>`;
+      return html;
+    }
+
+    function computeVideoPriorities(items, mode) {
+      const modeKey = mode || "treatment_areas";
+      const byTopic = new Map();
+      for (const it of items) {
+        const keys = videoTopicKeysForItem(it, modeKey);
+        for (const key of keys) {
+          if (!byTopic.has(key)) {
+            byTopic.set(key, {
+              timelines: countMap(),
+              staff: new Set(),
+              patients: new Set(),
+              products: new Set(),
+              brandCounts: countMap(),
+              productTagCounts: countMap(),
+              total: 0,
+              nextWishlistCount: 0,
+              recencySum: 0,
+            });
+          }
+          const o = byTopic.get(key);
+          o.total++;
+          bump(o.timelines, it.timeline, 1);
+          if (it.timeline === "Add next visit" || it.timeline === "Wishlist") o.nextWishlistCount++;
+          o.recencySum += videoPlanRecencyWeight(it.addedAt);
+          for (const s of it.staff) o.staff.add(s);
+          if (it.patient) o.patients.add(it.patient);
+          if (it.product && it.product !== "—") o.products.add(it.product);
+          const bBrand = rawBrandFromItem(it);
+          if (bBrand) bump(o.brandCounts, bBrand, 1);
+          const pTags =
+            it.productBrandTags && it.productBrandTags.length ? it.productBrandTags : productBrandTags(it.raw || {});
+          for (const tag of pTags) bump(o.productTagCounts, tag, 1);
+        }
+      }
+      const rows = [];
+      for (const [topic, o] of byTopic.entries()) {
+        const up = videoPlanUrgencyFromTimelines(o.timelines);
+        const nStaff = o.staff.size;
+        const breadth = 1 + 0.14 * Math.min(nStaff, 14);
+        const prodBoost = Math.min(o.products.size, 10) * 0.35;
+        const tn = (k) => o.timelines.get(k) || 0;
+        const nextWish = o.nextWishlistCount;
+        const nextWishRatio = o.total ? nextWish / o.total : 0;
+        const nextWishBoost = 1 + 0.52 * nextWishRatio;
+        const avgRecency = o.total ? o.recencySum / o.total : 0.78;
+        const base = up * breadth + o.total * 0.06 + prodBoost;
+        const score = base * nextWishBoost + avgRecency * 2.1;
+        const meta = `${o.total} lines · next+wish ${nextWish}/${o.total} (${o.total ? ((nextWish / o.total) * 100).toFixed(0) : 0}%) · Now ${tn("Now")} · Skincare ${tn("Skincare")} · recency ${avgRecency.toFixed(2)} · ${nStaff} staff · ${o.patients.size} pts · ${o.products.size} products`;
+        rows.push({
+          topic,
+          score,
+          reasons: buildVideoReasons(o, modeKey),
+          meta,
+          hintsHtml: buildVideoPlanHintsHtml(topic, o),
+          hintData: buildVideoPlanHintData(o, topic),
+        });
+      }
+      rows.sort((a, b) => b.score - a.score);
+      return rows;
+    }
+
+    function buildVideoReasons(o, gran) {
+      const geo = [];
+      if (gran === "treatment_per_area" || gran === "modality_per_area") {
+        geo.push(
+          `<strong>Split by area:</strong> lines with several region tokens count once per site — good for narrow clips (e.g. glabella vs prejowl) and may repeat the same patient under multiple topics.`
+        );
+      }
+      if (gran === "treatment_areas" || gran === "modality_detail_areas") {
+        geo.push(
+          `<strong>Areas on one line stay together</strong> — one ranked topic per distinct combo (e.g. neurotoxin · glabella, forehead). Closer to a single “upper face” style deliverable than atomizing every token.`
+        );
+      }
+      if (gran === "treatment") {
+        geo.push(
+          `<strong>Broad treatment family only</strong> — fastest to scan; <strong>brand</strong> still appears in parentheses when JSON has <span class="mono">brand</span>.`
+        );
+      }
+      if (gran === "modality_detail" || gran === "modality_detail_areas" || gran === "modality_per_area") {
+        geo.push(
+          `<strong>Product + brand in the label</strong> when the JSON has them (<span class="mono">brand</span> between treatment and product).`
+        );
+      }
+
+      const tn = (k) => o.timelines.get(k) || 0;
+      const now = tn("Now");
+      const next = tn("Add next visit");
+      const wish = tn("Wishlist");
+      const skin = tn("Skincare");
+      const total = o.total;
+      const reasons = [];
+      const pct = (x) => (total > 0 ? ((x / total) * 100).toFixed(0) : "0");
+      const nextWish = next + wish;
+      const nextWishRatio = total ? nextWish / total : 0;
+
+      if (nextWishRatio >= 0.38) {
+        reasons.push(
+          `<strong>Next visit + wishlist</strong> are ${nextWish} of ${total} lines (${pct(nextWish)}%) — main signal for this ranking (pre-appointment + nurture video).`
+        );
+      } else if (total >= 2 && nextWishRatio < 0.22) {
+        reasons.push(
+          `Mostly <strong>Now</strong>, <strong>skincare</strong>, empty, or other timelines — <strong>ranked lower</strong> here because the model prioritizes <strong>next visit</strong> and <strong>wishlist</strong> only.`
+        );
+      }
+      if (o.total && o.recencySum / o.total >= 1.02) {
+        reasons.push(
+          `<strong>Recently logged</strong> (avg recency ${(o.recencySum / o.total).toFixed(2)}) — fresh <span class="mono">addedAt</span> dates.`
+        );
+      }
+
+      if (next > 0 && next >= wish && next >= now) {
+        reasons.push(`<strong>Next visit</strong> is the largest slice (${next}) — strong for booking confirmations and pre-visit sends.`);
+      } else if (wish > next && wish > 0) {
+        reasons.push(`<strong>Wishlist</strong> leads (${wish} vs next visit ${next}) — evergreen / long-cycle nurture clips.`);
+      }
+      if (now >= Math.max(2, total * 0.4) && nextWishRatio < 0.28) {
+        reasons.push(
+          `<strong>Now</strong>-heavy (${pct(now)}%) — weighted lightly in this list; chair-time education may matter more than queued video for this bucket.`
+        );
+      }
+      if (skin >= 2 && skin / total >= 0.35 && nextWishRatio < 0.3) {
+        reasons.push(
+          `<strong>Skincare</strong> timeline is a large share (${pct(skin)}%) — also down-weighted vs next visit / wishlist in this ranking.`
+        );
+      }
+      if (o.staff.size >= 5) {
+        reasons.push(`${o.staff.size} service staff appear on rows with this topic — one polished asset amortizes across the team.`);
+      } else if (o.staff.size >= 3) {
+        reasons.push(`Shows up across ${o.staff.size} staff — shared messaging beats repeated ad-hoc explanation.`);
+      }
+      if (o.products.size >= 5) {
+        reasons.push(
+          `${o.products.size} different products named — film a modality overview first; add short modular cuts per product later.`
+        );
+      } else if (o.products.size >= 2) {
+        reasons.push(`Several products under one treatment (${o.products.size}) — umbrella explainer plus optional deep dives.`);
+      }
+      if (o.patients.size >= 10) {
+        reasons.push(`${o.patients.size} patients in this export — breadth suggests sustained demand, not a one-off spike.`);
+      }
+      if (reasons.length === 0) {
+        reasons.push(
+          `Ranks on overall volume (${total} lines) and timeline mix — still worth scheduling after higher-urgency topics if capacity allows.`
+        );
+      }
+      return [...geo, ...reasons].slice(0, 5);
+    }
+
+    function renderVideoPlan(items) {
+      const el = document.getElementById("videoPlanConclusion");
+      if (!el) return;
+      if (!items || !items.length) {
+        el.innerHTML = '<p class="sub">Load a CSV to see recommendations.</p>';
+        return;
+      }
+      const sel = document.getElementById("videoPlanTopN");
+      const granEl = document.getElementById("videoPlanGranularity");
+      const topN = Math.max(3, parseInt(sel?.value, 10) || 12);
+      const gran = granEl?.value || "treatment_areas";
+      const list = computeVideoPriorities(items, gran).slice(0, topN);
+      const ol = list
+        .map(
+          (row, i) => `
+    <li class="video-plan-item">
+      <div class="video-plan-head">
+        <span class="video-plan-rank">#${i + 1}</span>
+        <span class="video-plan-title">${escapeHtml(row.topic)}</span>
+        <span class="video-plan-score" title="Score: heavy weight on Add next visit + Wishlist; Now/skincare/empty/other are small; next+wish share boost; addedAt recency; staff, volume, products">${row.score.toFixed(1)}</span>
+      </div>
+      <ul class="video-plan-why">${row.reasons.map((r) => `<li>${r}</li>`).join("")}</ul>
+      ${row.hintsHtml || ""}
+      <p class="video-plan-meta">${escapeHtml(row.meta)}</p>
+    </li>`
+        )
+        .join("");
+      el.innerHTML = `<ol class="video-plan-list">${ol}</ol>`;
+    }
+
+    function isGranularityExplanation(html) {
+      const t = stripHtml(html).toLowerCase();
+      return (
+        t.includes("split by area") ||
+        t.includes("stay together") ||
+        t.includes("broad treatment family") ||
+        t.includes("product + brand in the label")
+      );
+    }
+
+    function videoGranularityLabel(val) {
+      const m = {
+        treatment: "Treatment only (broadest)",
+        treatment_areas: "Treatment + area(s) combined per line",
+        treatment_per_area: "Treatment + one row per area",
+        modality_detail: "Treatment + product (detail)",
+        modality_detail_areas: "Treatment + product + area(s)",
+        modality_per_area: "Treatment + product + one row per area",
+      };
+      return m[val] || val;
+    }
+
+    function customerReasonsPlain(row) {
+      return row.reasons
+        .filter((r) => !isGranularityExplanation(r))
+        .map(stripHtml)
+        .join(" ")
+        .trim();
+    }
+
+    function buildVideoPlanCsvRows(list) {
+      const header = [
+        "Rank",
+        "Topic",
+        "Score",
+        "Stats",
+        "Why (plain)",
+        "Brands",
+        "Product lines",
+        "Example angle",
+      ];
+      const lines = [header.map(csvEscapeField).join(",")];
+      list.forEach((row, i) => {
+        const h = row.hintData || {};
+        lines.push(
+          [
+            i + 1,
+            row.topic,
+            row.score.toFixed(2),
+            row.meta,
+            customerReasonsPlain(row) || stripHtml(row.reasons.join(" ")),
+            h.brandsPlain || "",
+            h.tagsPlain || "",
+            h.exampleAngle || "",
+          ]
+            .map(csvEscapeField)
+            .join(",")
+        );
+      });
+      return lines.join("\n");
+    }
+
+    function buildSummaryCsv(agg, items, list, gran, topN) {
+      const dates = items.map((i) => i.addedAt).filter(Boolean).sort();
+      const dateRange = dates.length ? `${dates[0].slice(0, 10)} → ${dates[dates.length - 1].slice(0, 10)}` : "—";
+      const lines = [["Category", "Name", "Value"].map(csvEscapeField).join(",")];
+      const push = (cat, name, val) => lines.push([cat, name, val].map(csvEscapeField).join(","));
+      push("Dataset", "Patients", agg.patientCount);
+      push("Dataset", "Discussion lines", agg.lineCount);
+      push("Dataset", "Date range (addedAt)", dateRange);
+      push("Settings", "Video plan granularity", videoGranularityLabel(gran));
+      push("Settings", "Top N shown", topN);
+      sortedEntries(agg.timeline, true).forEach(([k, v]) => push("Timeline", k || "(empty)", v));
+      lines.push(["", "", ""].join(","));
+      sortedEntries(agg.treatment, true)
+        .filter(([k]) => k && k !== "—")
+        .slice(0, 15)
+        .forEach(([k, v]) => push("Treatment (volume)", k, v));
+      lines.push(["", "", ""].join(","));
+      list.slice(0, 8).forEach((row, i) => {
+        const why = customerReasonsPlain(row);
+        const one = why.length > 200 ? why.slice(0, 197) + "…" : why;
+        push("Video priority (top 8)", `${i + 1}. ${row.topic}`, one);
+      });
+      return lines.join("\n");
+    }
+
+    function escapeSvgText(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function svgHorizontalBarChart(title, entries, options = {}) {
+      const maxBars = options.maxBars ?? 12;
+      const w = options.width ?? 640;
+      const rowH = 24;
+      const barStart = 222;
+      const barMaxW = w - barStart - 52;
+      const padT = 34;
+      const padB = 10;
+      const theme = options.theme ?? "dark";
+      const colors =
+        theme === "light"
+          ? ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2", "#4f46e5", "#0d9488"]
+          : ["#5b8fc7", "#7eb87e", "#d4a84b", "#c77dbd", "#6b9bd1", "#9d8bc7", "#5ab088", "#8b9dc7"];
+      const data = [...entries]
+        .filter((e) => Number(e.value) > 0)
+        .sort((a, b) => Number(b.value) - Number(a.value))
+        .slice(0, maxBars)
+        .map((e) => ({ label: String(e.label ?? ""), value: Number(e.value) }));
+      if (!data.length) return "";
+      const maxV = Math.max(...data.map((d) => d.value), 1);
+      const h = padT + data.length * rowH + padB;
+      let inner = "";
+      inner += `<text class="chart-title" x="${w / 2}" y="22" font-size="13" font-weight="600" text-anchor="middle">${escapeSvgText(title)}</text>`;
+      let y = padT;
+      data.forEach((e, i) => {
+        const label = truncate(e.label, 34);
+        const bw = Math.max(3, (e.value / maxV) * barMaxW);
+        inner += `<text class="bar-label" x="4" y="${y + 16}" font-size="11">${escapeSvgText(label)}</text>`;
+        inner += `<rect x="${barStart}" y="${y + 5}" width="${bw}" height="${rowH - 12}" rx="4" fill="${colors[i % colors.length]}"/>`;
+        inner += `<text class="bar-value" x="${barStart + bw + 6}" y="${y + 16}" font-size="11">${e.value}</text>`;
+        y += rowH;
+      });
+      return `<div class="report-chart-card"><svg class="report-bar-svg report-bar-svg--${theme}" viewBox="0 0 ${w} ${h}" width="100%" preserveAspectRatio="xMidYMin meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${escapeSvgText(title)}">${inner}</svg></div>`;
+    }
+
+    function buildReportChartsHtml(agg, list, theme = "dark") {
+      const timelineData = sortedEntries(agg.timeline, true).map(([label, value]) => ({
+        label: label || "(empty)",
+        value,
+      }));
+      const treatData = sortedEntries(agg.treatment, true)
+        .filter(([k]) => k && k !== "—")
+        .map(([label, value]) => ({ label, value }));
+      const videoData = list.slice(0, 12).map((row) => ({
+        label: row.topic,
+        value: Math.round(row.score * 10) / 10,
+      }));
+      return `
+        <div class="report-chart-grid">
+          ${svgHorizontalBarChart("Discussion lines by timeline", timelineData, { maxBars: 14, theme })}
+          ${svgHorizontalBarChart("Top treatment families (volume)", treatData, { maxBars: 10, theme })}
+          ${svgHorizontalBarChart("Video topics by priority score", videoData, { maxBars: 12, theme })}
+        </div>`;
+    }
+
+    function buildVideoPriorityTableRowsHtml(list) {
+      return list
+        .map((row, i) => {
+          const whyAll = customerReasonsPlain(row) || stripHtml(row.reasons.join(" "));
+          const h = row.hintData || {};
+          return `<tr>
+            <td class="num">${i + 1}</td>
+            <td>${escapeHtml(row.topic)}</td>
+            <td>${escapeHtml(whyAll)}</td>
+            <td>${escapeHtml(h.exampleAngle || "—")}</td>
+            <td>${escapeHtml(h.brandsPlain || "—")}</td>
+            <td>${escapeHtml(h.tagsPlain || "—")}</td>
+          </tr>`;
+        })
+        .join("");
+    }
+
+    function mdCell(s) {
+      return String(s ?? "")
+        .replace(/\|/g, "\\|")
+        .replace(/\n/g, " ")
+        .trim();
+    }
+
+    function mermaidPieFromEntries(entries, title, maxSlice = 9) {
+      const sorted = [...entries].sort((a, b) => b[1] - a[1]);
+      const top = sorted.slice(0, maxSlice);
+      const rest = sorted.slice(maxSlice).reduce((s, [, v]) => s + v, 0);
+      const lines = top.map(([k, v]) => {
+        const lab = mdCell(k || "(empty)").replace(/"/g, "'");
+        return `    "${lab}" : ${v}`;
+      });
+      if (rest > 0) lines.push(`    "Other (combined)" : ${rest}`);
+      return `\`\`\`mermaid\npie showData\n title ${title}\n${lines.join("\n")}\n\`\`\``;
+    }
+
+    function scoreBarAscii(score, maxScore, width = 14) {
+      const m = Math.max(maxScore, 1e-6);
+      const filled = Math.round((score / m) * width);
+      const f = Math.max(0, Math.min(width, filled));
+      return "█".repeat(f) + "░".repeat(width - f);
+    }
+
+    function buildMarkdownReport(agg, items, list, gran, topN, dateRange) {
+      const stamp = new Date().toISOString().slice(0, 19).replace("T", " ");
+      const tn = (k) => agg.timeline.get(k) || 0;
+      const timelinePie = mermaidPieFromEntries(sortedEntries(agg.timeline, true), "Discussion lines by timeline", 10);
+      const treatPie = mermaidPieFromEntries(
+        sortedEntries(agg.treatment, true).filter(([k]) => k && k !== "—"),
+        "Top treatment families (volume)",
+        9
+      );
+      const maxScore = Math.max(...list.map((r) => r.score), 1);
+      let md = `# Discussed treatments — customer report\n\n`;
+      md += `_Generated ${stamp} · ${agg.patientCount} patients · ${agg.lineCount} lines · date range ${dateRange}_\n\n`;
+      md += `## Executive summary\n\n`;
+      md += `- **Dataset:** ${agg.lineCount} discussion lines from ${agg.patientCount} patients (${dateRange}).\n`;
+      md += `- **Video ranking:** Matches the **Video plan** settings — **${videoGranularityLabel(gran)}**, top **${topN}** topics. Heavier weight on **Add next visit** and **Wishlist** (pre-visit + nurture), plus volume, recency, staff/patient breadth, and product spread.\n`;
+      md += `- **Timeline snapshot:** Add next visit ${tn("Add next visit")}, Wishlist ${tn("Wishlist")}, Now ${tn("Now")}, Skincare ${tn("Skincare")}.\n\n`;
+      md += `## Charts (Mermaid)\n\n`;
+      md += `Renders on **GitHub**, many **Notion** pages, and [Mermaid Live Editor](https://mermaid.live). If your viewer does not support Mermaid, use the tables below or the **shareable HTML** export from the tool.\n\n`;
+      md += `### Timeline mix\n\n${timelinePie}\n\n`;
+      md += `### Treatment volume\n\n${treatPie}\n\n`;
+      md += `## Video priorities\n\n`;
+      md += `| # | Topic | Score | Urgency (visual) | Summary (why) |\n|---:|:---|---:|:---|:---|\n`;
+      list.forEach((row, i) => {
+        const why = mdCell((customerReasonsPlain(row) || "").slice(0, 280));
+        const bar = scoreBarAscii(row.score, maxScore, 16);
+        md += `| ${i + 1} | ${mdCell(row.topic)} | ${row.score.toFixed(1)} | ${bar} | ${why || "—"} |\n`;
+      });
+      md += `\n## Appendix — timeline counts\n\n`;
+      md += `| Timeline | Lines |\n|:---|---:|\n`;
+      sortedEntries(agg.timeline, true).forEach(([k, v]) => {
+        md += `| ${mdCell(k || "(empty)")} | ${v} |\n`;
+      });
+      md += `\n## Appendix — top treatments\n\n`;
+      md += `| Treatment | Lines |\n|:---|---:|\n`;
+      sortedEntries(agg.treatment, true)
+        .filter(([k]) => k && k !== "—")
+        .slice(0, 20)
+        .forEach(([k, v]) => {
+          md += `| ${mdCell(k)} | ${v} |\n`;
+        });
+      md += `\n---\n\n_Auto-generated; align priorities with clinical and brand judgment._\n`;
+      return md;
+    }
+
+    function buildStandaloneReportHtml(agg, items, list, gran, topN, dateRange) {
+      const stamp = new Date().toISOString().slice(0, 19).replace("T", " ");
+      const charts = buildReportChartsHtml(agg, list, "light");
+      const tableBody = buildVideoPriorityTableRowsHtml(list);
+      const timelineRows = sortedEntries(agg.timeline, true)
+        .map(([k, v]) => `<tr><td>${escapeHtml(k || "(empty)")}</td><td class="num">${v}</td></tr>`)
+        .join("");
+      const treatRows = sortedEntries(agg.treatment, true)
+        .filter(([k]) => k && k !== "—")
+        .slice(0, 16)
+        .map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td class="num">${v}</td></tr>`)
+        .join("");
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Discussed treatments — shareable report</title>
+  <style>
+    body { font-family: "Segoe UI", system-ui, sans-serif; color: #111; background: #fff; margin: 0; padding: 28px 24px 40px; line-height: 1.5; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { font-size: 1.45rem; margin: 0 0 0.35rem; font-weight: 650; }
+    .meta { color: #444; font-size: 0.92rem; margin: 0 0 1.25rem; }
+    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: #222; font-weight: 650; }
+    .lead { color: #333; font-size: 0.95rem; margin: 0 0 1rem; }
+    .report-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin: 12px 0 8px; }
+    .report-chart-card { border: 1px solid #ccc; border-radius: 10px; padding: 10px 10px 12px; background: #fafafa; }
+    .report-bar-svg { display: block; width: 100%; height: auto; }
+    .report-bar-svg--light .chart-title { fill: #111827; }
+    .report-bar-svg--light .bar-label { fill: #1f2937; }
+    .report-bar-svg--light .bar-value { fill: #4b5563; }
+    table.data { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0 20px; }
+    table.data th, table.data td { border: 1px solid #d8d8d8; padding: 8px 10px; text-align: left; vertical-align: top; }
+    table.data th { background: #f0f0f0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #444; }
+    table.data .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .foot { font-size: 12px; color: #666; margin-top: 28px; padding-top: 16px; border-top: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Discussed treatments — shareable report</h1>
+    <p class="meta">${escapeHtml(stamp)} · ${escapeHtml(String(agg.patientCount))} patients · ${escapeHtml(
+        String(agg.lineCount)
+      )} lines · ${escapeHtml(dateRange)}</p>
+    <p class="lead">Video topics are ranked the same way as the analytics tool’s <strong>Video plan</strong> tab: <strong>${escapeHtml(
+      videoGranularityLabel(gran)
+    )}</strong>, showing the top <strong>${topN}</strong>. The ranking favors lines on <strong>Add next visit</strong> and <strong>Wishlist</strong> (good for pre-appointment and nurture video), and uses volume, how recently items were logged, staff and patient breadth, and product spread as supporting signals.</p>
+    <h2>Visual overview</h2>
+    ${charts}
+    <h2>Video production priorities</h2>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Topic</th>
+          <th>Why prioritize</th>
+          <th>Example angle</th>
+          <th>Brands</th>
+          <th>Product / type lines</th>
+        </tr>
+      </thead>
+      <tbody>${tableBody}</tbody>
+    </table>
+    <h2>Appendix — timeline &amp; treatment volume</h2>
+    <table class="data">
+      <thead><tr><th>Timeline</th><th class="num">Lines</th></tr></thead>
+      <tbody>${timelineRows}</tbody>
+    </table>
+    <table class="data">
+      <thead><tr><th>Treatment</th><th class="num">Lines</th></tr></thead>
+      <tbody>${treatRows}</tbody>
+    </table>
+    <p class="foot">Generated locally from your export. Priorities are suggestions — align with clinical judgment and brand guidelines before locking a production schedule.</p>
+  </div>
+</body>
+</html>`;
+    }
+
+    function renderCustomerReport(agg, items) {
+      const body = document.getElementById("customerReportBody");
+      if (!body) return;
+      if (!items || !items.length || !agg) {
+        body.innerHTML = '<p class="sub">Load a CSV to generate the report.</p>';
+        return;
+      }
+      const sel = document.getElementById("videoPlanTopN");
+      const granEl = document.getElementById("videoPlanGranularity");
+      const topN = Math.max(3, parseInt(sel?.value, 10) || 12);
+      const gran = granEl?.value || "treatment_areas";
+      const list = computeVideoPriorities(items, gran).slice(0, topN);
+
+      const dates = items.map((i) => i.addedAt).filter(Boolean).sort();
+      const dateRange = dates.length ? `${dates[0].slice(0, 10)} → ${dates[dates.length - 1].slice(0, 10)}` : "—";
+      const tn = (k) => agg.timeline.get(k) || 0;
+      const topTreatments = sortedEntries(agg.treatment, true).filter(([k]) => k && k !== "—").slice(0, 5);
+
+      const execDataset = `This export has <strong>${agg.lineCount}</strong> discussion lines from <strong>${agg.patientCount}</strong> patients. Logged dates span <strong>${escapeHtml(dateRange)}</strong>.`;
+      const execMethod = `Video topics below use the same ranking as the <strong>Video plan</strong> tab (<em>${escapeHtml(videoGranularityLabel(gran))}</em>, top <strong>${topN}</strong>). We prioritize lines tied to <strong>Add next visit</strong> and <strong>Wishlist</strong> — good moments for pre-appointment and nurture clips — and use volume, how recently items were logged, how many staff and patients mention a topic, and product spread as supporting signals.`;
+      const execTimeline = `Timeline mix in this file: <strong>Add next visit</strong> ${tn("Add next visit")}, <strong>Wishlist</strong> ${tn("Wishlist")}, <strong>Now</strong> ${tn("Now")}, <strong>Skincare</strong> ${tn("Skincare")}. Other labels appear in the appendix table.`;
+      const execTreatments =
+        topTreatments.length > 0
+          ? `Most discussed treatment families: ${topTreatments
+              .slice(0, 3)
+              .map(([k, v]) => `<strong>${escapeHtml(k)}</strong> (${v})`)
+              .join(", ")}.`
+          : "";
+
+      const top5Lines = list.slice(0, 5).map((row, i) => {
+        const cr = row.reasons.find((r) => !isGranularityExplanation(r));
+        const why = cr ? stripHtml(cr) : stripHtml(row.reasons[row.reasons.length - 1] || "");
+        const short = why.length > 160 ? why.slice(0, 157) + "…" : why;
+        return `<li><strong>${i + 1}. ${escapeHtml(row.topic)}</strong> — ${escapeHtml(short)}</li>`;
+      });
+
+      const chartsHtml = buildReportChartsHtml(agg, list, "dark");
+      const tableRows = buildVideoPriorityTableRowsHtml(list);
+
+      const timelineRows = sortedEntries(agg.timeline, true)
+        .map(([k, v]) => `<tr><td>${escapeHtml(k || "(empty)")}</td><td class="num">${v}</td></tr>`)
+        .join("");
+
+      const treatRows = sortedEntries(agg.treatment, true)
+        .filter(([k]) => k && k !== "—")
+        .slice(0, 12)
+        .map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td class="num">${v}</td></tr>`)
+        .join("");
+
+      body.innerHTML = `
+        <div class="report-exec">
+          <h3>Executive summary</h3>
+          <ul>
+            <li>${execDataset}</li>
+            <li>${execMethod}</li>
+            <li>${execTimeline}</li>
+            ${execTreatments ? `<li>${execTreatments}</li>` : ""}
+          </ul>
+          <p style="margin:0.85rem 0 0;font-size:0.9rem;color:var(--muted)"><strong>Start here — top ${Math.min(5, list.length)} video topics</strong></p>
+          <ul style="margin-top:0.4rem">${top5Lines.join("")}</ul>
+        </div>
+        <div class="report-section">
+          <h3>Visual overview</h3>
+          <p class="sub" style="font-size:0.8rem;margin:-0.2rem 0 0.35rem">
+            Same numbers as the tables below — included when you print or save as PDF. For a file you can email, use <strong>Download shareable HTML</strong>.
+          </p>
+          ${chartsHtml}
+        </div>
+        <div class="report-section">
+          <h3>Full priority list (${list.length} topics)</h3>
+          <div class="report-table-wrap">
+            <table class="report-data">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Topic</th>
+                  <th>Why prioritize</th>
+                  <th>Example angle</th>
+                  <th>Brands</th>
+                  <th>Product / type lines</th>
+                </tr>
+              </thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </div>
+        </div>
+        <div class="report-section">
+          <h3>Appendix — timeline &amp; volume</h3>
+          <p class="sub" style="font-size:0.8rem;margin:-0.2rem 0 0.5rem">Raw counts from the same export; useful context for the recommendations above.</p>
+          <div class="report-table-wrap" style="margin-bottom:1rem">
+            <table class="report-data">
+              <thead><tr><th>Timeline</th><th class="num">Lines</th></tr></thead>
+              <tbody>${timelineRows}</tbody>
+            </table>
+          </div>
+          <div class="report-table-wrap">
+            <table class="report-data">
+              <thead><tr><th>Treatment</th><th class="num">Lines</th></tr></thead>
+              <tbody>${treatRows}</tbody>
+            </table>
+          </div>
+        </div>
+        <p class="report-disclaimer">
+          This report is generated automatically from your export. Rankings are heuristics meant to suggest production order — they should be aligned with clinical judgment, brand guidelines, and what your team already plans to film.
+        </p>`;
+    }
+
+    function bindReportButtons() {
+      const printBtn = document.getElementById("btnPrintReport");
+      if (printBtn && !printBtn.dataset.bound) {
+        printBtn.dataset.bound = "1";
+        printBtn.addEventListener("click", () => {
+          document.getElementById("tabs")?.querySelector('.tab[data-tab="report"]')?.click();
+          document.body.classList.add("printing-report");
+          requestAnimationFrame(() => window.print());
+        });
+      }
+      if (!window.__reportAfterPrintBound) {
+        window.__reportAfterPrintBound = true;
+        window.addEventListener("afterprint", () => document.body.classList.remove("printing-report"));
+      }
+      const csvVid = document.getElementById("btnCsvVideo");
+      if (csvVid && !csvVid.dataset.bound) {
+        csvVid.dataset.bound = "1";
+        csvVid.addEventListener("click", () => {
+          const { items } = reportCache;
+          if (!items?.length) {
+            alert("Load a CSV first.");
+            return;
+          }
+          const sel = document.getElementById("videoPlanTopN");
+          const granEl = document.getElementById("videoPlanGranularity");
+          const topN = Math.max(3, parseInt(sel?.value, 10) || 12);
+          const gran = granEl?.value || "treatment_areas";
+          const list = computeVideoPriorities(items, gran).slice(0, topN);
+          downloadText("video-plan-priorities.csv", buildVideoPlanCsvRows(list));
+        });
+      }
+      const csvSum = document.getElementById("btnCsvSummary");
+      if (csvSum && !csvSum.dataset.bound) {
+        csvSum.dataset.bound = "1";
+        csvSum.addEventListener("click", () => {
+          const { agg, items } = reportCache;
+          if (!agg || !items?.length) {
+            alert("Load a CSV first.");
+            return;
+          }
+          const sel = document.getElementById("videoPlanTopN");
+          const granEl = document.getElementById("videoPlanGranularity");
+          const topN = Math.max(3, parseInt(sel?.value, 10) || 12);
+          const gran = granEl?.value || "treatment_areas";
+          const list = computeVideoPriorities(items, gran).slice(0, topN);
+          downloadText("patients-discussed-summary.csv", buildSummaryCsv(agg, items, list, gran, topN));
+        });
+      }
+      const mdBtn = document.getElementById("btnMdReport");
+      if (mdBtn && !mdBtn.dataset.bound) {
+        mdBtn.dataset.bound = "1";
+        mdBtn.addEventListener("click", () => {
+          const { agg, items } = reportCache;
+          if (!agg || !items?.length) {
+            alert("Load a CSV first.");
+            return;
+          }
+          const sel = document.getElementById("videoPlanTopN");
+          const granEl = document.getElementById("videoPlanGranularity");
+          const topN = Math.max(3, parseInt(sel?.value, 10) || 12);
+          const gran = granEl?.value || "treatment_areas";
+          const list = computeVideoPriorities(items, gran).slice(0, topN);
+          const dates = items.map((i) => i.addedAt).filter(Boolean).sort();
+          const dateRange = dates.length ? `${dates[0].slice(0, 10)} → ${dates[dates.length - 1].slice(0, 10)}` : "—";
+          const md = buildMarkdownReport(agg, items, list, gran, topN, dateRange);
+          downloadText("patients-discussed-report.md", md, "text/markdown;charset=utf-8", false);
+        });
+      }
+      const htmlBtn = document.getElementById("btnHtmlReport");
+      if (htmlBtn && !htmlBtn.dataset.bound) {
+        htmlBtn.dataset.bound = "1";
+        htmlBtn.addEventListener("click", () => {
+          const { agg, items } = reportCache;
+          if (!agg || !items?.length) {
+            alert("Load a CSV first.");
+            return;
+          }
+          const sel = document.getElementById("videoPlanTopN");
+          const granEl = document.getElementById("videoPlanGranularity");
+          const topN = Math.max(3, parseInt(sel?.value, 10) || 12);
+          const gran = granEl?.value || "treatment_areas";
+          const list = computeVideoPriorities(items, gran).slice(0, topN);
+          const dates = items.map((i) => i.addedAt).filter(Boolean).sort();
+          const dateRange = dates.length ? `${dates[0].slice(0, 10)} → ${dates[dates.length - 1].slice(0, 10)}` : "—";
+          const html = buildStandaloneReportHtml(agg, items, list, gran, topN, dateRange);
+          downloadText("patients-discussed-report.html", html, "text/html;charset=utf-8", false);
+        });
+      }
+      const ref = document.getElementById("btnRefreshReport");
+      if (ref && !ref.dataset.bound) {
+        ref.dataset.bound = "1";
+        ref.addEventListener("click", () => renderCustomerReport(reportCache.agg, reportCache.items));
+      }
+    }
+
+    function bindVideoPlanControls() {
+      const rerender = () => {
+        renderVideoPlan(allItems);
+        renderCustomerReport(reportCache.agg, reportCache.items);
+      };
+      const sel = document.getElementById("videoPlanTopN");
+      if (sel && !sel.dataset.bound) {
+        sel.dataset.bound = "1";
+        sel.addEventListener("change", rerender);
+      }
+      const gran = document.getElementById("videoPlanGranularity");
+      if (gran && !gran.dataset.bound) {
+        gran.dataset.bound = "1";
+        gran.addEventListener("change", rerender);
+      }
+    }
+
+    function initTabs() {
+      const panels = [...document.querySelectorAll(".panel")];
+      const names = [
+        { id: "overview", label: "Overview" },
+        { id: "staff", label: "Service staff" },
+        { id: "timelines", label: "Timelines" },
+        { id: "products", label: "Products & regions" },
+        { id: "videos", label: "Video plan" },
+        { id: "report", label: "Customer report" },
+        { id: "explorer", label: "Line items" },
+      ];
+      const nav = document.getElementById("tabs");
+      nav.innerHTML = names
+        .map(
+          (n, i) =>
+            `<button type="button" class="tab${i === 0 ? " active" : ""}" data-tab="${n.id}">${escapeHtml(n.label)}</button>`
+        )
+        .join("");
+      nav.querySelectorAll(".tab").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          nav.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          panels.forEach((p) => p.classList.toggle("active", p.dataset.panel === btn.dataset.tab));
+        });
+      });
+    }
+
+    function destroyAllCharts() {
+      Object.keys(charts).forEach((id) => destroyChart(id));
+    }
+
+    function processCsvText(text) {
+      destroyAllCharts();
+      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+      if (parsed.errors?.length) {
+        console.warn(parsed.errors);
+      }
+      const rows = parsed.data;
+      if (!rows.length) throw new Error("CSV has no data rows.");
+      const col = Object.keys(rows[0] || {}).find((k) => k.includes("Treatments Discussed"));
+      if (!col) throw new Error("No column containing “Treatments Discussed” found.");
+
+      allItems = buildLineItems(rows);
+      if (!allItems.length) throw new Error("No treatment line items parsed — check JSON in the CSV.");
+
+      const agg = aggregate(allItems);
+      document.getElementById("app").classList.remove("hidden");
+      document.getElementById("loadErr").classList.add("hidden");
+
+      renderKpis(agg, allItems);
+      renderOverview(agg);
+      renderStaff(agg, allItems);
+      stackedTreatmentTimeline(agg);
+      renderTimelineTable(agg);
+      renderTopicTimelineTable(allItems);
+      renderProductsPanel(agg, allItems);
+      renderExplorer(allItems);
+      reportCache = { agg, items: allItems };
+      bindVideoPlanControls();
+      renderVideoPlan(allItems);
+      renderCustomerReport(agg, allItems);
+      try {
+        localStorage.setItem("patientsDiscussedCsvV1", text);
+      } catch {
+        /* quota or private mode */
+      }
+    }
+
+    function showErr(msg) {
+      const el = document.getElementById("loadErr");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+    }
+
+    document.getElementById("file").addEventListener("change", (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        try {
+          processCsvText(r.result);
+        } catch (err) {
+          showErr(err.message || String(err));
+        }
+      };
+      r.readAsText(f, "UTF-8");
+    });
+
+    document.getElementById("btnSample").addEventListener("click", async () => {
+      const url = new URL("../Patients-Grid view (9) - Sheet1.csv", window.location.href);
+      try {
+        const res = await fetch(url.href);
+        if (!res.ok) throw new Error(`HTTP ${res.status} — use the file picker, or serve the repo over HTTP.`);
+        const text = await res.text();
+        processCsvText(text);
+      } catch (e) {
+        showErr(e.message || String(e));
+      }
+    });
+
+    document.getElementById("btnClear").addEventListener("click", () => {
+      document.getElementById("app").classList.add("hidden");
+      document.getElementById("file").value = "";
+      destroyAllCharts();
+      document.getElementById("loadErr").classList.add("hidden");
+      reportCache = { agg: null, items: null };
+      const rb = document.getElementById("customerReportBody");
+      if (rb) rb.innerHTML = '<p class="sub">Load a CSV to generate the report.</p>';
+      try {
+        localStorage.removeItem("patientsDiscussedCsvV1");
+      } catch {
+        /* ignore */
+      }
+    });
+
+    async function tryAutoLoadCsv() {
+      const params = new URLSearchParams(location.search);
+      if (params.get("nodata") === "1") return;
+
+      const tryProcess = (text, sourceLabel) => {
+        try {
+          processCsvText(text);
+          return true;
+        } catch (e) {
+          console.warn("Auto-load skipped:", sourceLabel, e);
+          return false;
+        }
+      };
+
+      const dataParam = params.get("data");
+      if (dataParam && dataParam.trim()) {
+        let url;
+        try {
+          url = new URL(dataParam, window.location.href).href;
+        } catch {
+          url = dataParam;
+        }
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) {
+            showErr(`Could not load ?data= (HTTP ${res.status}) — check the path is same-origin.`);
+            return;
+          }
+          const text = await res.text();
+          if (!tryProcess(text, "?data=")) {
+            showErr("File from ?data= loaded but is not a valid discussed-treatments export (missing column or rows).");
+          }
+        } catch {
+          showErr(`Could not fetch ?data= (${url}). Same-origin only unless the server allows CORS.`);
+        }
+        return;
+      }
+
+      try {
+        const cached = localStorage.getItem("patientsDiscussedCsvV1");
+        if (cached && cached.length > 200 && tryProcess(cached, "localStorage")) return;
+      } catch {
+        /* ignore */
+      }
+
+      const urls = [
+        `${window.location.origin}/patients-discussed-data.csv`,
+        new URL("patients-discussed-data.csv", window.location.href).href,
+        new URL("../Patients-Grid view (9) - Sheet1.csv", window.location.href).href,
+      ];
+      for (const u of urls) {
+        try {
+          const res = await fetch(u, { cache: "no-store" });
+          if (!res.ok) continue;
+          const text = await res.text();
+          if (tryProcess(text, u)) return;
+        } catch {
+          /* file:// or missing */
+        }
+      }
+    }
+
+    initTabs();
+    bindReportButtons();
+    bindVideoPlanControls();
+    renderVideoPlan(allItems);
+    tryAutoLoadCsv();
+  </script>
+</body>
+</html>

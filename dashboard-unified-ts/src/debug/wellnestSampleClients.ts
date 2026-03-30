@@ -54,6 +54,7 @@ function baseClient(overrides: Partial<Client> & Pick<Client, "id" | "name">): C
     ageRange: "40-49",
     dateOfBirth: null,
     goals: ["Recovery", "Energy", "Longevity"],
+    wellnessGoals: [],
     concerns: "",
     areas: [],
     aestheticGoals: "",
@@ -233,6 +234,12 @@ export function getWellnestSampleClients(): Client[] {
           quantity: "1",
         },
       ),
+      wellnessQuiz: {
+        version: 1,
+        completedAt: nowIso(),
+        answers: {},
+        suggestedTreatmentIds: ["tesamorelin", "aod-9604", "cartalax", "mk-677"],
+      },
     }),
   ];
 }

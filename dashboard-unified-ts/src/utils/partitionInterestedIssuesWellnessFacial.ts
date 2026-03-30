@@ -82,3 +82,23 @@ export function partitionInterestedIssuesForFacialVsWellness(
   }
   return { facialInterests, wellnessInterests };
 }
+
+/** Deduped list: partitioned wellness phrases from `interestedIssues` plus explicit Airtable "Wellness Goals". */
+export function mergeWellnessIntakeFromField(
+  partitionedWellness: string[],
+  wellnessGoalsField: string[] | undefined,
+): string[] {
+  const fromField = wellnessGoalsField ?? [];
+  if (fromField.length === 0) return partitionedWellness;
+  const seen = new Set(
+    partitionedWellness.map((s) => s.trim().toLowerCase()).filter(Boolean),
+  );
+  const out = [...partitionedWellness];
+  for (const w of fromField) {
+    const k = w.trim().toLowerCase();
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(w.trim());
+  }
+  return out;
+}

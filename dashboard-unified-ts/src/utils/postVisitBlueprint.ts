@@ -68,8 +68,35 @@ export type BlueprintEventName =
   | "blueprint_opened"
   | "video_played_module_X"
   | "case_gallery_viewed"
-  | "financing_clicked"
-  | "booking_clicked";
+  | "booking_clicked"
+  | "blueprint_quote_opened"
+  | "blueprint_quote_closed"
+  | "blueprint_quote_line_toggled"
+  | "blueprint_mint_preview_toggled"
+  | "blueprint_mint_info_opened"
+  | "blueprint_toc_navigated"
+  | "blueprint_narrative_audio_started"
+  | "blueprint_narrative_audio_stopped"
+  | "blueprint_case_detail_opened"
+  | "blueprint_booking_confirm_viewed"
+  | "blueprint_booking_back_to_quote"
+  | "blueprint_booking_done"
+  | "blueprint_text_provider_clicked"
+  | "blueprint_analysis_subpage_viewed"
+  | "blueprint_plan_feedback_reaction"
+  | "blueprint_video_modal_opened"
+  | "blueprint_external_link_clicked"
+  | "blueprint_brand_website_clicked"
+  | "blueprint_glossary_section_toggled"
+  | "blueprint_subpage_jump_to_guide"
+  | "blueprint_subpage_treatment_details_opened"
+  | "blueprint_subpage_eye_area_cta_clicked";
+
+/** Shared analytics ids on patient blueprint pages (PostHog). */
+export type BlueprintPatientAnalyticsBase = {
+  token: string;
+  patient_id: string;
+};
 
 export interface PostVisitBlueprintPayload {
   version: 1;

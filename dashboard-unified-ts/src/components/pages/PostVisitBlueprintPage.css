@@ -2,6 +2,24 @@
    Post-Visit Blueprint — Sleek Mobile App
    ══════════════════════════════════════════════ */
 
+/* ── Scroll-reveal animations ── */
+@keyframes pvb-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pvb-section--visible {
+    animation: pvb-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
 .pvb {
   --pvb-mint: #9dd6cb;
   --pvb-mint-deep: #5a9e94;
@@ -214,10 +232,10 @@
 
 .pvb-overview-heading-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
 .pvb-overview-heading-brand {
@@ -257,7 +275,7 @@
   flex-direction: column;
   gap: 16px;
   /* Space between subtitle and the green narrative card */
-  margin-top: 22px;
+  margin-top: 12px;
 }
 
 .pvb-overview-meta {
@@ -376,12 +394,6 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #64748b;
-}
-
-.pvb-plan-glossary__section-hint {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #94a3b8;
 }
 
 .pvb-plan-glossary__section-chev {
@@ -2134,6 +2146,19 @@
   cursor: not-allowed;
 }
 
+.pvb-quote-mint-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.pvb-quote-mint-toggle-main {
+  min-width: 0;
+}
+
 .pvb-quote-mint-hint {
   margin: 8px 0 0;
   padding-left: calc(1.05rem + 10px);
@@ -2180,6 +2205,17 @@
 .pvb-quote-total span { font-weight: 700; color: #3a3c3e; }
 .pvb-quote-total strong { color: #5a9e94; font-size: 1.1rem; font-weight: 800; }
 
+.pvb-booking-intent-error {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
 /* ── Drawer CTAs ── */
 .pvb-drawer-ctas {
   display: flex;
@@ -2190,15 +2226,25 @@
 .pvb-cta {
   display: block;
   text-decoration: none;
+  border: none;
   border-radius: 14px;
   padding: 16px;
   text-align: center;
   font-size: 1rem;
   font-weight: 700;
   font-family: inherit;
+  cursor: pointer;
   transition: transform 0.1s ease;
+  box-sizing: border-box;
+  width: 100%;
 }
 .pvb-cta:active { transform: scale(0.97); }
+
+.pvb-cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .pvb-cta--book {
   background: #9dd6cb;
@@ -2217,6 +2263,32 @@
 .pvb-drawer-ctas-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Booking request — after “Proceed to book” */
+.pvb-drawer-book-confirm {
+  padding: 8px 0 4px;
+}
+
+.pvb-drawer-book-confirm-title {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1e293b;
+  letter-spacing: -0.02em;
+}
+
+.pvb-drawer-book-confirm-text {
+  margin: 0 0 22px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.pvb-drawer-book-confirm-actions {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
@@ -2434,6 +2506,17 @@
   font-weight: 600;
   margin-bottom: 12px;
   color: #1e293b;
+}
+
+.pvb-case-prose--detailed {
+  margin-top: 12px;
+  font-size: 0.88rem;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.pvb-case-prose--detailed:first-child {
+  margin-top: 0;
 }
 
 .pvb-case-tags-line {

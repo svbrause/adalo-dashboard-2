@@ -1,4 +1,5 @@
 import type { TreatmentChapter } from "./blueprintTreatmentChapters";
+import { patientFacingSkincareShortName } from "./pvbSkincareDisplay";
 import type {
   BlueprintAnalysisOverviewSnapshot,
   PlanTreatmentRow,
@@ -158,14 +159,26 @@ function treatmentInsightClosing(chapter: TreatmentChapter): string {
 }
 
 function productHintSentence(chapter: TreatmentChapter): string | null {
+  const isSkincare = chapter.treatment.trim().toLowerCase() === "skincare";
+  const raw = chapter.planItems
+    .map((i) => (i.product ?? "").trim())
+    .filter(Boolean);
+  if (raw.length === 0) return null;
+
   const products = dedupeStrings(
-    chapter.planItems.map((i) => (i.product ?? "").trim()).filter(Boolean),
+    isSkincare ? raw.map((p) => patientFacingSkincareShortName(p)) : raw,
   );
   if (products.length === 0) return null;
+
   if (products.length === 1) {
     const area = chapter.displayArea ? ` in ${chapter.displayArea}` : "";
-    return `${products[0]} is the primary treatment in this chapter${area}.`;
+    return `${products[0]} is the primary ${isSkincare ? "product" : "treatment"} in this chapter${area}.`;
   }
+
+  if (isSkincare) {
+    return `This chapter lists ${products.length} medical-grade home products your provider chose to work together in your routine—details are in the lines above.`;
+  }
+
   return `Your plan combines ${formatEnglishList(products.slice(0, 3))} to address this chapter from complementary angles.`;
 }
 
@@ -174,13 +187,11 @@ export type ChapterOverviewAnalysisInput = {
   planRow: PlanTreatmentRow | null;
 };
 
-/**
- * Merge visit notes + scan findings into one patient-facing analysis paragraph.
- */
-export function buildChapterAnalysisParagraph(
+/** Visit + scan signals used for “what this chapter addresses” and analysis (deduped). */
+export function getChapterOverviewMergedConcerns(
   chapter: TreatmentChapter,
   options: ChapterOverviewAnalysisInput | null | undefined,
-): string {
+): string[] {
   const treatment = chapter.treatment;
   const planRow = options?.planRow ?? null;
   const snapshot = options?.overviewSnapshot ?? null;
@@ -202,12 +213,25 @@ export function buildChapterAnalysisParagraph(
     ]);
   }
 
-  const merged = dedupeStrings([...fromVisit, ...fromScan]).slice(0, 8);
+  return dedupeStrings([...fromVisit, ...fromScan]).slice(0, 8);
+}
 
-  if (merged.length > 0) {
-    const list = formatEnglishList(merged.slice(0, 5));
-    const closing = treatmentInsightClosing(chapter);
-    return `Your assessment and visit notes point to ${list}. ${closing}`;
+export type ChapterAnalysisParagraphOptions = {
+  /** True when intro already opened with an “addressing” line (e.g. display area). */
+  hadExplicitAddressingSentence?: boolean;
+};
+
+/**
+ * Follow-up paragraph after the chapter intro: modality “why it fits” and fallbacks when we had no concern list.
+ * When `mergedConcerns` is non-empty, the intro already states what this addresses — only the modality insight remains.
+ */
+export function buildChapterAnalysisParagraph(
+  chapter: TreatmentChapter,
+  mergedConcerns: string[],
+  paragraphOpts?: ChapterAnalysisParagraphOptions,
+): string {
+  if (mergedConcerns.length > 0) {
+    return treatmentInsightClosing(chapter);
   }
 
   const productHint = productHintSentence(chapter);
@@ -216,6 +240,9 @@ export function buildChapterAnalysisParagraph(
   }
 
   if (chapter.displayArea) {
+    if (paragraphOpts?.hadExplicitAddressingSentence) {
+      return treatmentInsightClosing(chapter);
+    }
     return `Your plan applies this to ${chapter.displayArea}. ${treatmentInsightClosing(chapter)}`;
   }
 

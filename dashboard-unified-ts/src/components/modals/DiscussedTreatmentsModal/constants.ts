@@ -781,7 +781,7 @@ export const OTHER_TREATMENT_LABEL = "Other";
 /** Treatment options for the current provider. When provider is TheTreatment250, only categories that exist in the 2025 pricing sheet are returned. */
 export function getTreatmentOptionsForProvider(providerCode: string | undefined): string[] {
   if (isWellnestWellnessProviderCode(providerCode)) {
-    return getWellnestTreatmentOptionNames();
+    return Array.from(new Set([...getWellnestTreatmentOptionNames(), ...ALL_TREATMENTS]));
   }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...ALL_TREATMENTS];
   return ALL_TREATMENTS.filter((t) =>
@@ -795,7 +795,8 @@ export function getTreatmentProductOptionsForProvider(
   treatment: string,
 ): string[] {
   if (isWellnestWellnessProviderCode(providerCode)) {
-    return getWellnestProductOptionsForTreatment(treatment);
+    const wellnest = getWellnestProductOptionsForTreatment(treatment);
+    if (wellnest.length > 0) return wellnest;
   }
   const base = TREATMENT_PRODUCT_OPTIONS[treatment];
   if (!base) return [];

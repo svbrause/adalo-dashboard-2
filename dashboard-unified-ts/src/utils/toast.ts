@@ -10,7 +10,7 @@ function getToastContainer(): HTMLDivElement {
       position: fixed;
       top: 20px;
       right: 20px;
-      z-index: 10000;
+      z-index: 12000;
       display: flex;
       flex-direction: column;
       gap: 12px;

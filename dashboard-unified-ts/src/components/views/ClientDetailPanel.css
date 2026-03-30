@@ -6,10 +6,13 @@
   top: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   background: var(--theme-bg-card);
   display: flex;
   flex-direction: column;
-  z-index: 100; /* Above all content, below modals (which are z-index 1000+) */
+  /* Above mobile tab bar (100) and view chrome; below app modals (1000+) */
+  z-index: 250;
   overflow: hidden;
 }
 
@@ -101,6 +104,8 @@
   overflow-x: hidden;
   min-height: 0;
   width: 100%;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .client-detail-panel-body {
@@ -131,13 +136,14 @@
 
 /* Left-align photo and contact info section in panel */
 .client-detail-panel-body .modal-header-with-photo {
+  --modal-photo-contact-gap: 24px;
   padding-left: 20px !important;
   padding-right: 20px !important;
   padding-top: 20px !important;
   padding-bottom: 12px !important;
   margin-left: 0;
   margin-right: 0;
-  gap: 24px; /* Space between photo and contact info */
+  gap: var(--modal-photo-contact-gap); /* Space between photo and contact info */
   align-items: flex-start; /* Align to top */
   background: #fafafa !important; /* Restore gray background */
   border-bottom: 1px solid var(--theme-border) !important; /* Restore border */
@@ -154,6 +160,42 @@
   flex-grow: 0 !important;
   align-self: flex-start !important; /* Don't stretch vertically */
   margin: 0 !important; /* Remove any margins */
+}
+
+/* Panel does not import ClientDetailModal.css — define tap target + overlay here for mobile */
+.client-detail-panel-body .modal-photo-container.modal-photo-container-clickable {
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
+  touch-action: manipulation;
+}
+
+.client-detail-panel-body button.modal-photo-container-clickable {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  box-sizing: border-box;
+  /* Unset global mobile min-height: 44px on all buttons — size follows photo */
+  min-height: 0;
+}
+
+.client-detail-panel-body .modal-photo-container .modal-photo-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  pointer-events: none;
 }
 
 /* Make photo square - not stretch too tall */
@@ -207,9 +249,14 @@
 
 .client-detail-panel-body .edit-toggle-btn {
   position: absolute;
-  top: -8px; /* Move up */
-  right: 16px; /* Move left from edge */
+  top: -8px;
+  right: 16px;
   margin: 0;
+}
+
+/* Row layout: align edit control's right edge with photo's right (any photo width) */
+.client-detail-panel-body .modal-header-with-photo .edit-toggle-btn {
+  right: calc(100% + var(--modal-photo-contact-gap));
 }
 
 /* Header layout - name, subtitle or last activity inline */
@@ -1091,14 +1138,198 @@
 
 @media (max-width: 768px) {
   .client-detail-panel-header {
-    padding: 20px 24px;
+    padding: 16px;
+    gap: 12px;
+    max-width: 100%;
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  .client-detail-panel-title {
+    font-size: 18px;
+  }
+
+  .client-detail-panel-header-subtitle {
+    font-size: 14px;
+  }
+
+  .client-detail-panel-back {
+    font-size: 14px;
+    padding: 8px 12px;
+    min-height: 36px;
+  }
+
+  .client-detail-panel-close {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
   }
 
   .client-detail-panel-body {
-    padding: 24px;
+    padding: 16px;
+    max-width: 100%;
   }
 
   .client-detail-panel-footer {
-    padding: 20px 24px;
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    max-width: 100%;
+  }
+
+  /* Photo header: stack vertically, photo full width */
+  .client-detail-panel-body .modal-header-with-photo {
+    flex-direction: column !important;
+    --modal-photo-contact-gap: 16px;
+    gap: 16px !important;
+    padding: 16px !important;
+    margin-bottom: 20px;
+    border-radius: 14px;
+  }
+
+  /* Column layout: photo and contact share width — edit right matches photo right */
+  .client-detail-panel-body .modal-header-with-photo .edit-toggle-btn {
+    right: 0;
+  }
+
+  .client-detail-panel-body .modal-photo-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    max-height: 200px;
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  .client-detail-panel-body .modal-photo-container .modal-photo {
+    min-height: 160px;
+    max-height: 200px;
+    aspect-ratio: auto;
+  }
+
+  .client-detail-panel-body .modal-photo-placeholder-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    max-height: 180px !important;
+  }
+
+  .client-detail-panel-body .modal-photo-placeholder-wrapper .photo-placeholder-container {
+    height: auto !important;
+    min-height: 120px !important;
+    max-height: 180px !important;
+    padding: 24px 16px;
+  }
+
+  /* Contact grid: single column, generous spacing */
+  .client-detail-panel-body .modal-contact-section .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .contact-info-with-actions {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Action buttons: full width, proper tap targets */
+  .contact-actions-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .contact-actions-buttons button,
+  .contact-actions-buttons .btn-secondary {
+    flex: 1 1 auto;
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+    font-size: 14px;
+  }
+
+  /* Discussed treatments: stack for readability */
+  .discussed-treatments-row {
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+    padding: 12px 0;
+  }
+
+  .discussed-treatments-row-treatment-name {
+    min-width: 0;
+    font-size: 14px;
+  }
+
+  .discussed-treatments-row-content {
+    font-size: 14px;
+  }
+
+  .discussed-treatments-in-facial-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .discussed-treatments-in-facial-heading {
+    font-size: 14px;
+  }
+
+  .discussed-treatments-record-row-outer {
+    padding: 12px 14px;
+  }
+
+  .discussed-treatments-record-primary-outer {
+    font-size: 15px;
+  }
+
+  .discussed-treatments-record-meta-outer {
+    font-size: 13px;
+  }
+
+  .modal-contact-section-with-offers {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Skin analysis scores: compact label */
+  .skin-analysis-score-label {
+    flex: 0 0 6.5rem;
+    font-size: 13px;
+  }
+
+  .skin-analysis-score-row {
+    gap: 8px;
+    min-height: 28px;
+  }
+
+  /* Section spacing */
+  .detail-section-skin-analysis,
+  .detail-section-wellness-quiz,
+  .detail-section-facial-analysis,
+  .detail-section-with-border {
+    padding: 16px;
+    margin-top: 16px;
+    border-radius: 12px;
+  }
+
+  .skin-analysis-product-chip {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .skin-analysis-product-chip-thumb {
+    width: 32px;
+    height: 32px;
+  }
+
+  .detail-wellness-intake-chip {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  /* Edit toggle: easier to tap */
+  .client-detail-panel-body .edit-toggle-btn {
+    padding: 10px;
+    top: -4px;
   }
 }
