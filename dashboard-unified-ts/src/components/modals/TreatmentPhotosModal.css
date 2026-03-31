@@ -35,16 +35,32 @@
   overflow: hidden;
 }
 
+@media (max-width: 768px) {
+  .treatment-photos-modal-overlay {
+    padding: 8px;
+  }
+
+  .treatment-photos-modal-content {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    min-height: 0;
+    max-height: none;
+    border-radius: 12px;
+  }
+
+  .treatment-photos-modal-content .treatment-photos-browser {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 @media (max-width: 600px) {
   .treatment-photos-modal-overlay {
     padding: 0;
   }
 
   .treatment-photos-modal-content {
-    width: 100%;
-    max-width: none;
-    height: 100vh;
-    max-height: none;
     border-radius: 0;
   }
 }

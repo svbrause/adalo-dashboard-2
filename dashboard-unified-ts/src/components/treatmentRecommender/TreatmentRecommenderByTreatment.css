@@ -230,6 +230,16 @@
   border-color: var(--theme-border-strong, #ccc);
 }
 
+.treatment-recommender-by-treatment__plan-row:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.treatment-recommender-by-treatment__plan-row:disabled:hover {
+  background: var(--theme-bg-card, #fff);
+  border-color: var(--theme-border, #e8e8e8);
+}
+
 .treatment-recommender-by-treatment__plan-row-remove {
   flex-shrink: 0;
   width: 28px;
@@ -2819,4 +2829,333 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  /* Stack columns vertically */
+  .treatment-recommender-by-treatment {
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Client column: photo + toggles stacked in left column; plan beside */
+  .treatment-recommender-by-treatment__client-column {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 8px;
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--theme-border, #e8e8e8);
+    overflow: visible;
+  }
+
+  .treatment-recommender-by-treatment__client-photo-wrap {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100px;
+    max-width: 100px;
+    aspect-ratio: 3 / 4;
+  }
+
+  /* Front / Side below the photo (same width as photo column) */
+  .treatment-recommender-by-treatment__client-photo-toggles {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .treatment-recommender-by-treatment__client-toggle {
+    padding: 8px 10px;
+    font-size: 0.8125rem;
+    min-height: 40px;
+    text-align: center;
+  }
+
+  .treatment-recommender-by-treatment__plan-section {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    min-width: 0;
+    max-width: none;
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .treatment-recommender-by-treatment__plan-list {
+    max-height: 140px;
+  }
+
+  .treatment-recommender-by-treatment__plan-actions {
+    gap: 6px;
+  }
+
+  .treatment-recommender-by-treatment__plan-open-btn,
+  .treatment-recommender-by-treatment__plan-checkout-btn {
+    padding: 6px 10px;
+    font-size: 0.8125rem;
+  }
+
+  /* Main area takes remaining space, scrolls if needed */
+  .treatment-recommender-by-treatment__main {
+    flex: 1 1 auto;
+    overflow: visible;
+    height: auto;
+  }
+
+  .treatment-recommender-by-treatment__body {
+    padding: 12px 16px 24px;
+    overflow: visible;
+  }
+
+  /* Cards: tighter padding */
+  .treatment-recommender-by-treatment__card {
+    padding: 14px;
+  }
+
+  .treatment-recommender-by-treatment__cards {
+    gap: 16px;
+  }
+
+  /* Card top: stack photo above text on narrow screens */
+  .treatment-recommender-by-treatment__card-top {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .treatment-recommender-by-treatment__card-photo-wrap {
+    width: 80px;
+    height: 80px;
+  }
+
+  .treatment-recommender-by-treatment__card-photo-wrap--wellnest {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    max-height: 160px;
+  }
+
+  .treatment-recommender-by-treatment__card-title {
+    font-size: 1rem;
+  }
+
+  .treatment-recommender-by-treatment__card-why {
+    font-size: 0.8125rem;
+    margin-bottom: 10px;
+  }
+
+  /* Breakdown circles: smaller on mobile */
+  .treatment-recommender-by-treatment__breakdown-circles {
+    gap: 10px 14px;
+  }
+
+  .treatment-recommender-by-treatment__breakdown-circle-svg-wrap {
+    width: 46px;
+    height: 46px;
+  }
+
+  .treatment-recommender-by-treatment__breakdown-circle-score {
+    font-size: 0.7rem;
+  }
+
+  .treatment-recommender-by-treatment__breakdown-circle-label {
+    font-size: 0.75rem;
+    max-width: 72px;
+  }
+
+  /* Action buttons: full width stacking */
+  .treatment-recommender-by-treatment__card-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .treatment-recommender-by-treatment__add-section {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .treatment-recommender-by-treatment__add-btn,
+  .treatment-recommender-by-treatment__examples-btn {
+    width: 100%;
+    text-align: center;
+    min-height: 44px;
+  }
+
+  .treatment-recommender-by-treatment__add-actions {
+    width: 100%;
+  }
+
+  .treatment-recommender-by-treatment__add-actions > button {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  /* Chips: touch-friendly */
+  .treatment-recommender-by-treatment__chip {
+    padding: 8px 12px;
+    font-size: 0.8125rem;
+    min-height: 36px;
+  }
+
+  /* Hide "View examples" on mobile – photos browser not yet scrollable */
+  .treatment-recommender-by-treatment__examples-btn {
+    display: none;
+  }
+
+  /* Hide checkout button on mobile – checkout modal not yet optimised */
+  .treatment-recommender-by-treatment__plan-checkout-btn {
+    display: none;
+  }
+
+  /* Search input: full width, avoid iOS zoom */
+  .treatment-recommender-by-treatment__search-input {
+    font-size: 16px;
+    padding: 12px;
+  }
+
+  /* Add-to-plan form: full-width layout */
+  .treatment-recommender-by-treatment__add-form {
+    gap: 14px;
+  }
+
+  .treatment-recommender-by-treatment__add-row {
+    gap: 8px;
+  }
+
+  .treatment-recommender-by-treatment__add-row > span {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .treatment-recommender-by-treatment__custom-input {
+    max-width: none;
+    min-height: 40px;
+    font-size: 16px;
+    padding: 8px 12px;
+  }
+
+  .treatment-recommender-by-treatment__custom-add-btn {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+
+  .treatment-recommender-by-treatment__cancel-btn {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  /* Details textarea: larger touch target */
+  .treatment-recommender-by-treatment__details-input,
+  .treatment-recommender-by-treatment__details-textarea {
+    font-size: 16px;
+    padding: 10px 12px;
+    min-height: 44px;
+  }
+
+  .treatment-recommender-by-treatment__add-details-btn {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  /* Wellnest info dialog: full-width on mobile */
+  .wellnest-recommender-info-dialog {
+    max-width: 100%;
+    margin-top: 2vh;
+  }
+
+  .wellnest-recommender-info-hero {
+    height: 140px;
+  }
+
+  .wellnest-recommender-info-body {
+    padding: 16px;
+  }
+
+  /* Edit options modal: bottom sheet on mobile */
+  .treatment-recommender-by-treatment__edit-options-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .treatment-recommender-by-treatment__edit-options-panel {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  /* Wellnest card layout */
+  .treatment-recommender-wellnest-card {
+    padding: 14px;
+  }
+
+  .treatment-recommender-wellnest-card__hero {
+    height: 140px;
+  }
+
+  /* Skin analysis chips: allow wrap */
+  .treatment-recommender-skin-analysis__chip-name {
+    max-width: 140px;
+  }
+
+  /* Skincare recommendations: title + chevron on first row; date on second */
+  .treatment-recommender-skin-analysis--collapsible
+    .treatment-recommender-skin-analysis__header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    row-gap: 4px;
+    align-items: start;
+  }
+
+  .treatment-recommender-skin-analysis--collapsible
+    .treatment-recommender-skin-analysis__header
+    .treatment-recommender-skin-analysis__title {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+    align-self: center;
+  }
+
+  .treatment-recommender-skin-analysis--collapsible
+    .treatment-recommender-skin-analysis__header
+    .treatment-recommender-skin-analysis__toggle {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .treatment-recommender-skin-analysis--collapsible
+    .treatment-recommender-skin-analysis__header
+    .treatment-recommender-skin-analysis__completed {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-left: 0;
+    margin-right: 0;
+    justify-self: start;
+    font-size: 0.8125rem;
+  }
+
+  .treatment-recommender-skin-analysis--collapsible
+    .treatment-recommender-skin-analysis__header
+    .treatment-recommender-skin-analysis__completed-prefix {
+    display: none;
+  }
+
+  /* Product carousel items: slightly smaller */
+  .treatment-recommender-by-treatment .discussed-treatments-product-carousel-item {
+    width: 90px;
+    min-height: 110px;
+  }
 }

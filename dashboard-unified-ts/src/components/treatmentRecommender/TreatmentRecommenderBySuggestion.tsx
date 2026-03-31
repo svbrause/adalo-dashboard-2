@@ -1012,10 +1012,14 @@ export default function TreatmentRecommenderBySuggestion({
           selectedRegion={SUGGESTION_TO_AREA[photoExplorerInterest]}
           onClose={() => setPhotoExplorerInterest(null)}
           onUpdate={onUpdate}
-          onAddToPlanWithPrefill={(prefill) => {
-            setPhotoExplorerInterest(null);
-            onOpenTreatmentPlanWithPrefill?.(prefill);
-          }}
+          onAddToPlanWithPrefill={
+            onOpenTreatmentPlanWithPrefill
+              ? (prefill) => {
+                  setPhotoExplorerInterest(null);
+                  onOpenTreatmentPlanWithPrefill(prefill);
+                }
+              : undefined
+          }
           planItems={client.discussedItems ?? []}
         />
       )}

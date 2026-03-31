@@ -134,6 +134,13 @@
   margin: 0 auto;
 }
 
+@media (max-width: 768px) {
+  .client-detail-panel-body--recommender > .treatment-recommender-by-treatment,
+  .client-detail-panel-body--recommender > .treatment-recommender-by-suggestion {
+    max-width: 100%;
+  }
+}
+
 /* Left-align photo and contact info section in panel */
 .client-detail-panel-body .modal-header-with-photo {
   --modal-photo-contact-gap: 24px;
@@ -1137,6 +1144,11 @@
 }
 
 @media (max-width: 768px) {
+  /* Add / Manage treatment plan (DiscussedTreatmentsModal) — hidden until mobile UX is ready */
+  .client-detail-panel .client-detail-plan-open-modal-btn {
+    display: none !important;
+  }
+
   .client-detail-panel-header {
     padding: 16px;
     gap: 12px;

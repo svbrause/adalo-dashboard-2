@@ -254,8 +254,8 @@ Quick facts: ${quickFacts || "not specified"}
 Context: ${contextChunks.join(" | ") || "none"}
 
 Requirements:
-- This paragraph is the “middle” of a complement sandwich. The page already shows (1) why this type of treatment is a strong, credible choice, (2) how it can help this patient look and feel their best, then plan bullets, then (3) a short closing that ties back to the full coordinated plan. Your job is to deepen the middle: concrete ways this modality improves appearance or confidence for this patient’s situation—without repeating the opening “help you” line or the bookends verbatim.
-- Build on the patient-specific targets already stated; add nuance (mechanism, timeline, what changes first) rather than restating the same concern list.
+- This paragraph sits after a short client-specific opening and a one-line modality explainer, then plan bullets, then a brief plan-level closing. Write the “why it fits this patient” layer: concrete ways this treatment moves the needle for their situation (appearance, confidence, practical expectations)—without repeating the opening “for you…” line, the one-line explainer, or the closing verbatim.
+- Add nuance (mechanism, timeline, sessions, what tends to change first) rather than restating the same concern list.
 - Use at least 2 specific context details from the inputs.
 - Include a practical expectation (timeline, sessions, downtime, or maintenance) when possible.
 - Keep tone warm, specific, and insightful; avoid generic filler language.

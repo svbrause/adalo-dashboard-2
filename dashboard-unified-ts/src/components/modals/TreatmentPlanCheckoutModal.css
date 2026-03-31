@@ -949,3 +949,136 @@
 
 /* Financing callout styles live in DiscussedTreatmentsModal/CheckoutFinancingSection.css */
 
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .treatment-plan-checkout-modal-overlay {
+    padding: 0;
+  }
+
+  .treatment-plan-checkout-modal-content {
+    max-width: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .treatment-plan-checkout-modal-header {
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .treatment-plan-checkout-modal-close {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 26px;
+  }
+
+  /* Stack two panels vertically */
+  .treatment-plan-checkout-modal-two-panel {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .treatment-plan-checkout-modal-left {
+    border-right: none;
+    border-bottom: 1px solid var(--theme-border, rgba(0, 0, 0, 0.1));
+    max-height: 45vh;
+  }
+
+  .treatment-plan-checkout-modal-left-list {
+    padding: 8px 12px;
+  }
+
+  .treatment-plan-checkout-modal-right-inner {
+    padding: 16px;
+  }
+
+  .treatment-plan-checkout-modal-right-empty {
+    padding: 24px 16px;
+  }
+
+  /* Hero strip: shorter */
+  .treatment-plan-checkout-hero {
+    height: 48px;
+  }
+
+  /* Footer actions: stack vertically on narrow screens */
+  .treatment-plan-checkout-modal-actions {
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px 16px;
+  }
+
+  .treatment-plan-checkout-quote-btn,
+  .treatment-plan-checkout-send-blueprint-btn {
+    width: 100%;
+    min-height: 44px;
+    text-align: center;
+    font-size: 14px;
+  }
+
+  /* Row items: touch-friendly remove button */
+  .treatment-plan-checkout-row-remove {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* Detail select: full width */
+  .treatment-plan-checkout-detail-select {
+    max-width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  /* Inline edit: tighter padding */
+  .treatment-plan-checkout-inline-edit {
+    padding: 12px;
+  }
+
+  /* Quote sheet: tighter padding */
+  .treatment-plan-quote-sheet-overlay {
+    padding: 0;
+  }
+
+  .treatment-plan-quote-sheet {
+    max-width: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .treatment-plan-quote-sheet-header {
+    padding: 20px 48px 16px 20px;
+  }
+
+  .treatment-plan-quote-sheet-body {
+    padding: 16px 20px 20px;
+  }
+
+  .treatment-plan-quote-sheet-footer {
+    padding: 16px 20px 20px;
+  }
+
+  .treatment-plan-quote-sheet-close {
+    top: 16px;
+    right: 12px;
+  }
+
+  /* Blueprint compose: full-width */
+  .treatment-plan-checkout-blueprint-compose-overlay {
+    padding: 8px;
+  }
+
+  .treatment-plan-checkout-blueprint-compose-modal {
+    width: 100%;
+    padding: 16px;
+  }
+
+  /* Confirm overlay: tighter */
+  .treatment-plan-checkout-confirm-overlay {
+    padding: 16px;
+  }
+}
+

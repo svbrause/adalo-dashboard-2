@@ -1305,6 +1305,11 @@
 }
 
 @media (max-width: 768px) {
+  /* Add / Manage treatment plan — hidden until mobile UX is ready */
+  .client-detail-modal .client-detail-plan-open-modal-btn {
+    display: none !important;
+  }
+
   .client-detail-modal {
     max-width: 100%;
     max-height: 94vh;

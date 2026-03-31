@@ -45,55 +45,20 @@ function formatEnglishList(items: string[]): string {
   return `${clean.slice(0, -1).join(", ")}, and ${clean[clean.length - 1]}`;
 }
 
-/**
- * Top of complement sandwich: one short line on why this modality is a solid, credible choice
- * (before “how this can help you” in the intro).
- */
-const TREATMENT_CATEGORY_PRAISE: Partial<Record<string, string>> = {
-  Skincare:
-    "Medical-grade home care is one of the highest-impact ways to keep skin healthy, even-toned, and responsive between visits.",
-  "Energy Device":
-    "Energy-based treatments are a proven path when you want clearer tone, smoother texture, and a fresher look without daily cover-up.",
-  Laser:
-    "Laser options are trusted workhorses for resetting sun damage, dullness, and uneven texture while supporting collagen over time.",
-  "Chemical Peel":
-    "Peels are a classic way to speed up renewal—great when you want brighter, clearer skin on a predictable timeline.",
-  Microneedling:
-    "Microneedling is a strong collagen-friendly option when texture, pores, or scars are what you notice most.",
-  Filler:
-    "Fillers are the standard of care when subtle volume and contour are what will move the needle on how rested you look.",
-  Neurotoxin:
-    "Neuromodulators are among the most studied tools for softening expression lines so your face looks relaxed, not “frozen,” when done thoughtfully.",
-  Biostimulants:
-    "Biostimulators shine when you want gradual, natural firming and structure rather than an instant one-and-done change.",
-  Kybella: "Kybella is a targeted approach when submental fullness is the main thing standing between you and a cleaner jawline.",
-  Threadlift: "Threads can offer meaningful lift when mild sagging—not just volume loss—is the story.",
-  PRP: "PRP leverages your own growth signals—appealing when you want a biologic nudge toward repair and quality.",
-  PDGF: "Growth-factor protocols support tissue quality and repair in focused areas.",
-};
-
-/** Short intro by treatment category for chapter “Overview” blocks. */
+/** One short sentence: what this category does technically (after the client-specific lead). */
 const TREATMENT_CATEGORY_INTRO: Partial<Record<string, string>> = {
-  Skincare:
-    "Medical-grade skincare supports your home routine and complements in-office procedures.",
-  "Energy Device":
-    "Energy-based treatments use light or controlled heat to improve tone, texture, pigment, and collagen.",
-  Laser:
-    "Laser treatments refresh tone and texture while supporting collagen renewal, often with a staged series for cumulative improvement.",
-  "Chemical Peel":
-    "Chemical peels exfoliate and renew the surface to improve texture, clarity, and fine lines.",
-  Microneedling:
-    "Microneedling stimulates collagen and can pair with topicals or biologics for texture and scars.",
-  Filler:
-    "Dermal fillers restore volume and contour where structure or fullness has changed with age.",
-  Neurotoxin:
-    "Neuromodulators soften dynamic lines by relaxing targeted muscles.",
-  Biostimulants:
-    "Biostimulators encourage gradual collagen and structural improvement over time.",
-  Kybella: "Injectable fat-reduction can refine contour under the chin or in small defined areas.",
-  Threadlift: "Threads lift and support tissue for a subtle repositioning effect.",
-  PRP: "Platelet-rich plasma uses your own growth factors to support rejuvenation.",
-  PDGF: "Growth-factor treatments support repair and quality in targeted tissue.",
+  Skincare: "It supports your home routine and in-office results.",
+  "Energy Device": "It uses light or controlled heat to improve tone, texture, and collagen signaling.",
+  Laser: "It refreshes tone and texture and supports collagen renewal over a series.",
+  "Chemical Peel": "It speeds surface renewal for clarity and fine lines.",
+  Microneedling: "It stimulates collagen; often paired with topicals for texture and scars.",
+  Filler: "It restores volume and contour where structure has changed.",
+  Neurotoxin: "It softens dynamic lines by relaxing specific muscles.",
+  Biostimulants: "It encourages gradual collagen and structural improvement.",
+  Kybella: "It reduces small, defined fat pockets (often under the chin).",
+  Threadlift: "It lifts and supports tissue for mild sagging.",
+  PRP: "It uses your own growth factors to support rejuvenation.",
+  PDGF: "It supports tissue repair and quality in targeted areas.",
 };
 
 /**
@@ -239,13 +204,13 @@ export function buildPvbMainPlanFramingParagraphs(
 }
 
 export type ChapterOverviewParts = {
-  /** Top bread: what’s strong / credible about this modality (validation before the “help you” line). */
+  /** Client-first line: how this chapter applies to this patient (not generic modality marketing). */
   complementTop?: string;
-  /** Opens with how this can help the patient look and feel their best, then category context. */
+  /** Short modality explainer after the client lead. */
   intro: string;
   planBullets: string[];
   analysis: string;
-  /** Bottom bread: tie-back to the coordinated plan and other chapters. */
+  /** Tie-back to the coordinated plan and other chapters. */
   complementBottom?: string;
 };
 
@@ -278,20 +243,40 @@ function planPillarPhraseForComplement(planShape: PvbMainOverviewPlanShape): str
   return "every step in this guide";
 }
 
-function buildChapterComplementTop(
+/**
+ * Opening line: always patient-specific when possible. Avoid generic “neuromodulators are studied…” copy.
+ */
+function buildChapterClientApplicationTop(
   chapter: TreatmentChapter,
-  ctx: ChapterComplementSandwichContext,
-): string {
+  mergedConcerns: string[],
+  analysisInput: ChapterOverviewAnalysisInput | undefined,
+  complementCtx: ChapterComplementSandwichContext | null | undefined,
+): string | undefined {
   const self = chapter.displayName.trim();
-  const praise =
-    TREATMENT_CATEGORY_PRAISE[chapter.treatment] ??
-    `${self} is a well-established option when you want meaningful, natural-looking improvement.`;
-  if (ctx.totalChapters <= 1) {
-    return `Here's what's strong about this choice: ${praise}`;
+  if (mergedConcerns.length > 0) {
+    return `For you, ${self} is here to address ${formatEnglishList(
+      mergedConcerns.slice(0, 5),
+    )}—from what came up in your visit and plan.`;
   }
-  const others = ctx.allChapterDisplayNames.filter((_, i) => i !== ctx.chapterIndex);
-  const othersList = formatEnglishList(others);
-  return `Here's what's strong about this choice: ${praise} It's also meant to work hand-in-hand with ${othersList} in your personalized guide.`;
+  if (chapter.displayArea?.trim()) {
+    return `For you, this step applies to ${chapter.displayArea.trim()}.`;
+  }
+  const interest = analysisInput?.planRow?.interest?.trim();
+  if (interest) {
+    return `For you, this reflects what you discussed: ${interest}.`;
+  }
+  const priority =
+    (complementCtx?.patientPriorities ?? []).find((p) => p.trim().length > 0) ?? "";
+  if (priority) {
+    return `For you, this supports your interest in ${priority.trim()}.`;
+  }
+  if (complementCtx && complementCtx.totalChapters > 1) {
+    const others = complementCtx.allChapterDisplayNames.filter(
+      (_, i) => i !== complementCtx.chapterIndex,
+    );
+    return `For you, ${self} is one section of your plan alongside ${formatEnglishList(others)}.`;
+  }
+  return `For you, ${self} is in this guide from what you reviewed with your team.`;
 }
 
 function buildChapterComplementBottom(
@@ -302,13 +287,13 @@ function buildChapterComplementBottom(
   const pillars = planPillarPhraseForComplement(ctx.planShape);
   const priority =
     (ctx.patientPriorities ?? []).find((p) => p.trim().length > 0) ?? "";
-  const priorityTail = priority ? ` That lines up with your priority around ${priority}.` : "";
+  const priorityTail = priority ? ` Matches your priority around ${priority}.` : "";
   if (ctx.totalChapters <= 1) {
-    return `Bringing it together: ${self} works best as part of ${pillars}, with steady follow-through over time.${priorityTail}`;
+    return `${self} fits with ${pillars}—steady follow-through keeps results on track.${priorityTail}`;
   }
   const others = ctx.allChapterDisplayNames.filter((_, i) => i !== ctx.chapterIndex);
   const othersList = formatEnglishList(others);
-  return `Bringing it together: ${self} covers this piece of the story, while ${othersList} cover complementary goals—so ${pillars} stay one coordinated plan.${priorityTail}`;
+  return `${self} works alongside ${othersList} so ${pillars} stay one coordinated plan.${priorityTail}`;
 }
 
 /**
@@ -322,7 +307,7 @@ export function buildChapterOverviewContent(
 ): ChapterOverviewParts {
   const introBase =
     TREATMENT_CATEGORY_INTRO[chapter.treatment] ??
-    `This portion of your plan focuses on ${chapter.displayName}.`;
+    `It's the part of your plan focused on ${chapter.displayName}.`;
 
   const ctx: ChapterOverviewAnalysisInput | undefined =
     options != null
@@ -333,27 +318,20 @@ export function buildChapterOverviewContent(
       : undefined;
 
   const mergedConcerns = getChapterOverviewMergedConcerns(chapter, ctx);
-  /** Opens with how this helps the patient (look/feel), before category explainer. */
-  let howThisHelpsOpen: string | null = null;
-  if (mergedConcerns.length > 0) {
-    howThisHelpsOpen = `How this can help you look and feel your best: your team aligned ${chapter.displayName.trim()} with ${formatEnglishList(
-      mergedConcerns.slice(0, 5),
-    )}—so those are the improvements this chapter is built around.`;
-  } else if (chapter.displayArea?.trim()) {
-    howThisHelpsOpen = `How this can help you: this chapter focuses on ${chapter.displayArea.trim()} and the refinements you and your provider discussed for that area.`;
-  }
 
-  const hadExplicitAddressingSentence = Boolean(howThisHelpsOpen);
+  const complementTop = buildChapterClientApplicationTop(
+    chapter,
+    mergedConcerns,
+    ctx,
+    complementContext ?? null,
+  );
 
-  let intro: string;
-  if (howThisHelpsOpen) {
-    intro = `${howThisHelpsOpen} ${introBase}`;
-    if (mergedConcerns.length === 0) {
-      intro = ctx ? maybeAppendIntroScanBridge(intro, chapter, ctx) : intro;
-    }
-  } else {
-    const withLead = `How this can help you: ${introBase}`;
-    intro = ctx ? maybeAppendIntroScanBridge(withLead, chapter, ctx) : withLead;
+  const hadExplicitAddressingSentence =
+    Boolean(complementTop) || mergedConcerns.length > 0 || Boolean(chapter.displayArea?.trim());
+
+  let intro = introBase;
+  if (mergedConcerns.length === 0) {
+    intro = ctx ? maybeAppendIntroScanBridge(intro, chapter, ctx) : intro;
   }
 
   const planBullets = chapter.planItems.map((item) =>
@@ -364,15 +342,13 @@ export function buildChapterOverviewContent(
     hadExplicitAddressingSentence,
   });
 
-  let complementTop: string | undefined;
   let complementBottom: string | undefined;
   if (complementContext && complementContext.totalChapters > 0) {
-    complementTop = buildChapterComplementTop(chapter, complementContext);
     complementBottom = buildChapterComplementBottom(chapter, complementContext);
   }
 
   return {
-    complementTop,
+    complementTop: complementTop?.trim() || undefined,
     intro,
     planBullets,
     analysis,

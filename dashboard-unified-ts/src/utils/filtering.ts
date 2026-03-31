@@ -48,12 +48,19 @@ export function applyFilters(
 
   // Apply search query
   if (searchQuery.trim()) {
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
+    const normalizedDigits = query.replace(/\D/g, "");
     filtered = filtered.filter((client) => {
+      const name = String(client.name ?? "").toLowerCase();
+      const email = String(client.email ?? "").toLowerCase();
+      const phone = String(client.phone ?? "");
+      const phoneDigits = phone.replace(/\D/g, "");
+
       return (
-        client.name.toLowerCase().includes(query) ||
-        client.email.toLowerCase().includes(query) ||
-        client.phone.includes(query)
+        name.includes(query) ||
+        email.includes(query) ||
+        phone.toLowerCase().includes(query) ||
+        (normalizedDigits.length > 0 && phoneDigits.includes(normalizedDigits))
       );
     });
   }

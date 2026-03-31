@@ -127,3 +127,32 @@
   color: var(--theme-text-muted, #757575);
 }
 
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .treatment-recommender-filters {
+    padding: 0 0 12px;
+    margin-bottom: 12px;
+  }
+
+  .treatment-recommender-filters__toggle {
+    min-height: 44px;
+    padding: 10px 0;
+  }
+
+  .treatment-recommender-filters__chip {
+    padding: 10px 14px;
+    font-size: 0.875rem;
+    min-height: 40px;
+  }
+
+  .treatment-recommender-filters__select {
+    max-width: 100%;
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .treatment-recommender-filters__select--multi {
+    min-height: 100px;
+  }
+}
+

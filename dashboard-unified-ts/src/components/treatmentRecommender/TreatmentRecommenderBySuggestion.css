@@ -526,3 +526,124 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .treatment-recommender-by-suggestion__body {
+    padding: 12px 16px 24px;
+  }
+
+  .treatment-recommender-by-suggestion__cards {
+    gap: 16px;
+  }
+
+  .treatment-recommender-by-suggestion__card {
+    padding: 14px;
+  }
+
+  /* Stack photo above content */
+  .treatment-recommender-by-suggestion__card-top {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .treatment-recommender-by-suggestion__photo-wrap {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .treatment-recommender-by-suggestion__photo,
+  .treatment-recommender-by-suggestion__photo-placeholder {
+    width: 80px;
+    height: 80px;
+  }
+
+  .treatment-recommender-by-suggestion__photo-label {
+    max-width: none;
+    text-align: left;
+  }
+
+  .treatment-recommender-by-suggestion__card-title {
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+
+  .treatment-recommender-by-suggestion__short-summary {
+    font-size: 0.875rem;
+  }
+
+  /* Action buttons: full width stacking */
+  .treatment-recommender-by-suggestion__card-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .treatment-recommender-by-suggestion__add-section {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .treatment-recommender-by-suggestion__add-btn {
+    width: 100%;
+    text-align: center;
+    min-height: 44px;
+  }
+
+  /* Hide "View examples" on mobile – photos browser not yet scrollable */
+  .treatment-recommender-by-suggestion__examples-btn {
+    display: none;
+  }
+
+  .treatment-recommender-by-suggestion__add-actions {
+    width: 100%;
+  }
+
+  .treatment-recommender-by-suggestion__add-actions > button {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  /* Chips: touch-friendly */
+  .treatment-recommender-by-suggestion__chip {
+    padding: 8px 12px;
+    font-size: 0.8125rem;
+    min-height: 36px;
+  }
+
+  /* Add-to-plan form: full-width layout */
+  .treatment-recommender-by-suggestion__add-form {
+    gap: 14px;
+  }
+
+  .treatment-recommender-by-suggestion__add-row > span {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .treatment-recommender-by-suggestion__cancel-btn {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  .treatment-recommender-by-suggestion__details-input,
+  .treatment-recommender-by-suggestion__details-textarea {
+    font-size: 16px;
+    padding: 10px 12px;
+    min-height: 44px;
+  }
+
+  .treatment-recommender-by-suggestion__add-details-btn {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  /* Skin analysis chips */
+  .treatment-recommender-skin-analysis__chip-name {
+    max-width: 140px;
+  }
+
+  .treatment-recommender-skin-analysis {
+    padding: 12px 14px;
+  }
+}

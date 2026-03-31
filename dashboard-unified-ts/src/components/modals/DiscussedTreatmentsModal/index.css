@@ -270,7 +270,9 @@
   padding: 10px 12px;
   border-bottom: 1px solid rgba(79, 70, 229, 0.12);
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -514,7 +516,9 @@
   border: 1px solid rgba(79, 70, 229, 0.25);
   border-radius: 10px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   align-self: flex-start;
 }
 
@@ -552,7 +556,9 @@
   border: 1px solid var(--theme-border);
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .discussed-treatments-postcare-chip:hover {
@@ -1154,7 +1160,11 @@
   width: 4px;
   height: 18px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--theme-accent, #6366f1), rgba(139, 92, 246, 0.8));
+  background: linear-gradient(
+    180deg,
+    var(--theme-accent, #6366f1),
+    rgba(139, 92, 246, 0.8)
+  );
 }
 .treatment-plan-checkout-hint {
   font-size: 12px;
@@ -1185,7 +1195,11 @@
   flex: 0 0 120px;
   width: 120px;
   min-height: 100px;
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(79, 70, 229, 0.06) 100%);
+  background: linear-gradient(
+    145deg,
+    rgba(99, 102, 241, 0.12) 0%,
+    rgba(79, 70, 229, 0.06) 100%
+  );
   position: relative;
 }
 .treatment-plan-checkout-card-photo {
@@ -1202,7 +1216,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.14) 0%, rgba(139, 92, 246, 0.08) 100%);
+  background: linear-gradient(
+    145deg,
+    rgba(99, 102, 241, 0.14) 0%,
+    rgba(139, 92, 246, 0.08) 100%
+  );
 }
 .treatment-plan-checkout-card-placeholder-icon {
   font-size: 28px;
@@ -1266,7 +1284,10 @@
   background: var(--theme-bg-elevated, #fff);
   color: var(--theme-text-secondary);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
 }
 .treatment-plan-checkout-card-quantity-chip:hover {
   border-color: rgba(79, 70, 229, 0.4);
@@ -1572,7 +1593,10 @@
   border-radius: 6px;
   padding: 4px 10px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .discussed-treatments-bubble-action-btn:hover {
@@ -1674,7 +1698,9 @@
 
 /* Primary “Add treatment” and “Save note” feel */
 .discussed-treatments-add-btn {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .discussed-treatments-add-btn:hover:not(:disabled) {
@@ -2006,7 +2032,10 @@
   border: 1px solid var(--theme-border);
   border-radius: 8px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
 }
 
 .discussed-treatments-mode-chip:hover {
@@ -2389,7 +2418,9 @@
   border-radius: 8px;
   padding: 8px 14px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .discussed-treatments-see-all-options-btn:hover {
@@ -2438,7 +2469,9 @@
   border-radius: 10px;
   background: var(--theme-bg-card);
   color: var(--theme-text-primary);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .discussed-treatments-interest-search-input:focus {
@@ -2610,7 +2643,9 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--theme-text-primary);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .discussed-treatments-topic-chip:hover {
@@ -2701,7 +2736,9 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--theme-text-primary);
-  transition: background 0.15s ease, border-color 0.15s ease,
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
@@ -2882,7 +2919,9 @@
   font-size: 11px;
   font-weight: 500;
   color: var(--theme-text-primary);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
   min-width: 0;
   position: relative;
   overflow: hidden;
@@ -2933,7 +2972,9 @@
 }
 /* When product has image (e.g. The Treatment Boutique), show img and hide placeholder */
 .discussed-treatments-product-carousel-item
-  .discussed-treatments-product-carousel-image:has(.discussed-treatments-product-carousel-img)::before {
+  .discussed-treatments-product-carousel-image:has(
+    .discussed-treatments-product-carousel-img
+  )::before {
   display: none;
 }
 .discussed-treatments-product-carousel-item
@@ -3035,7 +3076,9 @@
   cursor: pointer;
   font-size: 12px;
   color: var(--theme-text-primary);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .discussed-treatments-prefill-chip:hover {
@@ -3444,7 +3487,10 @@
   color: var(--theme-text-muted, #757575);
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
 }
 
 .treatment-photos-side-source-edit-btn:hover {
@@ -3598,7 +3644,10 @@
   background: #fff;
   color: var(--theme-text-secondary);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
   white-space: nowrap;
 }
 
@@ -3707,7 +3756,10 @@
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    border-color 0.15s;
   text-align: left;
   padding: 0;
   display: flex;
@@ -4208,7 +4260,10 @@
   color: #fff;
   border-radius: 10px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 .treatment-photo-detail-add-btn:hover:not(:disabled):not(
     .treatment-photo-detail-add-btn-added
@@ -4268,7 +4323,9 @@
   color: var(--theme-text);
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 .treatment-photo-detail-add-chip:hover {
   background: var(--theme-surface-elevated);
@@ -4360,36 +4417,103 @@
     border-bottom: 1px solid var(--theme-border);
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 12px;
+    padding: 12px;
   }
 
   .treatment-photos-client-card {
     flex: 1 1 200px;
+    padding: 12px;
+  }
+
+  .treatment-photos-client-image-wrap {
+    max-height: 120px;
   }
 
   .treatment-photos-meta-card {
     flex: 1 1 100%;
+    padding: 12px;
   }
-}
 
-@media (max-width: 600px) {
+  .treatment-photos-gallery-column {
+    padding: 12px;
+    min-height: 200px;
+  }
+
+  .treatment-photos-grid {
+    min-height: 200px;
+  }
+
+  .treatment-photos-filters {
+    flex-wrap: wrap;
+  }
+
+  .treatment-photos-chip {
+    padding: 8px 14px;
+    font-size: 13px;
+    min-height: 36px;
+  }
+
+  .treatment-photos-header {
+    padding: 12px 16px;
+  }
+
+  /* Photo cards: fluid width on mobile */
   .treatment-photos-grid-square {
-    grid-template-columns: repeat(auto-fill, 140px);
-    grid-auto-rows: 200px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 12px;
   }
 
-  .treatment-photo-card {
-    width: 140px;
-    min-width: 140px;
-    min-height: 180px;
+  .treatment-photo-card,
+  .treatment-photos-grid-square .treatment-photo-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
   }
 
-  .treatment-photo-image-wrap-square {
-    width: 140px !important;
-    height: 140px !important;
-    min-width: 140px !important;
-    min-height: 140px !important;
+  .treatment-photo-card-wide {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .treatment-photo-image-wrap-square,
+  .treatment-photos-grid-square .treatment-photo-image-wrap-square {
+    width: 100% !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    flex: 0 0 auto !important;
+    aspect-ratio: 1;
+  }
+
+  .treatment-photo-image-wrap-square .treatment-photo-image {
+    min-height: 0;
+  }
+
+  .treatment-photo-image-wrap-wide {
+    width: 100% !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    flex: 0 0 auto !important;
+    aspect-ratio: 16 / 9;
+  }
+
+  .treatment-photo-card-label {
+    font-size: 14px;
+    padding: 6px 8px;
+  }
+
+  .treatment-photo-chips-row {
+    padding: 6px 8px;
+  }
+
+  .treatment-photo-detail-modal {
+    max-height: 100dvh;
+    border-radius: 0;
   }
 
   .treatment-photo-title-bottom {
@@ -4397,9 +4521,19 @@
     font-size: 12px;
   }
 
-  .treatment-photo-detail-modal {
-    max-height: 100vh;
-    border-radius: 0;
+  /* Detail add buttons: touch-friendly */
+  .treatment-photo-detail-add-btn-confirm,
+  .treatment-photo-detail-add-btn-cancel {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .treatment-photos-grid-square {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
 }
 
@@ -4454,19 +4588,33 @@
   gap: 4px;
 }
 
+@media (max-width: 768px) {
+  .discussed-treatments-photos-modal-overlay {
+    padding: 8px;
+  }
+
+  .discussed-treatments-photos-modal {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    min-height: 0;
+    max-height: none;
+    border-radius: 12px;
+  }
+
+  .discussed-treatments-photos-modal .treatment-photos-browser {
+    max-height: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 @media (max-width: 600px) {
   .discussed-treatments-photos-modal-overlay {
     padding: 0;
   }
 
   .discussed-treatments-photos-modal {
-    max-height: 100vh;
-    height: 100vh;
     border-radius: 0;
-  }
-
-  .discussed-treatments-photos-modal .treatment-photos-browser {
-    max-height: 100vh;
-    height: 100vh;
   }
 }

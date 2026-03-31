@@ -1601,6 +1601,7 @@ export default function TreatmentRecommenderByTreatment({
                         <button
                           type="button"
                           className="treatment-recommender-by-treatment__plan-row"
+                          disabled={!onOpenTreatmentPlanWithItem}
                           onClick={() => onOpenTreatmentPlanWithItem?.(item)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
@@ -1709,14 +1710,22 @@ export default function TreatmentRecommenderByTreatment({
                 </h3>
                 {client.skincareQuiz?.completedAt && (
                   <span className="treatment-recommender-skin-analysis__completed">
-                    Quiz Completed{" "}
-                    {new Date(
-                      client.skincareQuiz.completedAt,
-                    ).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    <span className="treatment-recommender-skin-analysis__completed-prefix">
+                      Quiz Completed{" "}
+                    </span>
+                    <time
+                      dateTime={new Date(
+                        client.skincareQuiz.completedAt,
+                      ).toISOString()}
+                    >
+                      {new Date(
+                        client.skincareQuiz.completedAt,
+                      ).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </time>
                   </span>
                 )}
                 <span
@@ -3543,10 +3552,14 @@ export default function TreatmentRecommenderByTreatment({
           selectedRegion={photoExplorerContext.region}
           onClose={() => setPhotoExplorerContext(null)}
           onUpdate={onUpdate}
-          onAddToPlanWithPrefill={(prefill) => {
-            setPhotoExplorerContext(null);
-            onOpenTreatmentPlanWithPrefill?.(prefill);
-          }}
+          onAddToPlanWithPrefill={
+            onOpenTreatmentPlanWithPrefill
+              ? (prefill) => {
+                  setPhotoExplorerContext(null);
+                  onOpenTreatmentPlanWithPrefill(prefill);
+                }
+              : undefined
+          }
           planItems={client.discussedItems ?? []}
         />
       )}

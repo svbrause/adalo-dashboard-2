@@ -101,6 +101,7 @@ import {
 import { formatZipCodeInput } from "../../utils/validation";
 import { useDashboard } from "../../context/DashboardContext";
 import { createPortal } from "react-dom";
+import { useRecommenderTreatmentPlanModalDisabled } from "../../hooks/useRecommenderTreatmentPlanModalDisabled";
 import "./ClientDetailPanel.css";
 
 interface ClientDetailPanelProps {
@@ -191,6 +192,8 @@ export default function ClientDetailPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   /** Called when treatment plan modal closes so recommenders can clear "just added" state */
   const treatmentPlanModalClosedRef = useRef<(() => void) | null>(null);
+  const recommenderTreatmentPlanModalDisabled =
+    useRecommenderTreatmentPlanModalDisabled();
 
   useEffect(() => {
     if (client) {
@@ -597,22 +600,34 @@ export default function ClientDetailPanel({
                     throw e;
                   }
                 }}
-                onOpenTreatmentPlan={() => {
-                  setShowDiscussedTreatments(true);
-                  setInitialAddFormPrefill(null);
-                  setInitialEditingItem(null);
-                }}
+                onOpenTreatmentPlan={
+                  recommenderTreatmentPlanModalDisabled
+                    ? undefined
+                    : () => {
+                        setShowDiscussedTreatments(true);
+                        setInitialAddFormPrefill(null);
+                        setInitialEditingItem(null);
+                      }
+                }
                 onOpenCheckout={() => setShowCheckoutModal(true)}
-                onOpenTreatmentPlanWithPrefill={(prefill) => {
-                  setInitialAddFormPrefill(prefill);
-                  setInitialEditingItem(null);
-                  setShowDiscussedTreatments(true);
-                }}
-                onOpenTreatmentPlanWithItem={(item) => {
-                  setInitialEditingItem(item);
-                  setInitialAddFormPrefill(null);
-                  setShowDiscussedTreatments(true);
-                }}
+                onOpenTreatmentPlanWithPrefill={
+                  recommenderTreatmentPlanModalDisabled
+                    ? undefined
+                    : (prefill) => {
+                        setInitialAddFormPrefill(prefill);
+                        setInitialEditingItem(null);
+                        setShowDiscussedTreatments(true);
+                      }
+                }
+                onOpenTreatmentPlanWithItem={
+                  recommenderTreatmentPlanModalDisabled
+                    ? undefined
+                    : (item) => {
+                        setInitialEditingItem(item);
+                        setInitialAddFormPrefill(null);
+                        setShowDiscussedTreatments(true);
+                      }
+                }
                 onRemovePlanItem={async (itemId) => {
                   const nextItems = (client.discussedItems || []).filter(
                     (i) => i.id !== itemId,
@@ -675,21 +690,33 @@ export default function ClientDetailPanel({
                     throw e;
                   }
                 }}
-                onOpenTreatmentPlan={() => {
-                  setShowDiscussedTreatments(true);
-                  setInitialAddFormPrefill(null);
-                  setInitialEditingItem(null);
-                }}
-                onOpenTreatmentPlanWithPrefill={(prefill) => {
-                  setInitialAddFormPrefill(prefill);
-                  setInitialEditingItem(null);
-                  setShowDiscussedTreatments(true);
-                }}
-                onOpenTreatmentPlanWithItem={(item) => {
-                  setInitialEditingItem(item);
-                  setInitialAddFormPrefill(null);
-                  setShowDiscussedTreatments(true);
-                }}
+                onOpenTreatmentPlan={
+                  recommenderTreatmentPlanModalDisabled
+                    ? undefined
+                    : () => {
+                        setShowDiscussedTreatments(true);
+                        setInitialAddFormPrefill(null);
+                        setInitialEditingItem(null);
+                      }
+                }
+                onOpenTreatmentPlanWithPrefill={
+                  recommenderTreatmentPlanModalDisabled
+                    ? undefined
+                    : (prefill) => {
+                        setInitialAddFormPrefill(prefill);
+                        setInitialEditingItem(null);
+                        setShowDiscussedTreatments(true);
+                      }
+                }
+                onOpenTreatmentPlanWithItem={
+                  recommenderTreatmentPlanModalDisabled
+                    ? undefined
+                    : (item) => {
+                        setInitialEditingItem(item);
+                        setInitialAddFormPrefill(null);
+                        setShowDiscussedTreatments(true);
+                      }
+                }
                 treatmentPlanModalClosedRef={treatmentPlanModalClosedRef}
               />
             )}
@@ -1277,7 +1304,7 @@ export default function ClientDetailPanel({
                         )}
                         <button
                           type="button"
-                          className="btn-secondary btn-sm"
+                          className="btn-secondary btn-sm client-detail-plan-open-modal-btn"
                           onClick={() => setShowDiscussedTreatments(true)}
                         >
                           {client.discussedItems &&

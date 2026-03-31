@@ -60,7 +60,7 @@ interface TreatmentChapterViewProps {
   trackCaseGallery: () => void;
   /** When set, chapter-level engagement is reported to PostHog. */
   blueprintPatientAnalytics?: BlueprintPatientAnalyticsBase;
-  /** Complement sandwich: top = what’s strong about this modality; bottom = how it fits the full plan. */
+  /** Overview sandwich: top = for-you / how it applies to this patient; bottom = fit with the full plan. */
   chapterComplementContext?: ChapterComplementSandwichContext | null;
 }
 

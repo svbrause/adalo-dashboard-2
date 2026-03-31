@@ -246,6 +246,109 @@
   display: none;
 }
 
+/* ─── Mobile bottom-sheet portal (unique classes to avoid index.css .control-content collisions) ─── */
+.mobile-sheet-portal {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  pointer-events: auto;
+}
+
+.mobile-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-sheet-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  background: #fff;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px 20px 20px;
+  padding-bottom: max(20px, calc(8px + env(safe-area-inset-bottom)));
+  max-height: 80vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: mobile-sheet-slide-up 0.25s ease-out;
+}
+
+@keyframes mobile-sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.mobile-sheet-handle {
+  width: 36px;
+  height: 5px;
+  background: #c7c7cc;
+  border-radius: 3px;
+  margin: 6px auto 8px;
+  flex-shrink: 0;
+}
+
+.mobile-sheet-panel .filter-group {
+  width: 100%;
+}
+
+.mobile-sheet-panel .filter-group label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #8e8e93;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mobile-sheet-panel .filter-select,
+.mobile-sheet-panel .filter-input {
+  width: 100%;
+  font-size: 16px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(118, 118, 128, 0.08);
+  border: none;
+  color: #000;
+  font-family: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.mobile-sheet-panel .filter-age-range {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mobile-sheet-panel .filter-input-narrow {
+  flex: 1;
+  min-width: 80px;
+  width: auto;
+  min-height: 44px;
+}
+
+.mobile-sheet-panel .filter-clear-btn {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+  text-align: center;
+  border-radius: 10px;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  background: rgba(118, 118, 128, 0.08);
+  border: none;
+  color: #ff3b30;
+}
+
 /* Responsive breakpoints to prevent overlap */
 @media (max-width: 1200px) {
   .search-box-main {
@@ -428,95 +531,4 @@
     display: none;
   }
 
-  /* Backdrop scrim behind bottom sheet */
-  .control-sheet-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.3);
-    z-index: 1199;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /* Bottom sheet panel */
-  .control-content {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: auto;
-    margin: 0;
-    border-radius: 14px 14px 0 0;
-    padding: 12px 20px 20px;
-    padding-bottom: max(20px, calc(8px + env(safe-area-inset-bottom)));
-    gap: 14px;
-    z-index: 1200;
-    box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.08);
-    max-height: 80vh;
-    overflow-y: auto;
-    background: #fff;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .control-content::before {
-    content: "";
-    display: block;
-    width: 36px;
-    height: 5px;
-    background: #c7c7cc;
-    border-radius: 3px;
-    margin: 0 auto 12px;
-    flex-shrink: 0;
-  }
-
-  .filter-group {
-    width: 100%;
-  }
-
-  .filter-group label {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: #8e8e93;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .filter-select,
-  .filter-input {
-    width: 100%;
-    font-size: 16px;
-    min-height: 44px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: rgba(118, 118, 128, 0.08);
-    border: none;
-    color: #000;
-  }
-
-  .filter-age-range {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .filter-input-narrow {
-    flex: 1;
-    min-width: 80px;
-    width: auto;
-    min-height: 44px;
-  }
-
-  .filter-clear-btn {
-    width: 100%;
-    min-height: 44px;
-    justify-content: center;
-    text-align: center;
-    border-radius: 10px;
-    margin-top: 4px;
-    font-size: 15px;
-    font-weight: 600;
-    background: rgba(118, 118, 128, 0.08);
-    border: none;
-    color: #ff3b30;
-  }
 }

@@ -20,6 +20,7 @@ export default function ViewControls() {
     sort,
     setSort,
     setPagination,
+    pagination,
     provider,
   } = useDashboard();
 
@@ -444,14 +445,20 @@ export default function ViewControls() {
             type="text"
             placeholder="Search by name, email, or phone..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPagination({ currentPage: 1, itemsPerPage: pagination.itemsPerPage });
+            }}
             className={`search-input-main${searchQuery.trim() ? " search-input-main--has-clear" : ""}`}
           />
           {searchQuery.trim() ? (
             <button
               type="button"
               className="search-clear-btn"
-              onClick={() => setSearchQuery("")}
+              onClick={() => {
+                setSearchQuery("");
+                setPagination({ currentPage: 1, itemsPerPage: pagination.itemsPerPage });
+              }}
               aria-label="Clear search"
               title="Clear search"
             >
@@ -531,21 +538,23 @@ export default function ViewControls() {
 
       {/* Mobile: render bottom sheets via portal to escape overflow:hidden */}
       {isMobileLayout && showFilters && createPortal(
-        <>
-          <div className="control-sheet-backdrop" onClick={() => setShowFilters(false)} />
-          <div className="control-content" ref={filterContentRef}>
+        <div className="mobile-sheet-portal">
+          <div className="mobile-sheet-backdrop" onClick={() => setShowFilters(false)} />
+          <div className="mobile-sheet-panel" ref={filterContentRef}>
+            <div className="mobile-sheet-handle" />
             {filterContent}
           </div>
-        </>,
+        </div>,
         document.body,
       )}
       {isMobileLayout && showSort && createPortal(
-        <>
-          <div className="control-sheet-backdrop" onClick={() => setShowSort(false)} />
-          <div className="control-content" ref={sortContentRef}>
+        <div className="mobile-sheet-portal">
+          <div className="mobile-sheet-backdrop" onClick={() => setShowSort(false)} />
+          <div className="mobile-sheet-panel" ref={sortContentRef}>
+            <div className="mobile-sheet-handle" />
             {sortContent}
           </div>
-        </>,
+        </div>,
         document.body,
       )}
       </>
