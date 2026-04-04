@@ -8,6 +8,7 @@ import {
 import type { BlueprintAnalysisSummary } from "./postVisitBlueprintAnalysis";
 import { buildAnalysisSummaryFromClient } from "./postVisitBlueprintAnalysis";
 import { getDetectedIssueDisplayStrings } from "./analysisOverviewClient";
+import { getAlignedCheckoutLineItemsForDiscussedItems } from "../components/modals/DiscussedTreatmentsModal/TreatmentPlanCheckout";
 import { getQuoteLineDiscussedItemIndexOrder } from "./pvbQuotePartition";
 
 /** Keep SMS / localStorage payload reasonable if the model returns a long essay. */
@@ -504,7 +505,13 @@ function sliceQuoteForPostVisitBlueprint(
   hasUnknownPrices: boolean;
   isMintMember: boolean;
 } {
-  const order = getQuoteLineDiscussedItemIndexOrder(fullDiscussedItems);
+  const aligned = getAlignedCheckoutLineItemsForDiscussedItems(
+    fullDiscussedItems,
+  );
+  const order = getQuoteLineDiscussedItemIndexOrder(
+    fullDiscussedItems,
+    aligned,
+  );
   const lineItems = quote.lineItems;
   const bpLineItems: CheckoutLineItemDetail[] = [];
   const n = Math.min(lineItems.length, order.length);

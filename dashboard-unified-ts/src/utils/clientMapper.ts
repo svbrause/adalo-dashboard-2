@@ -1,6 +1,7 @@
 // Utility to map Airtable records to Client format
 
 import { Client, AirtableRecord, DiscussedItem, SkincareQuizData } from "../types";
+import { coerceToAirtableNumberAge } from "./validation";
 
 /** Parse "Skincare Quiz" long text field (JSON) from Airtable fields. Exported for use when fetching quiz fields separately. */
 export function parseSkincareQuizFromFields(fields: Record<string, unknown>): SkincareQuizData | undefined {
@@ -156,6 +157,19 @@ function getFacialAnalysisStatus(
   return null;
 }
 
+/** Best-effort last-activity instant from lead/patient row (before contact-history merge). */
+function lastContactFromAirtableFields(fields: Record<string, any>): string | null {
+  const raw = fields["Last Contact"] ?? fields["Contacted"];
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return null;
+    const ms = new Date(t).getTime();
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : t;
+  }
+  return null;
+}
+
 /**
  * Determine priority based on fields
  */
@@ -217,8 +231,9 @@ export function mapRecordToClient(
       fields["Zip Code"] || fields["Zip"] || fields["Postal Code"] || null,
     age:
       tableName === "Patients"
-        ? fields["Age (from Form Submissions)"] || null
-        : fields["Age Range"] || fields["Age"] || null,
+        ? coerceToAirtableNumberAge(fields["Age (from Form Submissions)"]) ??
+          coerceToAirtableNumberAge(fields["Age"])
+        : coerceToAirtableNumberAge(fields["Age"]),
     ageRange: tableName === "Patients" ? null : fields["Age Range"] || null,
     dateOfBirth:
       tableName === "Patients"
@@ -340,7 +355,7 @@ export function mapRecordToClient(
     appointmentDate: fields["Appointment Date"] || null,
     treatmentReceived: fields["Treatment Received"] || null,
     revenue: fields["Revenue"] || null,
-    lastContact: null, // Will be set from Contact History
+    lastContact: lastContactFromAirtableFields(fields),
     isReal: true,
     tableSource: tableName as "Web Popup Leads" | "Patients",
     facialAnalysisStatus: getFacialAnalysisStatus(fields, tableName),

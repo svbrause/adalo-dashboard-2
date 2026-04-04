@@ -756,7 +756,7 @@ export default function SmsHistoryView() {
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
-              <p className="sms-history-welcome-title">Text messages</p>
+              <p className="sms-history-welcome-title">Messages</p>
               <p className="sms-history-welcome-text">
                 Click <strong>New message</strong> to send to a phone number, or
                 select a recipient from the list to view the conversation.

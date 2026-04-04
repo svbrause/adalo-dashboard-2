@@ -41,7 +41,10 @@ export function getInterestAreaNamesFromClient(client: Client): Set<string> {
     if (n.includes("forehead") || n.includes("brow")) names.add("forehead");
     if (n.includes("cheek")) names.add("cheeks");
     if (n.includes("nose")) names.add("nose");
-    if (n.includes("skin")) names.add("skin");
+    if (n.includes("skin")) {
+      names.add("skin");
+      names.add("skin quality");
+    }
   });
 
   return names;

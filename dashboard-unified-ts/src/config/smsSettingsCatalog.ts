@@ -22,18 +22,17 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
     id: "treatment-finder",
     productName: "Website quiz leads",
     description:
-      "Web Popup Leads from the public site quiz. Welcome SMS mirrors backend automation; confirm follow-ups in Airtable or the automation service.",
+      "Text messages for people who take the treatment quiz on your website and what happens next.",
     owner: "Growth / Leads",
     events: [
       {
         id: "finder-welcome",
         eventName: "Welcome + next step",
-        trigger:
-          "Lead submits treatment finder form (backend automation message).",
+        trigger: "Someone submits the treatment finder form on your website.",
         enabled: true,
         channel: "sms",
         template:
-          "Hi {{first_name}}, Welcome to The Treatment! Thank you for trying our AI Skin Analysis Quiz, we hope you loved your results! When you're ready, our team would love to sit down with you, go over your results, and build a treatment plan tailored just for you. Contact us by phone at (844) 344-7546 or book your visit here: {{booking_link}}",
+          "Hi {{first_name}}, Welcome to The Treatment! Thank you for using our treatment tracker — we hope you loved your results! When you're ready, our team would love to sit down with you, go over your results, and build a treatment plan tailored just for you. Contact us by phone at (844) 344-7546 or book your visit here: {{booking_link}}",
       },
       {
         id: "finder-followup",
@@ -62,16 +61,6 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         channel: "sms",
         template:
           "Let's find the perfect products for your skin! 🧴\nTake our quiz and get expert recommendations tailored just for you:\n{{link}}",
-      },
-      {
-        id: "skincare-quiz-invite-legacy",
-        eventName: "Quiz invite (legacy copy in history)",
-        trigger:
-          "Staff sends skincare quiz link to a lead or patient (legacy wording seen in SMS history).",
-        enabled: true,
-        channel: "sms",
-        template:
-          "Take our free Skin Type Quiz and get personalized product recommendations: {{skin_quiz_link}}",
       },
       {
         id: "skincare-quiz-results",

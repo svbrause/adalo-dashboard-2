@@ -49,7 +49,9 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .client-detail-panel-back:hover {
@@ -136,7 +138,8 @@
 
 @media (max-width: 768px) {
   .client-detail-panel-body--recommender > .treatment-recommender-by-treatment,
-  .client-detail-panel-body--recommender > .treatment-recommender-by-suggestion {
+  .client-detail-panel-body--recommender
+    > .treatment-recommender-by-suggestion {
     max-width: 100%;
   }
 }
@@ -150,7 +153,9 @@
   padding-bottom: 12px !important;
   margin-left: 0;
   margin-right: 0;
-  gap: var(--modal-photo-contact-gap); /* Space between photo and contact info */
+  gap: var(
+    --modal-photo-contact-gap
+  ); /* Space between photo and contact info */
   align-items: flex-start; /* Align to top */
   background: #fafafa !important; /* Restore gray background */
   border-bottom: 1px solid var(--theme-border) !important; /* Restore border */
@@ -170,7 +175,8 @@
 }
 
 /* Panel does not import ClientDetailModal.css — define tap target + overlay here for mobile */
-.client-detail-panel-body .modal-photo-container.modal-photo-container-clickable {
+.client-detail-panel-body
+  .modal-photo-container.modal-photo-container-clickable {
   cursor: pointer;
   position: relative;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
@@ -247,23 +253,6 @@
   flex: 1;
   min-width: 0;
   max-width: none; /* Take full width */
-}
-
-/* Adjust edit toggle position - move it up and left */
-.client-detail-panel-body .detail-section-relative {
-  position: relative;
-}
-
-.client-detail-panel-body .edit-toggle-btn {
-  position: absolute;
-  top: -8px;
-  right: 16px;
-  margin: 0;
-}
-
-/* Row layout: align edit control's right edge with photo's right (any photo width) */
-.client-detail-panel-body .modal-header-with-photo .edit-toggle-btn {
-  right: calc(100% + var(--modal-photo-contact-gap));
 }
 
 /* Header layout - name, subtitle or last activity inline */
@@ -667,7 +656,8 @@
 }
 
 /* Single line with bullet separators: Treatment • Area • Product • Timeline • Qty */
-.discussed-treatments-record-row-one-line .discussed-treatments-record-line-outer {
+.discussed-treatments-record-row-one-line
+  .discussed-treatments-record-line-outer {
   font-size: 13px;
   font-weight: 500;
   color: var(--theme-text-primary);
@@ -677,20 +667,48 @@
 }
 
 /* Treatment name as heading, metadata below */
-.discussed-treatments-record-row-heading-meta .discussed-treatments-record-treatment-heading-outer {
+.discussed-treatments-record-row-heading-meta
+  .discussed-treatments-record-treatment-heading-outer {
   font-size: 14px;
   font-weight: 700;
   color: var(--theme-text-primary);
   line-height: 1.3;
 }
 
-.discussed-treatments-record-row-heading-meta .discussed-treatments-record-meta-line-outer {
+.discussed-treatments-record-row-heading-meta
+  .discussed-treatments-record-meta-line-outer {
   font-size: 12px;
   font-weight: 400;
   color: var(--theme-text-secondary);
   line-height: 1.4;
   word-wrap: break-word;
   overflow-wrap: break-word;
+}
+
+.discussed-treatments-record-row-heading-meta.discussed-treatments-record-row-with-price {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.discussed-treatments-record-row-with-price .discussed-treatments-record-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.discussed-treatments-record-price-outer {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  line-height: 1.3;
+  max-width: 42%;
 }
 
 .discussed-treatments-record-heading-block-outer {
@@ -862,7 +880,9 @@
 }
 
 .client-detail-panel .detail-section-skin-analysis,
-.client-detail-panel .detail-section-wellness-quiz .wellness-quiz-treatment-list {
+.client-detail-panel
+  .detail-section-wellness-quiz
+  .wellness-quiz-treatment-list {
   margin-top: 16px;
 }
 
@@ -948,6 +968,29 @@
   gap: 8px;
 }
 
+.client-detail-panel .skin-analysis-routine-groups {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.client-detail-panel .skin-analysis-products--routine-group {
+  margin-top: 0;
+}
+
+.client-detail-panel .skin-analysis-product-chips--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.client-detail-panel
+  .skin-analysis-product-chips--column
+  .skin-analysis-product-chip {
+  width: 100%;
+  justify-content: flex-start;
+}
+
 .client-detail-panel .skin-analysis-product-chip {
   display: inline-flex;
   align-items: center;
@@ -959,7 +1002,9 @@
   text-decoration: none;
   color: var(--theme-text-primary, #212121);
   font-size: 0.75rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   cursor: pointer;
 }
 
@@ -1197,11 +1242,6 @@
     border-radius: 14px;
   }
 
-  /* Column layout: photo and contact share width — edit right matches photo right */
-  .client-detail-panel-body .modal-header-with-photo .edit-toggle-btn {
-    right: 0;
-  }
-
   .client-detail-panel-body .modal-photo-container {
     width: 100% !important;
     max-width: 100% !important;
@@ -1225,7 +1265,9 @@
     max-height: 180px !important;
   }
 
-  .client-detail-panel-body .modal-photo-placeholder-wrapper .photo-placeholder-container {
+  .client-detail-panel-body
+    .modal-photo-placeholder-wrapper
+    .photo-placeholder-container {
     height: auto !important;
     min-height: 120px !important;
     max-height: 180px !important;
@@ -1339,9 +1381,7 @@
     font-size: 14px;
   }
 
-  /* Edit toggle: easier to tap */
-  .client-detail-panel-body .edit-toggle-btn {
+  .client-detail-panel-body .modal-contact-edit-toolbar .edit-toggle-btn {
     padding: 10px;
-    top: -4px;
   }
 }

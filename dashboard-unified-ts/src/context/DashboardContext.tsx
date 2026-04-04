@@ -15,17 +15,107 @@ import {
   ViewType,
   FilterState,
   SortState,
-  ContactHistoryEntry,
 } from "../types";
 import {
   fetchTableRecords,
-  fetchContactHistory,
   fetchProviderByCode,
 } from "../services/api";
 import { mapRecordToClient } from "../utils/clientMapper";
 import { mergeDuplicateLeadAndPatient } from "../utils/mergeLeadPatient";
 import { getWellnestSampleClientsIfEnabled } from "../debug/wellnestSampleClients";
 import { withWellnestDemoDiscussedItemsOverlay } from "../utils/wellnestDemoPlanPersistence";
+
+/**
+ * Minimal set of Airtable field names the dashboard list/grid/kanban views actually read.
+ * Requesting only these avoids transferring large long-text blobs (quiz JSON, etc.)
+ * that are only needed when opening a client detail panel.
+ */
+const PATIENTS_LIST_FIELDS: string[] = [
+  "Name",
+  "Email",
+  "Patient Phone Number",
+  "Phone Number",
+  "Status",
+  "Pending/Opened",
+  "Front Photo",
+  "Front photo",
+  "Source",
+  "source",
+  "Name (from Interest Items)",
+  "Goals",
+  "Wellness Goals",
+  "Age (from Form Submissions)",
+  "Age",
+  "Birthday (from Form Submissions)",
+  "Zip Code",
+  "Zip",
+  "Postal Code",
+  "Areas of Interest (from Form Submissions)",
+  "Which regions of your face do you want to improve? (from Form Submissions)",
+  "What would you like to improve? (from Form Submissions)",
+  "Aesthetic Goals",
+  "Notes",
+  "Name (from All Issues) (from Analyses)",
+  "Processed Areas of Interest (from Form Submissions)",
+  "Do you have any skin complaints? (from Form Submissions)",
+  "Photos Viewed",
+  "Interested Photos Viewed",
+  "Archived",
+  "Offer Claimed",
+  "Offer Earned",
+  "Offer Expiration",
+  "Offer Expiration Date",
+  "Coupon Expiration",
+  "Treatments Discussed",
+  "Discussed Treatments",
+  "Location name (from Boulevard Appointments) (from Form Submissions)",
+  "Appointment Service Staff First Name (from Boulevard Appointments) (from Form Submissions)",
+  "Appointment Service Staff Last Name (from Boulevard Appointments) (from Form Submissions)",
+  "Last Contact",
+  "Contacted",
+  "Record ID (from Providers)",
+];
+
+const WEB_POPUP_LEADS_LIST_FIELDS: string[] = [
+  "Name",
+  "Email Address",
+  "Phone Number",
+  "Status",
+  "Pending/Opened",
+  "Source",
+  "source",
+  "Goals",
+  "Concerns",
+  "Areas",
+  "Aesthetic Goals",
+  "Notes",
+  "Skin Type",
+  "Skin Tone",
+  "Ethnic Background",
+  "Engagement Level",
+  "Cases Viewed Count",
+  "Total Cases Available",
+  "Concerns Explored",
+  "Liked Photos",
+  "Viewed Photos",
+  "Age",
+  "Age Range",
+  "Date of Birth",
+  "Zip Code",
+  "Zip",
+  "Postal Code",
+  "Archived",
+  "Offer Claimed",
+  "Offer Earned",
+  "Offer Expiration",
+  "Offer Expiration Date",
+  "Coupon Expiration",
+  "Treatments Discussed",
+  "Discussed Treatments",
+  "Last Contact",
+  "Contacted",
+  "Record ID (from Providers)",
+];
 
 /** Provider codes that share one combined patient list (frontend merge, no backend change). */
 const MERGED_PROVIDER_CODES = ["TheTreatment250", "TheTreatment447"] as const;
@@ -167,7 +257,6 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         // If we have multiple IDs and backend may not support comma-separated, fetch per ID and merge
         const shouldFetchPerId = providerIds.length > 1;
 
-        // Run leads/patients fetch and contact history fetch in parallel so we don't wait for one to finish before starting the other
         const fetchLeadsAndPatients = async (): Promise<{
           leads: Awaited<ReturnType<typeof fetchTableRecords>>;
           patients: Awaited<ReturnType<typeof fetchTableRecords>>;
@@ -176,12 +265,18 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
             const [leadsByProvider, patientsByProvider] = await Promise.all([
               Promise.all(
                 providerIds.map((id) =>
-                  fetchTableRecords("Web Popup Leads", { providerId: id }),
+                  fetchTableRecords("Web Popup Leads", {
+                    providerId: id,
+                    fields: WEB_POPUP_LEADS_LIST_FIELDS,
+                  }),
                 ),
               ),
               Promise.all(
                 providerIds.map((id) =>
-                  fetchTableRecords("Patients", { providerId: id }),
+                  fetchTableRecords("Patients", {
+                    providerId: id,
+                    fields: PATIENTS_LIST_FIELDS,
+                  }),
                 ),
               ),
             ]);
@@ -203,66 +298,18 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           const [leads, patients] = await Promise.all([
             fetchTableRecords("Web Popup Leads", {
               providerId: providerIdParam,
+              fields: WEB_POPUP_LEADS_LIST_FIELDS,
             }),
-            fetchTableRecords("Patients", { providerId: providerIdParam }),
+            fetchTableRecords("Patients", {
+              providerId: providerIdParam,
+              fields: PATIENTS_LIST_FIELDS,
+            }),
           ]);
           return { leads, patients };
         };
 
-        const fetchHistory = async (): Promise<{
-          leads: Awaited<ReturnType<typeof fetchContactHistory>>;
-          patients: Awaited<ReturnType<typeof fetchContactHistory>>;
-        } | null> => {
-          if (providerIds.length === 0) return null;
-          try {
-            if (shouldFetchPerId) {
-              const [leadsHistByProvider, patientsHistByProvider] =
-                await Promise.all([
-                  Promise.all(
-                    providerIds.map((id) =>
-                      fetchContactHistory("Web Popup Leads", {
-                        providerId: id,
-                      }),
-                    ),
-                  ),
-                  Promise.all(
-                    providerIds.map((id) =>
-                      fetchContactHistory("Patients", { providerId: id }),
-                    ),
-                  ),
-                ]);
-              const seenLead = new Set<string>();
-              const leads = leadsHistByProvider.flat().filter((e) => {
-                if (seenLead.has(e.id)) return false;
-                seenLead.add(e.id);
-                return true;
-              });
-              const seenPatient = new Set<string>();
-              const patients = patientsHistByProvider.flat().filter((e) => {
-                if (seenPatient.has(e.id)) return false;
-                seenPatient.add(e.id);
-                return true;
-              });
-              return { leads, patients };
-            }
-            const providerIdParam = providerIds[0];
-            const [leads, patients] = await Promise.all([
-              fetchContactHistory("Web Popup Leads", {
-                providerId: providerIdParam,
-              }),
-              fetchContactHistory("Patients", {
-                providerId: providerIdParam,
-              }),
-            ]);
-            return { leads, patients };
-          } catch (contactError) {
-            console.warn("Failed to fetch contact history:", contactError);
-            return null;
-          }
-        };
-
-        const [{ leads: leadsRecords, patients: patientsRecords }, historyResult] =
-          await Promise.all([fetchLeadsAndPatients(), fetchHistory()]);
+        const { leads: leadsRecords, patients: patientsRecords } =
+          await fetchLeadsAndPatients();
 
         const leadsClients = leadsRecords.map((record) =>
           mapRecordToClient(record, "Web Popup Leads"),
@@ -275,42 +322,6 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
 
         // Consolidate same person as Web Popup Lead + Patient (e.g. Add Client then Scan In-Clinic) into one row
         allClients = mergeDuplicateLeadAndPatient(allClients);
-
-        if (historyResult) {
-          const { leads: leadsHistory, patients: patientsHistory } =
-            historyResult;
-          const allContactHistory = [...leadsHistory, ...patientsHistory];
-          const contactHistoryByLeadId = allContactHistory.reduce(
-            (acc, entry) => {
-              if (!acc[entry.leadId]) {
-                acc[entry.leadId] = [];
-              }
-              acc[entry.leadId].push(entry);
-              return acc;
-            },
-            {} as Record<string, any[]>,
-          );
-
-          allClients = allClients.map((client) => {
-            const patientHistory = contactHistoryByLeadId[client.id] || [];
-            const leadHistory = client.linkedLeadId
-              ? contactHistoryByLeadId[client.linkedLeadId] || []
-              : [];
-            const history = [...patientHistory, ...leadHistory];
-            const sortedHistory = history.sort(
-              (a: ContactHistoryEntry, b: ContactHistoryEntry) =>
-                new Date(b.date).getTime() - new Date(a.date).getTime(),
-            );
-            const lastContact =
-              sortedHistory.length > 0 ? sortedHistory[0].date : null;
-
-            return {
-              ...client,
-              contactHistory: sortedHistory,
-              lastContact,
-            };
-          });
-        }
 
         const wellnestSamples = getWellnestSampleClientsIfEnabled(
           provider?.code,

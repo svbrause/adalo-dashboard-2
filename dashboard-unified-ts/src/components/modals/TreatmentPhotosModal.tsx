@@ -3,6 +3,7 @@
 import type { Client } from "../../types";
 import type { DiscussedItem } from "../../types";
 import TreatmentPhotos, {
+  type TreatmentPlanAddDirectOptions,
   type TreatmentPlanPrefill,
 } from "./DiscussedTreatmentsModal/TreatmentPhotos";
 import "./TreatmentPhotosModal.css";
@@ -24,7 +25,10 @@ export interface TreatmentPhotosModalProps {
   /** When provided, "Add to plan" opens the treatment planning modal with form prefilled instead of adding directly */
   onAddToPlanWithPrefill?: (prefilled: TreatmentPlanPrefill) => void;
   /** When provided, "Add to plan" shows Where/When form and on confirm adds directly (no full modal) */
-  onAddToPlanDirect?: (prefill: TreatmentPlanPrefill) => void | Promise<void>;
+  onAddToPlanDirect?: (
+    prefill: TreatmentPlanPrefill,
+    options?: TreatmentPlanAddDirectOptions,
+  ) => void | DiscussedItem | Promise<void | DiscussedItem>;
   /** Current plan items – for "Added to plan" state */
   planItems?: DiscussedItem[];
 }

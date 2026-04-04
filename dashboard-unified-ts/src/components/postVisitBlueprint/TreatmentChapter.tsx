@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInViewOnce } from "../../hooks/useInViewOnce";
 import { createPortal } from "react-dom";
-import type { TreatmentChapter } from "../../utils/blueprintTreatmentChapters";
+import { type TreatmentChapter } from "../../utils/blueprintTreatmentChapters";
 import type {
   BlueprintCasePhoto,
   TreatmentResultsCard,
@@ -191,7 +191,10 @@ export function TreatmentChapterView({
     };
   }, [chapter, chapterOverview.planBullets, chapterAnalysisContext]);
 
+  const [cardRef, cardInView] = useInViewOnce<HTMLElement>("0px 0px -5% 0px", 0.05);
+
   useEffect(() => {
+    if (!cardInView) return;
     let cancelled = false;
     setAiChapterAnalysis(null);
     void (async () => {
@@ -202,7 +205,7 @@ export function TreatmentChapterView({
     return () => {
       cancelled = true;
     };
-  }, [aiChapterPayload]);
+  }, [aiChapterPayload, cardInView]);
 
   const chapterOverviewResolved = useMemo(
     () => {
@@ -262,8 +265,6 @@ export function TreatmentChapterView({
     [onCaseDetail],
   );
 
-  const [cardRef, cardInView] = useInViewOnce<HTMLElement>("0px 0px -5% 0px", 0.05);
-
   return (
     <article
       id={anchorId}
@@ -280,7 +281,6 @@ export function TreatmentChapterView({
       {/* Header */}
       <div className="tc-head">
         <h2 className="tc-name">{chapter.displayName}</h2>
-        {chapter.displayArea && <span className="tc-area">{chapter.displayArea}</span>}
       </div>
 
       {/* Regions / plan notes — high on the card so they are not buried below photos */}
@@ -299,13 +299,13 @@ export function TreatmentChapterView({
       <div className="tc-overview">
         <div className="tc-overview-head">
           <div className="tc-overview-brand">
-            <AiSparkleLogo size={15} className="tc-overview-ai-logo" />
-            <h3 className="tc-label">Personalized Treatment Overview</h3>
+            <AiSparkleLogo size={15} className="tc-overview-ai-logo pvb-ai-sparkle-glow" />
+            <h3 className="tc-label pvb-aesthetic-intelligence-heading">Aesthetic Intelligence</h3>
             <GeminiWordmark />
           </div>
           <PvbNarrativeAudioControls
             text={chapterOverviewSpeech}
-            ariaLabel={`Listen to Personalized Treatment Overview for ${chapter.displayName}`}
+            ariaLabel={`Listen to Aesthetic Intelligence for ${chapter.displayName}`}
             ariaLabelStop="Stop audio"
             analytics={
               blueprintPatientAnalytics
@@ -352,53 +352,32 @@ export function TreatmentChapterView({
       {chapter.meta.notes && <p className="tc-fact-note">{chapter.meta.notes}</p>}
 
       {chapterGlossaryTerms && chapterGlossaryTerms.length > 0 && (
-        <details
-          className="pvb-plan-glossary pvb-plan-glossary--collapsible tc-chapter-glossary"
-          open
-          onToggle={(e) => {
-            if (!blueprintPatientAnalytics) return;
-            const el = e.currentTarget;
-            trackPostVisitBlueprintEvent("blueprint_glossary_section_toggled", {
-              ...blueprintPatientAnalytics,
-              chapter_key: chapter.key,
-              section_open: el.open,
-            });
-          }}
-        >
-          <summary className="pvb-plan-glossary__section-summary">
-            <span className="pvb-plan-glossary__section-summary-text">
-              <span className="pvb-plan-glossary__section-title">Technical terms</span>
-            </span>
-            <span className="pvb-plan-glossary__section-chev" aria-hidden>
-              ▼
-            </span>
-          </summary>
-          <div className="pvb-plan-glossary__section-body">
-            <p className="pvb-plan-glossary-lead">
-              Quick definitions for abbreviations and add-ons that appear in this part of your plan.
-            </p>
-            <ul className="pvb-plan-glossary-list" aria-label="Technical terms for this treatment">
-              {chapterGlossaryTerms.map((term) => (
-                <li key={term.id} className="pvb-plan-glossary-item">
-                  <details className="pvb-plan-glossary-term-details">
-                    <summary className="pvb-plan-glossary__term-summary">
-                      <span className="pvb-plan-glossary-term">{term.title}</span>
-                      <span className="pvb-plan-glossary__term-chev" aria-hidden>
-                        ▼
-                      </span>
-                    </summary>
-                    <div className="pvb-plan-glossary__term-body">
-                      <p className="pvb-plan-glossary-body">{term.body}</p>
-                      {term.relationToYou ? (
-                        <p className="pvb-plan-glossary-relation">{term.relationToYou}</p>
-                      ) : null}
-                    </div>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </details>
+        <div className="pvb-plan-glossary tc-chapter-glossary">
+          <h4 className="pvb-plan-glossary__section-title">Technical terms</h4>
+          <p className="pvb-plan-glossary-lead">
+            Quick definitions for abbreviations and add-ons that appear in this part of your plan.
+          </p>
+          <ul className="pvb-plan-glossary-list" aria-label="Technical terms for this treatment">
+            {chapterGlossaryTerms.map((term) => (
+              <li key={term.id} className="pvb-plan-glossary-item">
+                <details className="pvb-plan-glossary-term-details">
+                  <summary className="pvb-plan-glossary__term-summary">
+                    <span className="pvb-plan-glossary-term">{term.title}</span>
+                    <span className="pvb-plan-glossary__term-chev" aria-hidden>
+                      ▼
+                    </span>
+                  </summary>
+                  <div className="pvb-plan-glossary__term-body">
+                    <p className="pvb-plan-glossary-body">{term.body}</p>
+                    {term.relationToYou ? (
+                      <p className="pvb-plan-glossary-relation">{term.relationToYou}</p>
+                    ) : null}
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* Videos — all clinic clips as compact thumbnails; tap to expand & play */}

@@ -298,24 +298,16 @@ export default function TreatmentPlanCheckoutModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {quoteData.lineItems.map((line, idx) => {
-                    const isPerUnitBreakdown =
-                      line.displayPrice.includes(" × ") &&
-                      line.displayPrice.includes(" = ");
-                    const quotePrice = isPerUnitBreakdown
-                      ? formatPrice(line.price)
-                      : line.displayPrice;
-                    return (
-                      <tr key={idx}>
-                        <td className="treatment-plan-quote-sheet-td">
-                          {line.skuName ?? line.label}
-                        </td>
-                        <td className="treatment-plan-quote-sheet-td treatment-plan-quote-sheet-td--right">
-                          {quotePrice}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {quoteData.lineItems.map((line, idx) => (
+                    <tr key={idx}>
+                      <td className="treatment-plan-quote-sheet-td">
+                        {line.skuName ?? line.label}
+                      </td>
+                      <td className="treatment-plan-quote-sheet-td treatment-plan-quote-sheet-td--right">
+                        {line.displayPrice}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

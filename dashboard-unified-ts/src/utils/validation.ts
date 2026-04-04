@@ -86,3 +86,22 @@ export function formatPhoneDisplay(phone: string | number | null | undefined): s
   }
   return digits || str;
 }
+
+/**
+ * Airtable "Age" on Web Popup Leads (and similar) is a number field. Age Range lives in a separate field;
+ * range strings like "35–44" must never be written to "Age".
+ */
+export function coerceToAirtableNumberAge(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value);
+  }
+  if (typeof value === "string") {
+    const t = value.trim();
+    if (/^\d+$/.test(t)) {
+      const n = parseInt(t, 10);
+      return Number.isFinite(n) ? n : null;
+    }
+  }
+  return null;
+}

@@ -24,8 +24,6 @@ import {
 import {
   DEFAULT_RECOMMENDER_FILTER_STATE,
   filterSuggestionsByRegion,
-  filterSuggestionsByFindings,
-  getFindingsFromConcerns,
   AREA_CROPPED_PHOTO_FIELDS,
   type TreatmentRecommenderFilterState,
 } from "../../config/treatmentRecommenderConfig";
@@ -35,7 +33,11 @@ import {
   SUGGESTION_TO_AREA,
   SUGGESTION_TO_ISSUES,
 } from "../modals/DiscussedTreatmentsModal/suggestionsMapping";
-import { getTreatmentsForInterest } from "../modals/DiscussedTreatmentsModal/utils";
+import {
+  getTreatmentsForInterest,
+  getQuantityContext,
+  shouldShowProminentPlanQuantity,
+} from "../modals/DiscussedTreatmentsModal/utils";
 import {
   REGION_OPTIONS,
   TIMELINE_OPTIONS,
@@ -43,13 +45,17 @@ import {
 } from "../modals/DiscussedTreatmentsModal/constants";
 import {
   GEMSTONE_BY_SKIN_TYPE,
-  RECOMMENDED_PRODUCT_REASONS,
+  buildQuizSkincareRoutineSections,
 } from "../../data/skinTypeQuiz";
 import { showToast } from "../../utils/toast";
 import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
 import { groupIssuesByConcern } from "../../config/issueToConcernMapping";
-import type { TreatmentPlanPrefill } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
+import type {
+  TreatmentPlanAddDirectOptions,
+  TreatmentPlanPrefill,
+} from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
+import { PlanQuantityStepperInput } from "./planQuantityStepper";
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import "../modals/AnalysisOverviewModal.css";
 import "./TreatmentRecommenderBySuggestion.css";
@@ -138,22 +144,31 @@ function getIssuesForSuggestion(suggestionName: string): string[] {
   return SUGGESTION_TO_ISSUES[suggestionName] ?? [];
 }
 
+function initialAddToPlanRowForSuggestion(suggestionName: string, what: string) {
+  const quantity =
+    what === "Skincare"
+      ? ""
+      : getQuantityContext(what, undefined).defaultQuantity;
+  return {
+    suggestionName,
+    what,
+    where: [] as string[],
+    when: TIMELINE_OPTIONS[0],
+    product: "",
+    quantity,
+    notes: "",
+  };
+}
+
 export interface TreatmentRecommenderBySuggestionProps {
   client: Client;
   onBack: () => void;
   onUpdate?: () => void | Promise<void>;
-  /** Add item directly to plan and show success; then user can click "Add additional details" to open the plan modal. Returns the new item so we can open it for editing. */
+  /** Add item directly to plan and show success. Returns the new item for immediate UI. */
   onAddToPlanDirect?: (
     prefill: TreatmentPlanPrefill,
+    options?: TreatmentPlanAddDirectOptions,
   ) => Promise<DiscussedItem | void> | void;
-  /** Open the treatment plan modal (e.g. for "Add additional details"). */
-  onOpenTreatmentPlan?: () => void;
-  /** Open the treatment plan modal with prefill (e.g. from View examples → Add to plan). */
-  onOpenTreatmentPlanWithPrefill?: (prefill: TreatmentPlanPrefill) => void;
-  /** Open the treatment plan modal with this item selected for editing ("Add additional details"). */
-  onOpenTreatmentPlanWithItem?: (item: DiscussedItem) => void;
-  /** Ref set by parent; when treatment plan modal closes, parent will call this so we clear "just added" state. */
-  treatmentPlanModalClosedRef?: React.MutableRefObject<(() => void) | null>;
   /** Region filter chips — used when sending post-visit blueprint (AI mirror highlights). */
   onRecommenderRegionsChange?: (regions: readonly string[]) => void;
 }
@@ -163,10 +178,6 @@ export default function TreatmentRecommenderBySuggestion({
   onBack: _onBack,
   onUpdate,
   onAddToPlanDirect,
-  onOpenTreatmentPlan,
-  onOpenTreatmentPlanWithPrefill,
-  onOpenTreatmentPlanWithItem,
-  treatmentPlanModalClosedRef,
   onRecommenderRegionsChange,
 }: TreatmentRecommenderBySuggestionProps) {
   const { provider } = useDashboard();
@@ -223,24 +234,10 @@ export default function TreatmentRecommenderBySuggestion({
 
   const detectedIssues = useMemo(() => getDetectedIssues(client), [client]);
 
-  /** All selected findings (explicit + from general concerns) used to filter suggestions. */
-  const effectiveFindings = useMemo(() => {
-    const fromConcerns = getFindingsFromConcerns(filterState.generalConcerns);
-    const set = new Set([...filterState.findingsToAddress, ...fromConcerns]);
-    return Array.from(set);
-  }, [filterState.findingsToAddress, filterState.generalConcerns]);
-
   const staticSuggestionList = useMemo(() => {
     let list = [...ALL_TREATMENT_INTERESTS];
     if (filterState.region.length > 0) {
       list = filterSuggestionsByRegion(list, filterState.region);
-    }
-    if (effectiveFindings.length > 0) {
-      list = filterSuggestionsByFindings(
-        list,
-        effectiveFindings,
-        SUGGESTION_TO_ISSUES,
-      );
     }
     if (filterState.sameDayAddOn) {
       list = list.filter((name) => {
@@ -251,7 +248,7 @@ export default function TreatmentRecommenderBySuggestion({
       });
     }
     return list;
-  }, [filterState.region, filterState.sameDayAddOn, effectiveFindings, provider?.code]);
+  }, [filterState.region, filterState.sameDayAddOn, provider?.code]);
 
   /** When we have API cards, filter and sort them (focus first, then by name). Otherwise use static list. */
   const displayCards = useMemo(():
@@ -266,16 +263,6 @@ export default function TreatmentRecommenderBySuggestion({
         filterSuggestionsByRegion(
           apiCards.map((c) => c.suggestionName),
           filterState.region,
-        ),
-      );
-      list = list.filter((c) => allowedNames.has(c.suggestionName));
-    }
-    if (effectiveFindings.length > 0) {
-      const allowedNames = new Set(
-        filterSuggestionsByFindings(
-          list.map((c) => c.suggestionName),
-          effectiveFindings,
-          SUGGESTION_TO_ISSUES,
         ),
       );
       list = list.filter((c) => allowedNames.has(c.suggestionName));
@@ -297,7 +284,6 @@ export default function TreatmentRecommenderBySuggestion({
     apiCards,
     filterState.region,
     filterState.sameDayAddOn,
-    effectiveFindings,
     staticSuggestionList,
     provider?.code,
   ]);
@@ -345,7 +331,7 @@ export default function TreatmentRecommenderBySuggestion({
     }
   };
 
-  /** Whether this suggestion is already in the treatment plan (so we show "Added" and "Add additional details"). */
+  /** Whether this suggestion is already in the treatment plan (so we show "Added"). */
   const isSuggestionInPlan = (suggestionName: string): boolean => {
     if (lastAddedItem && lastAddedItem.interest === suggestionName) return true;
     return (client.discussedItems ?? []).some(
@@ -354,13 +340,27 @@ export default function TreatmentRecommenderBySuggestion({
   };
 
   useEffect(() => {
-    if (!treatmentPlanModalClosedRef) return;
-    treatmentPlanModalClosedRef.current = () => setLastAddedItem(null);
-    return () => {
-      if (treatmentPlanModalClosedRef)
-        treatmentPlanModalClosedRef.current = null;
-    };
-  }, [treatmentPlanModalClosedRef]);
+    if (!addToPlanForSuggestion || addToPlanForSuggestion.what === "Skincare")
+      return;
+    const qtyCtx = getQuantityContext(
+      addToPlanForSuggestion.what,
+      addToPlanForSuggestion.product?.trim() || undefined,
+    );
+    if (qtyCtx.quantityControl === "text") return;
+    const { options, defaultQuantity } = qtyCtx;
+    const q = (addToPlanForSuggestion.quantity ?? "").trim();
+    if (q && options.includes(q)) return;
+    const next = defaultQuantity;
+    if (q !== next) {
+      setAddToPlanForSuggestion((prev) =>
+        prev ? { ...prev, quantity: next } : null,
+      );
+    }
+  }, [
+    addToPlanForSuggestion?.what,
+    addToPlanForSuggestion?.product,
+    addToPlanForSuggestion?.quantity,
+  ]);
 
   const isInPlanOrInterests = (suggestionName: string): boolean => {
     const interested = client.interestedIssues;
@@ -497,6 +497,24 @@ export default function TreatmentRecommenderBySuggestion({
     return clientFrontPhotoUrl;
   };
 
+  const skincareCarouselForQuiz = useMemo(
+    () => getSkincareCarouselItems(),
+    [],
+  );
+  const quizRoutineSections = useMemo(
+    () =>
+      buildQuizSkincareRoutineSections(
+        client.skincareQuiz?.recommendedProductNames,
+        client.skincareQuiz?.result,
+        (name) => skincareCarouselForQuiz.find((p) => p.name === name),
+      ),
+    [
+      client.skincareQuiz?.recommendedProductNames,
+      client.skincareQuiz?.result,
+      skincareCarouselForQuiz,
+    ],
+  );
+
   return (
     <div className="treatment-recommender-by-suggestion">
       <div className="treatment-recommender-by-suggestion__body">
@@ -543,33 +561,22 @@ export default function TreatmentRecommenderBySuggestion({
                   </span>
                 )}
             </div>
-            {client.skincareQuiz.recommendedProductNames &&
-              client.skincareQuiz.recommendedProductNames.length > 0 &&
-              (() => {
-                const carouselItems = getSkincareCarouselItems();
-                const products =
-                  client.skincareQuiz!.recommendedProductNames!.map((name) => {
-                    const item = carouselItems.find((p) => p.name === name);
-                    const context = RECOMMENDED_PRODUCT_REASONS[name] ?? "";
-                    return item
-                      ? { name, imageUrl: item.imageUrl, context }
-                      : {
-                          name,
-                          imageUrl: undefined,
-                          context: RECOMMENDED_PRODUCT_REASONS[name] ?? "",
-                        };
-                  });
-                return (
-                  <div className="treatment-recommender-skin-analysis__products">
+            {quizRoutineSections.length > 0 && (
+              <div className="treatment-recommender-skin-analysis__routine-wrap">
+                {quizRoutineSections.map((section) => (
+                  <div
+                    key={section.id}
+                    className="treatment-recommender-skin-analysis__products"
+                  >
                     <span className="treatment-recommender-skin-analysis__products-label">
-                      Skincare (from skin quiz)
+                      {section.title}
                     </span>
-                    <div className="treatment-recommender-skin-analysis__chips">
-                      {products.map((p, idx) => (
+                    <div className="treatment-recommender-skin-analysis__chips treatment-recommender-skin-analysis__chips--column">
+                      {section.items.map((p) => (
                         <button
-                          key={idx}
+                          key={`${section.id}-${p.name}`}
                           type="button"
-                          className="treatment-recommender-skin-analysis__chip treatment-recommender-skin-analysis__chip--add"
+                          className="treatment-recommender-skin-analysis__chip treatment-recommender-skin-analysis__chip--add treatment-recommender-skin-analysis__chip--row"
                           onClick={async () => {
                             if (!onAddToPlanDirect) return;
                             const prefill: TreatmentPlanPrefill = {
@@ -579,7 +586,7 @@ export default function TreatmentRecommenderBySuggestion({
                               treatmentProduct:
                                 p.name.split("|")[0]?.trim() ?? p.name,
                               timeline: TIMELINE_OPTIONS[0],
-                              notes: p.context || undefined,
+                              notes: p.blurb || undefined,
                             };
                             try {
                               await onAddToPlanDirect(prefill);
@@ -589,8 +596,8 @@ export default function TreatmentRecommenderBySuggestion({
                             }
                           }}
                           title={
-                            p.context
-                              ? `Add to plan – ${p.context}`
+                            p.blurb
+                              ? `Add to plan – ${p.blurb}`
                               : "Add to treatment plan"
                           }
                         >
@@ -606,19 +613,20 @@ export default function TreatmentRecommenderBySuggestion({
                             </span>
                           )}
                           <span className="treatment-recommender-skin-analysis__chip-name">
-                            {p.name.split("|")[0]?.trim() ?? p.name}
+                            {p.displayName}
                           </span>
-                          {p.context && (
+                          {p.blurb ? (
                             <span className="treatment-recommender-skin-analysis__chip-context">
-                              {p.context}
+                              {p.blurb}
                             </span>
-                          )}
+                          ) : null}
                         </button>
                       ))}
                     </div>
                   </div>
-                );
-              })()}
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -761,38 +769,6 @@ export default function TreatmentRecommenderBySuggestion({
                               <p className="treatment-recommender-by-suggestion__added-message">
                                 Added to treatment plan
                               </p>
-                              {onOpenTreatmentPlanWithItem ? (
-                                <button
-                                  type="button"
-                                  className="treatment-recommender-by-suggestion__add-details-btn"
-                                  onClick={() => {
-                                    const itemToEdit =
-                                      lastAddedItem &&
-                                      lastAddedItem.interest === suggestionName
-                                        ? lastAddedItem
-                                        : [...(client.discussedItems ?? [])]
-                                            .reverse()
-                                            .find(
-                                              (i) =>
-                                                i.interest === suggestionName,
-                                            );
-                                    if (itemToEdit)
-                                      onOpenTreatmentPlanWithItem(itemToEdit);
-                                    else if (onOpenTreatmentPlan)
-                                      onOpenTreatmentPlan();
-                                  }}
-                                >
-                                  Add additional details
-                                </button>
-                              ) : onOpenTreatmentPlan ? (
-                                <button
-                                  type="button"
-                                  className="treatment-recommender-by-suggestion__add-details-btn"
-                                  onClick={() => onOpenTreatmentPlan()}
-                                >
-                                  Add additional details
-                                </button>
-                              ) : null}
                             </div>
                           ) : addToPlanForSuggestion?.suggestionName ===
                             suggestionName ? (
@@ -882,9 +858,150 @@ export default function TreatmentRecommenderBySuggestion({
                                   ))}
                                 </div>
                               </div>
+                              {addToPlanForSuggestion.what !== "Skincare" &&
+                                shouldShowProminentPlanQuantity(
+                                  addToPlanForSuggestion.what,
+                                  addToPlanForSuggestion.product?.trim() ||
+                                    undefined,
+                                ) &&
+                                (() => {
+                                  const qtyCtx = getQuantityContext(
+                                    addToPlanForSuggestion.what,
+                                    addToPlanForSuggestion.product?.trim() ||
+                                      undefined,
+                                  );
+                                  return (
+                                    <label className="treatment-recommender-by-suggestion__details-label treatment-recommender-by-suggestion__pricing-qty">
+                                      <span className="treatment-recommender-by-suggestion__pricing-qty-label">
+                                        {qtyCtx.unitLabel}
+                                      </span>
+                                      {qtyCtx.quantityControl === "text" ? (
+                                        <input
+                                          type="text"
+                                          inputMode="numeric"
+                                          className="treatment-recommender-by-suggestion__details-input"
+                                          aria-label={qtyCtx.unitLabel}
+                                          placeholder={qtyCtx.defaultQuantity}
+                                          value={
+                                            addToPlanForSuggestion.quantity ??
+                                            ""
+                                          }
+                                          onChange={(e) => {
+                                            const v = e.target.value.replace(
+                                              /\D/g,
+                                              "",
+                                            );
+                                            setAddToPlanForSuggestion(
+                                              (prev) =>
+                                                prev
+                                                  ? { ...prev, quantity: v }
+                                                  : null,
+                                            );
+                                          }}
+                                        />
+                                      ) : (
+                                        <PlanQuantityStepperInput
+                                          unitLabel={qtyCtx.unitLabel}
+                                          quantity={
+                                            addToPlanForSuggestion.quantity ??
+                                            ""
+                                          }
+                                          options={qtyCtx.options}
+                                          defaultQuantity={
+                                            qtyCtx.defaultQuantity
+                                          }
+                                          inputId={`suggestion-qty-prominent-${addToPlanForSuggestion.what}`}
+                                          onQuantityChange={(next) =>
+                                            setAddToPlanForSuggestion((prev) =>
+                                              prev
+                                                ? { ...prev, quantity: next }
+                                                : null,
+                                            )
+                                          }
+                                        />
+                                      )}
+                                    </label>
+                                  );
+                                })()}
                               <details className="treatment-recommender-by-suggestion__details">
                                 <summary>Optional details</summary>
                                 <div className="treatment-recommender-by-suggestion__details-fields">
+                                  {addToPlanForSuggestion.what !== "Skincare" &&
+                                  !shouldShowProminentPlanQuantity(
+                                    addToPlanForSuggestion.what,
+                                    addToPlanForSuggestion.product?.trim() ||
+                                      undefined,
+                                  )
+                                    ? (() => {
+                                        const qtyCtx = getQuantityContext(
+                                          addToPlanForSuggestion.what,
+                                          addToPlanForSuggestion.product?.trim() ||
+                                            undefined,
+                                        );
+                                        return (
+                                          <label className="treatment-recommender-by-suggestion__details-label">
+                                            <span className="treatment-recommender-by-suggestion__quantity-unit-label">
+                                              {qtyCtx.unitLabel}
+                                            </span>
+                                            {qtyCtx.quantityControl === "text" ? (
+                                              <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                className="treatment-recommender-by-suggestion__details-input"
+                                                aria-label={qtyCtx.unitLabel}
+                                                placeholder={
+                                                  qtyCtx.defaultQuantity
+                                                }
+                                                value={
+                                                  addToPlanForSuggestion.quantity ??
+                                                  ""
+                                                }
+                                                onChange={(e) => {
+                                                  const v =
+                                                    e.target.value.replace(
+                                                      /\D/g,
+                                                      "",
+                                                    );
+                                                  setAddToPlanForSuggestion(
+                                                    (prev) =>
+                                                      prev
+                                                        ? {
+                                                            ...prev,
+                                                            quantity: v,
+                                                          }
+                                                        : null,
+                                                  );
+                                                }}
+                                              />
+                                            ) : (
+                                              <PlanQuantityStepperInput
+                                                unitLabel={qtyCtx.unitLabel}
+                                                quantity={
+                                                  addToPlanForSuggestion.quantity ??
+                                                  ""
+                                                }
+                                                options={qtyCtx.options}
+                                                defaultQuantity={
+                                                  qtyCtx.defaultQuantity
+                                                }
+                                                inputId={`suggestion-qty-details-${addToPlanForSuggestion.what}`}
+                                                onQuantityChange={(next) =>
+                                                  setAddToPlanForSuggestion(
+                                                    (prev) =>
+                                                      prev
+                                                        ? {
+                                                            ...prev,
+                                                            quantity: next,
+                                                          }
+                                                        : null,
+                                                  )
+                                                }
+                                              />
+                                            )}
+                                          </label>
+                                        );
+                                      })()
+                                    : null}
                                   <label className="treatment-recommender-by-suggestion__details-label">
                                     Product
                                     <input
@@ -900,27 +1017,6 @@ export default function TreatmentRecommenderBySuggestion({
                                             ? {
                                                 ...prev,
                                                 product: e.target.value,
-                                              }
-                                            : null,
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                  <label className="treatment-recommender-by-suggestion__details-label">
-                                    Quantity
-                                    <input
-                                      type="text"
-                                      className="treatment-recommender-by-suggestion__details-input"
-                                      placeholder="e.g. 2"
-                                      value={
-                                        addToPlanForSuggestion.quantity ?? ""
-                                      }
-                                      onChange={(e) =>
-                                        setAddToPlanForSuggestion((prev) =>
-                                          prev
-                                            ? {
-                                                ...prev,
-                                                quantity: e.target.value,
                                               }
                                             : null,
                                         )
@@ -970,16 +1066,17 @@ export default function TreatmentRecommenderBySuggestion({
                               className="treatment-recommender-by-suggestion__add-btn"
                               onClick={() => {
                                 const treatments =
-                                  getTreatmentsForInterest(suggestionName, provider?.code);
-                                setAddToPlanForSuggestion({
-                                  suggestionName,
-                                  what: treatments[0] ?? "",
-                                  where: [],
-                                  when: TIMELINE_OPTIONS[0],
-                                  product: "",
-                                  quantity: "",
-                                  notes: "",
-                                });
+                                  getTreatmentsForInterest(
+                                    suggestionName,
+                                    provider?.code,
+                                  );
+                                const what = treatments[0] ?? "";
+                                setAddToPlanForSuggestion(
+                                  initialAddToPlanRowForSuggestion(
+                                    suggestionName,
+                                    what,
+                                  ),
+                                );
                               }}
                             >
                               Add to plan
@@ -1012,11 +1109,11 @@ export default function TreatmentRecommenderBySuggestion({
           selectedRegion={SUGGESTION_TO_AREA[photoExplorerInterest]}
           onClose={() => setPhotoExplorerInterest(null)}
           onUpdate={onUpdate}
-          onAddToPlanWithPrefill={
-            onOpenTreatmentPlanWithPrefill
-              ? (prefill) => {
+          onAddToPlanDirect={
+            onAddToPlanDirect
+              ? async (prefill, options) => {
                   setPhotoExplorerInterest(null);
-                  onOpenTreatmentPlanWithPrefill(prefill);
+                  await onAddToPlanDirect(prefill, options);
                 }
               : undefined
           }

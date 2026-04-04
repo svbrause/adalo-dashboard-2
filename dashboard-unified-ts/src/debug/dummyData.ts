@@ -125,7 +125,7 @@ export function getDummyTreatmentPhotos(): TreatmentPhoto[] {
       price: "$500–$2,000+",
     },
     {
-      name: "Energy Device",
+      name: "Energy Treatment",
       area: "Nasolabial",
       longevity: "6–12+ months",
       downtime: "3–7 days",

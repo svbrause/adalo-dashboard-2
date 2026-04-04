@@ -923,7 +923,7 @@ export const TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE: Record<
     items: [
       "BBL/Moxi – For pigmentation and redness (laser consultation will determine which is best for your skin)",
       "PRFM Injections – Healing and collagen support",
-      "Cosmelan Peel – For deeper pigment correction",
+      "Depigmentation peel – For deeper pigment correction",
       "Sweating Treatment with Botox – Helps manage oil and sweat",
     ],
   },
@@ -940,7 +940,7 @@ export const TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE: Record<
   jade: {
     heading: "Tolerant skin prone to pigmentation and sun damage",
     items: [
-      "Cosmelan Peel – Corrects stubborn pigmentation",
+      "Depigmentation peel – Corrects stubborn pigmentation",
       "BBL/Moxi – Brightens and evens tone (laser consultation will determine best option)",
       "Sofwave / Ultherapy – Firms and stimulates collagen",
       "Sculptra – Long-term collagen stimulation",
@@ -962,7 +962,7 @@ export const TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE: Record<
       "BBL/Moxi – Brightens and evens tone (laser consultation will determine best option)",
       "PRFM Microneedling – Collagen stimulation with brightening benefits",
       "SkinVive – Gentle hydration and radiance",
-      "Cosmelan Peel – Pigmentation correction",
+      "Depigmentation peel – Pigmentation correction",
       "Sculptra – Collagen and structural support, enhanced skin glow",
     ],
   },
@@ -979,7 +979,7 @@ export const TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE: Record<
   turquoise: {
     heading: "Tolerant skin with visible pigment and early aging",
     items: [
-      "Cosmelan Peel – Comprehensive pigment reset",
+      "Depigmentation peel – Comprehensive pigment reset",
       "BBL/Moxi – Corrects tone and sun damage (laser consultation will determine best option)",
       "PRFM Microneedling – Collagen stimulation with brightening benefits",
       "Fillers – For natural contour and replenishment",
@@ -1277,6 +1277,145 @@ export const RECOMMENDED_PRODUCT_REASONS: Record<string, string> = {
   "The Treatment Let's Get Physical Tinted SPF 44 | Lightweight Tinted Sunscreen with Broad Spectrum Protection":
     "Tinted sun protection",
 };
+
+/** Unique product names from routine steps in step order. */
+export function collectUniqueProductNamesFromRoutineSteps(
+  steps: RoutineStep[],
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const step of steps) {
+    for (const name of step.productNames) {
+      if (!seen.has(name)) {
+        seen.add(name);
+        out.push(name);
+      }
+    }
+  }
+  return out;
+}
+
+export interface QuizRoutineProductPreview {
+  name: string;
+  displayName: string;
+  imageUrl?: string;
+  blurb: string;
+}
+
+export interface QuizSkincareRoutineSection {
+  id: string;
+  title: string;
+  items: QuizRoutineProductPreview[];
+}
+
+function quizRoutinePreviewItem(
+  name: string,
+  getCarouselRow: (name: string) => { imageUrl?: string } | undefined,
+  blurbFallback: string,
+): QuizRoutineProductPreview {
+  const row = getCarouselRow(name);
+  const displayName = name.split("|")[0]?.trim() ?? name;
+  return {
+    name,
+    displayName,
+    imageUrl: row?.imageUrl,
+    blurb: RECOMMENDED_PRODUCT_REASONS[name] ?? blurbFallback,
+  };
+}
+
+/**
+ * AM/PM (and optional) routine sections from quiz result plus flat recommendations, for dashboard UI.
+ * Pass a resolver that returns carousel rows by full product `name`.
+ */
+export function buildQuizSkincareRoutineSections(
+  recommendedProductNames: string[] | undefined,
+  result: string | undefined,
+  getCarouselRow: (name: string) => { imageUrl?: string } | undefined,
+): QuizSkincareRoutineSection[] {
+  const recommendedFlat = recommendedProductNames ?? [];
+  const gemstone = result as GemstoneId | undefined;
+  const routine =
+    gemstone && gemstone in ROUTINE_NOTES_BY_SKIN_TYPE
+      ? ROUTINE_NOTES_BY_SKIN_TYPE[gemstone]
+      : undefined;
+
+  const sections: QuizSkincareRoutineSection[] = [];
+
+  if (routine) {
+    const amNames = collectUniqueProductNamesFromRoutineSteps(routine.am);
+    if (amNames.length > 0) {
+      sections.push({
+        id: "am",
+        title: "Morning (AM) routine",
+        items: amNames.map((name) =>
+          quizRoutinePreviewItem(name, getCarouselRow, "From your AM routine"),
+        ),
+      });
+    }
+    const pmNames = collectUniqueProductNamesFromRoutineSteps(routine.pm);
+    if (pmNames.length > 0) {
+      sections.push({
+        id: "pm",
+        title: "Evening (PM) routine",
+        items: pmNames.map((name) =>
+          quizRoutinePreviewItem(name, getCarouselRow, "From your PM routine"),
+        ),
+      });
+    }
+    if (routine.optional?.productNames?.length) {
+      const optUnique = [...new Set(routine.optional.productNames)];
+      sections.push({
+        id: "optional",
+        title: routine.optional.label || "Optional add-ons",
+        items: optUnique.map((name) =>
+          quizRoutinePreviewItem(
+            name,
+            getCarouselRow,
+            "Optional for your routine",
+          ),
+        ),
+      });
+    }
+  }
+
+  const routineNameSet = new Set<string>();
+  for (const s of sections) {
+    for (const it of s.items) routineNameSet.add(it.name);
+  }
+
+  const extraRecommended = recommendedFlat.filter((n) => !routineNameSet.has(n));
+  if (extraRecommended.length > 0) {
+    sections.push({
+      id: "additional",
+      title: "Additional quiz recommendations",
+      items: extraRecommended.map((name) =>
+        quizRoutinePreviewItem(
+          name,
+          getCarouselRow,
+          "Recommended from your quiz",
+        ),
+      ),
+    });
+  }
+
+  if (sections.length === 0 && recommendedFlat.length > 0) {
+    return [
+      {
+        id: "recommended",
+        title: "Recommended products",
+        items: recommendedFlat.map((name) =>
+          quizRoutinePreviewItem(
+            name,
+            getCarouselRow,
+            "Recommended from your quiz",
+          ),
+        ),
+      },
+    ];
+  }
+
+  return sections;
+}
 
 /**
  * Return recommended product names for a skin type (from our boutique list).

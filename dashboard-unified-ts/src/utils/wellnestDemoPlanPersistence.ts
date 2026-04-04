@@ -49,10 +49,7 @@ export async function persistClientDiscussedItems(
     return;
   }
   const payload = nextItems.length > 0 ? JSON.stringify(nextItems) : "";
-  const ok = await updateLeadRecord(client.id, client.tableSource, {
+  await updateLeadRecord(client.id, client.tableSource, {
     [AIRTABLE_FIELD]: payload,
   });
-  if (!ok) {
-    throw new Error("Failed to save treatment plan");
-  }
 }

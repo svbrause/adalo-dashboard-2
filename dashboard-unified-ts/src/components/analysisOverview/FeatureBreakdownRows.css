@@ -32,6 +32,24 @@
   text-align: left;
 }
 
+.ao-subscore-row--minimal .ao-subscore-row__header {
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.ao-subscore-row--minimal .ao-subscore-row__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.ao-subscore-row__score--solo {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  min-width: 28px;
+  text-align: right;
+}
+
 .ao-subscore-row__name {
   font-size: 0.8125rem;
   font-weight: 600;

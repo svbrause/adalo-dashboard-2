@@ -1,6 +1,7 @@
 // List View Component
 
 import { useState, useMemo } from "react";
+import LeadAutoReplySettingsModal from "../modals/LeadAutoReplySettingsModal";
 import { useDashboard } from "../../context/DashboardContext";
 import ClientDetailPanel from "./ClientDetailPanel";
 import Pagination from "../common/Pagination";
@@ -11,15 +12,15 @@ import {
   hasFacialInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { applyFilters, applySorting } from "../../utils/filtering";
-import { isAddClientLead } from "../../utils/leadSource";
+import { isWebsiteMarketingWebLead } from "../../utils/leadSource";
 import { updateClientStatus } from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
+import { isTheTreatmentProvider } from "../../utils/providerHelpers";
 import "./ListView.css";
 
 export default function ListView() {
   const {
     clients,
-    currentView,
     searchQuery,
     loading,
     error,
@@ -30,26 +31,22 @@ export default function ListView() {
     pagination,
     setPagination,
     provider,
+    currentView,
   } = useDashboard();
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
   >(null);
+  const [showLeadAutoReplySettings, setShowLeadAutoReplySettings] =
+    useState(false);
 
-  // Filter and sort: All Clients = Patients + Web Popup Leads with Source "Add Client"; Leads tab = other Web Popup Leads
+  // Sidebar: Clients vs Leads are two filters over the same records.
   const processedClients = useMemo(() => {
     let filtered = clients.filter((client) => !client.archived);
-    if (currentView === "leads") {
-      filtered = filtered.filter(
-        (client) =>
-          client.tableSource === "Web Popup Leads" && !isAddClientLead(client)
-      );
-    } else {
-      filtered = filtered.filter(
-        (client) =>
-          client.tableSource === "Patients" || isAddClientLead(client)
-      );
-    }
-
+    filtered = filtered.filter((client) =>
+      currentView === "leads"
+        ? isWebsiteMarketingWebLead(client)
+        : !isWebsiteMarketingWebLead(client),
+    );
     filtered = applyFilters(filtered, filters, searchQuery, provider?.code);
     filtered = applySorting(filtered, sort);
 
@@ -135,6 +132,17 @@ export default function ListView() {
   return (
     <section className="list-view active">
       <div className="list-view-content">
+        {currentView === "leads" && isTheTreatmentProvider(provider) && (
+          <div className="list-view-leads-toolbar">
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => setShowLeadAutoReplySettings(true)}
+            >
+              Auto-reply settings
+            </button>
+          </div>
+        )}
         <div className="leads-table-container">
           <table className="leads-table">
             <thead>
@@ -184,7 +192,9 @@ export default function ListView() {
                   <td colSpan={6} className="table-cell-center">
                     {clients.length === 0
                       ? "No clients found"
-                      : "No clients match your search"}
+                      : currentView === "leads"
+                        ? "No leads match your filters"
+                        : "No clients match your search"}
                   </td>
                 </tr>
               ) : (
@@ -303,6 +313,12 @@ export default function ListView() {
           }
           onClose={() => setSelectedClient(null)}
           onUpdate={() => refreshClients(true)}
+        />
+      )}
+
+      {showLeadAutoReplySettings && (
+        <LeadAutoReplySettingsModal
+          onClose={() => setShowLeadAutoReplySettings(false)}
         />
       )}
     </section>

@@ -10,9 +10,14 @@ import "./HelpRequestModal.css";
 
 interface HelpRequestModalProps {
   onClose: () => void;
+  /** When set (e.g. from Leads auto-reply “Request change”), seeds the message field. */
+  initialMessage?: string;
 }
 
-export default function HelpRequestModal({ onClose }: HelpRequestModalProps) {
+export default function HelpRequestModal({
+  onClose,
+  initialMessage,
+}: HelpRequestModalProps) {
   const { provider } = useDashboard();
   const [formData, setFormData] = useState({
     name: "",
@@ -21,6 +26,12 @@ export default function HelpRequestModal({ onClose }: HelpRequestModalProps) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialMessage?.trim()) {
+      setFormData((prev) => ({ ...prev, message: initialMessage }));
+    }
+  }, [initialMessage]);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -58,7 +69,7 @@ export default function HelpRequestModal({ onClose }: HelpRequestModalProps) {
     }
 
     if (!provider) {
-      showError("Provider information not available");
+      showError("Please refresh the page and try again.");
       return;
     }
 

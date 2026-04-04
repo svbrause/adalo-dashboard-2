@@ -26,12 +26,12 @@ export default function SmsConfigChangeRequestModal({
   const defaultRequest = useMemo(
     () =>
       [
-        `Product: ${product.productName}`,
-        `Event: ${eventConfig.eventName}`,
-        `Current status: ${eventConfig.enabled ? "ON" : "OFF"}`,
-        `Trigger: ${eventConfig.trigger}`,
+        `Area: ${product.productName}`,
+        `Message: ${eventConfig.eventName}`,
+        `Sending is ${eventConfig.enabled ? "on" : "off"} right now`,
+        `When it sends: ${eventConfig.trigger}`,
         "",
-        "Requested update:",
+        "What I would like changed:",
       ].join("\n"),
     [eventConfig.enabled, eventConfig.eventName, eventConfig.trigger, product.productName],
   );
@@ -51,7 +51,7 @@ export default function SmsConfigChangeRequestModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!provider) {
-      showError("Provider context is missing.");
+      showError("Please refresh the page and try again.");
       return;
     }
     if (!name.trim()) {
@@ -63,7 +63,7 @@ export default function SmsConfigChangeRequestModal({
       return;
     }
     if (!request.trim()) {
-      showError("Please describe the requested change.");
+      showError("Please describe what you would like changed.");
       return;
     }
 
@@ -85,9 +85,9 @@ export default function SmsConfigChangeRequestModal({
       <div className="modal-content sms-config-request-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-header-info">
-            <h2 className="modal-title">Request SMS Configuration Change</h2>
+            <h2 className="modal-title">Request a text message change</h2>
             <p className="sms-config-request-subtitle">
-              This page is read-only for now. Submit a request and our team will update it.
+              Tell us what you would like different. Our team will make the update for you.
             </p>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Close">
@@ -120,7 +120,7 @@ export default function SmsConfigChangeRequestModal({
               />
             </div>
             <div className="form-group">
-              <label htmlFor="sms-req-message">Requested change</label>
+              <label htmlFor="sms-req-message">What would you like changed?</label>
               <textarea
                 id="sms-req-message"
                 rows={8}

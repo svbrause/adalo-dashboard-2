@@ -254,7 +254,7 @@ export const AREAS: AreaDef[] = [
     ],
   },
   {
-    name: "Skin",
+    name: "Skin Quality",
     issues: [
       "Perioral Wrinkles",
       "Bunny Lines",
@@ -471,6 +471,26 @@ export interface AreaResult {
   hasInterest: boolean;
 }
 
+/**
+ * Canonical area name (lowercase) → other lowercase tokens from intake/heuristics
+ * that should still count as "focus" for that area (e.g. forms still say "Skin"
+ * while the overview uses "Skin Quality").
+ */
+const AREA_FOCUS_INTEREST_ALIASES: Record<string, readonly string[]> = {
+  "skin quality": ["skin"],
+};
+
+function clientInterestMatchesArea(
+  areaName: string,
+  interestAreaNames: Set<string>
+): boolean {
+  const key = areaName.toLowerCase();
+  if (interestAreaNames.has(key)) return true;
+  const extra = AREA_FOCUS_INTEREST_ALIASES[key];
+  if (extra?.some((alias) => interestAreaNames.has(alias))) return true;
+  return false;
+}
+
 export function computeAreas(
   detected: Set<string>,
   interestAreaNames: Set<string>
@@ -492,7 +512,7 @@ export function computeAreas(
       tier: scoreTier(score),
       strengths,
       improvements,
-      hasInterest: interestAreaNames.has(area.name.toLowerCase()),
+      hasInterest: clientInterestMatchesArea(area.name, interestAreaNames),
     };
   });
 }
@@ -613,7 +633,7 @@ export const AREA_THEMES: Record<string, AreaTheme[]> = {
       ],
     },
   ],
-  Skin: [
+  "Skin Quality": [
     {
       label: "Fine Lines",
       issues: ["Perioral Wrinkles", "Bunny Lines", "Neck Lines"],

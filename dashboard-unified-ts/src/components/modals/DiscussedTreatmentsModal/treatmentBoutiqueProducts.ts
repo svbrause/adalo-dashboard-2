@@ -7,6 +7,9 @@
  * That script uses Shopify’s public products.json API (no scraping). Paste or merge the
  * output into this file, or re-run and update RECOMMENDED_PRODUCTS_BY_CONTEXT in constants.ts
  * to match any new product names.
+ *
+ * To align **prices** with the shop (by `productUrl` handle), run:
+ *   node scripts/sync-treatment-boutique-prices.mjs
  */
 
 export interface TreatmentBoutiqueProduct {
@@ -77,19 +80,19 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals A.G.E. Advanced Eye Cream | Nourishing Pre-Cleanse for Radiant, Balanced Skin Anti-Aging Treatment for Wrinkles & Puffiness",
     productUrl: "https://shop.getthetreatment.com/products/a-g-e-advanced-eye",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/anti-wrinkle-eye-cream.png?v=1767813879",
-    price: "$25.00",
+    price: "$125.00",
   },
   {
     name: "SkinCeuticals A.G.E. Interrupter Advanced | Anti-Aging Cream for Wrinkles & Loss of Firmness",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-a-g-e-interrupter-anti-aging-cream",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/anti-wrinkle-cream.png?v=1767814020",
-    price: "$85.00",
+    price: "$185.00",
   },
   {
     name: "SkinCeuticals Advanced RGN‑6 | Regenerative Anti-Aging Cream",
     productUrl: "https://shop.getthetreatment.com/products/advanced-rgn-6",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/Screenshot_2025-04-14_at_9.34.20_AM.png?v=1744648680",
-    price: "$95.00",
+    price: "$195.00",
   },
   {
     name: "SkinCeuticals Antioxidant Lip Repair | Nourishing Lip Treatment",
@@ -119,7 +122,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals C E Ferulic | Antioxidant Vitamin C Serum for Brightening & Anti-Aging",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-c-e-ferulic-vitamin-c-serum",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/ce-ferulic.png?v=1762466889",
-    price: "$85.00",
+    price: "$185.00",
   },
   {
     name: "SkinCeuticals Cell Cycle Catalyst | Resurfacing Serum for Radiance & Skin Renewal",
@@ -141,13 +144,13 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
   },
   {
     name: "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
-    productUrl: "https://shop.getthetreatment.com/products/https-the-treatment-skin-boutique-myshopify-com-products-discoloration-defense",
+    productUrl: "https://shop.getthetreatment.com/products/discoloration-defense",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/discoloration-correcting-serum.png?v=1762466888",
     price: "$115.00",
   },
   {
     name: "SkinCeuticals Emollience | Hydrating Moisturizer for Normal to Dry Skin",
-    productUrl: "https://shop.getthetreatment.com/products/https-the-treatment-skin-boutique-myshopify-com-products-emollience",
+    productUrl: "https://shop.getthetreatment.com/products/emollience",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/non-comedogenic-emollients.png?v=1762466886",
     price: "$85.00",
   },
@@ -161,7 +164,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals Equalizing Toner | Alcohol-Free Toner for Balanced, Refreshed Skin",
     productUrl: "https://shop.getthetreatment.com/products/https-the-treatment-skin-boutique-myshopify-com-products-equalizing-toner",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/exfoliating-toner.png?v=1762466886",
-    price: "$58.00",
+    price: "$38.00",
   },
   {
     name: "SkinCeuticals Eye Balm | Rich Anti-Aging Eye Cream for Mature, Dry Skin",
@@ -173,7 +176,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals Gentle Cleanser | Soothing Cream Cleanser for Dry & Sensitive Skin",
     productUrl: "https://shop.getthetreatment.com/products/https-the-treatment-skin-boutique-myshopify-com-products-gentle-cleanser",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/ceramide-cleanser.png?v=1762466889",
-    price: "$89.00",
+    price: "$39.00",
   },
   {
     name: "SkinCeuticals Glycolic 10 Renew Overnight | Exfoliating Night Serum for Smoother, Radiant Skin",
@@ -191,7 +194,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals Hydra Balm | Intensive Moisturizing Balm for Compromised, Dry & Dehydrated Skin",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-hydra-balm",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/aloe-vera-lip-balm.png?v=1762466889",
-    price: "$65.00",
+    price: "$25.00",
   },
   {
     name: "SkinCeuticals Hydrating B5 Gel | Lightweight Moisturizer with Vitamin B5 for Deep Skin Hydration",
@@ -221,7 +224,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals Metacell Renewal B3 | Brightening & Anti-Aging Serum with Vitamin B3",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-meatcell-renewal-b3",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/brightening-serum.png?v=1762466888",
-    price: "$30.00",
+    price: "$130.00",
   },
   {
     name: "SkinCeuticals Micro-Exfoliating Scrub | Gentle Face Scrub for Smooth & Radiant Skin",
@@ -233,19 +236,19 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals P-Tiox | Glass Skin Serum for Skin Protection & Repair",
     productUrl: "https://shop.getthetreatment.com/products/p-tiox",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/peptide-serum.png?v=1762466887",
-    price: "$50.00",
+    price: "$150.00",
   },
   {
     name: "SkinCeuticals Phloretin CF | Antioxidant Serum for Environmental Damage & Uneven Skin Tone",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-phloretin-cf",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/Phloretin-CF-with-Ferulic-Acid-SkinCeuticals_Award_Seals.webp?v=1764179925",
-    price: "$85.00",
+    price: "$185.00",
   },
   {
     name: "SkinCeuticals Phyto A+ Brightening Treatment | Lightweight Gel Moisturizer for Dull, Uneven Skin",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-phyto-a-brightening-treatment-lightweight-gel",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/phyto-corrective-gel_2.png?v=1762466886",
-    price: "$15.00",
+    price: "$115.00",
   },
   {
     name: "SkinCeuticals Phyto Corrective Essence Mist | Hydrating & Soothing Face Mist for Redness and Sensitivity",
@@ -269,7 +272,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals Purifying Cleanser | Deep Cleansing Face Wash for Oily & Acne-Prone Skin",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-purifying-cleanser",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/cleansing-gel.png?v=1762466888",
-    price: "$79.00",
+    price: "$39.00",
   },
   {
     name: "SkinCeuticals Redness Neutralizer | Soothing Serum for Sensitive & Redness-Prone Skin",
@@ -285,21 +288,21 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
   },
   {
     name: "SkinCeuticals Replenishing Cleanser | Hydrating Face Wash for Dry & Sensitive Skin",
-    productUrl: "https://shop.getthetreatment.com/products/https-the-treatment-skin-boutique-myshopify-com-products-replenishing-cleanser",
+    productUrl: "https://shop.getthetreatment.com/products/skinceuticals-replenishing-cleanser",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/makeup-removal-cleanser.png?v=1762466886",
-    price: "$79.00",
+    price: "$39.00",
   },
   {
     name: "SkinCeuticals Resveratrol B E | Nighttime Antioxidant Serum with Pure Resveratrol 1%",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-reversatrol-b-e",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/antioxidant-serum.png?v=1763144335",
-    price: "$75.00",
+    price: "$175.00",
   },
   {
     name: "SkinCeuticals Retexturing Activator | Exfoliating Serum for Smoother, Refined Skin Texture",
     productUrl: "https://shop.getthetreatment.com/products/https-the-treatment-skin-boutique-myshopify-com-products-re-texturing-activator",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/exfoliating-face-scrub.png?v=1762466886",
-    price: "$70.00",
+    price: "$100.00",
   },
   {
     name: "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal",
@@ -317,7 +320,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals Retinol 1.0% | Anti-Aging Serum for Wrinkles & Skin Renewal",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-retinol-1-0",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/retinol-1.png?v=1762466887",
-    price: "$02.00",
+    price: "$102.00",
   },
   {
     name: "SkinCeuticals Serum 10 AOX | Antioxidant Serum with 10% Vitamin C for Brightening & Protection",
@@ -329,7 +332,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals Silymarin CF | Antioxidant Serum for Oily & Acne-Prone Skin",
     productUrl: "https://shop.getthetreatment.com/products/silymarin-cf",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/silymarin-cf.png?v=1762466887",
-    price: "$85.00",
+    price: "$185.00",
   },
   {
     name: "SkinCeuticals Simply Clean | Gentle Foaming Cleanser for All Skin Types",
@@ -347,13 +350,13 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     name: "SkinCeuticals Tripeptide-R Neck Repair | Firming & Anti-Aging Treatment for Neck & Décolletage",
     productUrl: "https://shop.getthetreatment.com/products/tripeptide-r-neck-repair",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/tripeptide.png?v=1762466886",
-    price: "$36.00",
+    price: "$136.00",
   },
   {
     name: "SkinCeuticals Triple Lipid Restore 2:4:2 | Anti-Aging Moisturizer for Skin Barrier Repair & Hydration",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-triple-lipid-restore-2-4-2",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/ceramide-moisturizer.png?v=1767812922",
-    price: "$55.00",
+    price: "$155.00",
   },
   /* G.M. Collin */
   {

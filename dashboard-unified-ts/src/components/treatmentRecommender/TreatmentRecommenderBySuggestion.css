@@ -315,13 +315,16 @@
 .treatment-recommender-by-suggestion__details {
   margin-top: 4px;
   margin-bottom: 4px;
-  font-size: 0.8125rem;
-  color: var(--theme-text-muted, #757575);
+  font-size: 0.875rem;
+  color: var(--theme-text-primary, #212121);
 }
 
 .treatment-recommender-by-suggestion__details summary {
   cursor: pointer;
-  color: var(--theme-text-secondary, #616161);
+  color: var(--theme-text-primary, #212121);
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: -0.01em;
 }
 
 .treatment-recommender-by-suggestion__details-text {
@@ -334,6 +337,17 @@
   flex-direction: column;
   gap: 10px;
   margin-top: 10px;
+}
+
+.treatment-recommender-by-suggestion__pricing-qty {
+  margin-top: 6px;
+}
+
+.treatment-recommender-by-suggestion__pricing-qty-label,
+.treatment-recommender-by-suggestion__quantity-unit-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-text-primary, #212121);
 }
 
 .treatment-recommender-by-suggestion__details-label {
@@ -463,6 +477,31 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.treatment-recommender-skin-analysis__chips--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.treatment-recommender-skin-analysis__routine-wrap {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.treatment-recommender-skin-analysis__chip--row {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.treatment-recommender-skin-analysis__chip--row
+  .treatment-recommender-skin-analysis__chip-name {
+  max-width: none;
+  white-space: normal;
+  flex: 1;
+  min-width: 0;
 }
 
 .treatment-recommender-skin-analysis__chip {

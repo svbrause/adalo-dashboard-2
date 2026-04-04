@@ -1,9 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:5173";
+
 /**
- * E2E tests run against the built app (npm run build && npm run preview) or dev server.
- * Use baseURL to point to your deployed URL for production smoke checks.
- * @see https://playwright.dev/docs/test-configuration
+ * Local/CI: Playwright starts Vite (`npm run dev`) unless PLAYWRIGHT_BASE_URL points at an already-running app.
+ * @see https://playwright.dev/docs/test-webserver
  */
 export default defineConfig({
   testDir: "e2e",
@@ -13,18 +14,19 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "list",
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:5173",
+    baseURL,
     trace: "on-first-retry",
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
-  webServer:
-    process.env.CI || process.env.PLAYWRIGHT_BASE_URL
-      ? undefined
-      : {
-          command: "npm run dev",
-          url: "http://localhost:5173",
-          reuseExistingServer: true,
-        },
+  webServer: process.env.PLAYWRIGHT_BASE_URL
+    ? undefined
+    : {
+        // --open false: vite.config has server.open; opening a browser breaks headless CI.
+        command: "npm run dev -- --host 127.0.0.1 --open false",
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
 });

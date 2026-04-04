@@ -29,6 +29,7 @@ import {
   RECURRING_OPTIONS,
   OTHER_RECURRING_LABEL,
   getSkincareCarouselItems,
+  isEnergyTreatmentCategory,
 } from "./constants";
 import { useDashboard } from "../../../context/DashboardContext";
 import {
@@ -39,11 +40,14 @@ import {
   getGoalsAndRegionsForTreatment,
   getTreatmentsForInterest,
   getQuantityContext,
+  getPlanQuantityLabelPrefix,
+  shouldShowProminentPlanQuantity,
   getTreatmentDisplayName,
   getDisplayAreaForItem,
   parseInterestedIssues,
   generateId,
 } from "./utils";
+import { DiscussedTreatmentsQuantityFormRow } from "./DiscussedTreatmentsQuantityFormRow";
 import DiscussedTreatmentsModalHeader from "./DiscussedTreatmentsModalHeader";
 import SelectPrompt from "./SelectPrompt";
 import PlanListColumn from "./PlanListColumn";
@@ -137,7 +141,7 @@ export default function DiscussedTreatmentsModal({
     interest: "",
     /** When adding by goal: per-treatment selected detected issues (all relevant shown below treatment, selected by default) */
     selectedFindingsByTreatment: {} as Record<string, string[]>,
-    /** For Skincare/Energy Device: multi-select product names per treatment */
+    /** For Skincare/Energy Treatment: multi-select product names per treatment */
     selectedProductsByTreatment: {} as Record<string, string[]>,
     selectedTreatments: [] as string[],
     otherTreatment: "",
@@ -453,12 +457,19 @@ export default function DiscussedTreatmentsModal({
     });
 
     const isSkincare = treatment?.trim() === "Skincare";
+    const quantityLabelPrefix = quantity
+      ? getPlanQuantityLabelPrefix(
+          treatment ?? undefined,
+          isSkincare ? undefined : (product ?? undefined),
+        )
+      : null;
     return {
       primary: treatment || "New item",
       product,
       interest: form.interest?.trim() || null,
       timeline: isSkincare ? null : (form.timeline?.trim() || null),
       quantity,
+      quantityLabelPrefix,
       area: area || null,
     };
   }, [
@@ -1198,10 +1209,14 @@ export default function DiscussedTreatmentsModal({
     setEditingId(item.id);
     setShowAddForm(true);
     const timeline = item.timeline?.trim() || "";
+    const prominentQty = shouldShowProminentPlanQuantity(
+      item.treatment,
+      item.product ?? undefined,
+    );
     const hasOptional = !!(
       timeline ||
       (item.notes?.trim() ?? "") ||
-      (item.quantity?.trim() ?? "")
+      ((item.quantity?.trim() ?? "") && !prominentQty)
     );
     setEditShowOptionalDetails(hasOptional);
     const qRaw = item.quantity?.trim() || "";
@@ -1267,10 +1282,14 @@ export default function DiscussedTreatmentsModal({
   const handleEditStart = (item: DiscussedItem) => {
     setEditingId(item.id);
     const timeline = item.timeline?.trim() || "";
+    const prominentQty = shouldShowProminentPlanQuantity(
+      item.treatment,
+      item.product ?? undefined,
+    );
     const hasOptional = !!(
       timeline ||
       (item.notes?.trim() ?? "") ||
-      (item.quantity?.trim() ?? "")
+      ((item.quantity?.trim() ?? "") && !prominentQty)
     );
     setEditShowOptionalDetails(hasOptional);
     const qRaw = item.quantity?.trim() || "";
@@ -1691,7 +1710,7 @@ export default function DiscussedTreatmentsModal({
                           )}
                       </div>
 
-                      {/* Product/Type – carousel for Skincare/Energy Device, chips for others (same as add form) */}
+                      {/* Product/Type – carousel for Skincare/Energy Treatment, chips for others (same as add form) */}
                       {editForm.treatment &&
                         treatmentOptions.includes(editForm.treatment) &&
                         (getTreatmentProductOptionsForProvider(provider?.code, editForm.treatment)
@@ -1948,14 +1967,32 @@ export default function DiscussedTreatmentsModal({
                           );
                         })()}
 
-                      {/* Optional details – same as add form (timeline chips + notes) */}
+                      {shouldShowProminentPlanQuantity(
+                        editForm.treatment,
+                        editForm.product || undefined,
+                      ) && (
+                        <div className="discussed-treatments-prefill-rows discussed-treatments-pricing-qty-prominent">
+                          <DiscussedTreatmentsQuantityFormRow
+                            treatment={editForm.treatment}
+                            product={editForm.product}
+                            quantity={editForm.quantity}
+                            quantityUnit={editForm.quantityUnit}
+                            onPatch={(patch) =>
+                              setEditForm((f) => ({ ...f, ...patch }))
+                            }
+                            labelMode="affectsQuote"
+                          />
+                        </div>
+                      )}
+
+                      {/* Optional details – timeline, notes, and quantity when it does not drive pricing */}
                       {!editShowOptionalDetails ? (
                         <button
                           type="button"
                           className="discussed-treatments-optional-toggle"
                           onClick={() => setEditShowOptionalDetails(true)}
                         >
-                          + Add details (optional — timeline)
+                          + Add details (optional — timeline, notes)
                         </button>
                       ) : (
                         <>
@@ -1967,87 +2004,21 @@ export default function DiscussedTreatmentsModal({
                             − Hide optional details
                           </button>
                           <div className="discussed-treatments-prefill-rows">
-                            {(() => {
-                              const qtyCtx = getQuantityContext(
-                                editForm.treatment,
-                                editForm.product || undefined,
-                              );
-                              const displayUnit =
-                                editForm.quantityUnit || qtyCtx.unitLabel;
-                              return (
-                                <div className="discussed-treatments-prefill-row">
-                                  <span className="discussed-treatments-prefill-label">
-                                    {displayUnit} (optional)
-                                  </span>
-                                  <select
-                                    className="discussed-treatments-quantity-unit-select"
-                                    value={displayUnit}
-                                    onChange={(e) =>
-                                      setEditForm((f) => ({
-                                        ...f,
-                                        quantityUnit: e.target.value,
-                                      }))
-                                    }
-                                    aria-label="Quantity unit"
-                                  >
-                                    {QUANTITY_UNIT_OPTIONS.map((u) => (
-                                      <option key={u} value={u}>
-                                        {u}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <div className="discussed-treatments-chip-row">
-                                    {qtyCtx.options.map((q) => (
-                                      <button
-                                        key={q}
-                                        type="button"
-                                        className={`discussed-treatments-prefill-chip ${
-                                          editForm.quantity === q
-                                            ? "selected"
-                                            : ""
-                                        }`}
-                                        onClick={() =>
-                                          setEditForm((f) => ({
-                                            ...f,
-                                            quantity: f.quantity === q ? "" : q,
-                                          }))
-                                        }
-                                      >
-                                        {q}
-                                      </button>
-                                    ))}
-                                    <span className="discussed-treatments-quantity-other-wrap">
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        max={999}
-                                        placeholder="Other"
-                                        value={
-                                          editForm.quantity &&
-                                          !qtyCtx.options.includes(
-                                            editForm.quantity
-                                          )
-                                            ? editForm.quantity
-                                            : ""
-                                        }
-                                        onChange={(e) => {
-                                          const v = e.target.value.replace(
-                                            /\D/g,
-                                            ""
-                                          );
-                                          setEditForm((f) => ({
-                                            ...f,
-                                            quantity: v,
-                                          }));
-                                        }}
-                                        className="discussed-treatments-quantity-other-input"
-                                        aria-label={`${displayUnit} (other)`}
-                                      />
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })()}
+                            {!shouldShowProminentPlanQuantity(
+                              editForm.treatment,
+                              editForm.product || undefined,
+                            ) && (
+                              <DiscussedTreatmentsQuantityFormRow
+                                treatment={editForm.treatment}
+                                product={editForm.product}
+                                quantity={editForm.quantity}
+                                quantityUnit={editForm.quantityUnit}
+                                onPatch={(patch) =>
+                                  setEditForm((f) => ({ ...f, ...patch }))
+                                }
+                                labelMode="optional"
+                              />
+                            )}
                             {editForm.treatment?.trim() !== "Skincare" && (
                             <div className="discussed-treatments-prefill-row">
                               <span className="discussed-treatments-prefill-label">
@@ -2933,7 +2904,7 @@ export default function DiscussedTreatmentsModal({
                                           </div>
                                         </div>
                                       ) : (
-                                        /* Energy Device, Filler, Neurotoxin, Chemical Peel, etc.: show full type list as chips (single-select) */
+                                        /* Energy Treatment, Filler, Neurotoxin, Chemical Peel, etc.: show full type list as chips (single-select) */
                                         <div
                                           className="discussed-treatments-product-carousel"
                                           role="group"
@@ -3246,7 +3217,7 @@ export default function DiscussedTreatmentsModal({
                             {selectedTreatmentFirst && (
                               <div className="discussed-treatments-treatment-sub-box">
                                 <h3 className="discussed-treatments-form-title discussed-treatments-form-title-step2">
-                                  To address (optional)
+                                  Concerns to address
                                 </h3>
                                 <p className="discussed-treatments-form-hint">
                                   Select an AI or provider identified concern
@@ -4082,11 +4053,11 @@ export default function DiscussedTreatmentsModal({
                                                   ).includes(
                                                     OTHER_PRODUCT_LABEL
                                                   )) ||
-                                                  (treatment === "Energy Device" &&
+                                                  (isEnergyTreatmentCategory(treatment) &&
                                                     selected ===
                                                       OTHER_PRODUCT_LABEL) ||
                                                   (treatment !== "Skincare" &&
-                                                    treatment !== "Energy Device" &&
+                                                    !isEnergyTreatmentCategory(treatment) &&
                                                     selected ===
                                                       OTHER_PRODUCT_LABEL)) && (
                                                   <div className="discussed-treatments-product-other-input-wrap">
@@ -4118,7 +4089,7 @@ export default function DiscussedTreatmentsModal({
                                                   </div>
                                                 )}
                                                 {treatment !== "Skincare" &&
-                                                  treatment !== "Energy Device" &&
+                                                  !isEnergyTreatmentCategory(treatment) &&
                                                   showSeeAll &&
                                                   (isNarrowScreen ? (
                                                     <div className="discussed-treatments-product-search-wrap">
@@ -4344,7 +4315,7 @@ export default function DiscussedTreatmentsModal({
                                                 {selected ===
                                                   OTHER_PRODUCT_LABEL &&
                                                   treatment !== "Skincare" &&
-                                                  treatment !== "Energy Device" && (
+                                                  !isEnergyTreatmentCategory(treatment) && (
                                                     <div className="discussed-treatments-product-other-input-wrap">
                                                       <input
                                                         type="text"
@@ -4376,7 +4347,7 @@ export default function DiscussedTreatmentsModal({
                                                   )}
                                               </div>
                                             )}
-                                            {/* To address (optional) — same style as By Treatment tab */}
+                                            {/* Concerns to address — same style as By Treatment tab */}
                                             {(() => {
                                               const findingsByAreaGoal =
                                                 getFindingsByAreaForTreatment(
@@ -4413,7 +4384,7 @@ export default function DiscussedTreatmentsModal({
                                               return (
                                                 <div className="discussed-treatments-treatment-sub-box discussed-treatments-to-address-in-goal">
                                                   <h3 className="discussed-treatments-form-title discussed-treatments-form-title-step2">
-                                                    To address (optional)
+                                                    Concerns to address
                                                   </h3>
                                                   <p className="discussed-treatments-form-hint">
                                                     Select an AI or provider
@@ -4906,7 +4877,7 @@ export default function DiscussedTreatmentsModal({
                                                 ).includes(
                                                   OTHER_PRODUCT_LABEL
                                                 )) ||
-                                                (treatment === "Energy Device" &&
+                                                (isEnergyTreatmentCategory(treatment) &&
                                                   selected ===
                                                     OTHER_PRODUCT_LABEL)) && (
                                                 <div className="discussed-treatments-product-other-input-wrap">
@@ -4936,7 +4907,7 @@ export default function DiscussedTreatmentsModal({
                                                 </div>
                                               )}
                                               {treatment !== "Skincare" &&
-                                              treatment !== "Energy Device" &&
+                                              !isEnergyTreatmentCategory(treatment) &&
                                               showSeeAll ? (
                                                 isNarrowScreen ? (
                                                   <div className="discussed-treatments-product-search-wrap">
@@ -5154,7 +5125,7 @@ export default function DiscussedTreatmentsModal({
                                               {selected ===
                                                 OTHER_PRODUCT_LABEL &&
                                                 treatment !== "Skincare" &&
-                                                treatment !== "Energy Device" && (
+                                                !isEnergyTreatmentCategory(treatment) && (
                                                   <div className="discussed-treatments-product-other-input-wrap">
                                                     <input
                                                       type="text"
@@ -5680,80 +5651,23 @@ export default function DiscussedTreatmentsModal({
                             const productForQty = treatmentForQty
                               ? (form.treatmentProducts[treatmentForQty] ?? "")
                               : "";
-                            const qtyCtx = getQuantityContext(
+                            const prominent = shouldShowProminentPlanQuantity(
                               treatmentForQty,
                               productForQty || undefined,
                             );
-                            const displayUnit =
-                              form.quantityUnit || qtyCtx.unitLabel;
                             return (
-                              <div className="discussed-treatments-prefill-row">
-                                <span className="discussed-treatments-prefill-label">
-                                  {displayUnit} (optional)
-                                </span>
-                                <select
-                                  className="discussed-treatments-quantity-unit-select"
-                                  value={displayUnit}
-                                  onChange={(e) =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      quantityUnit: e.target.value,
-                                    }))
-                                  }
-                                  aria-label="Quantity unit"
-                                >
-                                  {QUANTITY_UNIT_OPTIONS.map((u) => (
-                                    <option key={u} value={u}>
-                                      {u}
-                                    </option>
-                                  ))}
-                                </select>
-                                <div className="discussed-treatments-chip-row">
-                                  {qtyCtx.options.map((q) => (
-                                    <button
-                                      key={q}
-                                      type="button"
-                                      className={`discussed-treatments-prefill-chip ${
-                                        form.quantity === q ? "selected" : ""
-                                      }`}
-                                      onClick={() =>
-                                        setForm((f) => ({
-                                          ...f,
-                                          quantity: f.quantity === q ? "" : q,
-                                        }))
-                                      }
-                                    >
-                                      {q}
-                                    </button>
-                                  ))}
-                                  <span className="discussed-treatments-quantity-other-wrap">
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={999}
-                                      placeholder="Other"
-                                      value={
-                                        form.quantity &&
-                                        !qtyCtx.options.includes(form.quantity)
-                                          ? form.quantity
-                                          : ""
-                                      }
-                                      onChange={(e) => {
-                                        const v = e.target.value.replace(
-                                          /\D/g,
-                                          ""
-                                        );
-                                        setForm((f) => ({
-                                          ...f,
-                                          quantity: v,
-                                        }));
-                                      }}
-                                      className="discussed-treatments-quantity-other-input"
-                                      aria-label={`${displayUnit} (other)`}
-                                    />
-                                  </span>
-                                </div>
-                              </div>
+                              <DiscussedTreatmentsQuantityFormRow
+                                treatment={treatmentForQty ?? ""}
+                                product={productForQty}
+                                quantity={form.quantity ?? ""}
+                                quantityUnit={form.quantityUnit}
+                                onPatch={(patch) =>
+                                  setForm((f) => ({ ...f, ...patch }))
+                                }
+                                labelMode={
+                                  prominent ? "affectsQuote" : "optional"
+                                }
+                              />
                             );
                           })()}
                           {!(addMode === "treatment" && selectedTreatmentFirst === "Skincare") &&
@@ -5991,80 +5905,23 @@ export default function DiscussedTreatmentsModal({
                         {(() => {
                           const productForQty =
                             form.treatmentProducts[selectedTreatmentFirst] ?? "";
-                          const qtyCtx = getQuantityContext(
+                          const prominent = shouldShowProminentPlanQuantity(
                             selectedTreatmentFirst,
                             productForQty || undefined,
                           );
-                          const displayUnit =
-                            form.quantityUnit || qtyCtx.unitLabel;
                           return (
-                            <div className="discussed-treatments-prefill-row">
-                              <span className="discussed-treatments-prefill-label">
-                                {displayUnit} (optional)
-                              </span>
-                              <select
-                                className="discussed-treatments-quantity-unit-select"
-                                value={displayUnit}
-                                onChange={(e) =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    quantityUnit: e.target.value,
-                                  }))
-                                }
-                                aria-label="Quantity unit"
-                              >
-                                {QUANTITY_UNIT_OPTIONS.map((u) => (
-                                  <option key={u} value={u}>
-                                    {u}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="discussed-treatments-chip-row">
-                                {qtyCtx.options.map((q) => (
-                                  <button
-                                    key={q}
-                                    type="button"
-                                    className={`discussed-treatments-prefill-chip ${
-                                      form.quantity === q ? "selected" : ""
-                                    }`}
-                                    onClick={() =>
-                                      setForm((f) => ({
-                                        ...f,
-                                        quantity: f.quantity === q ? "" : q,
-                                      }))
-                                    }
-                                  >
-                                    {q}
-                                  </button>
-                                ))}
-                                <span className="discussed-treatments-quantity-other-wrap">
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    max={999}
-                                    placeholder="Other"
-                                    value={
-                                      form.quantity &&
-                                      !qtyCtx.options.includes(form.quantity)
-                                        ? form.quantity
-                                        : ""
-                                    }
-                                    onChange={(e) => {
-                                      const v = e.target.value.replace(
-                                        /\D/g,
-                                        ""
-                                      );
-                                      setForm((f) => ({
-                                        ...f,
-                                        quantity: v,
-                                      }));
-                                    }}
-                                    className="discussed-treatments-quantity-other-input"
-                                    aria-label={`${displayUnit} (other)`}
-                                  />
-                                </span>
-                              </div>
-                            </div>
+                            <DiscussedTreatmentsQuantityFormRow
+                              treatment={selectedTreatmentFirst}
+                              product={productForQty}
+                              quantity={form.quantity ?? ""}
+                              quantityUnit={form.quantityUnit}
+                              onPatch={(patch) =>
+                                setForm((f) => ({ ...f, ...patch }))
+                              }
+                              labelMode={
+                                prominent ? "affectsQuote" : "optional"
+                              }
+                            />
                           );
                         })()}
                         {!(addMode === "treatment" && selectedTreatmentFirst === "Skincare") &&

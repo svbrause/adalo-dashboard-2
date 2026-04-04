@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDashboard } from "../../context/DashboardContext";
-import { isAddClientLead } from "../../utils/leadSource";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import "./ViewControls.css";
@@ -28,17 +27,11 @@ export default function ViewControls() {
     provider?.code,
   );
 
-  /** Clients for the current tab (All Clients = Patients + Add Client leads; Leads = Web Popup Leads not from Add Client) for filter options. */
-  const clientsForFilters = useMemo(() => {
-    if (currentView === "leads") {
-      return clients.filter(
-        (c) => c.tableSource === "Web Popup Leads" && !isAddClientLead(c)
-      );
-    }
-    return clients.filter(
-      (c) => c.tableSource === "Patients" || isAddClientLead(c)
-    );
-  }, [clients, currentView]);
+  /** Filter dropdown options: all non-archived rows (patients + web leads). */
+  const clientsForFilters = useMemo(
+    () => clients.filter((c) => !c.archived),
+    [clients],
+  );
 
   const locationOptions = useMemo(() => {
     const set = new Set<string>();
@@ -129,13 +122,13 @@ export default function ViewControls() {
 
   const isClientView =
     currentView === "list" ||
+    currentView === "leads" ||
     currentView === "cards" ||
     currentView === "kanban" ||
     currentView === "facial-analysis" ||
-    currentView === "leads" ||
     currentView === "archived";
 
-  /** Show List/Cards toggle only on All Clients tab (not on Leads tab). */
+  /** Show List/Cards toggle only on Clients tab (not on Leads tab). */
   const isAllClientsView =
     currentView === "list" ||
     currentView === "cards" ||

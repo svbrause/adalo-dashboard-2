@@ -59,14 +59,26 @@
   letter-spacing: -0.02em;
 }
 
-.tc-area {
-  display: inline-block;
-  margin-top: 6px;
-  font-size: 0.85rem;
-  color: #5a9e94;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.tc-area-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  max-width: 100%;
+}
+
+.tc-area-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #3d7a72;
+  background: rgba(90, 158, 148, 0.12);
+  border: 1px solid rgba(90, 158, 148, 0.22);
+  letter-spacing: 0.01em;
 }
 
 .tc-label {

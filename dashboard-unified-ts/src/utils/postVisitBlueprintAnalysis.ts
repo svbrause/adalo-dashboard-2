@@ -130,6 +130,28 @@ export function normalizeBlueprintAnalysisText(raw: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Hero pills / chips: same phrase with different casing (e.g. "Full face" vs "Full Face")
+ * should appear once; keep first occurrence’s spelling.
+ */
+export function dedupeBlueprintDisplayStrings(
+  raw: readonly string[],
+  max?: number,
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const x of raw) {
+    const t = normalizeBlueprintAnalysisText(String(x).trim());
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
+    if (max != null && out.length >= max) break;
+  }
+  return out;
+}
+
 function trimField(value: unknown): string | null {
   const t = String(value ?? "").trim();
   if (!t) return null;
@@ -179,23 +201,19 @@ export function generateBlueprintPatientOverview(params: {
 
   const paragraphs: string[] = [];
 
-  paragraphs.push(
-    "This overview connects what your scan highlighted with the priorities you discussed, so each next step feels clear and coordinated.",
-  );
-
-  const findings = detectedIssueLabels.slice(0, 10);
+  const findings = detectedIssueLabels.slice(0, 8);
   if (findings.length > 0) {
     paragraphs.push(
-      `Your scan surfaced ${findings.length === 1 ? "this finding" : "these findings"}: ${formatEnglishList(findings)}. We use that list, together with your goals, to prioritize what to discuss first.`,
+      `Your scan picked up on ${formatEnglishList(findings)}.`,
     );
   }
 
   if (categories.length >= 2) {
     const sorted = [...categories].sort((a, b) => b.score - a.score);
-    const strongest = sorted[0];
-    const weakest = sorted[sorted.length - 1];
+    const strongest = sorted[0]!;
+    const weakest = sorted[sorted.length - 1]!;
     paragraphs.push(
-      `Looking at the three big pillars — skin health, volume, and facial structure — ${strongest.name} is your strongest category (${strongest.score}), and ${weakest.name} is where we see the most headroom (${weakest.score}).`,
+      `Of the three main areas\u2014skin health, volume, and facial structure\u2014${strongest.name} is your strongest (${strongest.score}), while ${weakest.name} has the most room for improvement (${weakest.score}).`,
     );
   }
 
@@ -204,24 +222,20 @@ export function generateBlueprintPatientOverview(params: {
   if (highlight.length > 0) {
     const regionBits = highlight.map((a) => `${a.name} (${a.score})`);
     paragraphs.push(
-      `By region, the lowest scores — where more features showed up on the scan — are ${formatEnglishList(regionBits)}.`,
+      `By region, the areas with the most activity on your scan are ${formatEnglishList(regionBits)}.`,
     );
   }
 
   const interestNames = areas.filter((a) => a.hasInterest).map((a) => a.name);
   if (interestNames.length > 0) {
     paragraphs.push(
-      `You told us you’re especially interested in ${formatEnglishList(interestNames)}; your plan below ties back to those priorities.`,
+      `You flagged ${formatEnglishList(interestNames)} as areas you wanted to focus on\u2014your plan is built around those priorities.`,
     );
   } else if (focusCount > 0) {
     paragraphs.push(
-      `You marked ${focusCount} priority ${focusCount === 1 ? "area" : "areas"} on your intake — we’ve kept that in mind for the recommendations that follow.`,
+      `You marked ${focusCount} priority ${focusCount === 1 ? "area" : "areas"} during your intake, and the plan below reflects that.`,
     );
   }
-
-  paragraphs.push(
-    `Scroll down for your treatment-by-treatment guide: pricing context, videos from your team, and real before/after examples.`,
-  );
 
   return paragraphs.join("\n\n");
 }

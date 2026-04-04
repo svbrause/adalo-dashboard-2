@@ -5,6 +5,9 @@
  *
  * Run: node scripts/fetch-treatment-boutique-products.mjs
  *
+ * To update only prices in treatmentBoutiqueProducts.ts, use:
+ *   node scripts/sync-treatment-boutique-prices.mjs
+ *
  * Output: JSON array of { name, productUrl, imageUrl, description?, price?, imageUrls? } for use in treatmentBoutiqueProducts.ts
  *
  * Manual alternative (if you need a one-off list without running the script):

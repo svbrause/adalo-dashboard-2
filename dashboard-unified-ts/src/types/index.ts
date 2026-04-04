@@ -144,6 +144,8 @@ export interface Client {
   contactHistory: ContactHistoryEntry[];
   /** When set, this client was consolidated from a Web Popup Lead (id) + Patient; UI shows one row. Updates/links use this client's id (Patient). */
   linkedLeadId?: string;
+  /** Source from the merged Web Popup Lead row (for segmenting Leads vs Clients when tableSource is Patients). */
+  webPopupLeadSource?: string | null;
   /** Skincare quiz result (from "Skincare Quiz" long text field in Airtable – JSON). Same field name in Patients and Web Popup Leads. */
   skincareQuiz?: SkincareQuizData | null;
   /** Wellness quiz result (from "Wellness Quiz" long text field in Airtable – JSON). Peptide/treatment suggestions from Dr Reddy offerings. */

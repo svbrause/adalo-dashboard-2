@@ -3,6 +3,7 @@
 .list-view {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--theme-bg-gradient);
@@ -20,6 +21,15 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.list-view-leads-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 0 12px;
+  gap: 12px;
 }
 
 .leads-table-container {

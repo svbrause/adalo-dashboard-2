@@ -96,40 +96,63 @@ export function PvbChapterOverviewTypewriter({
   return (
     <div ref={containerRef}>
       {hasTop && topLine ? (
-        <p className="tc-overview-complement tc-overview-complement--top">
-          {topLine}
-          {lineIdx === topParaIdx ? <span className="pvb-typewriter-caret" aria-hidden /> : null}
-        </p>
+        <section className="tc-overview-section">
+          <h4 className="tc-overview-section-title">Why this was added for you</h4>
+          <p className="tc-overview-section-body">
+            {topLine}
+            {lineIdx === topParaIdx ? (
+              <span className="pvb-typewriter-caret" aria-hidden />
+            ) : null}
+          </p>
+        </section>
       ) : null}
       {hasIntro && introLine ? (
-        <p className="tc-overview-category-intro">
-          {introLine}
-          {lineIdx === introParaIdx ? <span className="pvb-typewriter-caret" aria-hidden /> : null}
-        </p>
+        <section className="tc-overview-section">
+          <h4 className="tc-overview-section-title">How it works</h4>
+          <p className="tc-overview-section-body">
+            {introLine}
+            {lineIdx === introParaIdx ? (
+              <span className="pvb-typewriter-caret" aria-hidden />
+            ) : null}
+          </p>
+        </section>
       ) : null}
       {hasBullets && visibleBulletRows.length > 0 ? (
-        <ul className="tc-overview-plan">
-          {visibleBulletRows.map(({ i, line, paraIdx }) => (
-            <li key={i}>
-              {line}
-              {lineIdx === paraIdx ? <span className="pvb-typewriter-caret" aria-hidden /> : null}
-            </li>
-          ))}
-        </ul>
+        <section className="tc-overview-section">
+          <h4 className="tc-overview-section-title">What's included</h4>
+          <div className="tc-overview-plan-lines">
+            {visibleBulletRows.map(({ i, line, paraIdx }) => (
+              <p key={i} className="tc-overview-plan-line">
+                {line}
+                {lineIdx === paraIdx ? (
+                  <span className="pvb-typewriter-caret" aria-hidden />
+                ) : null}
+              </p>
+            ))}
+          </div>
+        </section>
       ) : null}
       {hasAnalysis && analysisLine ? (
-        <p className="tc-overview-analysis">
-          {analysisLine}
-          {lineIdx === analysisParaIdx ? (
-            <span className="pvb-typewriter-caret" aria-hidden />
-          ) : null}
-        </p>
+        <section className="tc-overview-section">
+          <h4 className="tc-overview-section-title">What to expect</h4>
+          <p className="tc-overview-section-body">
+            {analysisLine}
+            {lineIdx === analysisParaIdx ? (
+              <span className="pvb-typewriter-caret" aria-hidden />
+            ) : null}
+          </p>
+        </section>
       ) : null}
       {hasBottom && bottomLine ? (
-        <p className="tc-overview-complement tc-overview-complement--bottom">
-          {bottomLine}
-          {lineIdx === bottomParaIdx ? <span className="pvb-typewriter-caret" aria-hidden /> : null}
-        </p>
+        <section className="tc-overview-section tc-overview-section--last">
+          <h4 className="tc-overview-section-title">How this fits your full plan</h4>
+          <p className="tc-overview-section-body">
+            {bottomLine}
+            {lineIdx === bottomParaIdx ? (
+              <span className="pvb-typewriter-caret" aria-hidden />
+            ) : null}
+          </p>
+        </section>
       ) : null}
     </div>
   );

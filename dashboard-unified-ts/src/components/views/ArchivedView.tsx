@@ -47,12 +47,12 @@ export default function ArchivedView() {
   return (
     <section className="archived-view">
       <div className="section-container">
-        <h2 className="section-title-large">Archived Leads</h2>
+        <h2 className="section-title-large">Archived</h2>
 
         {loading ? (
           <div className="loading-container">
             <div className="spinner spinner-with-margin"></div>
-            Loading archived clients...
+            Loading archived…
           </div>
         ) : (
           <>
@@ -71,7 +71,7 @@ export default function ArchivedView() {
                 {processedClients.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="table-cell-center">
-                      No archived clients
+                      No archived records
                     </td>
                   </tr>
                 ) : (

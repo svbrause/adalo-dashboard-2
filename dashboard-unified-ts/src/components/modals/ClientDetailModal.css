@@ -20,7 +20,9 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .client-detail-modal-back:hover {
@@ -318,9 +320,6 @@
 }
 
 .edit-toggle-btn {
-  position: absolute;
-  top: -8px;
-  right: -8px;
   background: transparent;
   border: none;
   padding: 8px;
@@ -473,7 +472,9 @@
   text-decoration: none;
   color: var(--theme-text-primary, #212121);
   font-size: 0.75rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   cursor: pointer;
 }
 
@@ -1230,7 +1231,8 @@
 }
 
 /* Single line with bullet separators: Treatment • Area • Product • Timeline • Qty */
-.discussed-treatments-record-row-one-line .discussed-treatments-record-line-outer {
+.discussed-treatments-record-row-one-line
+  .discussed-treatments-record-line-outer {
   font-size: 13px;
   font-weight: 500;
   color: var(--theme-text-primary);
@@ -1240,20 +1242,48 @@
 }
 
 /* Treatment name as heading, metadata below */
-.discussed-treatments-record-row-heading-meta .discussed-treatments-record-treatment-heading-outer {
+.discussed-treatments-record-row-heading-meta
+  .discussed-treatments-record-treatment-heading-outer {
   font-size: 14px;
   font-weight: 700;
   color: var(--theme-text-primary);
   line-height: 1.3;
 }
 
-.discussed-treatments-record-row-heading-meta .discussed-treatments-record-meta-line-outer {
+.discussed-treatments-record-row-heading-meta
+  .discussed-treatments-record-meta-line-outer {
   font-size: 12px;
   font-weight: 400;
   color: var(--theme-text-secondary);
   line-height: 1.4;
   word-wrap: break-word;
   overflow-wrap: break-word;
+}
+
+.discussed-treatments-record-row-heading-meta.discussed-treatments-record-row-with-price {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.discussed-treatments-record-row-with-price .discussed-treatments-record-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.discussed-treatments-record-price-outer {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  line-height: 1.3;
+  max-width: 42%;
 }
 
 .discussed-treatments-record-heading-block-outer {

@@ -1,0 +1,14 @@
+/* Shared tokens: checkout order summary, share treatment plan quote, section headers */
+:root {
+  --plan-quote-border: var(--theme-border, #e2e8f0);
+  --plan-quote-radius: 14px;
+  --plan-quote-surface-bg: var(--theme-bg-card, #fff);
+  --plan-quote-section-header-bg: var(--theme-bg-subtle, #fafbfb);
+  --plan-quote-section-title-size: 0.6875rem;
+  --plan-quote-section-title-weight: 800;
+  --plan-quote-section-title-spacing: 0.06em;
+  --plan-quote-section-title-color: var(--theme-text-muted, #64748b);
+  --plan-quote-row-divider: #f1f5f9;
+  --plan-quote-subtotal-bg: var(--theme-bg-elevated, #f8fafc);
+  --plan-quote-accent: var(--theme-success, #059669);
+}

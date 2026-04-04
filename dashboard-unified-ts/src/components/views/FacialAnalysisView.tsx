@@ -55,7 +55,7 @@ export default function FacialAnalysisView() {
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null);
   const [clientPhotos, setClientPhotos] = useState<Record<string, string>>({});
 
-  // Filter and sort clients (All Clients = Patients only; Leads tab would use ListView)
+  // Filter and sort clients (Clients view = Patients only; Leads uses ListView)
   const processedClients = useMemo(() => {
     let filtered = clients.filter((client) => !client.archived);
     filtered = filtered.filter((client) => client.tableSource === "Patients");

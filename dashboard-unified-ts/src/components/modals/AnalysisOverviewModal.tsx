@@ -7,12 +7,17 @@ import {
   SubScoreFeatureRow,
 } from "../analysisOverview/FeatureBreakdownRows";
 import { useDashboard } from "../../context/DashboardContext";
-import { Client, TreatmentPhoto } from "../../types";
-import { fetchTreatmentPhotos, fetchTableRecords, fetchAIAssessment, fetchCategoryAssessment } from "../../services/api";
-import type { AirtableRecord } from "../../services/api";
+import { Client, DiscussedItem } from "../../types";
+import {
+  fetchTableRecords,
+  fetchAIAssessment,
+  fetchCategoryAssessment,
+  fetchPatientRecords,
+  parsePatientRecordsToCards,
+  type PatientSuggestionCard,
+} from "../../services/api";
 import {
   CATEGORIES,
-  CATEGORY_DESCRIPTIONS,
   AREAS,
   normalizeIssue,
   computeCategories,
@@ -20,6 +25,7 @@ import {
   computeAreas,
   scoreTier,
   tierColor,
+  tierLabel,
   summarizeAreaThemes,
   generateAssessment,
   getCategoryDescriptionForPatient,
@@ -31,33 +37,58 @@ import {
   getDetectedIssuesFromClient,
   getInterestAreaNamesFromClient,
 } from "../../utils/analysisOverviewClient";
-import { getSuggestedTreatmentsForFindings } from "./DiscussedTreatmentsModal/utils";
-import { TREATMENT_META } from "./DiscussedTreatmentsModal/constants";
-import type { TreatmentPlanPrefill } from "./DiscussedTreatmentsModal/TreatmentPhotos";
+import {
+  getQuantityContext,
+  getTreatmentsForInterest,
+} from "./DiscussedTreatmentsModal/utils";
+import {
+  REGION_OPTIONS,
+  TIMELINE_OPTIONS,
+  isEnergyTreatmentCategory,
+} from "./DiscussedTreatmentsModal/constants";
+import {
+  SUGGESTION_TO_ISSUES,
+  SUGGESTION_TO_AREA,
+} from "./DiscussedTreatmentsModal/suggestionsMapping";
+import { groupIssuesByConcern } from "../../config/issueToConcernMapping";
+import type {
+  TreatmentPlanAddDirectOptions,
+  TreatmentPlanPrefill,
+} from "./DiscussedTreatmentsModal/TreatmentPhotos";
 import PhotoViewerModal from "./PhotoViewerModal";
+import TreatmentPhotosModal from "./TreatmentPhotosModal";
 import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
 import { RadarChart } from "../postVisitBlueprint/RadarChart";
 import "./AnalysisOverviewModal.css";
 
-/** Typewriter text – animates char-by-char on first render only */
+// ---------------------------------------------------------------------------
+// TypewriterText – animates char-by-char, with parent-level dedup to prevent
+// replay when navigating back from drill-down views.
+// ---------------------------------------------------------------------------
 function TypewriterText({
   text,
   speed = 25,
   enabled = true,
+  animatedKeysRef,
 }: {
   text: string;
   speed?: number;
   enabled?: boolean;
+  animatedKeysRef?: React.MutableRefObject<Set<string>>;
 }) {
-  const [displayed, setDisplayed] = useState(enabled ? "" : text);
+  const alreadyPlayed =
+    animatedKeysRef && animatedKeysRef.current.has(text);
+  const shouldAnimate = enabled && !alreadyPlayed;
+  const [displayed, setDisplayed] = useState(shouldAnimate ? "" : text);
   const hasAnimated = useRef(false);
 
   useEffect(() => {
-    if (!enabled || hasAnimated.current) {
+    if (!shouldAnimate || hasAnimated.current) {
       setDisplayed(text);
       return;
     }
     hasAnimated.current = true;
+    if (animatedKeysRef) animatedKeysRef.current.add(text);
     let idx = 0;
     setDisplayed("");
     const timer = setInterval(() => {
@@ -66,19 +97,18 @@ function TypewriterText({
       if (idx >= text.length) clearInterval(timer);
     }, speed);
     return () => clearInterval(timer);
-  }, [text, speed, enabled]);
+  }, [text, speed, shouldAnimate, animatedKeysRef]);
 
   return (
     <span className="ao-typewriter">
       {displayed}
-      {enabled && displayed.length < text.length && (
+      {shouldAnimate && displayed.length < text.length && (
         <span className="ao-typewriter__cursor" aria-hidden>|</span>
       )}
     </span>
   );
 }
 
-/** Section titles that pair LLM-backed copy with AI + Gemini brand */
 function OverviewSectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="analysis-overview-modal__area-group-title">
@@ -100,12 +130,16 @@ export type DetailView =
 interface AnalysisOverviewModalProps {
   client: Client;
   onClose: () => void;
-  /** When provided, "Add to plan" in detail views opens the treatment plan with this prefill (parent should close overview and open DiscussedTreatmentsModal). Second arg is current drill-down state so parent can reopen overview there when treatment plan closes. */
-  onAddToPlan?: (prefill: TreatmentPlanPrefill, returnState?: DetailView) => void;
-  /** If set, the modal opens with this detail view (e.g. after returning from treatment plan). */
+  onAddToPlanDirect?: (
+    prefill: TreatmentPlanPrefill,
+    options?: TreatmentPlanAddDirectOptions,
+  ) => Promise<void | DiscussedItem> | DiscussedItem | void;
   initialDetailView?: DetailView | null;
 }
 
+// ---------------------------------------------------------------------------
+// ScoreGauge – used ONLY for the single overall score
+// ---------------------------------------------------------------------------
 function ScoreGauge({
   score,
   size = 120,
@@ -164,287 +198,10 @@ function ScoreGauge({
   );
 }
 
-/** Map Airtable record to TreatmentPhoto (minimal fields for overview photo strip) */
-function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
-  const fields = record.fields;
-  const photoAttachment = fields["Photo"];
-  let photoUrl = "";
-  let thumbnailUrl = "";
-  if (Array.isArray(photoAttachment) && photoAttachment.length > 0) {
-    const att = photoAttachment[0];
-    photoUrl =
-      att.thumbnails?.full?.url ||
-      att.thumbnails?.large?.url ||
-      att.url ||
-      "";
-    thumbnailUrl =
-      att.thumbnails?.large?.url ||
-      att.thumbnails?.small?.url ||
-      att.url ||
-      "";
-  }
-  const treatments = Array.isArray(fields["Name (from Treatments)"])
-    ? fields["Name (from Treatments)"]
-    : fields["Treatments"]
-      ? [fields["Treatments"]]
-      : [];
-  const generalTreatments = Array.isArray(
-    fields["Name (from General Treatments)"]
-  )
-    ? fields["Name (from General Treatments)"]
-    : fields["General Treatments"]
-      ? [fields["General Treatments"]]
-      : [];
-  const areaNames = fields["Area Names"]
-    ? String(fields["Area Names"])
-        .split(",")
-        .map((s: string) => s.trim())
-        .filter(Boolean)
-    : [];
-  return {
-    id: record.id,
-    name: (fields["Name"] as string) || "",
-    photoUrl,
-    thumbnailUrl,
-    treatments,
-    generalTreatments,
-    areaNames,
-    caption: (fields["Caption"] as string) || undefined,
-  };
-}
-
-/** Extract words (alpha) from text for relevance matching. */
-function getWords(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 1);
-}
-
-/**
- * Pick the single most relevant photo for this treatment + goal + finding.
- * Matches treatment type, then scores by how many goal/finding words appear in photo name/caption.
- */
-function pickBestPhotoForTreatment(
-  photos: TreatmentPhoto[],
-  treatmentName: string,
-  goal: string,
-  exampleFinding: string
-): TreatmentPhoto | null {
-  if (!treatmentName.trim()) return null;
-  const t = treatmentName.trim().toLowerCase();
-  const candidates = photos.filter((p) => {
-    if (!p.photoUrl) return false;
-    const general = (p.generalTreatments || []).some((g) =>
-      String(g).toLowerCase().includes(t)
-    );
-    const specific = (p.treatments || []).some((s) =>
-      String(s).toLowerCase().includes(t)
-    );
-    const nameHasTreatment = (p.name || "").toLowerCase().includes(t);
-    return general || specific || nameHasTreatment;
-  });
-  if (candidates.length === 0) return null;
-  if (candidates.length === 1) return candidates[0];
-
-  const goalWords = new Set(getWords(goal));
-  const findingWords = new Set(getWords(exampleFinding));
-  const allKeywords = [...goalWords, ...findingWords];
-  if (allKeywords.length === 0) return candidates[0];
-
-  let best = candidates[0];
-  let bestScore = 0;
-  for (const p of candidates) {
-    const text = `${p.name || ""} ${p.caption || ""}`.toLowerCase();
-    const score = allKeywords.filter((kw) => text.includes(kw)).length;
-    if (score > bestScore) {
-      bestScore = score;
-      best = p;
-    }
-  }
-  return best;
-}
-
-/** Short "why this treatment" explanation from finding and goal – softer tone. */
-function getWhyThisTreatment(
-  exampleFinding: string,
-  goal: string,
-  treatment: string
-): string {
-  return `We noticed some ${exampleFinding.toLowerCase()} in this area, which is very common. ${treatment} is a gentle, effective approach to help with ${goal.toLowerCase()}.`;
-}
-
-/** Single treatment row: one relevant photo, why text, meta (longevity/downtime/price), Add to plan */
-const TIMELINE_OPTIONS = ["Now", "Next Visit", "Wishlist"] as const;
-type TimelineOption = typeof TIMELINE_OPTIONS[number];
-
-function TreatmentRowContent({
-  suggestion,
-  bestPhoto,
-  onAddToPlan,
-}: {
-  suggestion: { treatment: string; goal: string; region: string; exampleFinding: string };
-  bestPhoto: TreatmentPhoto | null;
-  onAddToPlan?: (prefill: TreatmentPlanPrefill) => void;
-}) {
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [showTimeline, setShowTimeline] = useState(false);
-  const [addedTimeline, setAddedTimeline] = useState<TimelineOption | null>(null);
-  // (inline confirmation is handled by addedTimeline state)
-  const meta = TREATMENT_META[suggestion.treatment];
-  const whyText = getWhyThisTreatment(
-    suggestion.exampleFinding,
-    suggestion.goal,
-    suggestion.treatment
-  );
-
-  const handleAddWithTimeline = (timeline: TimelineOption) => {
-    setShowTimeline(false);
-    // Build the prefill for the inline confirmation
-    const prefill: TreatmentPlanPrefill = {
-      interest: suggestion.goal,
-      region: suggestion.region,
-      treatment: suggestion.treatment,
-      findings: [suggestion.exampleFinding],
-      timeline,
-    };
-    // Confirm inline – don't navigate away
-    setAddedTimeline(timeline);
-    // Notify parent for persistence (but parent should NOT close modal)
-    onAddToPlan?.(prefill);
-  };
-
-  const handleRemove = () => {
-    setAddedTimeline(null);
-  };
-
-  return (
-    <>
-      <div className="ao-detail__treatment-card">
-        <div className="ao-detail__treatment-left">
-          <div className="ao-detail__treatment-row">
-            <div className="ao-detail__treatment-info">
-              <span className="ao-detail__treatment-name">{suggestion.treatment}</span>
-              <span className="ao-detail__treatment-meta">
-                {suggestion.exampleFinding} · {suggestion.region}
-              </span>
-            </div>
-          </div>
-          <p className="ao-detail__treatment-why">{whyText}</p>
-          {(meta?.longevity || meta?.downtime || meta?.priceRange) && (
-            <div className="ao-detail__treatment-meta-line">
-              {meta.longevity && <span>Longevity: {meta.longevity}</span>}
-              {meta.downtime && <span>Downtime: {meta.downtime}</span>}
-              {meta.priceRange && <span>Price: {meta.priceRange}</span>}
-            </div>
-          )}
-          <div className="ao-detail__treatment-actions">
-            {addedTimeline ? (
-              <>
-                <span className="ao-detail__treatment-added">
-                  ✓ Added · {addedTimeline}
-                </span>
-                <button
-                  type="button"
-                  className="ao-detail__treatment-remove"
-                  onClick={handleRemove}
-                >
-                  Remove
-                </button>
-              </>
-            ) : showTimeline ? (
-              <div className="ao-detail__inline-panel">
-                <span className="ao-detail__inline-panel-label">When?</span>
-                <div className="ao-detail__timeline-picker">
-                  {TIMELINE_OPTIONS.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      className="ao-detail__timeline-btn"
-                      onClick={() => handleAddWithTimeline(t)}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="ao-detail__treatment-add"
-                onClick={() => setShowTimeline(true)}
-              >
-                Add to plan
-              </button>
-            )}
-          </div>
-        </div>
-        {bestPhoto ? (
-          <div className="ao-detail__photo-single">
-            <button
-              type="button"
-              className="ao-detail__photo-single-btn"
-              onClick={() => setLightboxOpen(true)}
-              aria-label={`View before/after: ${bestPhoto.name || "Treatment example"}`}
-            >
-              <img
-                src={bestPhoto.thumbnailUrl || bestPhoto.photoUrl}
-                alt=""
-                className="ao-detail__photo-single-img"
-                loading="lazy"
-              />
-              <span className="ao-detail__photo-single-label">Before/after example</span>
-              <span className="ao-detail__photo-expand" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                </svg>
-              </span>
-            </button>
-          </div>
-        ) : null}
-      </div>
-      {lightboxOpen && bestPhoto && (
-        <div
-          className="ao-detail__lightbox-overlay"
-          onClick={() => setLightboxOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="View photo"
-        >
-          <button
-            type="button"
-            className="ao-detail__lightbox-close"
-            onClick={() => setLightboxOpen(false)}
-            aria-label="Close"
-          >
-            ×
-          </button>
-          <div
-            className="ao-detail__lightbox-content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={bestPhoto.photoUrl}
-              alt={bestPhoto.name || "Before/after"}
-              className="ao-detail__lightbox-img"
-            />
-            {(bestPhoto.name || bestPhoto.caption) && (
-              <p className="ao-detail__lightbox-caption">
-                {bestPhoto.name || ""}
-                {bestPhoto.name && bestPhoto.caption ? " — " : ""}
-                {bestPhoto.caption || ""}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-/** Horizontal bar for sub-score breakdown in category detail */
-function DetailBar({
+// ---------------------------------------------------------------------------
+// Horizontal bar for scores (replaces circular gauges on categories)
+// ---------------------------------------------------------------------------
+function ScoreBar({
   label,
   score,
   animate,
@@ -455,16 +212,16 @@ function DetailBar({
 }) {
   const color = tierColor(scoreTier(score));
   return (
-    <div className="ao-detail-bar">
-      <div className="ao-detail-bar__header">
-        <span className="ao-detail-bar__label">{label}</span>
-        <span className="ao-detail-bar__score" style={{ color }}>
+    <div className="ao-score-bar">
+      <div className="ao-score-bar__header">
+        <span className="ao-score-bar__label">{label}</span>
+        <span className="ao-score-bar__score" style={{ color }}>
           {score}
         </span>
       </div>
-      <div className="ao-detail-bar__track">
+      <div className="ao-score-bar__track">
         <div
-          className="ao-detail-bar__fill"
+          className="ao-score-bar__fill"
           style={{
             width: animate ? `${score}%` : "0%",
             background: color,
@@ -476,6 +233,9 @@ function DetailBar({
   );
 }
 
+// ---------------------------------------------------------------------------
+// CategoryCard – horizontal bar header, expand for radar + sub-scores
+// ---------------------------------------------------------------------------
 function CategoryCard({
   cat,
   isOpen,
@@ -489,7 +249,7 @@ function CategoryCard({
   animate: boolean;
   onExploreDetails: (categoryKey: string) => void;
 }) {
-  const desc = CATEGORY_DESCRIPTIONS[cat.key] || "";
+  const color = tierColor(scoreTier(cat.score));
 
   return (
     <div
@@ -503,29 +263,24 @@ function CategoryCard({
         aria-label={`${cat.scoreLabel}, ${cat.score}. ${isOpen ? "Collapse" : "Expand"} breakdown`}
       >
         <div className="ao-modal-cat-card__header-left">
-          <div className="ao-modal-cat-card__header-gauge">
-            <ScoreGauge
-              score={cat.score}
-              size={88}
-              strokeWidth={7}
-              animate={animate}
-              label={cat.scoreLabel}
-              className="ao-modal-gauge--category"
-            />
-          </div>
-          {cat.subScores.length >= 3 && (
-            <div className="ao-modal-cat-card__header-radar" aria-hidden>
-              <RadarChart
-                data={cat.subScores.map((s) => ({ name: s.name, score: s.score }))}
-                size={70}
-                animate={animate}
-                showLabels={false}
-                className="ao-radar--compact"
+          <span className="ao-modal-cat-card__name">{cat.scoreLabel}</span>
+        </div>
+        <div className="ao-modal-cat-card__header-right">
+          <div className="ao-modal-cat-card__bar-wrap">
+            <div className="ao-modal-cat-card__bar-track">
+              <div
+                className="ao-modal-cat-card__bar-fill"
+                style={{
+                  width: animate ? `${cat.score}%` : "0%",
+                  background: color,
+                  transition: animate ? "width 0.8s ease-out" : "none",
+                }}
               />
             </div>
-          )}
-        </div>
-        <div className="ao-modal-cat-card__right">
+            <span className="ao-modal-cat-card__score" style={{ color }}>
+              {cat.score}
+            </span>
+          </div>
           <span className="ao-modal-cat-card__chev" aria-hidden>
             {isOpen ? "▲" : "▼"}
           </span>
@@ -534,17 +289,18 @@ function CategoryCard({
 
       {isOpen && (
         <div className="ao-modal-cat-card__body">
-          {desc && <p className="ao-modal-cat-card__desc-expanded">{desc}</p>}
-          {cat.subScores.length >= 3 ? (
+          {cat.subScores.length >= 3 && (
             <RadarChart
               data={cat.subScores.map((s) => ({ name: s.name, score: s.score }))}
-              size={200}
+              size={168}
               animate={animate}
             />
-          ) : (
+          )}
+          {/* Skip stacked bars when radar already shows the same dimensions */}
+          {cat.subScores.length < 3 && (
             <div className="ao-modal-cat-card__bars">
               {cat.subScores.map((s) => (
-                <DetailBar
+                <ScoreBar
                   key={s.name}
                   label={s.name}
                   score={s.score}
@@ -593,23 +349,501 @@ function AreaCard({
   );
 }
 
-/* ========== Category Detail View (drill-down) ========== */
+// ---------------------------------------------------------------------------
+// TierLegend – single shared legend for area tier colors
+// ---------------------------------------------------------------------------
+function TierLegend() {
+  return (
+    <div className="analysis-overview-modal__area-dot-legend">
+      <span className="analysis-overview-modal__area-legend-item">
+        <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("excellent") }} />
+        Excellent
+      </span>
+      <span className="analysis-overview-modal__area-legend-item">
+        <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("good") }} />
+        Very Good
+      </span>
+      <span className="analysis-overview-modal__area-legend-item">
+        <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("moderate") }} />
+        Good
+      </span>
+      <span className="analysis-overview-modal__area-legend-item">
+        <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("attention") }} />
+        Needs Attention
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Suggestion card – recommender-style treatment card for drill-down views
+// ---------------------------------------------------------------------------
+const TIMELINE_OPTIONS_ADD = TIMELINE_OPTIONS.filter((t) => t !== "Completed");
+
+function SuggestionCard({
+  card,
+  detectedIssues,
+  discussedItems,
+  onAddToPlanDirect,
+  providerCode,
+  onViewExamples,
+}: {
+  card: PatientSuggestionCard;
+  detectedIssues: Set<string>;
+  discussedItems?: DiscussedItem[];
+  onAddToPlanDirect?: (
+    prefill: TreatmentPlanPrefill,
+    options?: TreatmentPlanAddDirectOptions,
+  ) => Promise<void | DiscussedItem> | DiscussedItem | void;
+  providerCode?: string;
+  onViewExamples: (interest: string) => void;
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const treatments = useMemo(
+    () => getTreatmentsForInterest(card.suggestionName, providerCode),
+    [card.suggestionName, providerCode],
+  );
+  const [what, setWhat] = useState(treatments[0] ?? "");
+  const [when, setWhen] = useState(TIMELINE_OPTIONS_ADD[0] ?? "Now");
+  const [where, setWhere] = useState<string[]>([]);
+  const [product, setProduct] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const issuesList = useMemo(() => {
+    const fromMapping = SUGGESTION_TO_ISSUES[card.suggestionName] ?? [];
+    if (fromMapping.length > 0) return fromMapping;
+    if (card.issuesString) {
+      return card.issuesString.split(",").map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  }, [card.suggestionName, card.issuesString]);
+
+  const breakdownRows = useMemo(
+    () => groupIssuesByConcern(issuesList),
+    [issuesList],
+  );
+
+  const onPlan = useMemo(() => {
+    if (!discussedItems?.length) return false;
+    return discussedItems.some(
+      (i) =>
+        (i.interest?.trim().toLowerCase() ?? "") ===
+        card.suggestionName.trim().toLowerCase(),
+    );
+  }, [discussedItems, card.suggestionName]);
+
+  const isSkincare = what === "Skincare";
+  const showWhereRow = !isSkincare && !isEnergyTreatmentCategory(what);
+
+  const openForm = () => {
+    setWhat(treatments[0] ?? "");
+    setWhen(TIMELINE_OPTIONS_ADD[0] ?? "Now");
+    setWhere([]);
+    setProduct("");
+    setNotes("");
+    setQuantity(
+      isSkincare
+        ? ""
+        : getQuantityContext(treatments[0] ?? "", undefined).defaultQuantity,
+    );
+    setFormOpen(true);
+  };
+
+  useEffect(() => {
+    if (!formOpen || isSkincare) return;
+    const qtyCtx = getQuantityContext(what, product.trim() || undefined);
+    if (qtyCtx.quantityControl === "text") return;
+    const { options, defaultQuantity } = qtyCtx;
+    const q = quantity.trim();
+    if (q && options.includes(q)) return;
+    const next = defaultQuantity;
+    if (q !== next) setQuantity(next);
+  }, [formOpen, isSkincare, what, product, quantity]);
+
+  const handleConfirm = async () => {
+    if (!onAddToPlanDirect) return;
+    const region =
+      isSkincare || isEnergyTreatmentCategory(what)
+        ? ""
+        : where.length > 0
+          ? where.join(", ")
+          : (SUGGESTION_TO_AREA[card.suggestionName] ?? "");
+    const prefill: TreatmentPlanPrefill = {
+      interest: card.suggestionName,
+      region,
+      treatment: what,
+      timeline: when,
+      treatmentProduct: product.trim() || undefined,
+      quantity: quantity.trim() || undefined,
+      notes: notes.trim() || undefined,
+    };
+    setSaving(true);
+    try {
+      await onAddToPlanDirect(prefill);
+      setFormOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const detectedForCard = useMemo(() => {
+    const set = new Set(detectedIssues);
+    if (card.issuesString) {
+      card.issuesString
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((issue) => set.add(normalizeIssue(issue)));
+    }
+    return set;
+  }, [detectedIssues, card.issuesString]);
+
+  return (
+    <div className="ao-suggestion-card">
+      <div className="ao-suggestion-card__top">
+        {card.photoUrl ? (
+          <div className="ao-suggestion-card__photo-wrap">
+            <img
+              src={card.photoUrl}
+              alt=""
+              className="ao-suggestion-card__photo"
+              loading="lazy"
+            />
+          </div>
+        ) : null}
+        <div className="ao-suggestion-card__main">
+          <h4 className="ao-suggestion-card__title">{card.suggestionName}</h4>
+          {card.shortSummary && (
+            <p className="ao-suggestion-card__short-summary">
+              {card.shortSummary}
+            </p>
+          )}
+          {card.aiSummary && (
+            <details className="ao-suggestion-card__ai-details">
+              <summary>Learn more</summary>
+              <p className="ao-suggestion-card__ai-text">{card.aiSummary}</p>
+            </details>
+          )}
+
+          {breakdownRows.length > 0 && (
+            <div className="ao-suggestion-card__breakdown">
+              <h5 className="ao-suggestion-card__breakdown-title">
+                Feature breakdown
+              </h5>
+              {breakdownRows.map((row) => (
+                <SubScoreFeatureRow
+                  key={row.label}
+                  variant="minimal"
+                  subScore={{
+                    name: row.label,
+                    score: (() => {
+                      const bad = row.issues.filter((i) =>
+                        detectedForCard.has(normalizeIssue(i)),
+                      ).length;
+                      return row.issues.length > 0
+                        ? Math.round(
+                            ((row.issues.length - bad) / row.issues.length) *
+                              100,
+                          )
+                        : 100;
+                    })(),
+                    total: row.issues.length,
+                    detected: row.issues.filter((i) =>
+                      detectedForCard.has(normalizeIssue(i)),
+                    ).length,
+                  }}
+                  issues={row.issues}
+                  detectedIssues={detectedForCard}
+                  animate={true}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="ao-suggestion-card__actions">
+            {onPlan && !formOpen ? (
+              <div className="ao-suggestion-card__added-row">
+                <span className="ao-suggestion-card__added">✓ Added to plan</span>
+                {onAddToPlanDirect && (
+                  <button
+                    type="button"
+                    className="ao-suggestion-card__add-btn ao-suggestion-card__add-btn--subtle"
+                    onClick={openForm}
+                  >
+                    Add again
+                  </button>
+                )}
+              </div>
+            ) : formOpen ? (
+              <div className="ao-suggestion-card__add-form">
+                {treatments.length > 1 && (
+                  <div className="ao-suggestion-card__form-row">
+                    <span>Type</span>
+                    <div className="ao-suggestion-card__chips">
+                      {treatments.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className={`ao-suggestion-card__chip${what === t ? " ao-suggestion-card__chip--selected" : ""}`}
+                          onClick={() => setWhat(t)}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {showWhereRow && (
+                  <div className="ao-suggestion-card__form-row">
+                    <span>Where</span>
+                    <div className="ao-suggestion-card__chips">
+                      {REGION_OPTIONS.filter(
+                        (r) => r !== "Multiple" && r !== "Other",
+                      ).map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          className={`ao-suggestion-card__chip${where.includes(r) ? " ao-suggestion-card__chip--selected" : ""}`}
+                          onClick={() =>
+                            setWhere((prev) =>
+                              prev.includes(r)
+                                ? prev.filter((x) => x !== r)
+                                : [...prev, r],
+                            )
+                          }
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="ao-suggestion-card__form-row">
+                  <span>When</span>
+                  <div className="ao-suggestion-card__chips">
+                    {TIMELINE_OPTIONS_ADD.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        className={`ao-suggestion-card__chip${when === t ? " ao-suggestion-card__chip--selected" : ""}`}
+                        onClick={() => setWhen(t)}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {!isSkincare && (() => {
+                  const qtyCtx = getQuantityContext(what, product.trim() || undefined);
+                  return (
+                    <div className="ao-suggestion-card__form-row">
+                      <span>{qtyCtx.unitLabel}</span>
+                      {qtyCtx.quantityControl === "text" ? (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="ao-suggestion-card__select"
+                          aria-label={qtyCtx.unitLabel}
+                          placeholder={qtyCtx.defaultQuantity}
+                          value={quantity}
+                          onChange={(e) =>
+                            setQuantity(e.target.value.replace(/\D/g, ""))
+                          }
+                        />
+                      ) : (
+                        <select
+                          className="ao-suggestion-card__select"
+                          value={quantity}
+                          onChange={(e) => setQuantity(e.target.value)}
+                        >
+                          {qtyCtx.options.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  );
+                })()}
+                <details className="ao-suggestion-card__opt-details">
+                  <summary>Optional details</summary>
+                  <div className="ao-suggestion-card__opt-fields">
+                    <label className="ao-suggestion-card__field-label">
+                      Product
+                      <input
+                        type="text"
+                        className="ao-suggestion-card__field-input"
+                        placeholder="e.g. Juvederm, Botox"
+                        value={product}
+                        onChange={(e) => setProduct(e.target.value)}
+                      />
+                    </label>
+                    <label className="ao-suggestion-card__field-label">
+                      Notes
+                      <textarea
+                        className="ao-suggestion-card__field-textarea"
+                        placeholder="Optional notes"
+                        rows={2}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                </details>
+                <div className="ao-suggestion-card__form-actions">
+                  <button
+                    type="button"
+                    className="ao-suggestion-card__confirm-btn"
+                    disabled={saving || !onAddToPlanDirect}
+                    onClick={() => void handleConfirm()}
+                  >
+                    {saving ? "Adding…" : "Confirm"}
+                  </button>
+                  <button
+                    type="button"
+                    className="ao-suggestion-card__cancel-btn"
+                    disabled={saving}
+                    onClick={() => setFormOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : onAddToPlanDirect ? (
+              <button
+                type="button"
+                className="ao-suggestion-card__add-btn"
+                onClick={openForm}
+              >
+                Add to plan
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="ao-suggestion-card__examples-btn"
+              onClick={() => onViewExamples(card.suggestionName)}
+            >
+              View examples
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DrillDownSuggestions – recommender-style treatment cards for a drill-down
+// ---------------------------------------------------------------------------
+function DrillDownSuggestions({
+  suggestionCards,
+  detectedIssueNames,
+  detectedIssues,
+  discussedItems,
+  onAddToPlanDirect,
+  providerCode,
+  client,
+}: {
+  suggestionCards: PatientSuggestionCard[];
+  detectedIssueNames: string[];
+  detectedIssues: Set<string>;
+  discussedItems?: DiscussedItem[];
+  onAddToPlanDirect?: (
+    prefill: TreatmentPlanPrefill,
+    options?: TreatmentPlanAddDirectOptions,
+  ) => Promise<void | DiscussedItem> | DiscussedItem | void;
+  providerCode?: string;
+  client: Client;
+}) {
+  const [photoExplorerInterest, setPhotoExplorerInterest] = useState<string | null>(null);
+
+  const relevantCards = useMemo(() => {
+    if (suggestionCards.length === 0 || detectedIssueNames.length === 0)
+      return [];
+    const detectedSet = new Set(detectedIssueNames.map(normalizeIssue));
+    return suggestionCards.filter((card) => {
+      const suggIssues = SUGGESTION_TO_ISSUES[card.suggestionName] ?? [];
+      if (suggIssues.length > 0) {
+        return suggIssues.some((i) => detectedSet.has(normalizeIssue(i)));
+      }
+      if (card.issuesString) {
+        return card.issuesString
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .some((i) => detectedSet.has(normalizeIssue(i)));
+      }
+      return false;
+    });
+  }, [suggestionCards, detectedIssueNames]);
+
+  if (relevantCards.length === 0) return null;
+
+  return (
+    <>
+      <section className="ao-detail__section">
+        <h3 className="ao-detail__section-title">Suggested treatments</h3>
+        <p className="ao-detail__treatments-intro">
+          Based on the findings above, here are some approaches that could help
+          address these concerns.
+        </p>
+        <div className="ao-suggestion-cards">
+          {relevantCards.map((card) => (
+            <SuggestionCard
+              key={card.id}
+              card={card}
+              detectedIssues={detectedIssues}
+              discussedItems={discussedItems}
+              onAddToPlanDirect={onAddToPlanDirect}
+              providerCode={providerCode}
+              onViewExamples={setPhotoExplorerInterest}
+            />
+          ))}
+        </div>
+      </section>
+      {photoExplorerInterest && client && (
+        <TreatmentPhotosModal
+          client={client}
+          interest={photoExplorerInterest}
+          selectedRegion={SUGGESTION_TO_AREA[photoExplorerInterest]}
+          onClose={() => setPhotoExplorerInterest(null)}
+          onAddToPlanDirect={onAddToPlanDirect}
+          planItems={client.discussedItems ?? []}
+        />
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CategoryDetailContent (drill-down)
+// ---------------------------------------------------------------------------
 function CategoryDetailContent({
   categoryKey,
   detectedIssues,
   onBack,
-  onAddToPlan,
-  treatmentPhotos,
-  treatmentPhotosLoading,
+  discussedItems,
+  onAddToPlanDirect,
   providerCode,
+  animatedKeysRef,
+  suggestionCards,
+  client,
 }: {
   categoryKey: string;
   detectedIssues: Set<string>;
   onBack: () => void;
-  onAddToPlan?: (prefill: TreatmentPlanPrefill) => void;
-  treatmentPhotos: TreatmentPhoto[];
-  treatmentPhotosLoading: boolean;
+  discussedItems?: DiscussedItem[];
+  onAddToPlanDirect?: (
+    prefill: TreatmentPlanPrefill,
+    options?: TreatmentPlanAddDirectOptions,
+  ) => Promise<void | DiscussedItem> | DiscussedItem | void;
   providerCode?: string;
+  animatedKeysRef: React.MutableRefObject<Set<string>>;
+  suggestionCards: PatientSuggestionCard[];
+  client: Client;
 }) {
   const [animate, setAnimate] = useState(false);
   useEffect(() => {
@@ -619,22 +853,17 @@ function CategoryDetailContent({
 
   const categories = useMemo(
     () => computeCategories(detectedIssues),
-    [detectedIssues]
+    [detectedIssues],
   );
   const catResult = categories.find((c) => c.key === categoryKey);
   const catDef = CATEGORIES.find((c) => c.key === categoryKey);
 
   const detectedIssueNames = useMemo(() => {
     if (!catDef) return [];
-    return catDef.subScores.flatMap((s) => s.issues).filter((issue) =>
-      detectedIssues.has(normalizeIssue(issue))
-    );
+    return catDef.subScores
+      .flatMap((s) => s.issues)
+      .filter((issue) => detectedIssues.has(normalizeIssue(issue)));
   }, [catDef, detectedIssues]);
-
-  const suggestedTreatments = useMemo(
-    () => getSuggestedTreatmentsForFindings(detectedIssueNames, providerCode),
-    [detectedIssueNames, providerCode]
-  );
 
   if (!catDef || !catResult) {
     return (
@@ -649,15 +878,14 @@ function CategoryDetailContent({
 
   const categoryDescription = getCategoryDescriptionForPatient(catResult);
 
-  // LLM-generated category assessment
   const [aiCatText, setAiCatText] = useState<string | null>(null);
   const [aiCatLoading, setAiCatLoading] = useState(false);
 
   const strengthIssueNames = useMemo(() => {
     if (!catDef) return [];
-    return catDef.subScores.flatMap((s) => s.issues).filter(
-      (issue) => !detectedIssues.has(normalizeIssue(issue))
-    );
+    return catDef.subScores
+      .flatMap((s) => s.issues)
+      .filter((issue) => !detectedIssues.has(normalizeIssue(issue)));
   }, [catDef, detectedIssues]);
 
   useEffect(() => {
@@ -668,7 +896,7 @@ function CategoryDetailContent({
       categoryOrArea: catResult.name,
       score: catResult.score,
       tier: catResult.tier,
-      subScores: catResult.subScores.map(s => ({
+      subScores: catResult.subScores.map((s) => ({
         name: s.name,
         score: s.score,
         detected: s.detected,
@@ -677,12 +905,22 @@ function CategoryDetailContent({
       detectedIssues: detectedIssueNames,
       strengthIssues: strengthIssueNames,
     })
-      .then(text => { if (mounted) { setAiCatText(text); setAiCatLoading(false); } })
-      .catch(() => { if (mounted) setAiCatLoading(false); });
-    return () => { mounted = false; };
+      .then((text) => {
+        if (mounted) {
+          setAiCatText(text);
+          setAiCatLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setAiCatLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
   }, [catResult, detectedIssueNames, strengthIssueNames]);
 
   const displayCatAssessment = aiCatText || categoryDescription;
+  const color = tierColor(catResult.tier);
 
   return (
     <div className="ao-detail">
@@ -696,14 +934,14 @@ function CategoryDetailContent({
       </button>
 
       <section className="ao-detail__hero ao-detail__hero--with-ai">
-        <div className="ao-detail__hero-gauge">
-          <ScoreGauge
-            score={catResult.score}
-            size={110}
-            strokeWidth={10}
-            animate={animate}
-            label={CATEGORIES.find(c => c.key === categoryKey)?.scoreLabel ?? CATEGORIES.find(c => c.key === categoryKey)?.name ?? ""}
-          />
+        <div className="ao-detail__hero-score">
+          <span className="ao-detail__hero-score-number" style={{ color }}>
+            {catResult.score}
+          </span>
+          <span className="ao-detail__hero-score-tier" style={{ color }}>
+            {tierLabel(catResult.tier)}
+          </span>
+          <span className="ao-detail__hero-score-name">{catResult.scoreLabel}</span>
         </div>
         <div className="ao-detail__hero-ai">
           <div className="ao-detail__ai-header">
@@ -718,13 +956,16 @@ function CategoryDetailContent({
             </div>
           ) : (
             <p className="ao-detail__ai-text">
-              <TypewriterText text={displayCatAssessment} speed={20} />
+              <TypewriterText
+                text={displayCatAssessment}
+                speed={20}
+                animatedKeysRef={animatedKeysRef}
+              />
             </p>
           )}
         </div>
       </section>
 
-      {/* Sub-score breakdown with collapsible check/x pills */}
       <section className="ao-detail__section">
         <h3 className="ao-detail__section-title ao-detail__section-title--with-ai">
           <span className="ao-detail__section-title-inner">
@@ -737,8 +978,13 @@ function CategoryDetailContent({
           {catResult.subScores.map((s) => (
             <SubScoreFeatureRow
               key={s.name}
+              variant="minimal"
               subScore={s}
-              issues={CATEGORIES.find(c => c.key === categoryKey)?.subScores.find(ss => ss.name === s.name)?.issues || []}
+              issues={
+                CATEGORIES.find((c) => c.key === categoryKey)?.subScores.find(
+                  (ss) => ss.name === s.name,
+                )?.issues || []
+              }
               detectedIssues={detectedIssues}
               animate={animate}
             />
@@ -746,84 +992,65 @@ function CategoryDetailContent({
         </div>
       </section>
 
-      {suggestedTreatments.length > 0 && (
-        <section className="ao-detail__section">
-          <h3 className="ao-detail__section-title">Suggested treatments</h3>
-          <p className="ao-detail__treatments-intro">
-            Based on the findings above, here are some approaches that could help address these concerns.
-          </p>
-          {treatmentPhotosLoading && (
-            <p className="ao-detail__photo-strip-loading">Loading treatment examples…</p>
-          )}
-          <ul className="ao-detail__treatment-list">
-            {suggestedTreatments.map((s, i) => {
-              const bestPhoto = treatmentPhotosLoading
-                ? null
-                : pickBestPhotoForTreatment(
-                    treatmentPhotos,
-                    s.treatment,
-                    s.goal,
-                    s.exampleFinding
-                  );
-              return (
-                <li key={`${s.treatment}-${s.goal}-${s.region}-${i}`} className="ao-detail__treatment-item">
-                  <TreatmentRowContent
-                    suggestion={s}
-                    bestPhoto={bestPhoto}
-                    onAddToPlan={onAddToPlan}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+      <DrillDownSuggestions
+        suggestionCards={suggestionCards}
+        detectedIssueNames={detectedIssueNames}
+        detectedIssues={detectedIssues}
+        discussedItems={discussedItems}
+        onAddToPlanDirect={onAddToPlanDirect}
+        providerCode={providerCode}
+        client={client}
+      />
     </div>
   );
 }
 
-/* ========== Area Detail View (drill-down) ========== */
+// ---------------------------------------------------------------------------
+// AreaDetailContent (drill-down)
+// ---------------------------------------------------------------------------
 function AreaDetailContent({
   areaName,
   detectedIssues,
   interestAreaNames,
   onBack,
-  onAddToPlan,
-  treatmentPhotos,
-  treatmentPhotosLoading,
+  discussedItems,
+  onAddToPlanDirect,
   providerCode,
+  animatedKeysRef,
+  suggestionCards,
+  client,
 }: {
   areaName: string;
   detectedIssues: Set<string>;
   interestAreaNames: Set<string>;
   onBack: () => void;
-  onAddToPlan?: (prefill: TreatmentPlanPrefill) => void;
-  treatmentPhotos: TreatmentPhoto[];
-  treatmentPhotosLoading: boolean;
+  discussedItems?: DiscussedItem[];
+  onAddToPlanDirect?: (
+    prefill: TreatmentPlanPrefill,
+    options?: TreatmentPlanAddDirectOptions,
+  ) => Promise<void | DiscussedItem> | DiscussedItem | void;
   providerCode?: string;
+  animatedKeysRef: React.MutableRefObject<Set<string>>;
+  suggestionCards: PatientSuggestionCard[];
+  client: Client;
 }) {
   const areaResults = useMemo(
     () => computeAreas(detectedIssues, interestAreaNames),
-    [detectedIssues, interestAreaNames]
+    [detectedIssues, interestAreaNames],
   );
   const areaResult = areaResults.find((a) => a.name === areaName);
   const areaDef = AREAS.find((a) => a.name === areaName);
   const themes = useMemo(
     () => summarizeAreaThemes(areaName, detectedIssues),
-    [areaName, detectedIssues]
+    [areaName, detectedIssues],
   );
 
   const detectedIssueNames = useMemo(() => {
     if (!areaDef) return [];
     return areaDef.issues.filter((issue) =>
-      detectedIssues.has(normalizeIssue(issue))
+      detectedIssues.has(normalizeIssue(issue)),
     );
   }, [areaDef, detectedIssues]);
-
-  const suggestedTreatments = useMemo(
-    () => getSuggestedTreatmentsForFindings(detectedIssueNames, providerCode),
-    [detectedIssueNames, providerCode]
-  );
 
   if (!areaDef || !areaResult) {
     return (
@@ -838,13 +1065,14 @@ function AreaDetailContent({
 
   const areaDescription = getAreaDescriptionForPatient(areaResult);
 
-  // LLM-generated area assessment
   const [aiAreaText, setAiAreaText] = useState<string | null>(null);
   const [aiAreaLoading, setAiAreaLoading] = useState(false);
 
   const strengthIssueNames = useMemo(() => {
     if (!areaDef) return [];
-    return areaDef.issues.filter(issue => !detectedIssues.has(normalizeIssue(issue)));
+    return areaDef.issues.filter(
+      (issue) => !detectedIssues.has(normalizeIssue(issue)),
+    );
   }, [areaDef, detectedIssues]);
 
   useEffect(() => {
@@ -855,21 +1083,36 @@ function AreaDetailContent({
       categoryOrArea: areaResult.name,
       score: areaResult.score,
       tier: areaResult.tier,
-      subScores: themes.map(t => ({
+      subScores: themes.map((t) => ({
         name: t.label,
-        score: t.totalCount > 0 ? Math.round(((t.totalCount - t.detectedCount) / t.totalCount) * 100) : 100,
+        score:
+          t.totalCount > 0
+            ? Math.round(
+                ((t.totalCount - t.detectedCount) / t.totalCount) * 100,
+              )
+            : 100,
         detected: t.detectedCount,
         total: t.totalCount,
       })),
       detectedIssues: detectedIssueNames,
       strengthIssues: strengthIssueNames,
     })
-      .then(text => { if (mounted) { setAiAreaText(text); setAiAreaLoading(false); } })
-      .catch(() => { if (mounted) setAiAreaLoading(false); });
-    return () => { mounted = false; };
+      .then((text) => {
+        if (mounted) {
+          setAiAreaText(text);
+          setAiAreaLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setAiAreaLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
   }, [areaResult, themes, detectedIssueNames, strengthIssueNames]);
 
   const displayAreaAssessment = aiAreaText || areaDescription;
+  const color = tierColor(areaResult.tier);
 
   return (
     <div className="ao-detail">
@@ -883,14 +1126,14 @@ function AreaDetailContent({
       </button>
 
       <section className="ao-detail__hero ao-detail__hero--with-ai">
-        <div className="ao-detail__hero-gauge">
-          <ScoreGauge
-            score={areaResult.score}
-            size={110}
-            strokeWidth={10}
-            animate={true}
-            label={areaResult.name}
-          />
+        <div className="ao-detail__hero-score">
+          <span className="ao-detail__hero-score-number" style={{ color }}>
+            {areaResult.score}
+          </span>
+          <span className="ao-detail__hero-score-tier" style={{ color }}>
+            {tierLabel(areaResult.tier)}
+          </span>
+          <span className="ao-detail__hero-score-name">{areaResult.name}</span>
         </div>
         <div className="ao-detail__hero-ai">
           <div className="ao-detail__ai-header">
@@ -905,13 +1148,16 @@ function AreaDetailContent({
             </div>
           ) : (
             <p className="ao-detail__ai-text">
-              <TypewriterText text={displayAreaAssessment} speed={20} />
+              <TypewriterText
+                text={displayAreaAssessment}
+                speed={20}
+                animatedKeysRef={animatedKeysRef}
+              />
             </p>
           )}
         </div>
       </section>
 
-      {/* Theme-based feature breakdown with check/x pills */}
       <section className="ao-detail__section">
         <h3 className="ao-detail__section-title ao-detail__section-title--with-ai">
           <span className="ao-detail__section-title-inner">
@@ -924,6 +1170,7 @@ function AreaDetailContent({
           {themes.map((theme) => (
             <AreaThemeFeatureRow
               key={theme.label}
+              variant="minimal"
               theme={theme}
               detectedIssues={detectedIssues}
             />
@@ -931,77 +1178,71 @@ function AreaDetailContent({
         </div>
       </section>
 
-      {suggestedTreatments.length > 0 && (
-        <section className="ao-detail__section">
-          <h3 className="ao-detail__section-title">Suggested treatments</h3>
-          <p className="ao-detail__treatments-intro">
-            Based on the findings above, here are some approaches that could help address these concerns.
-          </p>
-          {treatmentPhotosLoading && (
-            <p className="ao-detail__photo-strip-loading">Loading treatment examples…</p>
-          )}
-          <ul className="ao-detail__treatment-list">
-            {suggestedTreatments.map((s, i) => {
-              const bestPhoto = treatmentPhotosLoading
-                ? null
-                : pickBestPhotoForTreatment(
-                    treatmentPhotos,
-                    s.treatment,
-                    s.goal,
-                    s.exampleFinding
-                  );
-              return (
-                <li key={`${s.treatment}-${s.goal}-${s.region}-${i}`} className="ao-detail__treatment-item">
-                  <TreatmentRowContent
-                    suggestion={s}
-                    bestPhoto={bestPhoto}
-                    onAddToPlan={onAddToPlan}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+      <DrillDownSuggestions
+        suggestionCards={suggestionCards}
+        detectedIssueNames={detectedIssueNames}
+        detectedIssues={detectedIssues}
+        discussedItems={discussedItems}
+        onAddToPlanDirect={onAddToPlanDirect}
+        providerCode={providerCode}
+        client={client}
+      />
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Main modal
+// ---------------------------------------------------------------------------
 export default function AnalysisOverviewModal({
   client,
   onClose,
-  onAddToPlan,
+  onAddToPlanDirect,
   initialDetailView,
 }: AnalysisOverviewModalProps) {
   const { provider } = useDashboard();
   const [animate, setAnimate] = useState(false);
   const [detailView, setDetailView] = useState<DetailView>(null);
+  const animatedKeysRef = useRef<Set<string>>(new Set());
 
-  // Restore drill-down when reopening from treatment plan
   useEffect(() => {
     if (initialDetailView !== undefined) {
       setDetailView(initialDetailView ?? null);
     }
   }, [initialDetailView]);
-  const [treatmentPhotos, setTreatmentPhotos] = useState<TreatmentPhoto[]>([]);
-  const [treatmentPhotosLoading, setTreatmentPhotosLoading] = useState(false);
-  const [clientFrontPhotoUrl, setClientFrontPhotoUrl] = useState<string | null>(null);
+
+  const [clientFrontPhotoUrl, setClientFrontPhotoUrl] = useState<string | null>(
+    null,
+  );
+  const [suggestionCards, setSuggestionCards] = useState<
+    PatientSuggestionCard[]
+  >([]);
 
   useEffect(() => {
     const t = setTimeout(() => setAnimate(true), 350);
     return () => clearTimeout(t);
   }, []);
 
-  // Load client front photo when modal is open
+  // Load client front photo
   useEffect(() => {
     if (!client) {
       setClientFrontPhotoUrl(null);
       return;
     }
-    const getUrl = (att: { thumbnails?: { large?: { url?: string }; full?: { url?: string } }; url?: string }) =>
-      att?.thumbnails?.full?.url || att?.thumbnails?.large?.url || att?.url || null;
+    const getUrl = (att: {
+      thumbnails?: { large?: { url?: string }; full?: { url?: string } };
+      url?: string;
+    }) =>
+      att?.thumbnails?.full?.url ||
+      att?.thumbnails?.large?.url ||
+      att?.url ||
+      null;
 
-    if (client.frontPhoto && Array.isArray(client.frontPhoto) && client.frontPhoto.length > 0) {
+    if (
+      client.frontPhoto &&
+      Array.isArray(client.frontPhoto) &&
+      client.frontPhoto.length > 0
+    ) {
       setClientFrontPhotoUrl(getUrl(client.frontPhoto[0]) || null);
     }
 
@@ -1014,9 +1255,14 @@ export default function AnalysisOverviewModal({
         .then((records) => {
           if (!mounted || records.length === 0) return;
           const fields = records[0].fields;
-          const front = fields["Front Photo"] || fields["Front photo"] || fields["frontPhoto"];
+          const front =
+            fields["Front Photo"] ||
+            fields["Front photo"] ||
+            fields["frontPhoto"];
           if (front && Array.isArray(front) && front.length > 0) {
-            setClientFrontPhotoUrl((prev) => prev || getUrl(front[0]) || null);
+            setClientFrontPhotoUrl(
+              (prev) => prev || getUrl(front[0]) || null,
+            );
           }
         })
         .catch(() => {});
@@ -1026,33 +1272,25 @@ export default function AnalysisOverviewModal({
     }
   }, [client]);
 
+  // Fetch patient-records for recommender-style suggestion cards
   useEffect(() => {
-    if (!detailView) {
-      setTreatmentPhotos([]);
+    const email = client?.email?.trim();
+    if (!email) {
+      setSuggestionCards([]);
       return;
     }
     let mounted = true;
-    setTreatmentPhotosLoading(true);
-    fetchTreatmentPhotos({ limit: 1500 })
+    fetchPatientRecords(email)
       .then((records) => {
-        if (mounted) {
-          const photos = records
-            .map(mapRecordToPhoto)
-            .filter((p) => p.photoUrl);
-          setTreatmentPhotos(photos);
-          setTreatmentPhotosLoading(false);
-        }
+        if (mounted) setSuggestionCards(parsePatientRecordsToCards(records));
       })
       .catch(() => {
-        if (mounted) {
-          setTreatmentPhotos([]);
-          setTreatmentPhotosLoading(false);
-        }
+        if (mounted) setSuggestionCards([]);
       });
     return () => {
       mounted = false;
     };
-  }, [detailView]);
+  }, [client?.email]);
 
   const detectedIssues = useMemo(
     () => getDetectedIssuesFromClient(client),
@@ -1065,13 +1303,13 @@ export default function AnalysisOverviewModal({
 
   const categories = useMemo(
     () => computeCategories(detectedIssues),
-    [detectedIssues]
+    [detectedIssues],
   );
   const overall = useMemo(() => computeOverall(categories), [categories]);
 
   const areaResults = useMemo(
     () => computeAreas(detectedIssues, interestAreaNames),
-    [detectedIssues, interestAreaNames]
+    [detectedIssues, interestAreaNames],
   );
 
   const focusAreas = areaResults
@@ -1084,11 +1322,12 @@ export default function AnalysisOverviewModal({
 
   const assessmentText = useMemo(
     () => generateAssessment(overall, categories, focusCount),
-    [overall, categories, focusCount]
+    [overall, categories, focusCount],
   );
 
-  // LLM-generated overview assessment (async, with fallback to template)
-  const [aiAssessmentText, setAiAssessmentText] = useState<string | null>(null);
+  const [aiAssessmentText, setAiAssessmentText] = useState<string | null>(
+    null,
+  );
   const [aiAssessmentLoading, setAiAssessmentLoading] = useState(false);
 
   useEffect(() => {
@@ -1098,11 +1337,15 @@ export default function AnalysisOverviewModal({
     const detectedList = Array.from(detectedIssues);
     fetchAIAssessment({
       overall,
-      categories: categories.map(c => ({ name: c.name, score: c.score, tier: c.tier })),
+      categories: categories.map((c) => ({
+        name: c.name,
+        score: c.score,
+        tier: c.tier,
+      })),
       focusCount,
       detectedIssues: detectedList,
     })
-      .then(text => {
+      .then((text) => {
         if (mounted) {
           setAiAssessmentText(text);
           setAiAssessmentLoading(false);
@@ -1111,10 +1354,11 @@ export default function AnalysisOverviewModal({
       .catch(() => {
         if (mounted) setAiAssessmentLoading(false);
       });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [detectedIssues, overall, categories, focusCount]);
 
-  // The displayed assessment: LLM text if available, otherwise template
   const displayAssessment = aiAssessmentText || assessmentText;
 
   const hasAnyData = detectedIssues.size > 0;
@@ -1122,23 +1366,22 @@ export default function AnalysisOverviewModal({
   const showCategoryDetail = detailView?.type === "category";
   const showAreaDetail = detailView?.type === "area";
   const showAreasPage = detailView?.type === "areas";
-  const [aiSummaryOpen, setAiSummaryOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
-  // Default: open first category so at least one radar is visible without clicks.
   const [openCategoryKey, setOpenCategoryKey] = useState<string | null>(
-    CATEGORIES[0]?.key ?? null
+    CATEGORIES[0]?.key ?? null,
   );
 
-  // Inline treatment plan handler – records additions without navigating away
-  const handleInlineAddToPlan = (prefill: TreatmentPlanPrefill) => {
-    // Notify parent for persistence if available, but DON'T navigate away
-    // Parent should check if inline mode is active and skip closing the overview
-    onAddToPlan?.(prefill, detailView);
-  };
+  const patientFirst = client.name ? client.name.split(" ")[0] : "";
 
   return (
-    <div className="modal-overlay active" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="ao-modal-title">
+    <div
+      className="modal-overlay active"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ao-modal-title"
+    >
       <div
         className={`modal-content analysis-overview-modal${isMaximized ? " analysis-overview-modal--maximized" : ""}`}
         onClick={(e) => e.stopPropagation()}
@@ -1146,12 +1389,13 @@ export default function AnalysisOverviewModal({
         <div className="analysis-overview-modal__header">
           <h2 id="ao-modal-title" className="analysis-overview-modal__title">
             {showCategoryDetail && detailView?.type === "category"
-              ? (categories.find((c) => c.key === detailView.key)?.scoreLabel ?? detailView.key)
+              ? (categories.find((c) => c.key === detailView.key)
+                  ?.scoreLabel ?? detailView.key)
               : showAreaDetail && detailView?.type === "area"
-                ? (detailView.name)
+                ? detailView.name
                 : showAreasPage
                   ? "All Areas"
-                  : "Facial Analysis"}
+                  : `Facial Analysis${patientFirst ? ` — ${patientFirst}` : ""}`}
           </h2>
           <div className="analysis-overview-modal__header-actions">
             <button
@@ -1184,10 +1428,12 @@ export default function AnalysisOverviewModal({
               categoryKey={detailView.key}
               detectedIssues={detectedIssues}
               onBack={() => setDetailView(null)}
-              onAddToPlan={handleInlineAddToPlan}
-              treatmentPhotos={treatmentPhotos}
-              treatmentPhotosLoading={treatmentPhotosLoading}
+              discussedItems={client.discussedItems}
+              onAddToPlanDirect={onAddToPlanDirect}
               providerCode={provider?.code}
+              animatedKeysRef={animatedKeysRef}
+              suggestionCards={suggestionCards}
+              client={client}
             />
           ) : showAreaDetail && detailView?.type === "area" ? (
             <AreaDetailContent
@@ -1195,13 +1441,14 @@ export default function AnalysisOverviewModal({
               detectedIssues={detectedIssues}
               interestAreaNames={interestAreaNames}
               onBack={() => setDetailView(null)}
-              onAddToPlan={handleInlineAddToPlan}
-              treatmentPhotos={treatmentPhotos}
-              treatmentPhotosLoading={treatmentPhotosLoading}
+              discussedItems={client.discussedItems}
+              onAddToPlanDirect={onAddToPlanDirect}
               providerCode={provider?.code}
+              animatedKeysRef={animatedKeysRef}
+              suggestionCards={suggestionCards}
+              client={client}
             />
           ) : showAreasPage ? (
-            /* ===== All Areas inner page with face map ===== */
             <div className="ao-detail">
               <button
                 type="button"
@@ -1212,103 +1459,8 @@ export default function AnalysisOverviewModal({
                 ← Back to Overview
               </button>
 
-              {/* SVG face map */}
-              <div className="ao-face-map">
-                <svg viewBox="0 0 300 400" className="ao-face-map__svg">
-                  {/* Face outline */}
-                  <ellipse cx="150" cy="190" rx="110" ry="150" fill="none" stroke="#e0e0e0" strokeWidth="1.5" />
-                  {/* Forehead region */}
-                  <ellipse cx="150" cy="90" rx="80" ry="40"
-                    className="ao-face-map__region"
-                    fill={tierColor((areaResults.find(a => a.name === "Forehead") || { tier: "good" as const }).tier)}
-                    opacity="0.25"
-                    onClick={() => setDetailView({ type: "area", name: "Forehead" })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <text x="150" y="95" textAnchor="middle" className="ao-face-map__label">Forehead</text>
-                  {/* Eyes region */}
-                  <ellipse cx="110" cy="155" rx="30" ry="16"
-                    className="ao-face-map__region"
-                    fill={tierColor((areaResults.find(a => a.name === "Eyes") || { tier: "good" as const }).tier)}
-                    opacity="0.25"
-                    onClick={() => setDetailView({ type: "area", name: "Eyes" })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <ellipse cx="190" cy="155" rx="30" ry="16"
-                    className="ao-face-map__region"
-                    fill={tierColor((areaResults.find(a => a.name === "Eyes") || { tier: "good" as const }).tier)}
-                    opacity="0.25"
-                    onClick={() => setDetailView({ type: "area", name: "Eyes" })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <text x="150" y="150" textAnchor="middle" className="ao-face-map__label">Eyes</text>
-                  {/* Nose region */}
-                  <ellipse cx="150" cy="200" rx="18" ry="28"
-                    className="ao-face-map__region"
-                    fill={tierColor((areaResults.find(a => a.name === "Nose") || { tier: "good" as const }).tier)}
-                    opacity="0.25"
-                    onClick={() => setDetailView({ type: "area", name: "Nose" })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <text x="150" y="205" textAnchor="middle" className="ao-face-map__label">Nose</text>
-                  {/* Cheeks region */}
-                  <ellipse cx="80" cy="205" rx="30" ry="30"
-                    className="ao-face-map__region"
-                    fill={tierColor((areaResults.find(a => a.name === "Cheeks") || { tier: "good" as const }).tier)}
-                    opacity="0.25"
-                    onClick={() => setDetailView({ type: "area", name: "Cheeks" })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <ellipse cx="220" cy="205" rx="30" ry="30"
-                    className="ao-face-map__region"
-                    fill={tierColor((areaResults.find(a => a.name === "Cheeks") || { tier: "good" as const }).tier)}
-                    opacity="0.25"
-                    onClick={() => setDetailView({ type: "area", name: "Cheeks" })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <text x="80" y="210" textAnchor="middle" className="ao-face-map__label">Cheeks</text>
-                  {/* Lips region */}
-                  <ellipse cx="150" cy="260" rx="30" ry="14"
-                    className="ao-face-map__region"
-                    fill={tierColor((areaResults.find(a => a.name === "Lips") || { tier: "good" as const }).tier)}
-                    opacity="0.25"
-                    onClick={() => setDetailView({ type: "area", name: "Lips" })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <text x="150" y="264" textAnchor="middle" className="ao-face-map__label">Lips</text>
-                  {/* Jawline region */}
-                  <path d="M60,250 Q60,330 150,340 Q240,330 240,250"
-                    className="ao-face-map__region"
-                    fill={tierColor((areaResults.find(a => a.name === "Jawline") || { tier: "good" as const }).tier)}
-                    opacity="0.15"
-                    onClick={() => setDetailView({ type: "area", name: "Jawline" })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  <text x="150" y="320" textAnchor="middle" className="ao-face-map__label">Jawline</text>
-                </svg>
+              <TierLegend />
 
-                {/* Legend */}
-                <div className="ao-face-map__legend">
-                  <span className="ao-face-map__legend-item">
-                    <span className="ao-face-map__legend-dot" style={{ background: tierColor("excellent") }} />
-                    Excellent
-                  </span>
-                  <span className="ao-face-map__legend-item">
-                    <span className="ao-face-map__legend-dot" style={{ background: tierColor("good") }} />
-                    Good
-                  </span>
-                  <span className="ao-face-map__legend-item">
-                    <span className="ao-face-map__legend-dot" style={{ background: tierColor("moderate") }} />
-                    Moderate
-                  </span>
-                  <span className="ao-face-map__legend-item">
-                    <span className="ao-face-map__legend-dot" style={{ background: tierColor("attention") }} />
-                    Attention
-                  </span>
-                </div>
-              </div>
-
-              {/* Area list below the map */}
               <div className="analysis-overview-modal__areas-list">
                 {areaResults
                   .sort((a, b) => a.score - b.score)
@@ -1316,74 +1468,71 @@ export default function AnalysisOverviewModal({
                     <AreaCard
                       key={a.name}
                       area={a}
-                      onExploreDetails={(name) => setDetailView({ type: "area", name })}
+                      onExploreDetails={(name) =>
+                        setDetailView({ type: "area", name })
+                      }
                     />
                   ))}
               </div>
             </div>
           ) : (
-            /* ===== Main overview ===== */
             <>
-              {/* Hero: front photo */}
-              <section className="analysis-overview-modal__hero">
-                <div className="analysis-overview-modal__hero-card">
-                  {clientFrontPhotoUrl && (
-                    <div
-                      className="analysis-overview-modal__client-photo-wrap analysis-overview-modal__client-photo-wrap--clickable"
-                      onClick={() => setShowPhotoViewer(true)}
-                      role="button"
-                      tabIndex={0}
-                      aria-label="View patient photos"
-                    >
-                      <img
-                        src={clientFrontPhotoUrl}
-                        alt="Patient"
-                        className="analysis-overview-modal__client-photo"
-                      />
-                      <span className="analysis-overview-modal__photo-overlay">View</span>
-                      <span className="analysis-overview-modal__photo-expand" aria-hidden>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                        </svg>
-                      </span>
+              {/* ===== Hero: Photo + Overall Score + AI Summary ===== */}
+              <section className="ao-hero">
+                {clientFrontPhotoUrl && (
+                  <div
+                    className="ao-hero__photo-wrap"
+                    onClick={() => setShowPhotoViewer(true)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="View patient photos"
+                  >
+                    <img
+                      src={clientFrontPhotoUrl}
+                      alt="Patient"
+                      className="ao-hero__photo"
+                    />
+                    <span className="ao-hero__photo-overlay">View</span>
+                  </div>
+                )}
+                <div className="ao-hero__gauge-wrap">
+                  <ScoreGauge
+                    score={overall}
+                    size={120}
+                    strokeWidth={10}
+                    animate={animate}
+                    label="Overall"
+                  />
+                </div>
+                <div className="ao-hero__ai">
+                  <div className="ao-hero__ai-brand">
+                    <AiSparkleLogo
+                      size={16}
+                      className="ao-ai-summary__icon ao-ai-logo"
+                    />
+                    <span className="ao-ai-summary__label">
+                      Aesthetic Intelligence
+                    </span>
+                    <GeminiWordmark />
+                  </div>
+                  {aiAssessmentLoading ? (
+                    <div className="ao-ai-summary__loading">
+                      <span className="ao-ai-summary__shimmer" />
+                      <span className="ao-ai-summary__shimmer ao-ai-summary__shimmer--short" />
                     </div>
+                  ) : (
+                    <p className="ao-hero__ai-text">
+                      <TypewriterText
+                        text={displayAssessment}
+                        speed={25}
+                        animatedKeysRef={animatedKeysRef}
+                      />
+                    </p>
                   )}
                 </div>
               </section>
 
-              {/* AI Summary: "Aesthetic Intelligence" branded, collapsed by default */}
-              <section className="ao-ai-summary">
-                <button
-                  type="button"
-                  className="ao-ai-summary__toggle"
-                  onClick={() => setAiSummaryOpen(!aiSummaryOpen)}
-                >
-                  <div className="ao-ai-summary__brand">
-                    <AiSparkleLogo size={16} className="ao-ai-summary__icon ao-ai-logo" />
-                    <span className="ao-ai-summary__label">Aesthetic Intelligence</span>
-                    <GeminiWordmark />
-                  </div>
-                  <span className="ao-ai-summary__chev" aria-hidden>
-                    {aiSummaryOpen ? "▲" : "▼"}
-                  </span>
-                </button>
-                {aiSummaryOpen && (
-                  <div className="ao-ai-summary__body">
-                    {aiAssessmentLoading ? (
-                      <div className="ao-ai-summary__loading">
-                        <span className="ao-ai-summary__shimmer" />
-                        <span className="ao-ai-summary__shimmer ao-ai-summary__shimmer--short" />
-                      </div>
-                    ) : (
-                      <p className="ao-ai-summary__text">
-                        <TypewriterText text={displayAssessment} speed={25} />
-                      </p>
-                    )}
-                  </div>
-                )}
-              </section>
-
-              {/* Category sub-scores – circle inside each collapsible card */}
+              {/* ===== Category scores ===== */}
               <section className="analysis-overview-modal__categories">
                 <div
                   className="analysis-overview-modal__categories-brand"
@@ -1397,86 +1546,71 @@ export default function AnalysisOverviewModal({
                 </div>
                 <div className="analysis-overview-modal__cat-columns">
                   {categories.map((c) => (
-                    <div key={c.key} className="analysis-overview-modal__cat-column">
+                    <div
+                      key={c.key}
+                      className="analysis-overview-modal__cat-column"
+                    >
                       <CategoryCard
                         cat={c}
                         isOpen={openCategoryKey === c.key}
-                        onToggle={() => setOpenCategoryKey(openCategoryKey === c.key ? null : c.key)}
+                        onToggle={() =>
+                          setOpenCategoryKey(
+                            openCategoryKey === c.key ? null : c.key,
+                          )
+                        }
                         animate={animate}
-                        onExploreDetails={(key) => setDetailView({ type: "category", key })}
+                        onExploreDetails={(key) =>
+                          setDetailView({ type: "category", key })
+                        }
                       />
                     </div>
                   ))}
                 </div>
               </section>
 
-              {/* Client's focus areas */}
-              {focusAreas.length > 0 && (
+              {/* ===== Areas (merged with single legend) ===== */}
+              {(focusAreas.length > 0 || otherAreas.length > 0) && (
                 <section className="analysis-overview-modal__areas">
-                  <OverviewSectionHeading>
-                    Client&apos;s focus areas
-                  </OverviewSectionHeading>
-                  <div className="analysis-overview-modal__area-dot-legend">
-                    <span className="analysis-overview-modal__area-legend-item">
-                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("excellent") }} />
-                      Excellent
-                    </span>
-                    <span className="analysis-overview-modal__area-legend-item">
-                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("good") }} />
-                      Very Good
-                    </span>
-                    <span className="analysis-overview-modal__area-legend-item">
-                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("moderate") }} />
-                      Good
-                    </span>
-                    <span className="analysis-overview-modal__area-legend-item">
-                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("attention") }} />
-                      Needs Attention
-                    </span>
-                  </div>
-                  <div className="analysis-overview-modal__area-grid">
-                    {focusAreas.map((a) => (
-                      <AreaCard
-                        key={a.name}
-                        area={a}
-                        onExploreDetails={(name) => setDetailView({ type: "area", name })}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
+                  <OverviewSectionHeading>Areas</OverviewSectionHeading>
+                  <TierLegend />
 
-              {/* Other areas */}
-              {otherAreas.length > 0 && (
-                <section className="analysis-overview-modal__areas">
-                  <OverviewSectionHeading>Other areas</OverviewSectionHeading>
-                  <div className="analysis-overview-modal__area-dot-legend">
-                    <span className="analysis-overview-modal__area-legend-item">
-                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("excellent") }} />
-                      Excellent
-                    </span>
-                    <span className="analysis-overview-modal__area-legend-item">
-                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("good") }} />
-                      Very Good
-                    </span>
-                    <span className="analysis-overview-modal__area-legend-item">
-                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("moderate") }} />
-                      Good
-                    </span>
-                    <span className="analysis-overview-modal__area-legend-item">
-                      <span className="analysis-overview-modal__area-legend-dot" style={{ background: tierColor("attention") }} />
-                      Needs Attention
-                    </span>
-                  </div>
-                  <div className="analysis-overview-modal__area-grid">
-                    {otherAreas.map((a) => (
-                      <AreaCard
-                        key={a.name}
-                        area={a}
-                        onExploreDetails={(name) => setDetailView({ type: "area", name })}
-                      />
-                    ))}
-                  </div>
+                  {focusAreas.length > 0 && (
+                    <>
+                      <span className="analysis-overview-modal__area-sub-label">
+                        Client&apos;s focus areas
+                      </span>
+                      <div className="analysis-overview-modal__area-grid">
+                        {focusAreas.map((a) => (
+                          <AreaCard
+                            key={a.name}
+                            area={a}
+                            onExploreDetails={(name) =>
+                              setDetailView({ type: "area", name })
+                            }
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {otherAreas.length > 0 && (
+                    <>
+                      <span className="analysis-overview-modal__area-sub-label">
+                        Other areas
+                      </span>
+                      <div className="analysis-overview-modal__area-grid">
+                        {otherAreas.map((a) => (
+                          <AreaCard
+                            key={a.name}
+                            area={a}
+                            onExploreDetails={(name) =>
+                              setDetailView({ type: "area", name })
+                            }
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </section>
               )}
             </>

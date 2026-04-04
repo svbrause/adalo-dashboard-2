@@ -1,12 +1,13 @@
 // Contact History Section Component
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import { Client, ContactHistoryEntry } from '../../types';
 import { formatRelativeDate } from '../../utils/dateFormatting';
 import { formatFacialStatus } from '../../utils/statusFormatting';
 import { formatContactType, formatOutcome, formatNotesWithLineBreaks } from '../../utils/contactHistory';
 import { saveContactLog, updateClientStatus } from '../../services/contactHistory';
+import { fetchClientContactHistory } from '../../services/api';
 import { showToast, showError } from '../../utils/toast';
 import './ContactHistorySection.css';
 
@@ -24,6 +25,29 @@ export default function ContactHistorySection({ client, onUpdate }: ContactHisto
     notes: '',
   });
   const [saving, setSaving] = useState(false);
+  const [loadedHistory, setLoadedHistory] = useState<ContactHistoryEntry[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const fetchedForRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (fetchedForRef.current === client.id) return;
+    fetchedForRef.current = client.id;
+    setHistoryLoading(true);
+    fetchClientContactHistory(client.id, client.tableSource, client.linkedLeadId)
+      .then((entries) => setLoadedHistory(entries as ContactHistoryEntry[]))
+      .catch(() => setLoadedHistory([]))
+      .finally(() => setHistoryLoading(false));
+  }, [client.id, client.tableSource, client.linkedLeadId]);
+
+  const reloadHistory = () => {
+    setHistoryLoading(true);
+    fetchClientContactHistory(client.id, client.tableSource, client.linkedLeadId)
+      .then((entries) => setLoadedHistory(entries as ContactHistoryEntry[]))
+      .catch(() => setLoadedHistory([]))
+      .finally(() => setHistoryLoading(false));
+  };
+
+  const contactHistory = loadedHistory ?? client.contactHistory ?? [];
 
   // Get available outcomes based on contact type
   const getOutcomesForType = (type: 'call' | 'email' | 'text' | 'meeting'): Array<{ value: string; label: string }> => {
@@ -104,6 +128,7 @@ export default function ContactHistorySection({ client, onUpdate }: ContactHisto
       setShowAddForm(false);
       const defaultOutcome = getDefaultOutcome('call');
       setFormData({ type: 'call', outcome: defaultOutcome as any, notes: '' });
+      reloadHistory();
       onUpdate();
     } catch (error: any) {
       showError(error.message || 'Failed to save contact history');
@@ -112,8 +137,7 @@ export default function ContactHistorySection({ client, onUpdate }: ContactHisto
     }
   };
 
-  // Combine contact history with facial analysis entry if applicable
-  const allEntries: Array<ContactHistoryEntry & { type?: string }> = [...(client.contactHistory || [])];
+  const allEntries: Array<ContactHistoryEntry & { type?: string }> = [...contactHistory];
   
   if (client.facialAnalysisStatus && client.facialAnalysisStatus !== '' && client.facialAnalysisStatus !== 'not-started') {
     allEntries.push({
@@ -202,7 +226,9 @@ export default function ContactHistorySection({ client, onUpdate }: ContactHisto
       )}
       
       <div className="contact-history-list">
-        {allEntries.length === 0 ? (
+        {historyLoading ? (
+          <div className="no-data"><span className="spinner spinner-sm"></span> Loading history…</div>
+        ) : allEntries.length === 0 ? (
           <div className="no-data">No contact history yet. Add your first interaction!</div>
         ) : (
           allEntries.map((entry) => {

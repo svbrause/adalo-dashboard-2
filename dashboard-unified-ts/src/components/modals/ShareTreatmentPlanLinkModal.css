@@ -1,3 +1,5 @@
+@import "./planQuoteSurfaces.css";
+
 .share-treatment-plan-link-overlay {
   position: fixed;
   inset: 0;
@@ -11,17 +13,84 @@
 }
 
 .share-treatment-plan-link-dialog {
-  max-width: 440px;
+  max-width: 520px;
   width: calc(100% - 32px);
-  max-height: min(90vh, 640px);
+  max-height: min(90vh, 720px);
   overflow-y: auto;
 }
 
-.share-treatment-plan-link-lead {
-  margin: 0 0 12px;
-  font-size: 0.875rem;
-  line-height: 1.45;
+/* Compose modal base uses 680px; narrow when sharing plan so quote columns stay tight */
+.treatment-plan-checkout-blueprint-compose-modal.share-treatment-plan-link-dialog {
+  width: min(520px, 100%);
+  max-width: 520px;
+  max-height: min(90vh, 720px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.share-tp-link-dialog-title {
+  flex-shrink: 0;
+}
+
+/* Short intro under the title; stays fixed while the quote list scrolls. */
+.treatment-plan-checkout-blueprint-compose-modal.share-treatment-plan-link-dialog
+  p.share-tp-link-dialog-subtitle {
+  flex-shrink: 0;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
   color: var(--theme-text-secondary, #475569);
+}
+
+.share-tp-link-dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.share-tp-link-dialog-footer {
+  flex-shrink: 0;
+  padding-top: 12px;
+  margin-top: 0;
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--theme-border, #e2e8f0);
+  background: #fff;
+}
+
+.share-tp-link-dialog-footer
+  .treatment-plan-checkout-blueprint-compose-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 10px;
+}
+
+/* Same outer height: secondary uses a 2px border; primary does not globally—match here. */
+.share-tp-link-dialog-footer
+  .treatment-plan-checkout-blueprint-compose-actions
+  > button {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-tp-link-dialog-footer
+  .treatment-plan-checkout-blueprint-compose-actions
+  > button.btn-primary {
+  border: 2px solid transparent;
+}
+
+/* Pick + SMS: keep actions on one row (Back / Preview link / Send, or Cancel / Continue). */
+.share-tp-link-dialog-footer .share-treatment-plan-link-actions {
+  flex-wrap: nowrap;
 }
 
 .share-treatment-plan-link-empty {
@@ -91,4 +160,165 @@
 
 .share-treatment-plan-link-actions {
   margin-top: 4px;
+}
+
+/* Stacked cards: no outer side rails—each block is its own rounded surface */
+.share-tp-link-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 0;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.share-tp-link-quote-section {
+  border: 1px solid var(--plan-quote-border);
+  border-radius: var(--plan-quote-radius);
+  overflow: hidden;
+  background: var(--plan-quote-surface-bg);
+}
+
+.share-tp-link-quote-section-title {
+  margin: 0;
+  padding: 12px 16px 8px;
+  font-size: var(--plan-quote-section-title-size);
+  font-weight: var(--plan-quote-section-title-weight);
+  text-transform: uppercase;
+  letter-spacing: var(--plan-quote-section-title-spacing);
+  color: var(--plan-quote-section-title-color);
+  background: var(--plan-quote-section-header-bg);
+}
+
+.share-tp-link-quote-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.share-tp-link-quote-rows li {
+  border-bottom: 1px solid var(--plan-quote-row-divider);
+}
+
+.share-tp-link-quote-rows li:last-child {
+  border-bottom: none;
+}
+
+.share-tp-link-quote-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.share-tp-link-quote-row:hover {
+  background: var(--theme-bg-subtle, rgba(0, 0, 0, 0.03));
+}
+
+.share-tp-link-quote-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #9dd6cb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.share-tp-link-quote-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.share-tp-link-quote-row-price {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #3a3c3e);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.share-tp-link-quote-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--plan-quote-row-divider);
+  background: var(--plan-quote-subtotal-bg);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #3a3c3e);
+}
+
+.share-tp-link-quote-subtotal strong {
+  font-weight: 800;
+  color: var(--plan-quote-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.share-tp-link-quote-footer {
+  border: 1px solid var(--plan-quote-border);
+  border-radius: var(--plan-quote-radius);
+  overflow: hidden;
+  background: var(--plan-quote-surface-bg);
+}
+
+.share-tp-link-quote-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--plan-quote-subtotal-bg);
+}
+
+.share-tp-link-quote-total span {
+  font-weight: 700;
+  color: var(--theme-text-primary, #3a3c3e);
+}
+
+.share-tp-link-quote-total strong {
+  color: var(--plan-quote-accent);
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.share-tp-link-timeline-group {
+  border-top: 1px solid var(--plan-quote-row-divider);
+}
+
+.share-tp-link-timeline-group:first-of-type {
+  border-top: none;
+}
+
+.share-tp-link-timeline-group-title {
+  margin: 0;
+  padding: 10px 16px 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--theme-text-secondary, #475569);
+  background: var(--plan-quote-section-header-bg);
+}
+
+.share-tp-link-compose-message-section {
+  margin-top: 4px;
+}
+
+.share-tp-link-compose-section-lede {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--theme-text-muted, #64748b);
+}
+
+.share-tp-link-sms-full-textarea {
+  min-height: 11rem;
+  line-height: 1.5;
+  word-break: break-word;
 }

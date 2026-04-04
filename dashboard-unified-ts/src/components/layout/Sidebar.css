@@ -165,7 +165,7 @@
   color: #fff !important;
 }
 
-/* All Clients: gray when unselected (legible on light sidebar), white when selected */
+/* Clients nav: gray when unselected (legible on light sidebar), white when selected */
 .nav-item--all-clients {
   color: var(--theme-text-secondary, #6b7280);
 }

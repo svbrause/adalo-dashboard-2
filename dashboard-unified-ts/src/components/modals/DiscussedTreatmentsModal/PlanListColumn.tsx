@@ -1,7 +1,11 @@
 // Discussed Treatments Modal – left column (plan list with sections and drag-and-drop)
 
 import type { DiscussedItem } from "../../../types";
-import { formatTreatmentPlanRecordMetaLine, getTreatmentDisplayName } from "./utils";
+import {
+  formatTreatmentPlanRowFullLine,
+  getTreatmentPlanRowPrimaryLabel,
+  getTreatmentPlanRowSecondaryLabel,
+} from "./utils";
 
 export interface NewItemPreview {
   primary: string;
@@ -9,6 +13,8 @@ export interface NewItemPreview {
   interest: string | null;
   timeline: string | null;
   quantity: string | null;
+  /** Matches {@link getPlanQuantityLabelPrefix} (e.g. Units, Sessions). */
+  quantityLabelPrefix?: string | null;
   area: string | null;
 }
 
@@ -118,7 +124,8 @@ export default function PlanListColumn({
                 ) : null}
                 {newItemPreview.quantity && (
                   <span className="discussed-treatments-record-quantity">
-                    Qty: {newItemPreview.quantity}
+                    {newItemPreview.quantityLabelPrefix ?? "Qty"}:{" "}
+                    {newItemPreview.quantity}
                   </span>
                 )}
                 {newItemPreview.timeline && (
@@ -152,51 +159,53 @@ export default function PlanListColumn({
                   role="list"
                   aria-label={`${sectionLabel} items`}
                 >
-                  {sectionItems.map((item) => (
-                    <div
-                      key={item.id}
-                      draggable
-                      onDragStart={(e) => onDragStart(e, item.id)}
-                      onDragEnd={onDragEnd}
-                      className={`discussed-treatments-record-row ${
-                        selectedPlanItemId === item.id || editingId === item.id
-                          ? "selected"
-                          : ""
-                      } ${draggedItemId === item.id ? "dragging" : ""}`}
-                      onClick={() => onSelectItem(item.id)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          onSelectItem(item.id);
-                        }
-                      }}
-                      aria-label={`Select ${getTreatmentDisplayName(item)}${
-                        item.product ? ` / ${item.product}` : ""
-                      }`}
-                      aria-selected={
-                        selectedPlanItemId === item.id || editingId === item.id
-                      }
-                    >
+                  {sectionItems.map((item) => {
+                    const planSecondary =
+                      getTreatmentPlanRowSecondaryLabel(item);
+                    return (
                       <div
-                        className="discussed-treatments-drag-handle"
-                        aria-label="Drag to move"
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => onDragStart(e, item.id)}
+                        onDragEnd={onDragEnd}
+                        className={`discussed-treatments-record-row ${
+                          selectedPlanItemId === item.id || editingId === item.id
+                            ? "selected"
+                            : ""
+                        } ${draggedItemId === item.id ? "dragging" : ""}`}
+                        onClick={() => onSelectItem(item.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onSelectItem(item.id);
+                          }
+                        }}
+                        aria-label={`Select ${formatTreatmentPlanRowFullLine(item)}`}
+                        aria-selected={
+                          selectedPlanItemId === item.id || editingId === item.id
+                        }
                       >
-                        ⋮⋮
-                      </div>
-                      <div className="discussed-treatments-record-row-main discussed-treatments-record-row-heading-meta">
-                        <div className="discussed-treatments-record-treatment-heading">
-                          {getTreatmentDisplayName(item)}
+                        <div
+                          className="discussed-treatments-drag-handle"
+                          aria-label="Drag to move"
+                        >
+                          ⋮⋮
                         </div>
-                        {formatTreatmentPlanRecordMetaLine(item) ? (
-                          <div className="discussed-treatments-record-meta-line">
-                            {formatTreatmentPlanRecordMetaLine(item)}
+                        <div className="discussed-treatments-record-row-main discussed-treatments-record-row-heading-meta">
+                          <div className="discussed-treatments-record-treatment-heading">
+                            {getTreatmentPlanRowPrimaryLabel(item)}
                           </div>
-                        ) : null}
+                          {planSecondary ? (
+                            <div className="discussed-treatments-record-meta-line">
+                              {planSecondary}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );

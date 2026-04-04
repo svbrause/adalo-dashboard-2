@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import { AI_MIRROR_REGIONS, polygonFromLandmarkIndices } from "./aiMirrorRegions";
+import {
+  AI_MIRROR_REGIONS,
+  polygonFromLandmarkIndices,
+} from "./aiMirrorRegions";
 import "./AiMirrorCanvas.css";
 
 /** Keep in sync with `package.json` dependency for WASM layout compatibility. */
@@ -36,12 +39,15 @@ const REGION_DISPLAY_LABEL: Record<string, string> = {
   rChin: "Chin/Jawline",
 };
 
-let faceLandmarkerPromise: Promise<import("@mediapipe/tasks-vision").FaceLandmarker> | null = null;
+let faceLandmarkerPromise: Promise<
+  import("@mediapipe/tasks-vision").FaceLandmarker
+> | null = null;
 
 function getFaceLandmarker() {
   if (!faceLandmarkerPromise) {
     faceLandmarkerPromise = (async () => {
-      const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
+      const { FaceLandmarker, FilesetResolver } =
+        await import("@mediapipe/tasks-vision");
       const wasm = await FilesetResolver.forVisionTasks(WASM_BASE);
       return FaceLandmarker.createFromOptions(wasm, {
         baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL },
@@ -88,21 +94,27 @@ function getHighlightedRegionIds(highlightTerms: string[]): Set<string> {
   return highlighted;
 }
 
-function polygonCentroid(points: { x: number; y: number }[]): { x: number; y: number } {
+function polygonCentroid(points: { x: number; y: number }[]): {
+  x: number;
+  y: number;
+} {
   if (points.length === 0) return { x: 0, y: 0 };
-  const sum = points.reduce(
-    (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
-    { x: 0, y: 0 },
-  );
+  const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), {
+    x: 0,
+    y: 0,
+  });
   return { x: sum.x / points.length, y: sum.y / points.length };
 }
 
-function averagePoint(points: { x: number; y: number }[]): { x: number; y: number } {
+function averagePoint(points: { x: number; y: number }[]): {
+  x: number;
+  y: number;
+} {
   if (points.length === 0) return { x: 0, y: 0 };
-  const sum = points.reduce(
-    (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
-    { x: 0, y: 0 },
-  );
+  const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), {
+    x: 0,
+    y: 0,
+  });
   return { x: sum.x / points.length, y: sum.y / points.length };
 }
 
@@ -127,7 +139,10 @@ function ovalPoints(
   const points: { x: number; y: number }[] = [];
   for (let i = 0; i < steps; i++) {
     const t = (i / steps) * Math.PI * 2;
-    points.push({ x: center.x + Math.cos(t) * rx, y: center.y + Math.sin(t) * ry });
+    points.push({
+      x: center.x + Math.cos(t) * rx,
+      y: center.y + Math.sin(t) * ry,
+    });
   }
   return points;
 }
@@ -146,31 +161,70 @@ function getRenderRegionPolygon(
   fallbackIndices: number[],
 ): { x: number; y: number }[] {
   if (regionId === "rLeftCheek") {
-    const cheek = getPointsByIndices(landmarks, [50, 101, 205, 187, 147, 123, 116, 117], width, height);
+    const cheek = getPointsByIndices(
+      landmarks,
+      [50, 101, 205, 187, 147, 123, 116, 117],
+      width,
+      height,
+    );
     if (cheek.length >= 4) {
       const center = averagePoint(cheek);
-      const xSpread = Math.abs((cheek.find((p) => p.x === Math.max(...cheek.map((q) => q.x)))?.x ?? center.x) -
-        (cheek.find((p) => p.x === Math.min(...cheek.map((q) => q.x)))?.x ?? center.x));
-      const ySpread = Math.abs((cheek.find((p) => p.y === Math.max(...cheek.map((q) => q.y)))?.y ?? center.y) -
-        (cheek.find((p) => p.y === Math.min(...cheek.map((q) => q.y)))?.y ?? center.y));
-      return ovalPoints(center, Math.max(10, xSpread * 0.34), Math.max(10, ySpread * 0.42));
+      const xSpread = Math.abs(
+        (cheek.find((p) => p.x === Math.max(...cheek.map((q) => q.x)))?.x ??
+          center.x) -
+          (cheek.find((p) => p.x === Math.min(...cheek.map((q) => q.x)))?.x ??
+            center.x),
+      );
+      const ySpread = Math.abs(
+        (cheek.find((p) => p.y === Math.max(...cheek.map((q) => q.y)))?.y ??
+          center.y) -
+          (cheek.find((p) => p.y === Math.min(...cheek.map((q) => q.y)))?.y ??
+            center.y),
+      );
+      return ovalPoints(
+        center,
+        Math.max(10, xSpread * 0.34),
+        Math.max(10, ySpread * 0.42),
+      );
     }
   }
 
   if (regionId === "rRightCheek") {
-    const cheek = getPointsByIndices(landmarks, [330, 425, 411, 376, 352, 346, 347, 280], width, height);
+    const cheek = getPointsByIndices(
+      landmarks,
+      [330, 425, 411, 376, 352, 346, 347, 280],
+      width,
+      height,
+    );
     if (cheek.length >= 4) {
       const center = averagePoint(cheek);
-      const xSpread = Math.abs((cheek.find((p) => p.x === Math.max(...cheek.map((q) => q.x)))?.x ?? center.x) -
-        (cheek.find((p) => p.x === Math.min(...cheek.map((q) => q.x)))?.x ?? center.x));
-      const ySpread = Math.abs((cheek.find((p) => p.y === Math.max(...cheek.map((q) => q.y)))?.y ?? center.y) -
-        (cheek.find((p) => p.y === Math.min(...cheek.map((q) => q.y)))?.y ?? center.y));
-      return ovalPoints(center, Math.max(10, xSpread * 0.34), Math.max(10, ySpread * 0.42));
+      const xSpread = Math.abs(
+        (cheek.find((p) => p.x === Math.max(...cheek.map((q) => q.x)))?.x ??
+          center.x) -
+          (cheek.find((p) => p.x === Math.min(...cheek.map((q) => q.x)))?.x ??
+            center.x),
+      );
+      const ySpread = Math.abs(
+        (cheek.find((p) => p.y === Math.max(...cheek.map((q) => q.y)))?.y ??
+          center.y) -
+          (cheek.find((p) => p.y === Math.min(...cheek.map((q) => q.y)))?.y ??
+            center.y),
+      );
+      return ovalPoints(
+        center,
+        Math.max(10, xSpread * 0.34),
+        Math.max(10, ySpread * 0.42),
+      );
     }
   }
 
   if (regionId === "rForehead") {
-    const raw = polygonFromLandmarkIndices(landmarks, fallbackIndices, width, height);
+    const raw = polygonFromLandmarkIndices(
+      landmarks,
+      fallbackIndices,
+      width,
+      height,
+    );
     const browPts = getPointsByIndices(
       landmarks,
       [70, 63, 105, 66, 107, 336, 296, 334, 293, 300],
@@ -220,10 +274,14 @@ function drawAnnotatedFace(
     for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
     ctx.closePath();
     ctx.fillStyle =
-      tone === "highlight" ? "rgba(59, 130, 246, 0.26)" : "rgba(99, 102, 241, 0.05)";
+      tone === "highlight"
+        ? "rgba(59, 130, 246, 0.26)"
+        : "rgba(99, 102, 241, 0.05)";
     ctx.fill();
     ctx.strokeStyle =
-      tone === "highlight" ? "rgba(37, 99, 235, 0.95)" : "rgba(99, 102, 241, 0.18)";
+      tone === "highlight"
+        ? "rgba(37, 99, 235, 0.95)"
+        : "rgba(99, 102, 241, 0.18)";
     ctx.lineWidth =
       tone === "highlight"
         ? Math.max(1.3, Math.min(cw, ch) * 0.0022)
@@ -316,8 +374,12 @@ function drawAnnotatedFace(
       ctx.fillText(row.label, calloutX + padX, calloutY + boxH / 2 + 0.5);
     };
 
-    leftRows.forEach((row, i) => renderCallout(row, "left", i, leftRows.length));
-    rightRows.forEach((row, i) => renderCallout(row, "right", i, rightRows.length));
+    leftRows.forEach((row, i) =>
+      renderCallout(row, "left", i, leftRows.length),
+    );
+    rightRows.forEach((row, i) =>
+      renderCallout(row, "right", i, rightRows.length),
+    );
     ctx.restore();
   }
 }
@@ -363,7 +425,8 @@ export function AiMirrorCanvas({
         const cw = Math.max(1, Math.round(img.naturalWidth * scale));
         const ch = Math.max(1, Math.round(img.naturalHeight * scale));
 
-        const { FaceLandmarker, DrawingUtils } = await import("@mediapipe/tasks-vision");
+        const { FaceLandmarker, DrawingUtils } =
+          await import("@mediapipe/tasks-vision");
         const landmarker = await getFaceLandmarker();
         if (cancelled) return;
 
@@ -393,8 +456,8 @@ export function AiMirrorCanvas({
         if (!cancelled) setStatus("ready");
       } catch {
         // Common failure cases:
-        // - CORS blocked image for canvas usage (can still display plain <img>)
-        // - Expired Airtable attachment URL (410 Gone)
+        // - Expired / bad URL (410, 404)
+        // - Detect/draw failed even after a successful load (e.g. strict WASM + tainted image)
         try {
           const plainImg = await loadImage(imageUrl, false);
           if (cancelled) return;
@@ -424,7 +487,11 @@ export function AiMirrorCanvas({
     >
       {status === "error" ? (
         fallbackImageUrl ? (
-          <img className="ai-mirror-fallback-img" src={fallbackImageUrl} alt={alt} />
+          <img
+            className="ai-mirror-fallback-img"
+            src={fallbackImageUrl}
+            alt={alt}
+          />
         ) : (
           <div className="ai-mirror-unavailable" role="status">
             <strong>AI Mirror unavailable</strong>

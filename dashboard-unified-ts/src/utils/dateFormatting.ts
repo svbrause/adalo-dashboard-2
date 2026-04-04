@@ -128,6 +128,24 @@ export function formatDateTime(dateString: string | null | undefined): string {
   }
 }
 
+/**
+ * Returns the later of two date strings (ISO or Airtable-style). Used when combining
+ * Airtable "Last Contact" with the newest row from the contact-history table.
+ */
+export function pickLatestIsoDate(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): string | null {
+  const ta = a?.trim() ? new Date(a).getTime() : NaN;
+  const tb = b?.trim() ? new Date(b).getTime() : NaN;
+  const validA = Number.isFinite(ta);
+  const validB = Number.isFinite(tb);
+  if (!validA && !validB) return null;
+  if (!validA) return (b ?? "").trim() || null;
+  if (!validB) return (a ?? "").trim() || null;
+  return ta >= tb ? a!.trim() : b!.trim();
+}
+
 export function formatRelativeDate(dateString: string | null): string {
   if (!dateString) return 'No activity yet';
   

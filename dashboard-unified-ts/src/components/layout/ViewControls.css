@@ -430,8 +430,9 @@
     width: 100%;
   }
 
+  /* 16px minimum: iOS Safari zooms focused inputs with font-size < 16px */
   .search-input-main {
-    font-size: 15px;
+    font-size: 16px;
     height: 34px;
     line-height: 34px;
     border-radius: 10px;
@@ -452,12 +453,20 @@
     color: #8e8e93;
   }
 
+  /* Global mobile `button { min-height: 44px }` would stretch this into a pill; keep a true circle. */
   .search-clear-btn {
-    width: 18px;
-    height: 18px;
-    right: 8px;
+    min-height: 0;
+    width: 28px;
+    height: 28px;
+    right: 6px;
     background: #c7c7cc;
     color: #fff;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .search-input-main--has-clear {
+    padding-right: 40px;
   }
 
   .search-clear-btn:hover {

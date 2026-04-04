@@ -1,0 +1,104 @@
+.lead-auto-reply-modal {
+  max-width: 720px;
+  width: calc(100% - 32px);
+}
+
+.lead-auto-reply-modal__header {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.lead-auto-reply-modal__header-info {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  align-items: unset;
+}
+
+.lead-auto-reply-modal__header-info .modal-title {
+  margin: 0;
+  line-height: 1.25;
+  padding-right: 8px;
+}
+
+.lead-auto-reply-modal__close {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0;
+}
+
+.lead-auto-reply-body {
+  padding: 0 24px 16px;
+}
+
+.lead-auto-reply-intro {
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 16px;
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
+.lead-auto-reply-intro a {
+  color: var(--theme-accent, #0d9488);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lead-auto-reply-intro a:hover {
+  color: var(--theme-accent-hover, #0f766e);
+}
+
+.lead-auto-reply-intro-phone {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lead-auto-reply-intro code {
+  font-size: 13px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.lead-auto-reply-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-secondary, #666);
+  margin: 0 0 8px;
+}
+
+.lead-auto-reply-sample {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: var(--theme-bg-muted, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--theme-border-subtle, rgba(0, 0, 0, 0.08));
+  border-radius: 8px;
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
+.lead-auto-reply-footer {
+  padding: 8px 24px 20px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.lead-auto-reply-footer .btn-secondary,
+.lead-auto-reply-footer .btn-primary {
+  flex-shrink: 0;
+}

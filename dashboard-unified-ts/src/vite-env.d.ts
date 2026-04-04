@@ -31,8 +31,15 @@ interface ImportMetaEnv {
    * Optional deterministic GCS/CDN URL for blueprint hero photos when the backend
    * does not set `patient.frontPhotoPersistentUrl`. Placeholders: `{patientId}`, `{token}`.
    * Example: `https://storage.googleapis.com/my-bucket/blueprints/{token}/front.jpg`
+   * For reliable AI Mirror / canvas use, allow your dashboard origin on that bucket (GET CORS).
+   * If CORS is missing, the app retries a plain image load as a fallback.
    */
   readonly VITE_BLUEPRINT_HERO_PHOTO_URL_TEMPLATE?: string;
+  /**
+   * The Treatment only: enable in-beta UI (Post-Visit share link, Analysis Overview, wellness overview, …).
+   * Omit or leave not `true` in production until launch.
+   */
+  readonly VITE_THE_TREATMENT_PREVIEW_FEATURES?: string;
   /** Wellnest1300 demo patients: `false`/`0` off, `true`/`1` on; default on in dev only. */
   readonly VITE_WELLNEST_SAMPLE_CLIENTS?: string;
   /** Optional override URLs for demo Wellnest headshots (use real demo-environment photos). */

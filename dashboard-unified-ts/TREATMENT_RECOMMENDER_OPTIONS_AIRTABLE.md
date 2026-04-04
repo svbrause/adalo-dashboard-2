@@ -10,11 +10,11 @@ Create a table in the same base used by the dashboard (or a base the backend can
 
 | Field name     | Airtable type   | Description |
 |----------------|-----------------|-------------|
-| **Option Type** | Single select   | One of: `Where`, `Skincare What`, `Laser What`, `Biostimulant What`. Backend can map to: `where`, `skincare_what`, `laser_what`, `biostimulant_what`. |
+| **Option Type** | Single select   | Must include **exactly** these choices (add any missing in the field’s options in Airtable — the API token usually cannot create new choices): `Where`, `Skincare What`, `Laser What`, `Biostimulant What`, `Microneedling Where`, `Microneedling Type`, `Chemical Peel Where`, `Chemical Peel What`, `Filler What`, `Neurotoxin What`, `Timeline`. The dashboard sends these labels on create/seed; reads normalize back to snake_case in the app. |
 | **Value**       | Single line text| The option label (e.g. "Custom Region", "Custom Product"). |
 | **Provider Id** | Single line text (optional) | Provider record ID so options can be scoped per provider. |
 
-- **Option Type** single-select values should match what the backend expects (e.g. exactly `Where`, `Skincare What`, `Laser What`, `Biostimulant What`, or the snake_case equivalents).
+- **Option Type** single-select values must match the list above **character for character** (Airtable will return 422 / “Insufficient permissions to create new select option” if the value is not a configured choice and the integration cannot add choices).
 - **Provider Id** is sent by the frontend on create and used for filtering on read.
 
 ## Backend API contract
@@ -33,7 +33,7 @@ The frontend normalizes both shapes. Filter by `Provider Id` when the table has 
 ### POST – create a custom option
 
 - **URL:** `POST /api/dashboard/treatment-recommender-options`
-- **Body:** `{ "providerId": string, "optionType": "where" | "skincare_what" | "laser_what" | "biostimulant_what", "value": string }`
+- **Body:** `{ "providerId": string, "optionType": string, "value": string }` — `optionType` should be the **Airtable single-select label** (e.g. `"Chemical Peel What"`). The frontend maps internal types to these labels automatically.
 - **Response:** JSON with the created record, e.g.:
   - `record`: Airtable record `{ id, fields: { "Option Type", "Value", "Provider Id" } }`, or
   - Direct object `{ id, optionType, value }`.

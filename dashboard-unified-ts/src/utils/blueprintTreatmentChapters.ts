@@ -5,13 +5,19 @@ import {
   selectVideosForChapterPlanItems,
 } from "../config/postVisitBlueprintVideos";
 import type { TreatmentResultsCard } from "./postVisitBlueprintCases";
-import { TREATMENT_META } from "../components/modals/DiscussedTreatmentsModal/constants";
+import {
+  TREATMENT_META,
+  canonicalPlanTreatmentName,
+  LEGACY_ENERGY_DEVICE_CATEGORY,
+  ENERGY_TREATMENT_CATEGORY,
+} from "../components/modals/DiscussedTreatmentsModal/constants";
 import { getWellnestPeptideMeta } from "../data/wellnestOfferings";
 import {
   getTreatmentDisplayName,
   getDisplayAreaForItem,
 } from "../components/modals/DiscussedTreatmentsModal/utils";
-import { normalizeBlueprintAnalysisText } from "./postVisitBlueprintAnalysis";
+import { getAlignedCheckoutLineItemsForDiscussedItems } from "../components/modals/DiscussedTreatmentsModal/TreatmentPlanCheckout";
+import { dedupeBlueprintDisplayStrings } from "./postVisitBlueprintAnalysis";
 import type { CheckoutLineItemDetail } from "../data/treatmentPricing2025";
 import {
   formatPrice,
@@ -24,7 +30,7 @@ export type TreatmentChapter = {
   key: string;
   treatment: string;
   displayName: string;
-  /** Aggregated display areas from all plan items for this treatment */
+  /** Aggregated display areas from all plan items for this treatment (comma-separated) */
   displayArea: string | null;
   /** Derived from interest + findings on the treatment's plan items */
   whyRecommended: string[];
@@ -48,6 +54,20 @@ export type TreatmentChapter = {
   mirrorHighlightTerms: string[];
 };
 
+/**
+ * Splits aggregated chapter {@link TreatmentChapter.displayArea} into labels for pill UI.
+ */
+export function splitChapterDisplayAreas(
+  displayArea: string | null | undefined,
+): string[] {
+  if (!displayArea?.trim()) return [];
+  const parts = displayArea
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return dedupeBlueprintDisplayStrings(parts);
+}
+
 type ChapterMetaSource = {
   longevity?: string;
   downtime?: string;
@@ -58,6 +78,13 @@ type ChapterMetaSource = {
 
 function norm(s: string): string {
   return s.trim().toLowerCase();
+}
+
+/** Normalized chapter key; legacy "Energy Device" rows share the same key as Energy Treatment. */
+function chapterTreatmentNormKey(treatment: string): string {
+  const t = treatment.trim();
+  if (t === LEGACY_ENERGY_DEVICE_CATEGORY) return norm(ENERGY_TREATMENT_CATEGORY);
+  return norm(t);
 }
 
 function isWishlistItem(item: DiscussedItem): boolean {
@@ -97,7 +124,8 @@ function resolveChapterPriceDisplay(
   categoryPriceRange: string | undefined,
 ): { priceRange: string | undefined; priceFactLabel: "price" | "range" } {
   if (quoteLineItems?.length) {
-    const order = getQuoteLineDiscussedItemIndexOrder(discussedItems);
+    const aligned = getAlignedCheckoutLineItemsForDiscussedItems(discussedItems);
+    const order = getQuoteLineDiscussedItemIndexOrder(discussedItems, aligned);
     if (order.length === quoteLineItems.length) {
       const fromQuote: string[] = [];
       for (let i = 0; i < quoteLineItems.length; i++) {
@@ -105,7 +133,7 @@ function resolveChapterPriceDisplay(
         const line = quoteLineItems[i]!;
         const d = discussedItems[dIdx];
         if (!d || !line) continue;
-        if (norm(d.treatment ?? "") !== chapterKey) continue;
+        if (chapterTreatmentNormKey(d.treatment ?? "") !== chapterKey) continue;
         fromQuote.push(priceDisplayForChapterQuickFacts(chapterKey, line));
       }
       if (fromQuote.length > 0) {
@@ -138,33 +166,30 @@ function resolveChapterPriceDisplay(
 }
 
 function buildWhyRecommended(items: DiscussedItem[]): string[] {
-  const reasons = new Set<string>();
+  const raw: string[] = [];
   for (const item of items) {
-    if (item.interest?.trim())
-      reasons.add(normalizeBlueprintAnalysisText(item.interest.trim()));
+    if (item.interest?.trim()) raw.push(item.interest.trim());
     if (item.findings?.length) {
       for (const f of item.findings) {
-        if (f.trim()) reasons.add(normalizeBlueprintAnalysisText(f.trim()));
+        if (f.trim()) raw.push(f.trim());
       }
     }
   }
-  return Array.from(reasons).slice(0, 6);
+  return dedupeBlueprintDisplayStrings(raw, 6);
 }
 
 function buildMirrorTerms(items: DiscussedItem[]): string[] {
-  const terms = new Set<string>();
+  const raw: string[] = [];
   for (const item of items) {
-    if (item.region?.trim())
-      terms.add(normalizeBlueprintAnalysisText(item.region.trim()));
+    if (item.region?.trim()) raw.push(item.region.trim());
     if (item.findings?.length) {
       for (const f of item.findings) {
-        if (f.trim()) terms.add(normalizeBlueprintAnalysisText(f.trim()));
+        if (f.trim()) raw.push(f.trim());
       }
     }
-    if (item.interest?.trim())
-      terms.add(normalizeBlueprintAnalysisText(item.interest.trim()));
+    if (item.interest?.trim()) raw.push(item.interest.trim());
   }
-  return Array.from(terms).slice(0, 8);
+  return dedupeBlueprintDisplayStrings(raw, 8);
 }
 
 function videosForItems(
@@ -190,18 +215,23 @@ export function buildTreatmentChapters(
   for (const item of discussedItems) {
     const t = item.treatment?.trim();
     if (!t) continue;
-    const key = norm(t);
+    const key = chapterTreatmentNormKey(t);
     if (seen.has(key)) continue;
     seen.add(key);
 
     const planItems = discussedItems.filter(
-      (i) => norm(i.treatment ?? "") === key,
+      (i) => chapterTreatmentNormKey(i.treatment ?? "") === key,
     );
     const meta: ChapterMetaSource =
-      (TREATMENT_META[t] as ChapterMetaSource | undefined) ??
+      (TREATMENT_META[
+        canonicalPlanTreatmentName(t)
+      ] as ChapterMetaSource | undefined) ??
       getWellnestPeptideMeta(t) ??
       {};
-    const caseCard = treatmentCards.find((c) => c.key === key) ?? null;
+    const caseCard =
+      treatmentCards.find(
+        (c) => chapterTreatmentNormKey(c.treatment) === key,
+      ) ?? null;
     const { priceRange, priceFactLabel } = resolveChapterPriceDisplay(
       key,
       planItems,
@@ -210,17 +240,22 @@ export function buildTreatmentChapters(
       meta.priceRange,
     );
 
-    const areas = new Set<string>();
+    const areaParts: string[] = [];
     for (const pi of planItems) {
       const area = getDisplayAreaForItem(pi);
-      if (area) areas.add(area);
+      if (!area) continue;
+      for (const seg of area.split(",")) {
+        const s = seg.trim();
+        if (s) areaParts.push(s);
+      }
     }
+    const uniqueAreas = dedupeBlueprintDisplayStrings(areaParts);
 
     chapters.push({
       key,
-      treatment: t,
+      treatment: canonicalPlanTreatmentName(t),
       displayName: getTreatmentDisplayName(planItems[0]),
-      displayArea: areas.size > 0 ? Array.from(areas).join(", ") : null,
+      displayArea: uniqueAreas.length > 0 ? uniqueAreas.join(", ") : null,
       whyRecommended: buildWhyRecommended(planItems),
       meta: {
         longevity: meta.longevity,

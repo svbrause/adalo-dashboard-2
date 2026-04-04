@@ -929,7 +929,8 @@
           <span class="sub" style="font-size:0.78rem;margin-right:0.25rem">Providers</span>
           <label class="filter-chip"><input type="checkbox" id="filterProvTreatment" checked /> The Treatment</label>
           <label class="filter-chip"><input type="checkbox" id="filterProvSCHNB" checked /> San Clemente, Henderson &amp; Newport Beach</label>
-          <label>Overview time
+          <label style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:0.35rem 0.65rem">
+            Overview time
             <select id="staffTimeRange">
               <option value="all" selected>All time</option>
               <option value="7">Last 7 days</option>
@@ -937,6 +938,7 @@
               <option value="thisweek">This calendar week</option>
               <option value="thismonth">This calendar month</option>
             </select>
+            <span id="overviewDateRange" class="sub" style="font-size:0.78rem;white-space:nowrap" title="From Treatments Discussed JSON line addedAt values in the current overview filter"></span>
           </label>
         </div>
         <p class="sub" style="font-size:0.76rem;margin:0.45rem 0 0;line-height:1.45">
@@ -951,11 +953,11 @@
       <div class="panel active" data-panel="overview">
         <div class="grid2">
           <div class="card">
-            <h2>Line items by timeline</h2>
+            <h2>Treatments added to plan by timeline</h2>
             <div class="chart-box short"><canvas id="cTimeline"></canvas></div>
           </div>
           <div class="card">
-            <h2>Top treatments (line items)</h2>
+            <h2>Top treatments (added to plan)</h2>
             <div class="chart-box"><canvas id="cTreatment"></canvas></div>
           </div>
         </div>
@@ -965,7 +967,7 @@
             <div class="chart-box short"><canvas id="cProviders"></canvas></div>
           </div>
           <div class="card">
-            <h2>Line items per patient</h2>
+            <h2>Treatments added to plan per patient</h2>
             <div class="chart-box short"><canvas id="cItemsPerPatient"></canvas></div>
           </div>
         </div>
@@ -991,8 +993,8 @@
             <div class="chart-box tall"><canvas id="cStaffPatients"></canvas></div>
           </div>
           <div class="card">
-            <h2>Line items attributed to staff</h2>
-            <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Each discussed line is counted once per staff listed on that patient row.</p>
+            <h2>Treatments added to plan attributed to staff</h2>
+            <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Each discussed treatment added to plan is counted once per staff listed on that patient row.</p>
             <div class="filters" style="margin-bottom:0.5rem">
               <label>Time
                 <select id="staffTimeLines">
@@ -1007,6 +1009,33 @@
             </div>
             <div class="chart-box tall"><canvas id="cStaffLines"></canvas></div>
           </div>
+        </div>
+        <div class="card" style="margin-bottom:1rem">
+          <h2>Patients over time</h2>
+          <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">
+            Unique patients per date/week. <strong>By staff</strong> splits series by appointment service staff. <strong>By location</strong> splits by the <span class="mono">Providers</span> field. <strong>By scans</strong> counts patients with an analyzed row (front + side photos) in each bucket. <strong>By skin quiz</strong> uses rows whose form/fields indicate a skin quiz. Line chart only.
+          </p>
+          <div class="filters" style="margin-bottom:0.5rem">
+            <label>Time
+              <select id="staffTimePatientsTrend">
+                <option value="inherit" selected>Same as overview</option>
+                <option value="all">All time</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="thisweek">This calendar week</option>
+                <option value="thismonth">This calendar month</option>
+              </select>
+            </label>
+            <label>Show
+              <select id="staffPatientsTrendMode">
+                <option value="staff" selected>By staff</option>
+                <option value="location">By location</option>
+                <option value="scans">By scans</option>
+                <option value="skin_quiz">By skin quiz</option>
+              </select>
+            </label>
+          </div>
+          <div class="chart-box" style="min-height:320px"><canvas id="cStaffPatientsTrendOverTime"></canvas></div>
         </div>
         <div class="grid2">
           <div class="card">
@@ -1112,7 +1141,7 @@
           <div class="chart-box" style="min-height:340px"><canvas id="cScannedDiscussedTrendOverTime"></canvas></div>
         </div>
         <div class="card" style="margin-bottom:1rem">
-          <h2>Discussed line items per week (trend by staff)</h2>
+          <h2>Discussed treatments added to plan per week (trend by staff)</h2>
           <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Each JSON line uses its <span class="mono">addedAt</span> when present; otherwise the row activity date. Shows up to eight busiest staff (by total lines in the filtered range). Compare who ramped up recently vs cooled off.</p>
           <div class="filters" style="margin-bottom:0.5rem">
             <label>Time
@@ -1129,8 +1158,8 @@
           <div class="chart-box" style="min-height:320px"><canvas id="cStaffTrendWeekly"></canvas></div>
         </div>
         <div class="card" style="margin-bottom:1rem">
-          <h2>Staff × timeline (line items, stacked)</h2>
-          <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Each line item is counted once per staff on that patient row. Compare Now vs Add next visit vs Wishlist side by side.</p>
+          <h2>Staff × timeline (treatments added to plan, stacked)</h2>
+          <p class="sub" style="font-size:0.8rem;margin:-0.25rem 0 0.5rem">Each treatment added to plan is counted once per staff on that patient row. Compare Now vs Add next visit vs Wishlist side by side.</p>
           <div class="filters" style="margin-bottom:0.5rem">
             <label>Time
               <select id="staffTimeTimelineStack">
@@ -1202,7 +1231,7 @@
               </select>
             </label>
             <label>Staff for row order
-              <select id="heatRowSortStaff" title="Leave on “All staff” to rank rows by total line items across everyone. Pick a person to rank modalities by that staff member’s count in each row (e.g. Erin high → low). Ignored for name sorts.">
+              <select id="heatRowSortStaff" title="Leave on “All staff” to rank rows by total treatments added to plan across everyone. Pick a person to rank modalities by that staff member’s count in each row (e.g. Erin high → low). Ignored for name sorts.">
                 <option value="">All staff (combined)</option>
               </select>
             </label>
@@ -1241,7 +1270,7 @@
         </div>
         <div class="grid2">
           <div class="card">
-            <h2>Top products (line items)</h2>
+            <h2>Top products (treatments added to plan)</h2>
             <div class="chart-box tall"><canvas id="cProducts"></canvas></div>
           </div>
           <div class="card">
@@ -1285,6 +1314,9 @@
                 <option value="20">20</option>
               </select>
             </label>
+            <button type="button" class="primary" id="btnCsvVideoTab" title="Same file as Customer report → Download video plan (CSV)">
+              Download rankings CSV (counts + reasoning)
+            </button>
           </div>
           <div id="videoPlanConclusion"></div>
         </div>
@@ -1465,6 +1497,17 @@
       return s.replace(/\s+/g, " ").trim().toLowerCase();
     }
 
+    function rowProviderLabel(dataRow) {
+      let s = norm(dataRow.Providers || "");
+      for (let i = 0; i < 3; i++) {
+        const t = s.trim();
+        if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+          s = t.slice(1, -1).replace(/""/g, '"');
+        } else break;
+      }
+      return s.replace(/\s+/g, " ").trim() || "(unknown location)";
+    }
+
     function getProviderFilterKeys() {
       const t = document.getElementById("filterProvTreatment")?.checked;
       const sch = document.getElementById("filterProvSCHNB")?.checked;
@@ -1575,6 +1618,23 @@
       const front = dataRow["Front Photo"] || pickCol(dataRow, "Front Photo");
       const side = dataRow["Side Photo"] || pickCol(dataRow, "Side Photo");
       return cellLooksLikeScanPhoto(front) && cellLooksLikeScanPhoto(side);
+    }
+
+    /** Heuristic: form name / skin+quiz fields in export columns (and short cell text). */
+    function rowIsSkinQuiz(dataRow) {
+      for (const key of Object.keys(dataRow)) {
+        if (!/skin|quiz|form|jotform/i.test(key)) continue;
+        const s = norm(String(dataRow[key] ?? ""));
+        if (!s) continue;
+        if (/skin\s*(type\s*)?quiz/i.test(s)) return true;
+        if (/quiz/i.test(s) && /skin/i.test(s)) return true;
+      }
+      for (const v of Object.values(dataRow)) {
+        const s = norm(String(v ?? ""));
+        if (s.length > 400) continue;
+        if (/skin\s*(type\s*)?quiz/i.test(s)) return true;
+      }
+      return false;
     }
 
     /** True only when Treatments Discussed parses to a JSON array with ≥1 object (not plan list / Jotform). */
@@ -2172,6 +2232,199 @@
       });
     }
 
+    function renderStaffPatientsTrendChart(filteredRows, timeSelectId = "staffTimePatientsTrend") {
+      const id = "cStaffPatientsTrendOverTime";
+      destroyChart(id);
+      const el = document.getElementById(id);
+      if (!el || !filteredRows.length) return;
+      const mode = document.getElementById("staffPatientsTrendMode")?.value || "staff";
+      const rangeKey = resolveStaffChartTimeRange(timeSelectId);
+      const bucketMode = getTrendBucketModeForRange(rangeKey);
+      const bucketTitle = bucketMode === "day" ? "Date" : "Week of";
+
+      const bucketPatientsForRows = (predicate) => {
+        const bucketToPatients = new Map();
+        for (const dataRow of filteredRows) {
+          if (!predicate(dataRow)) continue;
+          const ms = rowActivityDateMs(dataRow);
+          if (ms == null) continue;
+          const bucket = trendBucketLabel(ms, bucketMode);
+          const pk = patientRowKey(dataRow);
+          if (!bucketToPatients.has(bucket)) bucketToPatients.set(bucket, new Set());
+          bucketToPatients.get(bucket).add(pk);
+        }
+        return bucketToPatients;
+      };
+
+      let labels = [];
+      let datasets = [];
+
+      if (mode === "scans") {
+        const bucketToPatients = bucketPatientsForRows((r) => rowIsScanned(r));
+        if (!bucketToPatients.size) return;
+        labels = continuousTimeLabels([...bucketToPatients.keys()].sort(), bucketMode);
+        datasets = [
+          {
+            label: "By scans",
+            fullLabel: "Unique patients (analyzed rows)",
+            data: labels.map((k) => bucketToPatients.get(k)?.size || 0),
+            borderColor: "#7eb87e",
+            backgroundColor: "rgba(126,184,126,0.2)",
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0,
+            pointRadius: 2,
+          },
+        ];
+      } else if (mode === "skin_quiz") {
+        const bucketToPatients = bucketPatientsForRows((r) => rowIsSkinQuiz(r));
+        if (!bucketToPatients.size) return;
+        labels = continuousTimeLabels([...bucketToPatients.keys()].sort(), bucketMode);
+        datasets = [
+          {
+            label: "By skin quiz",
+            fullLabel: "Unique patients (skin quiz rows)",
+            data: labels.map((k) => bucketToPatients.get(k)?.size || 0),
+            borderColor: "#c97b9e",
+            backgroundColor: "rgba(201,123,158,0.2)",
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0,
+            pointRadius: 2,
+          },
+        ];
+      } else if (mode === "location") {
+        const perLocBucketPatients = new Map();
+        const totalPatientsByLoc = new Map();
+        for (const dataRow of filteredRows) {
+          const ms = rowActivityDateMs(dataRow);
+          if (ms == null) continue;
+          const bucket = trendBucketLabel(ms, bucketMode);
+          const pk = patientRowKey(dataRow);
+          const locKey = rowProviderNorm(dataRow) || "(unknown location)";
+          const locLabel = rowProviderLabel(dataRow);
+          if (!perLocBucketPatients.has(locKey)) perLocBucketPatients.set(locKey, { label: locLabel, buckets: new Map() });
+          const rec = perLocBucketPatients.get(locKey);
+          if (!rec.buckets.has(bucket)) rec.buckets.set(bucket, new Set());
+          rec.buckets.get(bucket).add(pk);
+          if (!totalPatientsByLoc.has(locKey)) totalPatientsByLoc.set(locKey, new Set());
+          totalPatientsByLoc.get(locKey).add(pk);
+        }
+        const topLocKeys = sortedEntries(
+          new Map([...totalPatientsByLoc.entries()].map(([k, set]) => [k, set.size])),
+          true
+        )
+          .slice(0, 8)
+          .map(([k]) => k);
+        if (!topLocKeys.length) return;
+        const labelSet = new Set();
+        for (const k of topLocKeys) {
+          const rec = perLocBucketPatients.get(k);
+          if (!rec) continue;
+          for (const b of rec.buckets.keys()) labelSet.add(b);
+        }
+        labels = continuousTimeLabels([...labelSet].sort(), bucketMode);
+        if (!labels.length) return;
+        datasets = topLocKeys.map((k, i) => {
+          const c = palette[i % palette.length];
+          const rec = perLocBucketPatients.get(k);
+          const vals = labels.map((b) => rec?.buckets.get(b)?.size || 0);
+          return {
+            label: truncate(rec?.label || k, 28),
+            fullLabel: rec?.label || k,
+            data: vals,
+            borderColor: c,
+            backgroundColor: c + "66",
+            fill: false,
+            tension: 0,
+            pointRadius: 2,
+          };
+        });
+      } else {
+        const perStaffBucketPatients = new Map();
+        const totalPatientsByStaff = new Map();
+        for (const dataRow of filteredRows) {
+          const ms = rowActivityDateMs(dataRow);
+          if (ms == null) continue;
+          const bucket = trendBucketLabel(ms, bucketMode);
+          const pk = patientRowKey(dataRow);
+          const staff = parseStaff(pickCol(dataRow, STAFF_FIRST_HINT), pickCol(dataRow, STAFF_LAST_HINT));
+          for (const s of staff) {
+            if (!perStaffBucketPatients.has(s)) perStaffBucketPatients.set(s, new Map());
+            const bm = perStaffBucketPatients.get(s);
+            if (!bm.has(bucket)) bm.set(bucket, new Set());
+            bm.get(bucket).add(pk);
+            if (!totalPatientsByStaff.has(s)) totalPatientsByStaff.set(s, new Set());
+            totalPatientsByStaff.get(s).add(pk);
+          }
+        }
+        const topStaff = sortedEntries(
+          new Map([...totalPatientsByStaff.entries()].map(([s, set]) => [s, set.size])),
+          true
+        )
+          .slice(0, 10)
+          .map(([s]) => s);
+        if (!topStaff.length) return;
+        const labelSet = new Set();
+        for (const s of topStaff) {
+          const bm = perStaffBucketPatients.get(s);
+          if (!bm) continue;
+          for (const k of bm.keys()) labelSet.add(k);
+        }
+        labels = continuousTimeLabels([...labelSet].sort(), bucketMode);
+        if (!labels.length) return;
+        datasets = topStaff.map((s, i) => {
+          const c = palette[i % palette.length];
+          const bm = perStaffBucketPatients.get(s) || new Map();
+          const vals = labels.map((k) => bm.get(k)?.size || 0);
+          return {
+            label: truncate(s, 28),
+            fullLabel: s,
+            data: vals,
+            borderColor: c,
+            backgroundColor: c + "66",
+            fill: false,
+            tension: 0,
+            pointRadius: 2,
+          };
+        });
+      }
+
+      if (!labels.length || !datasets.length) return;
+      const ctx = el.getContext("2d");
+      charts[id] = new Chart(ctx, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#8b939e", boxWidth: 12, font: { size: 9 } } },
+            tooltip: {
+              callbacks: {
+                title: (items) => `${bucketTitle} ${items[0].label}`,
+                label: (ctx) =>
+                  `${ctx.dataset.fullLabel || ctx.dataset.label}: ${Number(ctx.parsed.y || 0).toLocaleString()} patients`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: "#8b939e", maxRotation: 45, font: { size: 9 } },
+              grid: { color: "#2a3444" },
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { color: "#8b939e", font: { size: 10 } },
+              grid: { color: "#2a3444" },
+              title: { display: true, text: "Unique patients", color: "#8b939e", font: { size: 10 } },
+            },
+          },
+        },
+      });
+    }
+
     function renderStaffPatientInsights(providerRows) {
       const rPlan = rowsForStaffChart(providerRows, "staffTimeScanDiscussed");
       const planMap = computeStaffScanPlanMetrics(rPlan);
@@ -2194,12 +2447,12 @@
             horizontal: true,
             fullLabels: planArr.map(
               (a) =>
-                `${a.staff}: ${a.num}/${a.denom} scanned patients (${a.pct.toFixed(1)}% with Treatments Discussed)`
+                `${a.staff}: ${a.num}/${a.denom} analyzed patients (${a.pct.toFixed(1)}% analyzed + built)`
             ),
           }
         );
         let th =
-          "<table class='data'><thead><tr><th>Staff</th><th class='num'>Scanned patients</th><th class='num'>With discussed</th><th class='num'>%</th></tr></thead><tbody>";
+          "<table class='data'><thead><tr><th>Staff</th><th class='num'>Analyzed patients</th><th class='num'>Analyzed + built</th><th class='num'>%</th></tr></thead><tbody>";
         for (const a of planArr) {
           th += `<tr><td>${escapeHtml(a.staff)}</td><td class="num">${a.denom}</td><td class="num">${a.num}</td><td class="num">${a.pct.toFixed(1)}%</td></tr>`;
         }
@@ -2208,7 +2461,7 @@
       } else {
         destroyChart("cStaffPlanRate");
         document.getElementById("staffPlanRateTable").innerHTML =
-          "<p class='sub'>No scanned patients (front + side photos) with service staff on those rows in this filter.</p>";
+          "<p class='sub'>No analyzed patients (front + side photos) with service staff on those rows in this filter.</p>";
       }
 
       renderScannedDiscussedTrendChart(
@@ -2259,6 +2512,7 @@
         "filterProvSCHNB",
         "staffTimeRange",
         "staffTimePatients",
+        "staffTimePatientsTrend",
         "staffTimeLines",
         "staffTimeScanDiscussed",
         "staffTimeAvgLinesBar",
@@ -2271,6 +2525,7 @@
         "trendScannedDiscussedMode",
         "trendAvgLinesChartType",
         "trendScannedDiscussedChartType",
+        "staffPatientsTrendMode",
       ].forEach((id) => {
         const el = document.getElementById(id);
         if (el && !el.dataset.filterBound) {
@@ -2425,15 +2680,19 @@
 
     function renderKpis(agg, items, meta = {}) {
       const dates = items.map((i) => i.addedAt).filter(Boolean).sort();
+      const rangeEl = document.getElementById("overviewDateRange");
+      if (rangeEl) {
+        rangeEl.textContent = dates.length
+          ? `· ${dates[0].slice(0, 10)} → ${dates[dates.length - 1].slice(0, 10)}`
+          : "· —";
+      }
       const el = document.getElementById("kpis");
       const bits = [];
-      if (meta.filteredRowCount != null) bits.push(kpi("CSV rows (filtered)", meta.filteredRowCount));
       if (meta.uniquePatientsInRows != null) bits.push(kpi("Unique patients (rows)", meta.uniquePatientsInRows));
       bits.push(
         kpi("Patients (in discussed lines)", agg.patientCount),
-        kpi("Discussed line items", agg.lineCount),
-        kpi("Avg items / patient", agg.patientCount ? (agg.lineCount / agg.patientCount).toFixed(1) : "—"),
-        kpi("Date range (line addedAt)", dates.length ? `${dates[0].slice(0, 10)} → ${dates[dates.length - 1].slice(0, 10)}` : "—")
+        kpi("Discussed treatments added to plan", agg.lineCount),
+        kpi("Avg treatments / patient", agg.patientCount ? (agg.lineCount / agg.patientCount).toFixed(1) : "—")
       );
       el.innerHTML = bits.join("");
     }
@@ -2627,7 +2886,7 @@
         const n = br[r.key] || 0;
         if (n) bits.push(`${r.lab} ${n}`);
       }
-      return bits.length ? bits.join(" · ") : "No line items";
+      return bits.length ? bits.join(" · ") : "No treatments added to plan";
     }
 
     function heatRegionColor(name) {
@@ -2722,16 +2981,16 @@
       const prodSummary = prod.summary;
       const tipParts = [];
       if (t.timeline) tipParts.push(heatCellTooltip(br));
-      else if (total > 0) tipParts.push(`${total} line items (timeline chart off)`);
+      else if (total > 0) tipParts.push(`${total} treatments added to plan (timeline chart off)`);
       if (regSummary) tipParts.push(`Regions: ${regSummary}`);
       if (prodSummary) tipParts.push(`Products: ${prodSummary}`);
       const fullTip = tipParts.length ? tipParts.join(" · ") : "No breakdown";
       const regAria = regSummary ? ` Regions: ${regSummary.replace(/ · /g, ". ")}` : "";
       const prodAria = prodSummary ? ` Products: ${prodSummary.replace(/ · /g, ". ")}` : "";
       const totalLine = (cls) =>
-        `<div class="tl-htotal${cls}" title="Total line items in this cell"><span>Total</span><span class="tl-htotal-n">${escapeHtml(String(total))}</span></div>`;
+        `<div class="tl-htotal${cls}" title="Total treatments added to plan in this cell"><span>Total</span><span class="tl-htotal-n">${escapeHtml(String(total))}</span></div>`;
       if (total === 0) {
-        const tip0 = t.timeline ? heatCellTooltip(br) : "No line items";
+        const tip0 = t.timeline ? heatCellTooltip(br) : "No treatments added to plan";
         const al = `Total 0. ${tip0}`;
         return `<div class="tl-hchart tl-hchart--empty" title="${escapeHtml(tip0)}" role="img" aria-label="${escapeHtml(al)}">${totalLine(
           " tl-htotal--zero"
@@ -2763,7 +3022,7 @@
           })
           .join("");
       }
-      const tipCore = t.timeline ? heatCellTooltip(br) : `${total} line items`;
+      const tipCore = t.timeline ? heatCellTooltip(br) : `${total} treatments added to plan`;
       const al = `Total ${total}. ${tipCore}.${regAria}${prodAria}`;
       return `<div class="tl-hchart" title="${escapeHtml(fullTip)}" role="img" aria-label="${escapeHtml(al)}">${totalLine("")}${inner}${reg.html}${prod.html}</div>`;
     }
@@ -2771,7 +3030,7 @@
     function renderStaffHeatmap(items) {
       if (!items.length) {
         document.getElementById("heatStaffTreatment").innerHTML =
-          "<p class='sub'>No discussed treatment line items in the current filter — widen filters or ensure rows include <span class='mono'>Treatments Discussed</span> JSON.</p>";
+          "<p class='sub'>No discussed treatments added to plan in the current filter — widen filters or ensure rows include <span class='mono'>Treatments Discussed</span> JSON.</p>";
         const sortStaffSel = document.getElementById("heatRowSortStaff");
         if (sortStaffSel) sortStaffSel.innerHTML = '<option value="">All staff (combined)</option>';
         return;
@@ -2876,13 +3135,13 @@
 
       if (!staffList.length || !colList.length) {
         document.getElementById("heatStaffTreatment").innerHTML =
-          `<p class="sub" style="margin:0">No line items match: <strong>${sliceLabel}</strong>, ${colHint}${treatFam ? `, family: ${escapeHtml(treatFam)}` : ""}. Try “All timelines” or “All families”.</p>`;
+          `<p class="sub" style="margin:0">No treatments added to plan match: <strong>${sliceLabel}</strong>, ${colHint}${treatFam ? `, family: ${escapeHtml(treatFam)}` : ""}. Try “All timelines” or “All families”.</p>`;
         return;
       }
 
       const rowOrderNote =
         sortStaffPick && (rowSort === "count-desc" || rowSort === "count-asc")
-          ? ` Row order by <strong>${escapeHtml(sortStaffPick)}</strong>’s line items per modality (${rowSort === "count-desc" ? "high → low" : "low → high"}).`
+          ? ` Row order by <strong>${escapeHtml(sortStaffPick)}</strong>’s treatments added to plan per modality (${rowSort === "count-desc" ? "high → low" : "low → high"}).`
           : "";
       const chartTog = getHeatMatrixChartToggles();
       const onList = [];
@@ -2895,7 +3154,7 @@
           : onList.length
             ? `Cell charts on: <strong>${onList.join(", ")}</strong>. `
             : "<strong>All cell charts off</strong> — totals only. ";
-      let html = `<p class="sub" style="margin:0 0 0.5rem;font-size:0.78rem">Showing <strong>${filtered.length}</strong> line items (${sliceLabel}, ${colHint}${treatFam ? `, family: ${escapeHtml(treatFam)}` : ""}). <strong>Rows</strong> = modalities, <strong>columns</strong> = staff. ${chartNote}Timeline = seven rows; regions / products use comma-split fields ( “—” = none); up to eight labels each; overflow → “Other areas” / “Other products”. Bar width scales per visible chart. <strong style="color:#b8cbf5">Now</strong> · <strong style="color:#9eddb8">Next visit</strong> · <strong style="color:#e8c96a">Wishlist</strong> · <strong style="color:#e5aac8">Skincare</strong> · <strong style="color:#b0b8c0">Completed</strong> · <strong style="color:#a0a0a8">Empty</strong> · <strong style="color:#c4b8ec">Other</strong>.${rowOrderNote}</p>`;
+      let html = `<p class="sub" style="margin:0 0 0.5rem;font-size:0.78rem">Showing <strong>${filtered.length}</strong> treatments added to plan (${sliceLabel}, ${colHint}${treatFam ? `, family: ${escapeHtml(treatFam)}` : ""}). <strong>Rows</strong> = modalities, <strong>columns</strong> = staff. ${chartNote}Timeline = seven rows; regions / products use comma-split fields ( “—” = none); up to eight labels each; overflow → “Other areas” / “Other products”. Bar width scales per visible chart. <strong style="color:#b8cbf5">Now</strong> · <strong style="color:#9eddb8">Next visit</strong> · <strong style="color:#e8c96a">Wishlist</strong> · <strong style="color:#e5aac8">Skincare</strong> · <strong style="color:#b0b8c0">Completed</strong> · <strong style="color:#a0a0a8">Empty</strong> · <strong style="color:#c4b8ec">Other</strong>.${rowOrderNote}</p>`;
       html += "<table class='heat'><thead><tr><th>Modality</th>";
       for (const s of staffList) {
         html += `<th>${escapeHtml(s)}</th>`;
@@ -3026,6 +3285,7 @@
         topSp.map(([, v]) => v),
         { horizontal: true, fullLabels: topSp.map(([k]) => k) }
       );
+      renderStaffPatientsTrendChart(rowsForStaffChart(providerRows, "staffTimePatientsTrend"), "staffTimePatientsTrend");
 
       const rl = rowsForStaffChart(providerRows, "staffTimeLines");
       const aggL = aggregate(buildLineItems(rl));
@@ -3087,7 +3347,6 @@
       document.getElementById("app").classList.remove("hidden");
       document.getElementById("loadErr").classList.add("hidden");
       const meta = {
-        filteredRowCount: filtered.length,
         uniquePatientsInRows: countUniquePatientsInRows(filtered),
       };
       renderKpis(agg, allItems, meta);
@@ -3436,6 +3695,23 @@
         const base = up * breadth + o.total * 0.06 + prodBoost;
         const score = base * nextWishBoost + avgRecency * 2.1;
         const meta = `${o.total} lines · next+wish ${nextWish}/${o.total} (${o.total ? ((nextWish / o.total) * 100).toFixed(0) : 0}%) · Now ${tn("Now")} · Skincare ${tn("Skincare")} · recency ${avgRecency.toFixed(2)} · ${nStaff} staff · ${o.patients.size} pts · ${o.products.size} products`;
+        const nextWishPctRounded = o.total ? Math.round((nextWish / o.total) * 1000) / 10 : 0;
+        const stats = {
+          discussionLines: o.total,
+          tlAddNextVisit: tn("Add next visit"),
+          tlWishlist: tn("Wishlist"),
+          tlNow: tn("Now"),
+          tlSkincare: tn("Skincare"),
+          tlCompleted: tn("Completed"),
+          tlEmpty: tn("(empty)"),
+          tlOther: tn("Other"),
+          nextWishlistLines: nextWish,
+          nextWishPct: nextWishPctRounded,
+          uniqueStaff: nStaff,
+          uniquePatients: o.patients.size,
+          uniqueProducts: o.products.size,
+          avgRecency: Math.round(avgRecency * 100) / 100,
+        };
         rows.push({
           topic,
           score,
@@ -3443,6 +3719,7 @@
           meta,
           hintsHtml: buildVideoPlanHintsHtml(topic, o),
           hintData: buildVideoPlanHintData(o, topic),
+          stats,
         });
       }
       rows.sort((a, b) => b.score - a.score);
@@ -3596,36 +3873,92 @@
         .trim();
     }
 
-    function buildVideoPlanCsvRows(list) {
+    function topicGroupingNotePlain(row) {
+      return row.reasons
+        .filter((r) => isGranularityExplanation(r))
+        .map(stripHtml)
+        .join(" ")
+        .trim();
+    }
+
+    function buildVideoPlanCsvRows(list, gran) {
+      const granLabel = videoGranularityLabel(gran || "");
       const header = [
         "Rank",
         "Topic",
         "Score",
-        "Stats",
-        "Why (plain)",
+        "Discussion lines",
+        "Add next visit lines",
+        "Wishlist lines",
+        "Now lines",
+        "Skincare lines",
+        "Completed lines",
+        "Timeline empty lines",
+        "Timeline other lines",
+        "Next visit + wishlist line count",
+        "Next+wish % of lines",
+        "Unique staff",
+        "Unique patients",
+        "Unique products named",
+        "Avg recency (addedAt weight)",
+        "Stats one-liner",
+        "Why ranking (plain)",
+        "Topic grouping note (plain)",
         "Brands",
         "Product lines",
         "Example angle",
+        "Video plan granularity",
       ];
       const lines = [header.map(csvEscapeField).join(",")];
       list.forEach((row, i) => {
         const h = row.hintData || {};
+        const st = row.stats || {};
         lines.push(
           [
             i + 1,
             row.topic,
             row.score.toFixed(2),
-            row.meta,
+            st.discussionLines ?? "",
+            st.tlAddNextVisit ?? "",
+            st.tlWishlist ?? "",
+            st.tlNow ?? "",
+            st.tlSkincare ?? "",
+            st.tlCompleted ?? "",
+            st.tlEmpty ?? "",
+            st.tlOther ?? "",
+            st.nextWishlistLines ?? "",
+            st.nextWishPct != null ? String(st.nextWishPct) : "",
+            st.uniqueStaff ?? "",
+            st.uniquePatients ?? "",
+            st.uniqueProducts ?? "",
+            st.avgRecency != null ? String(st.avgRecency) : "",
+            row.meta ?? "",
             customerReasonsPlain(row) || stripHtml(row.reasons.join(" ")),
+            topicGroupingNotePlain(row),
             h.brandsPlain || "",
             h.tagsPlain || "",
             h.exampleAngle || "",
+            granLabel,
           ]
             .map(csvEscapeField)
             .join(",")
         );
       });
       return lines.join("\n");
+    }
+
+    function downloadVideoPlanCsv() {
+      const { items } = reportCache;
+      if (!items?.length) {
+        alert("Load a CSV first.");
+        return;
+      }
+      const sel = document.getElementById("videoPlanTopN");
+      const granEl = document.getElementById("videoPlanGranularity");
+      const topN = Math.max(3, parseInt(sel?.value, 10) || 12);
+      const gran = granEl?.value || "treatment_areas";
+      const list = computeVideoPriorities(items, gran).slice(0, topN);
+      downloadText("video-plan-priorities.csv", buildVideoPlanCsvRows(list, gran));
     }
 
     function buildSummaryCsv(agg, items, list, gran, topN) {
@@ -4002,22 +4335,12 @@
         window.__reportAfterPrintBound = true;
         window.addEventListener("afterprint", () => document.body.classList.remove("printing-report"));
       }
-      const csvVid = document.getElementById("btnCsvVideo");
-      if (csvVid && !csvVid.dataset.bound) {
-        csvVid.dataset.bound = "1";
-        csvVid.addEventListener("click", () => {
-          const { items } = reportCache;
-          if (!items?.length) {
-            alert("Load a CSV first.");
-            return;
-          }
-          const sel = document.getElementById("videoPlanTopN");
-          const granEl = document.getElementById("videoPlanGranularity");
-          const topN = Math.max(3, parseInt(sel?.value, 10) || 12);
-          const gran = granEl?.value || "treatment_areas";
-          const list = computeVideoPriorities(items, gran).slice(0, topN);
-          downloadText("video-plan-priorities.csv", buildVideoPlanCsvRows(list));
-        });
+      for (const id of ["btnCsvVideo", "btnCsvVideoTab"]) {
+        const csvVid = document.getElementById(id);
+        if (csvVid && !csvVid.dataset.bound) {
+          csvVid.dataset.bound = "1";
+          csvVid.addEventListener("click", downloadVideoPlanCsv);
+        }
       }
       const csvSum = document.getElementById("btnCsvSummary");
       if (csvSum && !csvSum.dataset.bound) {
@@ -4109,7 +4432,7 @@
         { id: "products", label: "Products & regions" },
         { id: "videos", label: "Video plan" },
         { id: "report", label: "Customer report" },
-        { id: "explorer", label: "Line items" },
+        { id: "explorer", label: "Treatments added to plan" },
       ];
       const nav = document.getElementById("tabs");
       nav.innerHTML = names
@@ -4212,6 +4535,10 @@
         banner.textContent = "";
       }
       reportCache = { agg: null, items: null };
+      const odr = document.getElementById("overviewDateRange");
+      if (odr) odr.textContent = "";
+      const kpisEl = document.getElementById("kpis");
+      if (kpisEl) kpisEl.innerHTML = "";
       const rb = document.getElementById("customerReportBody");
       if (rb) rb.innerHTML = '<p class="sub">Load a CSV to generate the report.</p>';
       try {

@@ -60,6 +60,12 @@ export interface PostVisitBlueprintVideo {
   wellnestIntroClip?: boolean;
   /** Optional constructed-thumb key (skin-type-react style): `video-reddy-1` … `video-reddy-16`. */
   wellnestThumbnailImageKey?: string;
+  /**
+   * Default aesthetic catalog: when true, {@link matchKeywords} are checked only against
+   * product / region / findings / interest / notes — not the treatment label.
+   * Use so a clip (e.g. Moxi) does not appear for every row of that treatment (e.g. all Energy Treatment).
+   */
+  matchAgainstPlanSpecificsOnly?: boolean;
 }
 
 const BASE = "/post-visit-blueprint/videos";
@@ -120,16 +126,12 @@ export const POST_VISIT_BLUEPRINT_VIDEOS: PostVisitBlueprintVideo[] = [
       { src: `${BASE}/moxi-laser.mp4`, mimeType: "video/mp4" },
       { src: `${BASE}/moxi-laser.mov`, mimeType: "video/quicktime" },
     ],
+    matchAgainstPlanSpecificsOnly: true,
     matchKeywords: [
       "moxi",
-      "laser",
-      "energy device",
-      "bbl",
-      "ipl",
-      "broadband",
-      "resurfac",
-      "sofwave",
-      "ultherapy",
+      // Matches "Moxi + BBL" / "BBL + Moxi" product strings without tying this clip to other lasers
+      "moxi + bbl",
+      "bbl + moxi",
     ],
   },
   {
@@ -138,15 +140,17 @@ export const POST_VISIT_BLUEPRINT_VIDEOS: PostVisitBlueprintVideo[] = [
     subtitle: "How filler can smooth lines in the lower face.",
     posterUrl: `${POSTERS}/lower-face-filler-wrinkles.jpg`,
     sources: [{ src: `${BASE}/lower-face-filler-wrinkles.mp4`, mimeType: "video/mp4" }],
+    matchAgainstPlanSpecificsOnly: true,
     matchKeywords: [
-      "filler",
-      "hyaluronic",
       "wrinkle",
       "nasolabial",
       "marionette",
       "jowl",
       "lower face",
       "prejowl",
+      "prejowl sulcus",
+      "marionette line",
+      "nasolabial fold",
     ],
   },
   {
@@ -479,13 +483,35 @@ export function isWellnestVimeoVideoCatalog(catalog: PostVisitBlueprintVideo[]):
 }
 
 function planHaystack(
-  discussedItems: { treatment?: string; product?: string; region?: string; findings?: string[] }[],
+  discussedItems: {
+    treatment?: string;
+    product?: string;
+    region?: string;
+    findings?: string[];
+    interest?: string;
+    notes?: string;
+  }[],
 ): string {
   const parts: string[] = [];
   for (const item of discussedItems) {
     if (item.treatment) parts.push(item.treatment);
     if (item.product) parts.push(item.product);
     if (item.region) parts.push(item.region);
+    if (item.interest) parts.push(item.interest);
+    if (item.notes) parts.push(item.notes);
+    if (item.findings?.length) parts.push(...item.findings);
+  }
+  return parts.join(" ").toLowerCase();
+}
+
+/** Text used when {@link PostVisitBlueprintVideo.matchAgainstPlanSpecificsOnly} is true — excludes treatment name. */
+function planSpecificHaystack(items: DiscussedItem[]): string {
+  const parts: string[] = [];
+  for (const item of items) {
+    if (item.product?.trim()) parts.push(item.product);
+    if (item.region?.trim()) parts.push(item.region);
+    if (item.interest?.trim()) parts.push(item.interest);
+    if (item.notes?.trim()) parts.push(item.notes);
     if (item.findings?.length) parts.push(...item.findings);
   }
   return parts.join(" ").toLowerCase();
@@ -569,15 +595,28 @@ function selectDefaultChapterVideos(
   items: DiscussedItem[],
   catalog: PostVisitBlueprintVideo[],
 ): PostVisitBlueprintVideo[] {
-  const haystack = items
-    .flatMap((i) => [i.treatment, i.product, i.region, ...(i.findings ?? [])])
+  const fullHaystack = items
+    .flatMap((i) => [
+      i.treatment,
+      i.product,
+      i.region,
+      i.interest,
+      i.notes,
+      ...(i.findings ?? []),
+    ])
     .filter(Boolean)
     .map((x) => String(x).toLowerCase())
     .join(" ");
-  if (!haystack.trim()) return [];
-  return orderBlueprintVideosForPlan(items, catalog).filter((v) =>
-    v.matchKeywords.some((kw) => haystack.includes(kw.toLowerCase())),
-  );
+  if (!fullHaystack.trim()) return [];
+
+  const specificsHaystack = planSpecificHaystack(items);
+  const ordered = orderBlueprintVideosForPlan(items, catalog);
+
+  return ordered.filter((v) => {
+    const hay = v.matchAgainstPlanSpecificsOnly ? specificsHaystack : fullHaystack;
+    if (!hay.trim()) return false;
+    return v.matchKeywords.some((kw) => hay.includes(kw.toLowerCase()));
+  });
 }
 
 /**

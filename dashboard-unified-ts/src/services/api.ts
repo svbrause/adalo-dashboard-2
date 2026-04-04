@@ -115,6 +115,44 @@ export function notifyLoginToSlack(provider: Provider): void {
 }
 
 /**
+ * Update allowed fields on a Provider record (currently: Treatment Pricing).
+ * Returns the updated record.
+ */
+export async function updateProviderFields(
+  providerId: string,
+  fields: Record<string, any>,
+): Promise<Record<string, any>> {
+  if (!providerId?.trim()) throw new Error("providerId is required");
+  const apiUrl = `${API_BASE_URL}/api/dashboard/provider/${encodeURIComponent(providerId.trim())}`;
+  const response = await fetch(apiUrl, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fields }),
+  });
+  if (!response.ok) {
+    const err = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(
+      err.message || err.error?.message || "Failed to update provider",
+    );
+  }
+  const data = await safeJsonParse(response);
+  return data.record ?? data;
+}
+
+/** Skip repeat GETs after 404 (patient missing in backend Airtable base, etc.). */
+const blueprintFrontPhotoNotFoundKeys = new Set<string>();
+/** Dedupe parallel calls (e.g. React Strict Mode double effect) to one network request. */
+const blueprintFrontPhotoInflight = new Map<string, Promise<string | null>>();
+
+function blueprintFrontPhotoCacheKey(params: {
+  token: string;
+  patientId: string;
+  tableSource: string;
+}): string {
+  return `${String(params.token).trim()}|${String(params.patientId).trim()}|${String(params.tableSource).trim()}`;
+}
+
+/**
  * Ask the backend for a **fresh** Airtable attachment URL for the blueprint hero photo.
  * Airtable download URLs expire (~2h); this lets the patient page recover when the link
  * payload only has an expired URL (no embedded data URL).
@@ -123,6 +161,9 @@ export function notifyLoginToSlack(provider: Provider): void {
  * `GET /api/dashboard/blueprint/front-photo?token=&patientId=&tableSource=&providerCode=`
  * → `{ "url": "https://..." }` with a newly fetched attachment URL from Airtable.
  * Return 404 if not implemented or patient not found.
+ *
+ * If the JSON body is `{"error":"Patient not found"}`, the Vercel `AIRTABLE_BASE_ID` (or API key
+ * scope) likely does not match the base where `patientId` lives — fix env on the backend, not the SPA.
  */
 export async function fetchBlueprintFrontPhotoFreshUrl(params: {
   token: string;
@@ -130,22 +171,38 @@ export async function fetchBlueprintFrontPhotoFreshUrl(params: {
   tableSource: string;
   providerCode?: string;
 }): Promise<string | null> {
-  try {
-    const q = new URLSearchParams({
-      token: params.token,
-      patientId: params.patientId,
-      tableSource: params.tableSource,
-    });
-    if (params.providerCode) q.set("providerCode", params.providerCode);
-    const url = `${API_BASE_URL}/api/dashboard/blueprint/front-photo?${q.toString()}`;
-    const res = await fetch(url, { method: "GET" });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { url?: unknown };
-    const u = typeof data?.url === "string" ? data.url.trim() : "";
-    return u || null;
-  } catch {
-    return null;
-  }
+  const cacheKey = blueprintFrontPhotoCacheKey(params);
+  if (blueprintFrontPhotoNotFoundKeys.has(cacheKey)) return null;
+
+  const existing = blueprintFrontPhotoInflight.get(cacheKey);
+  if (existing) return existing;
+
+  const promise = (async (): Promise<string | null> => {
+    try {
+      const q = new URLSearchParams({
+        token: params.token,
+        patientId: params.patientId,
+        tableSource: params.tableSource,
+      });
+      if (params.providerCode) q.set("providerCode", params.providerCode);
+      const url = `${API_BASE_URL}/api/dashboard/blueprint/front-photo?${q.toString()}`;
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) {
+        if (res.status === 404) blueprintFrontPhotoNotFoundKeys.add(cacheKey);
+        return null;
+      }
+      const data = (await res.json()) as { url?: unknown };
+      const u = typeof data?.url === "string" ? data.url.trim() : "";
+      return u || null;
+    } catch {
+      return null;
+    } finally {
+      blueprintFrontPhotoInflight.delete(cacheKey);
+    }
+  })();
+
+  blueprintFrontPhotoInflight.set(cacheKey, promise);
+  return promise;
 }
 
 /**
@@ -400,13 +457,44 @@ export async function fetchContactHistory(
 }
 
 /**
+ * Fetch contact history for a single client by their record ID(s).
+ * Used when opening a client detail panel instead of bulk-loading all history at login.
+ */
+export async function fetchClientContactHistory(
+  clientId: string,
+  tableSource: "Web Popup Leads" | "Patients",
+  linkedLeadId?: string | null,
+): Promise<any[]> {
+  const ids = [clientId];
+  if (linkedLeadId) ids.push(linkedLeadId);
+
+  const results = await fetchContactHistory(tableSource, { leadIds: ids });
+
+  if (linkedLeadId && tableSource === "Patients") {
+    const leadResults = await fetchContactHistory("Web Popup Leads", {
+      leadIds: [linkedLeadId],
+    });
+    const seenIds = new Set(results.map((r) => r.id));
+    for (const r of leadResults) {
+      if (!seenIds.has(r.id)) {
+        results.push(r);
+      }
+    }
+  }
+
+  return results.sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  );
+}
+
+/**
  * Update lead/patient record in Airtable
  */
 export async function updateLeadRecord(
   recordId: string,
   tableName: string,
   fields: Record<string, any>
-): Promise<boolean> {
+): Promise<void> {
   const params = new URLSearchParams();
   params.append("recordId", recordId);
   params.append("tableName", tableName);
@@ -425,7 +513,26 @@ export async function updateLeadRecord(
     }),
   });
 
-  return response.ok;
+  if (!response.ok) {
+    let message = `Update failed (${response.status})`;
+    try {
+      const data = (await response.json()) as {
+        details?: { error?: { message?: string } };
+        error?: string;
+        message?: string;
+      };
+      if (typeof data?.details?.error?.message === "string") {
+        message = data.details.error.message;
+      } else if (typeof data?.message === "string" && data.message.trim()) {
+        message = data.message;
+      } else if (typeof data?.error === "string" && data.error.trim()) {
+        message = data.error;
+      }
+    } catch {
+      /* ignore JSON parse errors */
+    }
+    throw new Error(message);
+  }
 }
 
 /**
@@ -753,7 +860,67 @@ export type TreatmentRecommenderOptionType =
   | "where"
   | "skincare_what"
   | "laser_what"
-  | "biostimulant_what";
+  | "biostimulant_what"
+  | "microneedling_where"
+  | "microneedling_type"
+  | "chemical_peel_where"
+  | "filler_what"
+  | "neurotoxin_what"
+  | "chemical_peel_what"
+  | "timeline";
+
+const TREATMENT_RECOMMENDER_OPTION_TYPES: readonly TreatmentRecommenderOptionType[] =
+  [
+    "where",
+    "skincare_what",
+    "laser_what",
+    "biostimulant_what",
+    "microneedling_where",
+    "microneedling_type",
+    "chemical_peel_where",
+    "filler_what",
+    "neurotoxin_what",
+    "chemical_peel_what",
+    "timeline",
+  ];
+
+/**
+ * Values for Airtable single-select "Option Type" on create/seed.
+ * Airtable rejects unknown choices and may try to add a new option (422 / permission errors).
+ * These labels must exist as choices in the base (add any missing ones in Airtable field config).
+ */
+const TREATMENT_RECOMMENDER_OPTION_TYPE_AIRTABLE_LABEL: Record<
+  TreatmentRecommenderOptionType,
+  string
+> = {
+  where: "Where",
+  skincare_what: "Skincare What",
+  laser_what: "Laser What",
+  biostimulant_what: "Biostimulant What",
+  microneedling_where: "Microneedling Where",
+  microneedling_type: "Microneedling Type",
+  chemical_peel_where: "Chemical Peel Where",
+  filler_what: "Filler What",
+  neurotoxin_what: "Neurotoxin What",
+  chemical_peel_what: "Chemical Peel What",
+  timeline: "Timeline",
+};
+
+/** Use when writing to Airtable via POST / seed (single-select field). */
+export function treatmentRecommenderOptionTypeForAirtable(
+  optionType: TreatmentRecommenderOptionType,
+): string {
+  return TREATMENT_RECOMMENDER_OPTION_TYPE_AIRTABLE_LABEL[optionType];
+}
+
+function normalizeTreatmentRecommenderOptionType(
+  raw: string,
+): TreatmentRecommenderOptionType {
+  const t = String(raw).trim().toLowerCase().replace(/\s+/g, "_");
+  return (TREATMENT_RECOMMENDER_OPTION_TYPES as readonly string[]).includes(t)
+    ? (t as TreatmentRecommenderOptionType)
+    : "where";
+}
 
 export interface TreatmentRecommenderCustomOption {
   id: string;
@@ -782,11 +949,8 @@ export async function fetchTreatmentRecommenderCustomOptions(
   }
   const data = await safeJsonParse(response);
   const records = data.records ?? data.options ?? [];
-  const normalizedType = (raw: string): TreatmentRecommenderOptionType => {
-    const t = String(raw).trim().toLowerCase().replace(/\s+/g, "_");
-    if (t === "skincare_what" || t === "laser_what" || t === "biostimulant_what") return t;
-    return "where";
-  };
+  const normalizedType = (raw: string): TreatmentRecommenderOptionType =>
+    normalizeTreatmentRecommenderOptionType(raw);
   return (Array.isArray(records) ? records : []).map((r: AirtableRecord | TreatmentRecommenderCustomOption) => {
     if ("optionType" in r && "value" in r) {
       return { id: (r as TreatmentRecommenderCustomOption).id, optionType: normalizedType((r as TreatmentRecommenderCustomOption).optionType), value: (r as TreatmentRecommenderCustomOption).value };
@@ -818,7 +982,7 @@ export async function createTreatmentRecommenderCustomOption(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       providerId: providerId.trim(),
-      optionType,
+      optionType: treatmentRecommenderOptionTypeForAirtable(optionType),
       value: trimmed,
     }),
   });
@@ -832,9 +996,12 @@ export async function createTreatmentRecommenderCustomOption(
   const rec = data.record ?? data;
   const f = rec?.fields ?? rec;
   if (rec?.id && (f?.Value ?? f?.value ?? rec?.value)) {
+    const rawType = String(
+      f["Option Type"] ?? f.optionType ?? rec.optionType ?? optionType,
+    );
     return {
       id: rec.id,
-      optionType: (f["Option Type"] ?? f.optionType ?? rec.optionType ?? optionType) as TreatmentRecommenderOptionType,
+      optionType: normalizeTreatmentRecommenderOptionType(rawType),
       value: String(f["Value"] ?? f.value ?? rec.value ?? trimmed).trim(),
     };
   }
@@ -876,9 +1043,14 @@ export async function updateTreatmentRecommenderOption(
   const data = await safeJsonParse(response);
   const rec = data.record ?? data;
   const f = rec?.fields ?? rec;
-  const rawType = String(f?.["Option Type"] ?? f?.optionType ?? rec?.optionType ?? "where").trim().toLowerCase().replace(/\s+/g, "_");
-  const optionType: TreatmentRecommenderOptionType =
-    rawType === "skincare_what" || rawType === "laser_what" || rawType === "biostimulant_what" ? rawType : "where";
+  const rawType = String(
+    f?.["Option Type"] ?? f?.optionType ?? rec?.optionType ?? "where",
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  const optionType =
+    normalizeTreatmentRecommenderOptionType(rawType);
   return {
     id: rec?.id ?? recordId,
     optionType,
@@ -900,7 +1072,13 @@ export async function seedTreatmentRecommenderOptions(
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ providerId: providerId.trim(), options }),
+    body: JSON.stringify({
+      providerId: providerId.trim(),
+      options: options.map((o) => ({
+        ...o,
+        optionType: treatmentRecommenderOptionTypeForAirtable(o.optionType),
+      })),
+    }),
   });
   if (!response.ok) {
     const err = await safeJsonParse(response).catch(() => ({}));
@@ -1227,6 +1405,17 @@ export interface TreatmentChapterOverviewPayload {
 }
 
 const LLM_BACKEND_TIMEOUT_MS = 28_000;
+const chapterOverviewCache = new Map<string, string | null>();
+const chapterOverviewInFlight = new Map<string, Promise<string | null>>();
+
+function chapterOverviewCacheKey(payload: TreatmentChapterOverviewPayload): string {
+  return JSON.stringify(payload);
+}
+
+function canUseLocalDevChapterFallback(): boolean {
+  if (!import.meta.env.DEV) return false;
+  return /localhost|127\.0\.0\.1/i.test(API_BASE_URL);
+}
 
 /**
  * Server-side chapter overview; falls back to localhost Vite Gemini/OpenAI only if the backend fails.
@@ -1234,28 +1423,58 @@ const LLM_BACKEND_TIMEOUT_MS = 28_000;
 export async function fetchTreatmentChapterOverview(
   payload: TreatmentChapterOverviewPayload,
 ): Promise<string | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
-    const res = await fetch(
-      `${API_BASE_URL}/api/pvb/treatment-chapter-overview`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      },
-    );
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = (await res.json()) as { overview?: string };
-      const t = data.overview?.trim();
-      if (t && t.length > 0) return t;
-    }
-  } catch {
-    /* try dev fallback */
+  const cacheKey = chapterOverviewCacheKey(payload);
+  if (chapterOverviewCache.has(cacheKey)) {
+    return chapterOverviewCache.get(cacheKey) ?? null;
   }
-  return fetchTreatmentChapterOverviewViaDevGemini(payload);
+  const existing = chapterOverviewInFlight.get(cacheKey);
+  if (existing) return existing;
+
+  const pending = (async (): Promise<string | null> => {
+    let shouldTryDevFallback = canUseLocalDevChapterFallback();
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
+      const res = await fetch(
+        `${API_BASE_URL}/api/pvb/treatment-chapter-overview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        },
+      );
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = (await res.json()) as { overview?: string };
+        const t = data.overview?.trim();
+        const result = t && t.length > 0 ? t : null;
+        chapterOverviewCache.set(cacheKey, result);
+        return result;
+      }
+
+      // If the hosted backend responded explicitly, do not hammer local Gemini too.
+      shouldTryDevFallback = false;
+      chapterOverviewCache.set(cacheKey, null);
+      return null;
+    } catch {
+      if (!shouldTryDevFallback) {
+        chapterOverviewCache.set(cacheKey, null);
+        return null;
+      }
+    }
+
+    const fallback = await fetchTreatmentChapterOverviewViaDevGemini(payload);
+    chapterOverviewCache.set(cacheKey, fallback);
+    return fallback;
+  })();
+
+  chapterOverviewInFlight.set(cacheKey, pending);
+  try {
+    return await pending;
+  } finally {
+    chapterOverviewInFlight.delete(cacheKey);
+  }
 }
 
 /**

@@ -8,7 +8,6 @@ import {
   getWellnestPeptideMeta,
   parseWellnestPriceMin,
 } from "./wellnestOfferings";
-
 export interface TreatmentPriceItem {
   name: string;
   price: number;
@@ -18,7 +17,7 @@ export interface TreatmentPriceItem {
 /** Category used in the dashboard (maps to ALL_TREATMENTS). */
 export type DashboardTreatmentCategory =
   | "Skincare"
-  | "Energy Device"
+  | "Energy Treatment"
   | "Chemical Peel"
   | "Microneedling"
   | "Filler"
@@ -117,7 +116,7 @@ export const TREATMENT_PRICE_LIST_2025: {
       { name: "Sal-X Plus Acne Peel – Face, Neck or Chest", price: 180 },
       { name: "Sal-X Plus Acne Peel – Full Back", price: 310 },
       { name: "Sal-X Plus Acne Peel – Upper Back", price: 245 },
-      { name: "Cosmelan MD Peel", price: 900 },
+      { name: "Depigmentation peel", price: 900 },
       { name: "Lactic Peel Add-On", price: 50, note: "Esti services only" },
     ],
   },
@@ -196,6 +195,7 @@ export const TREATMENT_PRICE_LIST_2025: {
       { name: "Microneedling 5PK", price: 2000, note: "CA" },
       { name: "Microneedling 5PK (Henderson)", price: 1200 },
       { name: "PRFM Microneedling 5PK", price: 3100, note: "CA" },
+      { name: "PRFM Hair Restoration 5PK", price: 3000, note: "CA locations only" },
       { name: "PRFM Microneedling 5PK (Henderson)", price: 2200 },
       { name: "PRFM Hair Restoration 5PK (Henderson)", price: 2000 },
       { name: "PRFM Injections 5PK (Henderson)", price: 2000 },
@@ -277,11 +277,11 @@ function getItemsForDashboardCategory(
       category === "Chemical Peel"
     ) {
       flat.push(...section.items);
-    } else if (section.category === "Laser" && category === "Energy Device") {
+    } else if (section.category === "Laser" && category === "Energy Treatment") {
       flat.push(...section.items);
-    } else if (section.category === "Sofwave" && category === "Energy Device") {
+    } else if (section.category === "Sofwave" && category === "Energy Treatment") {
       flat.push(...section.items);
-    } else if (section.category === "Ultherapy" && category === "Energy Device") {
+    } else if (section.category === "Ultherapy" && category === "Energy Treatment") {
       flat.push(...section.items);
     } else if (
       section.category === "Medical Spa" &&
@@ -313,6 +313,60 @@ export function getPriceRange2025(
 }
 
 /**
+ * Which unified dashboard treatment category (treatment recommender / plan) a price-list row
+ * belongs to. Mirrors {@link getSkusForDashboardCategory} classification. Empty when the line
+ * is reference-only (e.g. consultations, spider veins) or not mapped to a plan category.
+ */
+export function getDashboardCategoriesForPriceListItem(
+  sheetSectionCategory: string,
+  itemName: string,
+): DashboardTreatmentCategory[] {
+  const sec = (sheetSectionCategory ?? "").trim();
+  const n = itemName ?? "";
+  if (sec === "Facial Services") return ["Skincare"];
+  if (sec === "Chemical Peel") return ["Chemical Peel"];
+  if (sec === "Sofwave" || sec === "Ultherapy" || sec === "Laser") {
+    return ["Energy Treatment"];
+  }
+  if (sec === "Medical Spa") {
+    if (n.includes("Microneedling") || n.includes("PRFM")) return ["Microneedling"];
+    return [];
+  }
+  if (sec === "Injectables") {
+    if (n.includes("Botox") || n.includes("Dysport") || n.includes("Sweating")) {
+      return ["Neurotoxin"];
+    }
+    if (
+      n.includes("Filler") ||
+      n.includes("Voluma") ||
+      n.includes("Volux") ||
+      n.includes("Dissolver")
+    ) {
+      return ["Filler"];
+    }
+    if (n.includes("Radiesse") || n.includes("Sculptra") || n.includes("Skinvive")) {
+      return ["Biostimulants"];
+    }
+    return [];
+  }
+  if (sec === "Other Treatments" && n.includes("Dissolver")) {
+    return ["Filler"];
+  }
+  return [];
+}
+
+/**
+ * Line items from the 2025 price sheet for a dashboard treatment category (read-only reference UI).
+ */
+export function getPricingSheetLineItemsForTreatmentCategory(
+  treatmentCategory: string,
+): TreatmentPriceItem[] {
+  const key = normalizePlanTreatmentCategoryForPricing(treatmentCategory);
+  if (!key) return [];
+  return getItemsForDashboardCategory(key as DashboardTreatmentCategory);
+}
+
+/**
  * Full flat list of all 2025 services with price and category (for search/display).
  */
 export function getAllPrices2025(): (TreatmentPriceItem & { category: string })[] {
@@ -329,14 +383,12 @@ export function getAllPrices2025(): (TreatmentPriceItem & { category: string })[
 export function getPriceRangeNumeric2025(
   category: string
 ): { min: number; max: number } | undefined {
-  const c = category?.trim();
+  const c = normalizePlanTreatmentCategoryForPricing((category ?? "").trim());
   if (!c) return undefined;
   // Categories not in TREATMENT_PRICE_LIST_2025 (from TREATMENT_META)
   const fallbacks: Record<string, { min: number; max: number }> = {
     Kybella: { min: 1200, max: 1800 },
     Threadlift: { min: 1500, max: 4000 },
-    PRP: { min: 0, max: 0 }, // no price list
-    PDGF: { min: 0, max: 0 },
   };
   if (fallbacks[c]) return fallbacks[c];
   const dash = c as DashboardTreatmentCategory;
@@ -383,7 +435,7 @@ export const PROVIDER_CODE_RESTRICTED_TO_PRICE_LIST = "TheTreatment250";
 /** Dashboard treatment category → price list section names (for SKU lookup). */
 const DASHBOARD_TO_PRICE_SECTIONS: Record<string, string[]> = {
   Skincare: ["Facial Services"],
-  "Energy Device": ["Laser", "Sofwave", "Ultherapy"],
+  "Energy Treatment": ["Laser", "Sofwave", "Ultherapy"],
   "Chemical Peel": ["Chemical Peel"],
   Microneedling: ["Medical Spa"],
   Filler: ["Injectables"],
@@ -391,8 +443,6 @@ const DASHBOARD_TO_PRICE_SECTIONS: Record<string, string[]> = {
   Biostimulants: ["Injectables"],
   Kybella: [],
   Threadlift: [],
-  PRP: [],
-  PDGF: [],
 };
 
 /** Treatment categories that have at least one price list section (for provider-restricted views). */
@@ -402,12 +452,31 @@ export const TREATMENT_CATEGORIES_IN_PRICE_LIST: DashboardTreatmentCategory[] = 
   .filter(([, sections]) => sections.length > 0)
   .map(([cat]) => cat);
 
+/**
+ * Map plan row `treatment` to keys in {@link DASHBOARD_TO_PRICE_SECTIONS}.
+ * Some data sources use "Laser" (photos / legacy) or different letter case; without this,
+ * SKU lookup returns nothing and quotes show $0 / "Price varies" (e.g. share treatment plan).
+ */
+export function normalizePlanTreatmentCategoryForPricing(treatment: string): string {
+  const t = (treatment ?? "").trim();
+  if (!t) return t;
+  if (DASHBOARD_TO_PRICE_SECTIONS[t]) return t;
+  const lower = t.toLowerCase().replace(/\s+/g, " ");
+  const keys = Object.keys(DASHBOARD_TO_PRICE_SECTIONS) as string[];
+  const caseMatch = keys.find((k) => k.toLowerCase() === lower);
+  if (caseMatch) return caseMatch;
+  if (lower === "laser" || lower === "energy device") return "Energy Treatment";
+  /** Legacy top-level rows; 2025 sheet lists PRFM under Medical Spa / microneedling family. */
+  if (lower === "prp" || lower === "pdgf") return "Microneedling";
+  return t;
+}
+
 /** True when the provider should only see options that exist in the 2025 pricing sheet. */
 export function isProviderRestrictedToPricingSheet(providerCode: string | undefined): boolean {
   return (providerCode ?? "").trim().toLowerCase() === PROVIDER_CODE_RESTRICTED_TO_PRICE_LIST.toLowerCase();
 }
 
-/** Energy device type names from the 2025 price list (Laser, Sofwave, Ultherapy sections). Used as Type options for Energy Device category. */
+/** Energy modality type names from the 2025 price list (Laser, Sofwave, Ultherapy sections). Used as Type options for Energy Treatment category. */
 export function getEnergyDeviceTypesFromPriceList(): string[] {
   const devices: string[] = [];
   for (const section of TREATMENT_PRICE_LIST_2025) {
@@ -456,14 +525,39 @@ export function getChemicalPeelTypesFromPriceList(): string[] {
   return Array.from(new Set(types));
 }
 
+/**
+ * Normalize peel area text so variants like "Face, Neck & Chest" / "Face & Neck or Chest"
+ * / "Face, Neck or Chest" collapse to one entry (PDF uses inconsistent punctuation).
+ */
+function normalizeChemicalPeelAreaDedupeKey(area: string): string {
+  return area
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u2019']/g, "")
+    .replace(/,/g, " ")
+    .replace(/&/g, " ")
+    .replace(/\s+or\s+/gi, " ")
+    .replace(/\s+and\s+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Chemical peel area names from the 2025 price list (e.g. Full Face, Full Back). */
 export function getChemicalPeelAreasFromPriceList(): string[] {
   const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Chemical Peel");
   if (!section) return [];
-  const areas = section.items
-    .map((i) => splitChemicalPeelTypeAndArea(i.name).area)
-    .filter((a): a is string => Boolean(a && a.trim()));
-  return Array.from(new Set(areas));
+  const byKey = new Map<string, string>();
+  for (const item of section.items) {
+    const raw = splitChemicalPeelTypeAndArea(item.name).area;
+    if (!raw?.trim()) continue;
+    const trimmed = raw.trim();
+    const key = normalizeChemicalPeelAreaDedupeKey(trimmed);
+    const prev = byKey.get(key);
+    if (!prev || trimmed.length < prev.length) {
+      byKey.set(key, trimmed);
+    }
+  }
+  return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
 }
 
 /** Keep CA/general options only: exclude Henderson rows and single-location-only rows (e.g. Claremont only, Newport only). */
@@ -553,7 +647,7 @@ export function getBiostimulantsTypesFromPriceList(): string[] {
 /** Category meta for checkout display (longevity, recovery, sessions). */
 export const CHECKOUT_CATEGORY_META: Record<string, CategoryMeta> = {
   Skincare: { longevity: "Ongoing", downtime: "None", sessions: "Ongoing" },
-  "Energy Device": { longevity: "6–12+ months", downtime: "3–7 days", sessions: "1–6" },
+  "Energy Treatment": { longevity: "6–12+ months", downtime: "3–7 days", sessions: "1–6" },
   "Chemical Peel": { longevity: "1–3 months", downtime: "3–7 days", sessions: "1–3" },
   Microneedling: { longevity: "2–4 months", downtime: "1–3 days", sessions: "1–5" },
   Filler: { longevity: "6–18 months", downtime: "1–2 days", sessions: "1–2" },
@@ -561,32 +655,35 @@ export const CHECKOUT_CATEGORY_META: Record<string, CategoryMeta> = {
   Biostimulants: { longevity: "18–24+ months", downtime: "1–3 days", sessions: "1–3" },
   Kybella: { longevity: "Permanent", downtime: "3–7 days", sessions: "1–2" },
   Threadlift: { longevity: "12–18 months", downtime: "3–7 days", sessions: "1" },
-  PRP: { longevity: "Varies", downtime: "1–3 days", sessions: "Varies" },
-  PDGF: { longevity: "Varies", downtime: "1–3 days", sessions: "Varies" },
 };
 
 export function getCategoryMeta(category: string): CategoryMeta | undefined {
-  return CHECKOUT_CATEGORY_META[category?.trim() ?? ""];
+  return CHECKOUT_CATEGORY_META[
+    normalizePlanTreatmentCategoryForPricing(category?.trim() ?? "")
+  ];
 }
 
 type SkuWithCategory = TreatmentPriceItem & { category: string };
 
 /** Get SKUs that belong to the given dashboard treatment category. */
 function getSkusForDashboardCategory(dashboardCategory: string): SkuWithCategory[] {
-  const sections = DASHBOARD_TO_PRICE_SECTIONS[dashboardCategory?.trim() ?? ""];
+  const dash = normalizePlanTreatmentCategoryForPricing(
+    dashboardCategory?.trim() ?? "",
+  );
+  const sections = DASHBOARD_TO_PRICE_SECTIONS[dash];
   if (!sections?.length) return [];
   const out: SkuWithCategory[] = [];
   for (const section of TREATMENT_PRICE_LIST_2025) {
     if (!sections.includes(section.category)) continue;
     const items = section.items;
-    if (dashboardCategory === "Neurotoxin") {
+    if (dash === "Neurotoxin") {
       items
         .filter(
           (i) =>
             i.name.includes("Botox") || i.name.includes("Dysport") || i.name.includes("Sweating")
         )
         .forEach((i) => out.push({ ...i, category: section.category }));
-    } else if (dashboardCategory === "Filler") {
+    } else if (dash === "Filler") {
       items
         .filter(
           (i) =>
@@ -596,7 +693,7 @@ function getSkusForDashboardCategory(dashboardCategory: string): SkuWithCategory
             i.name.includes("Dissolver")
         )
         .forEach((i) => out.push({ ...i, category: section.category }));
-    } else if (dashboardCategory === "Biostimulants") {
+    } else if (dash === "Biostimulants") {
       items
         .filter(
           (i) =>
@@ -605,7 +702,7 @@ function getSkusForDashboardCategory(dashboardCategory: string): SkuWithCategory
             i.name.includes("Skinvive")
         )
         .forEach((i) => out.push({ ...i, category: section.category }));
-    } else if (dashboardCategory === "Microneedling") {
+    } else if (dash === "Microneedling") {
       items
         .filter((i) => i.name.includes("Microneedling") || i.name.includes("PRFM"))
         .forEach((i) => out.push({ ...i, category: section.category }));
@@ -668,7 +765,9 @@ export function matchPlanItemToSku(
   unitPrice?: number;
   quantity?: number;
 } | null {
-  const treatment = (item.treatment ?? "").trim();
+  const treatment = normalizePlanTreatmentCategoryForPricing(
+    (item.treatment ?? "").trim(),
+  );
   if (!treatment) return null;
   // Skincare with a specific product (e.g. Retinol, Vitamin C) uses boutique pricing, not the 2025 facial price list.
   if (treatment === "Skincare" && (item.product ?? "").trim()) return null;
@@ -696,19 +795,24 @@ export function matchPlanItemToSku(
         ? DEFAULT_NEUROTOXIN_UNITS_FOR_QUOTE
         : 0;
   if (perUnitSkus.length > 0 && effectiveQty > 0) {
-    const preferBotox = /botox|tox/i.test(product) && !/dysport/i.test(product);
-    const preferDysport = /dysport/i.test(product);
-    let chosen = perUnitSkus[0];
-    if (preferBotox) chosen = perUnitSkus.find((s) => s.name.includes("Botox")) ?? chosen;
-    if (preferDysport) chosen = perUnitSkus.find((s) => s.name.includes("Dysport")) ?? chosen;
-    const totalPrice = chosen.price * effectiveQty;
-    return {
-      sku: chosen,
-      totalPrice,
-      isPerUnit: true,
-      unitPrice: chosen.price,
-      quantity: effectiveQty,
-    };
+    // Do not assume Botox/Dysport 1-unit × default units when no product/SKU is chosen.
+    if (treatment === "Neurotoxin" && !product) {
+      /* fall through to generic matching / null */
+    } else {
+      const preferBotox = /botox|tox/i.test(product) && !/dysport/i.test(product);
+      const preferDysport = /dysport/i.test(product);
+      let chosen = perUnitSkus[0];
+      if (preferBotox) chosen = perUnitSkus.find((s) => s.name.includes("Botox")) ?? chosen;
+      if (preferDysport) chosen = perUnitSkus.find((s) => s.name.includes("Dysport")) ?? chosen;
+      const totalPrice = chosen.price * effectiveQty;
+      return {
+        sku: chosen,
+        totalPrice,
+        isPerUnit: true,
+        unitPrice: chosen.price,
+        quantity: effectiveQty,
+      };
+    }
   }
 
   // Chemical Peel: when both type and area are selected, require both to match the SKU.
@@ -790,10 +894,18 @@ export function matchPlanItemToSku(
     }
   }
   if (!matched) {
-    if (skus.length === 1) matched = skus[0];
-    else if (treatment === "Filler" && !product) matched = skus.find((s) => s.name.includes("Fillers (except")) ?? skus[0];
-    else if (treatment === "Neurotoxin" && !product) matched = skus.find((s) => s.name.includes("Botox 1-Unit")) ?? skus.find((s) => s.name.includes("Botox – Henderson")) ?? skus[0];
-    else matched = skus[0];
+    if (skus.length === 1) {
+      matched = skus[0];
+    } else if (
+      !product &&
+      (treatment === "Neurotoxin" ||
+        treatment === "Filler" ||
+        treatment === "Biostimulants")
+    ) {
+      matched = null;
+    } else {
+      matched = skus[0];
+    }
   }
   if (!matched) return null;
   // Filler: quantity is in Syringes; if set, price should scale by quantity.
@@ -809,18 +921,14 @@ export function matchPlanItemToSku(
   return { sku: matched, totalPrice: matched.price };
 }
 
-/** Same display string used on checkout lines for a matched SKU (per-unit or flat). */
+/** Formatted total for a matched SKU (no per-unit breakdown in UI). */
 export function formatSkuMatchDisplayPrice(match: {
   totalPrice: number;
   isPerUnit?: boolean;
   unitPrice?: number;
   quantity?: number;
 }): string {
-  return match.isPerUnit &&
-    match.quantity != null &&
-    match.unitPrice != null
-    ? `${match.quantity} × ${formatPrice(match.unitPrice)} = ${formatPrice(match.totalPrice)}`
-    : formatPrice(match.totalPrice);
+  return formatPrice(match.totalPrice);
 }
 
 /**
@@ -896,7 +1004,7 @@ export interface CheckoutLineItemDetail {
   skuNote?: string;
   /** Single price for this line (for total) */
   price: number;
-  /** Formatted price for display (e.g. "$550" or "40 units × $13 = $520") */
+  /** Formatted price for display (e.g. "$550") */
   displayPrice: string;
   /** Longevity (e.g. "6–12+ months") */
   longevity?: string;
@@ -932,7 +1040,7 @@ export interface SkincareProductInfo {
 export function getCheckoutSummaryWithSkus(
   items: (PlanItemForPricing & { id?: string })[],
   getLabel: (item: PlanItemForPricing & { id?: string }) => string,
-  getSkincareProductInfo?: (productName: string) => SkincareProductInfo | null
+  getSkincareProductInfo?: (productName: string) => SkincareProductInfo | null,
 ): {
   lineItems: CheckoutLineItemDetail[];
   total: number;
@@ -941,7 +1049,8 @@ export function getCheckoutSummaryWithSkus(
   const lineItems: CheckoutLineItemDetail[] = [];
   let total = 0;
   let hasUnknownPrices = false;
-  const category = (item: PlanItemForPricing) => (item.treatment ?? "").trim();
+  const category = (item: PlanItemForPricing) =>
+    normalizePlanTreatmentCategoryForPricing((item.treatment ?? "").trim());
   const meta = (cat: string) => getCategoryMeta(cat);
 
   for (const item of items) {
@@ -1023,6 +1132,24 @@ export function getCheckoutSummaryWithSkus(
         if (minPrice <= 0) hasUnknownPrices = true;
         continue;
       }
+      const injectableNeedsProductForQuote =
+        (cat === "Neurotoxin" || cat === "Filler" || cat === "Biostimulants") &&
+        !productName;
+      if (injectableNeedsProductForQuote) {
+        const m = meta(cat);
+        lineItems.push({
+          label,
+          price: 0,
+          displayPrice: "Price varies",
+          longevity: m?.longevity,
+          downtime: m?.downtime,
+          sessions: m?.sessions,
+          isEstimate: true,
+          quoteLineKind: treatmentLineKind,
+        });
+        hasUnknownPrices = true;
+        continue;
+      }
       const range = getPriceRangeNumeric2025(cat);
       const categoryMetaFallback = meta(cat);
       if (range && (range.min > 0 || range.max > 0)) {
@@ -1057,4 +1184,198 @@ export function getCheckoutSummaryWithSkus(
     }
   }
   return { lineItems, total, hasUnknownPrices };
+}
+
+// ---------------------------------------------------------------------------
+// Provider-specific pricing (stored as JSON in Airtable "Treatment Pricing")
+// ---------------------------------------------------------------------------
+
+/**
+ * Shape stored in the Airtable "Treatment Pricing" long-text field.
+ * Identical to `TREATMENT_PRICE_LIST_2025` — array of { category, items }.
+ */
+export type ProviderPricingJson = {
+  category: string;
+  items: TreatmentPriceItem[];
+}[];
+
+/**
+ * Safely parse the JSON string from a provider's "Treatment Pricing" field.
+ * Returns `null` if the value is empty or unparseable.
+ */
+export function parseProviderPricingJson(
+  raw: string | null | undefined,
+): ProviderPricingJson | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    for (const section of parsed) {
+      if (typeof section?.category !== "string" || !Array.isArray(section?.items)) return null;
+    }
+    return parsed as ProviderPricingJson;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Merge provider pricing overrides on top of the hardcoded 2025 defaults.
+ * Provider categories entirely replace matching default categories (by name);
+ * categories only in defaults are kept as-is; categories only from the provider are appended.
+ */
+export function mergeProviderPricing(
+  providerPricing: ProviderPricingJson | null | undefined,
+): ProviderPricingJson {
+  if (!providerPricing?.length) return TREATMENT_PRICE_LIST_2025;
+  const merged: ProviderPricingJson = [];
+  const providerByCategory = new Map(
+    providerPricing.map((s) => [s.category, s]),
+  );
+  for (const defaultSection of TREATMENT_PRICE_LIST_2025) {
+    const override = providerByCategory.get(defaultSection.category);
+    merged.push(override ?? defaultSection);
+    providerByCategory.delete(defaultSection.category);
+  }
+  for (const extra of providerByCategory.values()) {
+    merged.push(extra);
+  }
+  return merged;
+}
+
+/**
+ * Build the effective price list for a provider: parse their override, merge with defaults.
+ * Callers pass `provider["Treatment Pricing"]`.
+ */
+export function getEffectivePriceList(
+  providerTreatmentPricingRaw: string | null | undefined,
+): ProviderPricingJson {
+  return mergeProviderPricing(parseProviderPricingJson(providerTreatmentPricingRaw));
+}
+
+/**
+ * Serialize a price list back to the JSON string for Airtable.
+ */
+export function serializePricingJson(pricing: ProviderPricingJson): string {
+  return JSON.stringify(pricing, null, 2);
+}
+
+// ---------------------------------------------------------------------------
+// SKU-level options for the treatment recommender
+// ---------------------------------------------------------------------------
+
+/** One SKU option for display as a recommender chip (name only; price on {@link SkuOption.price}). */
+export interface SkuOption {
+  /** Display label for the chip (SKU name, no price). */
+  label: string;
+  /** Just the SKU name without price (for Airtable value). */
+  skuName: string;
+  /** Price (for sort/display). */
+  price: number;
+  /** Price list category this came from (e.g. "Injectables"). */
+  sheetCategory: string;
+  /** Dashboard category (e.g. "Biostimulants"). */
+  dashboardCategory: DashboardTreatmentCategory;
+}
+
+/**
+ * Get all SKU-level options for a dashboard treatment category from the effective price list.
+ * Chip labels are SKU names only (no price); {@link SkuOption.price} is still set for checkout matching.
+ */
+export function getSkuOptionsForCategory(
+  dashboardCategory: DashboardTreatmentCategory,
+  priceList?: ProviderPricingJson,
+): SkuOption[] {
+  const effectiveList = priceList ?? TREATMENT_PRICE_LIST_2025;
+  const sections = DASHBOARD_TO_PRICE_SECTIONS[dashboardCategory];
+  if (!sections?.length) return [];
+
+  const out: SkuOption[] = [];
+  for (const section of effectiveList) {
+    if (!sections.includes(section.category)) continue;
+    const items = section.items;
+    const filtered = filterSkusForDashboardCategory(dashboardCategory, items);
+    for (const item of filtered) {
+      if (!isCaGeneralOption(item)) continue;
+      out.push({
+        label: item.name,
+        skuName: item.name,
+        price: item.price,
+        sheetCategory: section.category,
+        dashboardCategory,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Concise biostimulant labels for the treatment recommender (product family only; syringes/vials use quantity).
+ * Derived from the effective list so provider pricing overrides are respected.
+ */
+export function getBiostimulantTypeOptionLabels(
+  priceList?: ProviderPricingJson,
+): string[] {
+  const skus = getSkuOptionsForCategory("Biostimulants", priceList);
+  const types = new Set<string>();
+  for (const s of skus) {
+    const n = s.label;
+    if (n.includes("Radiesse")) types.add("Radiesse");
+    else if (n.includes("Sculptra")) types.add("Sculptra");
+    else if (n.includes("Skinvive")) types.add("Skinvive");
+  }
+  const order = ["Radiesse", "Sculptra", "Skinvive"];
+  return order.filter((t) => types.has(t));
+}
+
+/**
+ * Concise neurotoxin labels (e.g. Botox / Dysport instead of per-unit SKU names).
+ */
+export function getNeurotoxinTypeOptionLabels(
+  priceList?: ProviderPricingJson,
+): string[] {
+  const skus = getSkuOptionsForCategory("Neurotoxin", priceList);
+  const labels = new Set<string>();
+  for (const s of skus) {
+    const n = s.label;
+    if (n.includes("Botox 1-Unit") || (n.includes("Botox") && n.includes("Unit")))
+      labels.add("Botox");
+    else if (
+      n.includes("Dysport 1-Unit") ||
+      (n.includes("Dysport") && n.includes("Unit"))
+    )
+      labels.add("Dysport");
+    else labels.add(n);
+  }
+  const priority = ["Botox", "Dysport"];
+  const rest = [...labels].filter((x) => !priority.includes(x));
+  rest.sort((a, b) => a.localeCompare(b));
+  return [...priority.filter((p) => labels.has(p)), ...rest];
+}
+
+/** Filter items within a price-list section to only those belonging to the dashboard category. */
+function filterSkusForDashboardCategory(
+  dash: DashboardTreatmentCategory,
+  items: TreatmentPriceItem[],
+): TreatmentPriceItem[] {
+  switch (dash) {
+    case "Neurotoxin":
+      return items.filter(
+        (i) => i.name.includes("Botox") || i.name.includes("Dysport") || i.name.includes("Sweating"),
+      );
+    case "Filler":
+      return items.filter(
+        (i) => i.name.includes("Filler") || i.name.includes("Voluma") || i.name.includes("Volux") || i.name.includes("Dissolver"),
+      );
+    case "Biostimulants":
+      return items.filter(
+        (i) => i.name.includes("Radiesse") || i.name.includes("Sculptra") || i.name.includes("Skinvive"),
+      );
+    case "Microneedling":
+      return items.filter(
+        (i) => i.name.includes("Microneedling") || i.name.includes("PRFM"),
+      );
+    default:
+      return items;
+  }
 }

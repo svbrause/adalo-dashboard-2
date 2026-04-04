@@ -110,6 +110,60 @@
   color: #3a3c3e;
 }
 
+/* ── "Aesthetic Intelligence" — darker gradient for white-bg contrast + soft glow ── */
+.pvb-aesthetic-intelligence-heading {
+  background-image: linear-gradient(
+    110deg,
+    #0a5f57 0%,
+    #0f766e 20%,
+    #14886e 40%,
+    #1a6f7a 55%,
+    #3b528b 72%,
+    #0d9488 100%
+  );
+  background-size: 220% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+  animation: pvb-ai-heading-shimmer 7s ease-in-out infinite;
+}
+
+/* Sparkle icon next to heading — matching teal glow */
+.pvb-ai-sparkle-glow {
+  filter: brightness(0) saturate(100%)
+    invert(30%) sepia(60%) saturate(900%) hue-rotate(140deg) brightness(0.85)
+    drop-shadow(0 0 5px rgba(13, 148, 136, 0.55))
+    drop-shadow(0 0 12px rgba(59, 82, 139, 0.35));
+  animation: pvb-ai-sparkle-pulse 4s ease-in-out infinite;
+}
+
+@keyframes pvb-ai-sparkle-pulse {
+  0%, 100% {
+    filter: brightness(0) saturate(100%) invert(30%) sepia(60%) saturate(900%) hue-rotate(140deg) brightness(0.85)
+      drop-shadow(0 0 5px rgba(13,148,136,0.55)) drop-shadow(0 0 12px rgba(59,82,139,0.35));
+  }
+  50% {
+    filter: brightness(0) saturate(100%) invert(30%) sepia(60%) saturate(900%) hue-rotate(140deg) brightness(0.95)
+      drop-shadow(0 0 8px rgba(13,148,136,0.7)) drop-shadow(0 0 18px rgba(59,82,139,0.45));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pvb-aesthetic-intelligence-heading {
+    animation: none;
+    background-position: 50% center;
+  }
+  .pvb-ai-sparkle-glow {
+    animation: none;
+  }
+}
+
+@keyframes pvb-ai-heading-shimmer {
+  0%, 100% { background-position: 0% center; }
+  50%      { background-position: 100% center; }
+}
+
 .tc-overview-complement {
   margin: 0 0 10px;
   font-size: 0.84rem;
@@ -140,4 +194,41 @@
 
 .tc-overview-head .pvb-narrative-audio {
   margin-top: 0;
+}
+
+.tc-overview-section {
+  margin: 0 0 12px;
+}
+
+.tc-overview-section--last {
+  margin-bottom: 0;
+}
+
+.tc-overview-section-title {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.tc-overview-section-body {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.tc-overview-plan-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tc-overview-plan-line {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #1e293b;
 }

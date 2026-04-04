@@ -2,6 +2,7 @@
 // Merges into a single row (Patient as primary) so the table shows one entry per person.
 
 import { Client } from "../types";
+import { pickLatestIsoDate } from "./dateFormatting";
 
 function normalizeEmail(email: string | null | undefined): string {
   if (email == null || typeof email !== "string") return "";
@@ -40,6 +41,7 @@ function mergeLeadAndPatient(lead: Client, patient: Client): Client {
     notes: prefer(patient.notes, lead.notes) || "",
     source: prefer(patient.source, lead.source),
     linkedLeadId: lead.id,
+    webPopupLeadSource: lead.source ?? null,
     // Prefer patient's analysis data so merged row shows correct status (not lead's empty/pending)
     facialAnalysisStatus: prefer(patient.facialAnalysisStatus, lead.facialAnalysisStatus),
     allIssues: prefer(patient.allIssues, lead.allIssues),
@@ -49,6 +51,7 @@ function mergeLeadAndPatient(lead: Client, patient: Client): Client {
     processedAreasOfInterest: prefer(patient.processedAreasOfInterest, lead.processedAreasOfInterest),
     frontPhoto: patient.frontPhoto ?? lead.frontPhoto,
     skincareQuiz: patient.skincareQuiz ?? lead.skincareQuiz ?? undefined,
+    lastContact: pickLatestIsoDate(lead.lastContact, patient.lastContact),
   };
 }
 

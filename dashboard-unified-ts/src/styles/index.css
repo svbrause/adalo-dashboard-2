@@ -9,6 +9,12 @@
   box-sizing: border-box;
 }
 
+/* Prevent iOS Safari from inflating type / “zooming” the layout on first paint */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 /* CSS Variables for Lakeshore Skin + Body */
 /* Warm, refined color palette from LAKESHORE_STYLE_GUIDE.md */
 :root {
@@ -32,6 +38,8 @@ body {
   font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
     "Helvetica Neue", sans-serif;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--theme-bg-gradient);
@@ -2026,6 +2034,20 @@ body.theme-warm .kanban-cards.drag-over {
   min-width: 0;
 }
 
+/* Pencil: top-right of contact column only (avoids overlapping the photo) */
+.modal-contact-edit-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  margin: 0 0 8px;
+}
+
+.modal-contact-section .modal-contact-edit-toolbar .edit-toggle-btn {
+  position: static;
+  margin: 0;
+}
+
 .modal-photo-container {
   flex-shrink: 0;
   width: 270px;
@@ -2862,7 +2884,7 @@ body.theme-warm .kanban-cards.drag-over {
   }
 
   .main-content {
-    padding-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     min-width: 0 !important;
     max-width: 100%;
     width: 100%;

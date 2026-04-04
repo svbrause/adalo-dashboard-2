@@ -8,8 +8,6 @@ import {
 import { createPortal } from "react-dom";
 import "./MintMembershipInfoTrigger.css";
 
-const MINT_MEMBERSHIP_URL = "https://getthetreatment.com/mint-membership/";
-
 type MintMembershipInfoTriggerProps = {
   /** Stack above host UI (drawer ~100, modals ~1000+). */
   zIndex?: number;
@@ -88,23 +86,7 @@ export function MintMembershipInfoTrigger({
               </ul>
               <p className="mint-membership-info-note">
                 Active memberships renew monthly; initial agreement term and cancellation rules
-                apply—see the full agreement on the page below.
-              </p>
-              <p className="mint-membership-info-contact">
-                Questions:{" "}
-                <a href="tel:+18443447546">(844) 344-SKIN</a>
-                {" · "}
-                <a href="mailto:mintmember@getthetreatment.com">mintmember@getthetreatment.com</a>
-              </p>
-              <p className="mint-membership-info-link-line">
-                <a
-                  href={MINT_MEMBERSHIP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mint-membership-info-plain-link"
-                >
-                  {MINT_MEMBERSHIP_URL}
-                </a>
+                apply.
               </p>
             </div>
           </div>,

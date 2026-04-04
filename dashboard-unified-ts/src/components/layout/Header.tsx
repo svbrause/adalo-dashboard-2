@@ -13,7 +13,9 @@ import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { showToast } from "../../utils/toast";
 import "./Header.css";
 
-const THE_TREATMENT_LOGO_PATH = "/post-visit-blueprint/videos/The Treatment Mint and Gray.png";
+/** URL-encoded filename (spaces break some static hosts). */
+const THE_TREATMENT_LOGO_PATH =
+  "/post-visit-blueprint/videos/The%20Treatment%20Mint%20and%20Gray.png";
 
 function getProviderLogoUrl(provider: any): string | null {
   if (!provider) return null;
@@ -69,7 +71,7 @@ export default function Header({ onLogout }: HeaderProps) {
     ? isTheTreatmentProvider(provider)
       ? "The Treatment Provider Dashboard"
       : `${formatProviderDisplayName(provider.name)} Provider Dashboard`
-    : "All Clients";
+    : "Clients";
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -120,29 +122,6 @@ export default function Header({ onLogout }: HeaderProps) {
           <h2 className="page-title">{pageTitle}</h2>
         </div>
         <div className="header-right">
-          {onLogout && (
-            <button
-              type="button"
-              className="header-logout-mobile"
-              onClick={onLogout}
-              title="Logout"
-              aria-label="Logout"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-              <span>Logout</span>
-            </button>
-          )}
           <div className="scan-client-dropdown" ref={dropdownRef}>
             <button
               className="btn-secondary scan-client-btn"
@@ -178,6 +157,30 @@ export default function Header({ onLogout }: HeaderProps) {
           >
             Add Client
           </button>
+          {onLogout && (
+            <button
+              type="button"
+              className="header-logout-mobile"
+              onClick={onLogout}
+              title="Logout"
+              aria-label="Logout"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>Logout</span>
+            </button>
+          )}
         </div>
       </header>
 

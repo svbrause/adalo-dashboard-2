@@ -1,6 +1,11 @@
 import type { DiscussedItem } from "../types";
 import type { PatientSuggestionCard } from "../services/api";
-import { TREATMENT_META } from "../components/modals/DiscussedTreatmentsModal/constants";
+import {
+  TREATMENT_META,
+  canonicalPlanTreatmentName,
+  ENERGY_TREATMENT_CATEGORY,
+  LEGACY_ENERGY_DEVICE_CATEGORY,
+} from "../components/modals/DiscussedTreatmentsModal/constants";
 import { getTreatmentDisplayName } from "../components/modals/DiscussedTreatmentsModal/utils";
 import {
   normalizeBlueprintAnalysisText,
@@ -38,25 +43,28 @@ function norm(s: string): string {
   return s.trim().toLowerCase();
 }
 
+const ENERGY_MODALITY_PHOTO_KEYWORDS = [
+  "moxi",
+  "bbl",
+  "ipl",
+  "laser",
+  "halo",
+  "fraxel",
+  "ultherapy",
+  "sofwave",
+  "broadband",
+  "intense pulsed",
+  "pico",
+  "clear + brilliant",
+  "radiofrequency",
+  "rf ",
+  "energy",
+] as const;
+
 /** Map high-level plan treatment → keywords that appear on Treatment Explorer photo tags */
 const PLAN_TREATMENT_TO_PHOTO_KEYWORDS: Record<string, string[]> = {
-  "energy device": [
-    "moxi",
-    "bbl",
-    "ipl",
-    "laser",
-    "halo",
-    "fraxel",
-    "ultherapy",
-    "sofwave",
-    "broadband",
-    "intense pulsed",
-    "pico",
-    "clear + brilliant",
-    "radiofrequency",
-    "rf ",
-    "energy",
-  ],
+  "energy treatment": [...ENERGY_MODALITY_PHOTO_KEYWORDS],
+  "energy device": [...ENERGY_MODALITY_PHOTO_KEYWORDS],
   "chemical peel": ["chemical", "peel", "tca", "glycolic", "jessner", "vi peel", "salicylic", "mandelic"],
   microneedling: ["microneed", "nanoneed", "prp", "prfm", "skinpen", "rf microneed"],
   filler: ["filler", "hyaluronic", "juvederm", "restylane", "versa", "belotero", "tear trough", "ha "],
@@ -166,25 +174,31 @@ function demographyScore(
   return score;
 }
 
+function planTreatmentGroupKey(treatment: string): string {
+  const t = treatment.trim();
+  if (t === LEGACY_ENERGY_DEVICE_CATEGORY) return norm(ENERGY_TREATMENT_CATEGORY);
+  return norm(t);
+}
+
 function uniqueOrderedTreatments(items: DiscussedItem[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const item of items) {
     const t = item.treatment?.trim();
     if (!t) continue;
-    const key = norm(t);
+    const key = planTreatmentGroupKey(t);
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(t);
+    out.push(canonicalPlanTreatmentName(t));
   }
   return out;
 }
 
 function planHighlightsForTreatment(items: DiscussedItem[], treatment: string): string[] {
   const parts = new Set<string>();
-  const tNorm = norm(treatment);
+  const tKey = planTreatmentGroupKey(treatment);
   for (const item of items) {
-    if (norm(item.treatment ?? "") !== tNorm) continue;
+    if (planTreatmentGroupKey(item.treatment ?? "") !== tKey) continue;
     if (item.region?.trim())
       parts.add(normalizeBlueprintAnalysisText(item.region.trim()));
     if (item.product?.trim())
@@ -209,12 +223,14 @@ export function buildTreatmentResultsCards(
 ): TreatmentResultsCard[] {
   const treatments = uniqueOrderedTreatments(discussedItems);
   return treatments.map((treatment) => {
-    const meta = TREATMENT_META[treatment] ?? {};
+    const meta = TREATMENT_META[canonicalPlanTreatmentName(treatment)] ?? {};
     const matching = allPhotos.filter((p) => photoMatchesPlanTreatment(p, treatment));
     matching.sort((a, b) => demographyScore(b, patient) - demographyScore(a, patient));
     const photos = matching.slice(0, maxPhotosPerTreatment);
     const firstItem =
-      discussedItems.find((i) => norm(i.treatment ?? "") === norm(treatment)) ?? ({
+      discussedItems.find(
+        (i) => planTreatmentGroupKey(i.treatment ?? "") === planTreatmentGroupKey(treatment),
+      ) ?? ({
         id: "_",
         treatment,
       } as DiscussedItem);

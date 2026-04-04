@@ -1,12 +1,35 @@
 [
   {
     "origin": [
+      "https://patients.ponce.ai",
+      "https://analysis.ponce.ai",
+      "https://cases.ponce.ai",
       "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      "https://adalo-dashboard-2.vercel.app/"
+      "http://localhost:3002",
+      "http://localhost:3000",
+      "http://10.0.0.240:5173",
+      "https://treatment-explorer-dashboard0.vercel.app",
+      "https://web-version-v0-staging.vercel.app",
+      "https://treatment-dashboard-v1.vercel.app",
+      "https://dashboard-unified-ts.vercel.app",
+      "https://react-dashboard-1-six.vercel.app",
+      "https://jan30-draft-1.vercel.app",
+      "https://adalo-dashboard-2.vercel.app",
+      "https://patient-video-v0.vercel.app",
+      "https://patient-overview-screen-test-v0.vercel.app",
+      "https://ponce-cases-staging.vercel.app",
+      "https://wellnest-provider-dashboard.vercel.app",
+      "https://wellnest-treatment-finder.vercel.app"
     ],
     "method": ["GET", "HEAD", "OPTIONS"],
-    "responseHeader": ["Content-Type", "Content-Length"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Content-Range",
+      "ETag",
+      "Last-Modified",
+      "x-goog-*"
+    ],
     "maxAgeSeconds": 3600
   }
 ]

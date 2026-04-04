@@ -7,7 +7,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist', 'eslint.config.js', 'e2e'],
+    ignores: ['dist', '.vite', 'eslint.config.js', 'e2e'],
   },
   {
     files: ['playwright.config.ts'],

@@ -20,6 +20,28 @@ import {
   isWellnestWellnessProviderCode,
 } from "../../../data/wellnestOfferings";
 
+/** Canonical dashboard category for laser / BBL / Sofwave / Ultherapy modalities. */
+export const ENERGY_TREATMENT_CATEGORY = "Energy Treatment" as const;
+/** Legacy label still present in some stored patient JSON and exports. */
+export const LEGACY_ENERGY_DEVICE_CATEGORY = "Energy Device" as const;
+
+export function canonicalPlanTreatmentName(
+  treatment: string | undefined | null,
+): string {
+  const t = (treatment ?? "").trim();
+  if (t === LEGACY_ENERGY_DEVICE_CATEGORY) return ENERGY_TREATMENT_CATEGORY;
+  return t;
+}
+
+export function isEnergyTreatmentCategory(
+  treatment: string | undefined | null,
+): boolean {
+  const t = (treatment ?? "").trim();
+  return (
+    t === ENERGY_TREATMENT_CATEGORY || t === LEGACY_ENERGY_DEVICE_CATEGORY
+  );
+}
+
 export const AIRTABLE_FIELD = "Treatments Discussed";
 export const OTHER_LABEL = "Other";
 /** Placeholder treatment when user adds only a goal (no specific treatments). */
@@ -150,7 +172,7 @@ export function getSkincareCarouselItems(): {
   ];
 }
 
-/** Energy Device: types from price list (Laser, Sofwave, Ultherapy) plus Other. Used when not restricted to pricing sheet. */
+/** Energy Treatment: types from price list (Laser, Sofwave, Ultherapy) plus Other. Used when not restricted to pricing sheet. */
 export const ENERGY_DEVICE_TYPES = [
   "Moxi",
   "BBL (BroadBand Light)",
@@ -159,6 +181,19 @@ export const ENERGY_DEVICE_TYPES = [
   "Ultherapy",
   "Other",
 ];
+
+/**
+ * Not named as separate SKUs on the 2025 sheet (PRFM is); keep as Microneedling Type options
+ * so platelet / PDGF protocols are one modality in the recommender.
+ */
+export const MICRONEEDLING_PLATELET_GROWTH_FACTOR_TYPES = [
+  "PRP",
+  "PRP with microneedling",
+  "PRP (platelet-rich plasma)",
+  "PDGF",
+  "PDGF (platelet-derived growth factor)",
+  "PDGF with microneedling",
+] as const;
 
 export const OTHER_PRODUCT_LABEL = "Other";
 export const SEE_ALL_OPTIONS_LABEL = "See all options";
@@ -245,7 +280,7 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
     ],
   },
   {
-    treatment: "Energy Device",
+    treatment: ENERGY_TREATMENT_CATEGORY,
     keywords: [
       "dark spot",
       "pigment",
@@ -264,7 +299,7 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
     ],
   },
   {
-    treatment: "Energy Device",
+    treatment: ENERGY_TREATMENT_CATEGORY,
     keywords: [
       "fine line",
       "smoothen",
@@ -308,7 +343,6 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
     keywords: ["cheek", "volume", "mid cheek", "cheekbone", "hollow"],
     products: [
       "Hyaluronic acid (HA) – cheek",
-      "PLLA / Sculptra",
       "Calcium hydroxyapatite (e.g. Radiesse)",
     ],
   },
@@ -401,24 +435,28 @@ export const SKINCARE_CATEGORY_OPTIONS: {
     : []),
 ];
 
+/**
+ * Parallel to {@link SKINCARE_CATEGORY_OPTIONS} indices — same product sets, “use case” wording for browse chips.
+ */
+export const SKINCARE_USE_CASE_LABELS: string[] = [
+  "Hydration & barrier",
+  "Acne & oil control",
+  "Brightening & depigmentation",
+  "Collagen & renewal",
+  "Calming & sensitive",
+  "Other",
+];
+
 /** Treatment type / product options per treatment (for product selector when that treatment is selected) */
 export const TREATMENT_PRODUCT_OPTIONS: Record<string, string[]> = {
   Skincare: [...SKINCARE_PRODUCTS],
-  "Energy Device": [...ENERGY_DEVICE_TYPES],
+  [ENERGY_TREATMENT_CATEGORY]: [...ENERGY_DEVICE_TYPES],
   Filler: [...getFillerTypesFromPriceList(), OTHER_PRODUCT_LABEL],
   Neurotoxin: [...getNeurotoxinTypesFromPriceList(), OTHER_PRODUCT_LABEL],
   "Chemical Peel": [...getChemicalPeelTypesFromPriceList(), OTHER_PRODUCT_LABEL],
-  Microneedling: [...getMicroneedlingTypesFromPriceList(), OTHER_PRODUCT_LABEL],
-  PRP: [
-    "PRP",
-    "PRP with microneedling",
-    "PRP (platelet-rich plasma)",
-    OTHER_PRODUCT_LABEL,
-  ],
-  PDGF: [
-    "PDGF",
-    "PDGF (platelet-derived growth factor)",
-    "PDGF with microneedling",
+  Microneedling: [
+    ...getMicroneedlingTypesFromPriceList(),
+    ...MICRONEEDLING_PLATELET_GROWTH_FACTOR_TYPES,
     OTHER_PRODUCT_LABEL,
   ],
   Biostimulants: [...getBiostimulantsTypesFromPriceList(), OTHER_PRODUCT_LABEL],
@@ -446,9 +484,9 @@ export const TREATMENT_POSTCARE: Record<
     suggestedProducts: string[];
   }
 > = {
-  "Energy Device": {
-    sendInstructionsLabel: "Send energy device / laser post-care instructions",
-    instructionsText: `Post-Care Instructions for Laser / Energy Device
+  [ENERGY_TREATMENT_CATEGORY]: {
+    sendInstructionsLabel: "Send energy / laser post-care instructions",
+    instructionsText: `Post-Care Instructions for Laser / Energy Treatment
 
 • Avoid sun exposure for 24–48 hours; use SPF 50+ daily
 • Keep treated area clean and moisturized
@@ -549,6 +587,9 @@ export function resolveTreatmentPostcare(
   if (!treatment?.trim()) return undefined;
   const direct = TREATMENT_POSTCARE[treatment];
   if (direct) return direct;
+  if (treatment.trim() === LEGACY_ENERGY_DEVICE_CATEGORY) {
+    return TREATMENT_POSTCARE[ENERGY_TREATMENT_CATEGORY];
+  }
   if (getWellnestOfferingByTreatmentName(treatment)) return WELLNEST_PEPTIDE_POSTCARE;
   return undefined;
 }
@@ -624,19 +665,19 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["under eye wrinkle"],
     goal: "Smoothen Fine Lines",
     region: "Under eyes",
-    treatments: ["Neurotoxin", "Filler", "Microneedling", "Energy Device"],
+    treatments: ["Neurotoxin", "Filler", "Microneedling", ENERGY_TREATMENT_CATEGORY],
   },
   {
     keywords: ["excess upper eyelid", "excess skin"],
     goal: "Rejuvenate Upper Eyelids",
     region: "Other",
-    treatments: ["Energy Device", "Chemical Peel"],
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel"],
   },
   {
     keywords: ["forehead wrinkle", "bunny line", "crow's feet"],
     goal: "Smoothen Fine Lines",
     region: "Forehead",
-    treatments: ["Neurotoxin", "Filler", "Energy Device"],
+    treatments: ["Neurotoxin", "Filler", ENERGY_TREATMENT_CATEGORY],
   },
   {
     keywords: ["mid cheek", "cheek flatten", "cheekbone"],
@@ -651,7 +692,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     treatments: [
       "Filler",
       "Biostimulants",
-      "Energy Device",
+      ENERGY_TREATMENT_CATEGORY,
       "Chemical Peel",
       "Microneedling",
     ],
@@ -684,7 +725,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["dark spot", "red spot"],
     goal: "Even Skin Tone",
     region: "Other",
-    treatments: ["Energy Device", "Chemical Peel", "Skincare"],
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Skincare"],
   },
   {
     keywords: ["gummy smile"],
@@ -703,11 +744,9 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     goal: "Smoothen Fine Lines",
     region: "Other",
     treatments: [
-      "Energy Device",
+      ENERGY_TREATMENT_CATEGORY,
       "Chemical Peel",
       "Microneedling",
-      "PRP",
-      "PDGF",
       "Filler",
       "Neurotoxin",
       "Biostimulants",
@@ -723,7 +762,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["sagging", "laxity"],
     goal: "Tighten Skin Laxity",
     region: "Other",
-    treatments: ["Energy Device", "Biostimulants"],
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Biostimulants"],
   },
 ];
 
@@ -762,7 +801,7 @@ export const SURGICAL_TREATMENTS = [
 /** All treatment/procedure options (non-surgical only). */
 const ALL_TREATMENTS_RAW = [
   "Skincare",
-  "Energy Device",
+  ENERGY_TREATMENT_CATEGORY,
   "Chemical Peel",
   "Microneedling",
   "Filler",
@@ -770,8 +809,6 @@ const ALL_TREATMENTS_RAW = [
   "Biostimulants",
   "Kybella",
   "Threadlift",
-  "PRP",
-  "PDGF",
 ];
 export const ALL_TREATMENTS = ALL_TREATMENTS_RAW.filter(
   (t) => !SURGICAL_TREATMENTS.includes(t),
@@ -789,7 +826,7 @@ export function getTreatmentOptionsForProvider(providerCode: string | undefined)
   );
 }
 
-/** Product/type options for a treatment and provider. When provider is TheTreatment250, Energy Device is restricted to types in the 2025 price list. */
+/** Product/type options for a treatment and provider. When provider is TheTreatment250, Energy Treatment is restricted to types in the 2025 price list. */
 export function getTreatmentProductOptionsForProvider(
   providerCode: string | undefined,
   treatment: string,
@@ -798,10 +835,11 @@ export function getTreatmentProductOptionsForProvider(
     const wellnest = getWellnestProductOptionsForTreatment(treatment);
     if (wellnest.length > 0) return wellnest;
   }
-  const base = TREATMENT_PRODUCT_OPTIONS[treatment];
+  const canon = canonicalPlanTreatmentName(treatment);
+  const base = TREATMENT_PRODUCT_OPTIONS[canon];
   if (!base) return [];
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...base];
-  if (treatment === "Energy Device") {
+  if (canon === ENERGY_TREATMENT_CATEGORY) {
     const inPriceList = new Set(getEnergyDeviceTypesFromPriceList());
     return base.filter((opt) => opt === OTHER_PRODUCT_LABEL || inPriceList.has(opt));
   }
@@ -820,10 +858,10 @@ export const TREATMENT_META: Record<
     downtime: "None",
     priceRange: _priceRange("Skincare") ?? "Varies",
   },
-  "Energy Device": {
+  [ENERGY_TREATMENT_CATEGORY]: {
     longevity: "6–12+ months",
     downtime: "3–7 days",
-    priceRange: _priceRange("Energy Device") ?? "$250–$3,900",
+    priceRange: _priceRange("Energy Treatment") ?? "$250–$3,900",
   },
   "Chemical Peel": {
     longevity: "1–3 months",
@@ -883,7 +921,7 @@ export const INTEREST_TO_TREATMENTS: {
   },
   {
     keywords: ["eyelid", "upper eyelid", "lower eyelid", "rejuvenate"],
-    treatments: ["Skincare", "Energy Device"],
+    treatments: ["Skincare", ENERGY_TREATMENT_CATEGORY],
   },
   {
     keywords: ["brow", "brows"],
@@ -891,7 +929,7 @@ export const INTEREST_TO_TREATMENTS: {
   },
   {
     keywords: ["forehead"],
-    treatments: ["Skincare", "Neurotoxin", "Filler", "Energy Device", "Biostimulants"],
+    treatments: ["Skincare", "Neurotoxin", "Filler", ENERGY_TREATMENT_CATEGORY, "Biostimulants"],
   },
   {
     keywords: ["jawline", "jaw"],
@@ -905,7 +943,7 @@ export const INTEREST_TO_TREATMENTS: {
   { keywords: ["nose", "balance nose"], treatments: ["Skincare", "Filler"] },
   {
     keywords: ["hydrate skin", "exfoliate", "skin tone", "even skin"],
-    treatments: ["Skincare", "Chemical Peel", "Microneedling", "Energy Device"],
+    treatments: ["Skincare", "Chemical Peel", "Microneedling", ENERGY_TREATMENT_CATEGORY],
   },
   {
     keywords: ["laxity", "tighten", "sag"],
@@ -919,11 +957,9 @@ export const INTEREST_TO_TREATMENTS: {
     keywords: ["scar", "fade", "line", "fine line", "smoothen"],
     treatments: [
       "Skincare",
-      "Energy Device",
+      ENERGY_TREATMENT_CATEGORY,
       "Chemical Peel",
       "Microneedling",
-      "PRP",
-      "PDGF",
       "Filler",
       "Neurotoxin",
       "Biostimulants",
@@ -954,7 +990,10 @@ export const REGION_OPTIONS_MICRONEEDLING = ["Face", "Neck", "Chest"] as const;
 export const CHECKOUT_REGION_OPTIONS_BROAD = ["Face", "Neck", "Chest"] as const;
 
 /** Treatments that use broad Face/Neck/Chest region in checkout instead of REGION_OPTIONS. */
-export const TREATMENTS_WITH_BROAD_REGION = ["Energy Device", "Microneedling"] as const;
+export const TREATMENTS_WITH_BROAD_REGION = [
+  ENERGY_TREATMENT_CATEGORY,
+  "Microneedling",
+] as const;
 
 /** Chemical Peel areas are separate from Type (e.g. Full Face, Full Back). */
 export const CHEMICAL_PEEL_AREA_OPTIONS = [...getChemicalPeelAreasFromPriceList()] as const;
@@ -962,15 +1001,16 @@ export const CHEMICAL_PEEL_AREA_OPTIONS = [...getChemicalPeelAreasFromPriceList(
 /** Treatments that have no Where selector. */
 export const TREATMENTS_WITH_NO_REGION = [] as const;
 
-/** Type options for Microneedling from the 2025 price list (Medical Spa: Microneedling, PRFM items). */
+/** Type options for Microneedling: 2025 Medical Spa SKUs + PRP/PDGF labels + Other. */
 export const MICRONEEDLING_TYPE_OPTIONS = [
   ...getMicroneedlingTypesFromPriceList(),
+  ...MICRONEEDLING_PLATELET_GROWTH_FACTOR_TYPES,
   OTHER_PRODUCT_LABEL,
 ] as const;
 
-/** Treatment type options for checkout right panel. Microneedling = same as recommender (PRP, TCA, PRFM, etc.); others match price list or recommender. */
+/** Treatment type options for checkout right panel. Microneedling = price list PRFM SKUs + platelet/growth-factor types. */
 export const CHECKOUT_TREATMENT_TYPE_OPTIONS: Record<string, string[]> = {
-  "Energy Device": [...ENERGY_DEVICE_TYPES],
+  [ENERGY_TREATMENT_CATEGORY]: [...ENERGY_DEVICE_TYPES],
   Microneedling: [...MICRONEEDLING_TYPE_OPTIONS],
   Filler: [...getFillerTypesFromPriceList()],
   Neurotoxin: [...getNeurotoxinTypesFromPriceList()],
@@ -990,7 +1030,10 @@ export function getCheckoutTreatmentTypeOptionsForProvider(
     return base;
   }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return base;
-  base["Energy Device"] = getTreatmentProductOptionsForProvider(providerCode, "Energy Device");
+  base[ENERGY_TREATMENT_CATEGORY] = getTreatmentProductOptionsForProvider(
+    providerCode,
+    ENERGY_TREATMENT_CATEGORY,
+  );
   return base;
 }
 

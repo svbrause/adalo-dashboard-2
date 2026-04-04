@@ -1,12 +1,16 @@
 // Sidebar Component
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import { ViewType } from "../../types";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
 import { providerHasSmsAndSettingsAccess } from "../../utils/providerPrivileges";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import HelpRequestModal from "../modals/HelpRequestModal";
+import {
+  DASHBOARD_OPEN_HELP_REQUEST_EVENT,
+  type DashboardOpenHelpRequestDetail,
+} from "../../utils/dashboardHelpEvents";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -20,11 +24,30 @@ interface SidebarProps {
 export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse, mobileOpen = false, onMobileClose }: SidebarProps) {
   const { provider, currentView, setCurrentView } = useDashboard();
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpModalInitialMessage, setHelpModalInitialMessage] = useState("");
 
   const handleViewChange = (view: ViewType) => {
     setCurrentView(view);
     onMobileClose?.();
   };
+
+  useEffect(() => {
+    const onOpenHelp = (ev: Event) => {
+      const e = ev as CustomEvent<DashboardOpenHelpRequestDetail>;
+      const msg = e.detail?.initialMessage?.trim() ?? "";
+      if (msg) setHelpModalInitialMessage(msg);
+      setShowHelpModal(true);
+    };
+    window.addEventListener(
+      DASHBOARD_OPEN_HELP_REQUEST_EVENT,
+      onOpenHelp as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        DASHBOARD_OPEN_HELP_REQUEST_EVENT,
+        onOpenHelp as EventListener,
+      );
+  }, []);
 
   const getLogoUrl = (): string | null => {
     if (!provider) return null;
@@ -143,12 +166,13 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
             <line x1="3" y1="12" x2="3.01" y2="12"></line>
             <line x1="3" y1="18" x2="3.01" y2="18"></line>
           </svg>
-          <span className="nav-item-label">All Clients</span>
+          <span className="nav-item-label">Clients</span>
         </a>
-        <div className="nav-divider"></div>
         <a
           href="#"
-          className={`nav-item ${currentView === "leads" ? "active" : ""}`}
+          className={`nav-item nav-item--website-leads ${
+            currentView === "leads" ? "active" : ""
+          }`}
           onClick={(e) => {
             e.preventDefault();
             handleViewChange("leads");
@@ -161,11 +185,11 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
           <span className="nav-item-label">Leads</span>
         </a>
@@ -216,7 +240,7 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
               >
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
-              <span className="nav-item-label">Text Messages</span>
+              <span className="nav-item-label">Messages</span>
             </a>
           </>
         )}
@@ -241,7 +265,7 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
             <line x1="12" y1="22.08" x2="12" y2="12"></line>
           </svg>
-          <span className="nav-item-label">Archived Clients</span>
+          <span className="nav-item-label">Archived</span>
         </a>
       </nav>
 
@@ -278,6 +302,7 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
           className="nav-item"
           onClick={(e) => {
             e.preventDefault();
+            setHelpModalInitialMessage("");
             setShowHelpModal(true);
           }}
           title="Request Help"
@@ -322,7 +347,13 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
       </div>
 
       {showHelpModal && (
-        <HelpRequestModal onClose={() => setShowHelpModal(false)} />
+        <HelpRequestModal
+          initialMessage={helpModalInitialMessage || undefined}
+          onClose={() => {
+            setShowHelpModal(false);
+            setHelpModalInitialMessage("");
+          }}
+        />
       )}
     </aside>
     </>

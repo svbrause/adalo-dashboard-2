@@ -24,7 +24,7 @@ function treatmentIssueLexicon(treatment: string): RegExp | null {
   if (t === "neurotoxin") {
     return /forehead|frown|crow|glabella|bunny|line|wrinkle|masseter|sweat|brow|perioral|neck/i;
   }
-  if (t === "energy device") {
+  if (t === "energy device" || t === "energy treatment") {
     return /pigment|tone|texture|sun|spot|redness|vascular|pore|scar|collagen|laser|bbl|moxi|firm/i;
   }
   if (t === "laser" || t.includes("laser") || t.includes("moxi")) {
@@ -123,39 +123,39 @@ function treatmentInsightClosing(chapter: TreatmentChapter): string {
     display.includes("laser") ||
     display.includes("moxi");
   if (t.includes("biostimul") || t === "biostimulants") {
-    return "Biostimulators are built for gradual collagen and structure—useful when you want change that builds over months, not just a one-time fill.";
+    return "Biostimulators work gradually, building collagen and structure over months rather than all at once\u2014a good fit when you want natural-looking improvement that develops over time.";
   }
   if (t === "filler") {
-    return "Fillers add volume where structure has shifted, so they’re a direct match when hollows, folds, or definition are the priority.";
+    return "Fillers restore volume where structure has shifted, so they’re a direct match when hollows, folds, or definition are the priority.";
   }
   if (t === "neurotoxin") {
-    return "Neuromodulators target the muscle movement behind expression lines—ideal when those lines are what you notice most in photos or animation.";
+    return "Neuromodulators work by relaxing the muscles that create expression lines—they’re a good fit when those lines are what bother you most.";
   }
-  if (t === "energy device") {
-    return "Energy devices focus on tone, pigment, and collagen signaling—strong options when color, texture, or sun damage are central.";
+  if (t === "energy device" || t === "energy treatment") {
+    return "Energy-based treatments focus on tone, pigment, and collagen renewal—they’re strong options when color, texture, or sun damage are your main concerns.";
   }
   if (isLaserFamily) {
     if (display.includes("moxi")) {
-      return "Moxi is a gentle non-ablative laser that targets uneven tone, early pigment, and rough texture while supporting collagen remodeling with manageable downtime.";
+      return "Moxi is a gentle laser that targets uneven tone, early pigment changes, and rough texture while encouraging collagen renewal—with relatively little downtime.";
     }
-    return "Laser treatments help reset tone and texture while encouraging collagen renewal, making them a strong fit when brightness, clarity, and surface quality are priorities.";
+    return "Laser treatments help reset tone and texture while encouraging collagen renewal—a strong choice when brightness, clarity, and smoother skin are priorities.";
   }
   if (t === "chemical peel") {
     return "Peels speed up surface renewal—helpful when clarity, pigment, or acne-related texture are on your list.";
   }
   if (t === "microneedling") {
-    return "Microneedling creates controlled micro-injuries to stimulate repair—often chosen for texture, scars, or fine lines.";
+    return "Microneedling works by stimulating your skin’s natural repair process—it’s often chosen for texture, scarring, or fine lines.";
   }
   if (t === "skincare") {
-    return "Medical-grade home care extends what you do in-office and keeps results more consistent between visits.";
+    return "Medical-grade home care builds on what you do in the office and keeps results more consistent between visits.";
   }
   if (t === "threadlift") {
-    return "Threads can lift and support tissue when mild laxity—not just volume loss—is the main concern.";
+    return "Threads provide lift and support when mild sagging—not just volume loss—is the main concern.";
   }
   if (t === "kybella") {
-    return "Kybella is aimed at stubborn fat under the chin when contour—not skin tightening alone—is the goal.";
+    return "Kybella targets stubborn fat under the chin—it’s best suited when refining your profile and contour is the main goal.";
   }
-  return `That’s the role ${chapter.displayName} plays in a plan like yours.`;
+  return `That’s the role ${chapter.displayName} plays in your plan.`;
 }
 
 function productHintSentence(chapter: TreatmentChapter): string | null {
@@ -172,14 +172,14 @@ function productHintSentence(chapter: TreatmentChapter): string | null {
 
   if (products.length === 1) {
     const area = chapter.displayArea ? ` in ${chapter.displayArea}` : "";
-    return `${products[0]} is the primary ${isSkincare ? "product" : "treatment"} in this chapter${area}.`;
+    return `${products[0]} is the main ${isSkincare ? "product" : "treatment"} your provider recommended${area}.`;
   }
 
   if (isSkincare) {
-    return `This chapter lists ${products.length} medical-grade home products your provider chose to work together in your routine—details are in the lines above.`;
+    return `Your provider selected these ${products.length} products to work together as part of your daily routine.`;
   }
 
-  return `Your plan combines ${formatEnglishList(products.slice(0, 3))} to address this chapter from complementary angles.`;
+  return `Your plan combines ${formatEnglishList(products.slice(0, 3))} to address your concerns from different angles.`;
 }
 
 export type ChapterOverviewAnalysisInput = {
@@ -264,5 +264,5 @@ export function maybeAppendIntroScanBridge(
     chapter.treatment,
   );
   if (scan.length === 0) return baseIntro;
-  return `${baseIntro} Your scan highlighted ${formatEnglishList(scan.slice(0, 3))} among the patterns that relate to this part of your plan.`;
+  return `${baseIntro} Your scan also picked up on ${formatEnglishList(scan.slice(0, 3))}, which is part of why this was included in your plan.`;
 }

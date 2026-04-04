@@ -145,10 +145,17 @@
   color: var(--theme-text-primary, #212121);
 }
 
+/* Keep “(N items)” on one line so the count does not wrap away from “items)” */
+.treatment-recommender-by-treatment__plan-item-count {
+  white-space: nowrap;
+}
+
 .treatment-recommender-by-treatment__plan-share-btn {
   flex-shrink: 0;
   margin-top: 1px;
-  padding: 6px 12px;
+  padding: 10px 16px;
+  min-height: 44px;
+  box-sizing: border-box;
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--theme-accent, #0d9488);
@@ -156,6 +163,7 @@
   border: 1px solid var(--theme-accent, #0d9488);
   border-radius: 8px;
   cursor: pointer;
+  touch-action: manipulation;
   transition:
     background 0.2s,
     color 0.2s;
@@ -205,6 +213,12 @@
   min-width: 0;
 }
 
+.treatment-recommender-by-treatment__plan-row-wrap--editing
+  .treatment-recommender-by-treatment__plan-row {
+  border-color: var(--theme-border-strong, #999);
+  box-shadow: 0 0 0 1px var(--theme-border-strong, #ccc);
+}
+
 .treatment-recommender-by-treatment__plan-row {
   display: flex;
   flex-direction: column;
@@ -225,6 +239,20 @@
     border-color 0.2s;
 }
 
+.treatment-recommender-by-treatment__plan-row--interactive {
+  cursor: pointer;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  align-self: stretch;
+}
+
+.treatment-recommender-by-treatment__plan-row--interactive:focus-visible {
+  outline: 2px solid var(--theme-accent, #1976d2);
+  outline-offset: 2px;
+}
+
 .treatment-recommender-by-treatment__plan-row:hover {
   background: var(--theme-bg-hover, #f5f5f5);
   border-color: var(--theme-border-strong, #ccc);
@@ -240,22 +268,45 @@
   border-color: var(--theme-border, #e8e8e8);
 }
 
+.treatment-recommender-by-treatment__plan-row--readonly {
+  cursor: default;
+}
+
+.treatment-recommender-by-treatment__plan-row--readonly:hover {
+  background: var(--theme-bg-card, #fff);
+  border-color: var(--theme-border, #e8e8e8);
+}
+
+.treatment-recommender-by-treatment__plan-row-actions {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  align-self: center;
+}
+
 .treatment-recommender-by-treatment__plan-row-remove {
   flex-shrink: 0;
-  width: 28px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
-  font-size: 1.125rem;
+  box-sizing: border-box;
+  font-size: 1.5rem;
   line-height: 1;
   color: var(--theme-text-muted, #757575);
   background: var(--theme-bg-card, #fff);
   border: 1px solid var(--theme-border, #e8e8e8);
   border-radius: 8px;
   cursor: pointer;
+  touch-action: manipulation;
   transition:
     background 0.2s,
     color 0.2s,
     border-color 0.2s;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 }
@@ -281,6 +332,8 @@
   gap: 8px;
   flex-shrink: 0;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .treatment-recommender-by-treatment__plan-open-btn {
@@ -305,8 +358,12 @@
 }
 
 .treatment-recommender-by-treatment__plan-checkout-btn {
-  flex: 0.9 1 0;
+  flex: 1 1 100%;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   padding: 8px 14px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -635,6 +692,46 @@
   min-width: 0;
 }
 
+.treatment-recommender-by-treatment__card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.treatment-recommender-by-treatment__card-title-row
+  .treatment-recommender-by-treatment__card-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__examples-eye-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-secondary, #616161);
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.treatment-recommender-by-treatment__examples-eye-btn:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  border-color: var(--theme-border-strong, #ccc);
+  color: var(--theme-text-primary, #212121);
+}
+
 .treatment-recommender-by-treatment__card-title {
   margin: 0 0 12px;
   font-size: 1.125rem;
@@ -872,11 +969,14 @@
 
 .treatment-recommender-by-treatment__add-btn,
 .treatment-recommender-by-treatment__examples-btn {
-  padding: 8px 14px;
+  padding: 10px 16px;
+  min-height: 44px;
+  box-sizing: border-box;
   font-size: 0.875rem;
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
+  touch-action: manipulation;
   transition:
     background 0.2s,
     border-color 0.2s;
@@ -914,11 +1014,33 @@
   gap: 12px;
 }
 
+.treatment-recommender-by-treatment__add-form-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin: -4px 0 0;
+}
+
+.treatment-recommender-by-treatment__add-form-toolbar .edit-toggle-btn {
+  margin: 0;
+}
+
 .treatment-recommender-by-treatment__add-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.treatment-recommender-by-treatment__pricing-qty {
+  margin-top: 6px;
+}
+
+.treatment-recommender-by-treatment__pricing-qty-label,
+.treatment-recommender-by-treatment__quantity-unit-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-text-primary, #212121);
 }
 
 .treatment-recommender-by-treatment__add-row > span {
@@ -1282,6 +1404,15 @@
 }
 
 /* Products section heading (Skincare carousel) */
+.treatment-recommender-by-treatment__products-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
 .treatment-recommender-by-treatment__products-heading {
   margin: 0 0 8px;
   font-size: 0.875rem;
@@ -1430,6 +1561,224 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.treatment-recommender-by-treatment__edit-options-panel--unified {
+  max-width: 560px;
+}
+
+.treatment-recommender-by-treatment__edit-options-panel--unified
+  .treatment-recommender-by-treatment__edit-options-title {
+  padding-bottom: 16px;
+}
+
+.treatment-recommender-by-treatment__unified-edit-section {
+  padding: 14px 14px 16px;
+  border: 1px solid var(--theme-border, #e8e8e8);
+  border-radius: 10px;
+  background: var(--theme-bg-card, #fff);
+  margin-bottom: 14px;
+}
+
+.treatment-recommender-by-treatment__unified-edit-section:last-of-type {
+  margin-bottom: 6px;
+}
+
+/* Unified list: sheet reference rows + provider-editable rows share one container and row rhythm */
+.treatment-recommender-by-treatment__unified-edit-items {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 1px solid var(--theme-border, #e8e8e8);
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: min(52vh, 360px);
+  overflow-y: auto;
+  background: var(--theme-bg-card, #fff);
+}
+
+.treatment-recommender-by-treatment__unified-edit-items-empty {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--theme-text-muted, #757575);
+  border: 1px dashed var(--theme-border, #ddd);
+  border-radius: 10px;
+  background: var(--theme-bg-hover, #fafafa);
+}
+
+.treatment-recommender-by-treatment__unified-edit-add-trigger {
+  margin: 6px 0 12px;
+  /* Match list row label: 1px list border + 14px row padding (see .unified-edit-items / .unified-edit-item) */
+  padding-left: calc(1px + 14px);
+}
+
+/* Same type size as .unified-edit-item-label; reads as a text link under the list */
+.treatment-recommender-by-treatment__unified-edit-add-option {
+  display: inline-block;
+  padding: 6px 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  font-weight: 400;
+  color: var(--theme-accent, #0d9488);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.treatment-recommender-by-treatment__unified-edit-add-option:hover:not(:disabled) {
+  color: var(--theme-accent-hover, #0f766e);
+}
+
+.treatment-recommender-by-treatment__unified-edit-add-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--theme-border, #eee);
+  box-sizing: border-box;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item:last-child {
+  border-bottom: none;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-text {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-label {
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-note {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--theme-text-muted, #757575);
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-trailing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-pill {
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 9px;
+  border-radius: 999px;
+  line-height: 1;
+  background: var(--theme-bg-hover, #eee);
+  color: var(--theme-text-muted, #757575);
+  border: 1px solid var(--theme-border, #ddd);
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-edit
+  .treatment-recommender-by-treatment__edit-options-input {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* Keep Save + Cancel on the same row as inputs (composer + inline rename) */
+.treatment-recommender-by-treatment__unified-edit-item-edit--single-row {
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-edit--single-row
+  .treatment-recommender-by-treatment__edit-options-input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-edit--single-row
+  .treatment-recommender-by-treatment__edit-options-input--price-note {
+  flex: 0 1 128px;
+  min-width: 72px;
+  max-width: 200px;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-edit--single-row
+  .treatment-recommender-by-treatment__edit-options-btn {
+  flex-shrink: 0;
+}
+
+.treatment-recommender-by-treatment__unified-edit-item-trailing
+  .treatment-recommender-by-treatment__edit-options-btn {
+  flex-shrink: 0;
+}
+
+.treatment-recommender-by-treatment__unified-edit-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 20px 8px;
+}
+
+.treatment-recommender-by-treatment__unified-edit-section-title {
+  margin: 0 0 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__unified-edit-section-hint {
+  margin: -4px 0 10px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--theme-text-muted, #757575);
+}
+
+.treatment-recommender-by-treatment__unified-edit-section-hint strong {
+  font-weight: 600;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.treatment-recommender-by-treatment__edit-options-add--unified {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.treatment-recommender-by-treatment__edit-options-input--price-note {
+  flex: 1 1 140px;
+  min-width: 120px;
 }
 
 .treatment-recommender-by-treatment__edit-options-title {
@@ -1630,13 +1979,17 @@
 }
 
 .treatment-recommender-by-treatment__cancel-btn {
-  padding: 8px 14px;
+  padding: 10px 16px;
+  min-height: 44px;
+  box-sizing: border-box;
   font-size: 0.875rem;
+  font-weight: 500;
   background: transparent;
   color: var(--theme-text-secondary, #616161);
   border: 1px solid var(--theme-border, #ccc);
   border-radius: 8px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .treatment-recommender-by-treatment__cancel-btn:hover {
@@ -1676,13 +2029,80 @@
 .treatment-recommender-by-treatment__details {
   margin-top: 4px;
   margin-bottom: 4px;
-  font-size: 0.8125rem;
-  color: var(--theme-text-muted, #757575);
+  font-size: 0.875rem;
+  color: var(--theme-text-primary, #212121);
 }
 
-.treatment-recommender-by-treatment__details summary {
+/* Optional details + nested Concerns: same weight as row labels (500), softer color; no default marker indent */
+.treatment-recommender-by-treatment__details > summary.treatment-recommender-by-treatment__details-summary,
+.treatment-recommender-by-treatment__to-address-details
+  > summary.treatment-recommender-by-treatment__to-address-summary {
+  list-style: none;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--theme-text-secondary, #616161);
+  letter-spacing: normal;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+.treatment-recommender-by-treatment__details
+  > summary.treatment-recommender-by-treatment__details-summary::-webkit-details-marker,
+.treatment-recommender-by-treatment__to-address-details
+  > summary.treatment-recommender-by-treatment__to-address-summary::-webkit-details-marker {
+  display: none;
+}
+
+.treatment-recommender-by-treatment__details
+  > summary.treatment-recommender-by-treatment__details-summary::marker,
+.treatment-recommender-by-treatment__to-address-details
+  > summary.treatment-recommender-by-treatment__to-address-summary::marker {
+  content: "";
+}
+
+.treatment-recommender-by-treatment__details
+  > summary.treatment-recommender-by-treatment__details-summary::before,
+.treatment-recommender-by-treatment__to-address-details
+  > summary.treatment-recommender-by-treatment__to-address-summary::before {
+  content: "▸";
+  flex-shrink: 0;
+  width: 1.15em;
+  font-size: 0.95em;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  opacity: 1;
+  color: var(--theme-text-primary, #212121);
+  transform: rotate(0deg);
+  transform-origin: 50% 50%;
+  transition: transform 0.15s ease;
+}
+
+.treatment-recommender-by-treatment__details[open]
+  > summary.treatment-recommender-by-treatment__details-summary::before,
+.treatment-recommender-by-treatment__to-address-details[open]
+  > summary.treatment-recommender-by-treatment__to-address-summary::before {
+  transform: rotate(90deg);
+}
+
+.treatment-recommender-by-treatment__details
+  > summary.treatment-recommender-by-treatment__details-summary:focus-visible,
+.treatment-recommender-by-treatment__to-address-details
+  > summary.treatment-recommender-by-treatment__to-address-summary:focus-visible {
+  outline: 2px solid var(--theme-accent, #1976d2);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.treatment-recommender-by-treatment__to-address-summary-meta {
+  font-weight: 400;
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted, #757575);
 }
 
 .treatment-recommender-by-treatment__details-text {
@@ -1693,8 +2113,18 @@
 .treatment-recommender-by-treatment__details-fields {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
   margin-top: 10px;
+}
+
+/* Indented column: Concerns, Notes, quantity-in-details, etc. read as nested under Optional details */
+.treatment-recommender-by-treatment__details-fields-nest {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 4px 0 0 14px;
+  border-left: 2px solid var(--theme-border, #e0e0e0);
 }
 
 .treatment-recommender-by-treatment__details-label {
@@ -1719,6 +2149,131 @@
 .treatment-recommender-by-treatment__details-textarea {
   resize: vertical;
   min-height: 52px;
+}
+
+/* Concerns to address — same inset as Notes / Quantity under Optional details */
+.treatment-recommender-by-treatment__to-address.treatment-recommender-by-treatment__to-address-details {
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-sizing: border-box;
+}
+
+.treatment-recommender-by-treatment__to-address-inner {
+  margin-top: 8px;
+  padding-left: 0;
+}
+
+.treatment-recommender-by-treatment__to-address-hint {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.treatment-recommender-by-treatment__to-address-areas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.treatment-recommender-by-treatment__to-address-area-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-muted, #757575);
+  margin-bottom: 6px;
+}
+
+.treatment-recommender-by-treatment__to-address-other {
+  margin-top: 2px;
+}
+
+.treatment-recommender-by-treatment__to-address-other-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-muted, #757575);
+  margin-bottom: 6px;
+}
+
+/* Finding chips under Concerns: lighter than the section title; selected stays clear */
+.treatment-recommender-by-treatment__to-address-inner
+  .treatment-recommender-by-treatment__chip:not(
+    .treatment-recommender-by-treatment__chip--selected
+  ) {
+  font-weight: 400;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.treatment-recommender-by-treatment__to-address-inner
+  .treatment-recommender-by-treatment__chip--selected {
+  font-weight: 500;
+}
+
+.treatment-recommender-by-treatment__to-address-other-picker {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.treatment-recommender-by-treatment__to-address-other-picker-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.treatment-recommender-by-treatment__to-address-other-picker-row
+  .treatment-recommender-by-treatment__details-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__to-address-other-done {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+}
+
+.treatment-recommender-by-treatment__to-address-other-list {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--theme-border, #e8e8e8);
+  border-radius: 8px;
+  padding: 4px;
+  background: var(--theme-bg-subtle, #fafafa);
+}
+
+.treatment-recommender-by-treatment__to-address-other-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  margin: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary, #212121);
+  cursor: pointer;
+}
+
+.treatment-recommender-by-treatment__to-address-other-option:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.treatment-recommender-by-treatment__to-address-other-empty {
+  display: block;
+  padding: 8px;
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted, #757575);
 }
 
 /* Skin quiz (from skincare quiz) – shared with By Suggestion */
@@ -1884,112 +2439,129 @@
   margin-bottom: 12px;
 }
 
-.treatment-recommender-skin-analysis__products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  margin-top: 12px;
+.treatment-recommender-skin-analysis__plan-hint {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--theme-border, #e8e8e8);
 }
 
-.treatment-recommender-skin-analysis__product-card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--theme-border, #e0e0e0);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--theme-bg-card, #fff);
-  transition:
-    box-shadow 0.2s,
-    border-color 0.2s;
-  max-width: 260px;
+.treatment-recommender-skin-analysis__plan-hint-text {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--theme-text-secondary, #424242);
 }
 
-.treatment-recommender-skin-analysis__product-card:hover {
-  border-color: var(--theme-border-strong, #ccc);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.treatment-recommender-skin-analysis__product-card-image-wrap {
-  height: 130px;
-  background: var(--theme-bg-hover, #f5f5f5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.treatment-recommender-skin-analysis__product-card-image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.treatment-recommender-skin-analysis__product-card-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--theme-bg-hover, #f5f5f5);
-  color: var(--theme-text-muted, #9e9e9e);
-  font-size: 1.75rem;
-  opacity: 0.5;
-}
-
-.treatment-recommender-skin-analysis__product-card-body {
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.treatment-recommender-skin-analysis__product-card-reason {
-  font-size: 0.6875rem;
+.treatment-recommender-skin-analysis__plan-hint-sub {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--theme-accent, #1976d2);
-  line-height: 1.3;
+  color: var(--theme-text-muted, #757575);
 }
 
-.treatment-recommender-skin-analysis__product-card-name {
+.treatment-recommender-skin-analysis__plan-hint-actions {
+  margin-top: 12px;
+}
+
+.treatment-recommender-skin-analysis__go-to-skincare-btn {
+  padding: 8px 14px;
   font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--theme-text-primary, #212121);
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.treatment-recommender-skin-analysis__product-card-add-btn {
-  margin-top: 4px;
-  padding: 6px 10px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   font-family: inherit;
   color: #fff;
   background: var(--theme-accent, #0d9488);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition:
     background 0.2s,
     opacity 0.2s;
 }
 
-.treatment-recommender-skin-analysis__product-card-add-btn:hover {
+.treatment-recommender-skin-analysis__go-to-skincare-btn:hover {
   background: var(--theme-accent-hover, #0f766e);
 }
 
-.treatment-recommender-skin-analysis__product-card-add-btn--added,
-.treatment-recommender-skin-analysis__product-card-add-btn--added:hover {
-  background: var(--theme-text-muted, #9e9e9e);
+.treatment-recommender-skin-analysis__carousel-preview-wrap {
+  margin-top: 4px;
+}
+
+.treatment-recommender-skin-analysis__routine-block {
+  margin-top: 12px;
+}
+
+.treatment-recommender-skin-analysis__routine-block:first-of-type {
+  margin-top: 6px;
+}
+
+.treatment-recommender-skin-analysis__routine-section-title {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--theme-text-primary, #334155);
+}
+
+.treatment-recommender-by-treatment
+  .treatment-recommender-skin-analysis__carousel-preview
+  button.discussed-treatments-product-carousel-item.treatment-recommender-skin-analysis__carousel-preview-item {
+  cursor: pointer;
+  pointer-events: auto;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: auto;
+  position: relative;
+  font: inherit;
+  text-align: inherit;
+}
+
+.treatment-recommender-by-treatment
+  .treatment-recommender-skin-analysis__carousel-preview
+  button.discussed-treatments-product-carousel-item.treatment-recommender-skin-analysis__carousel-preview-item:hover {
+  border-color: rgba(79, 70, 229, 0.45);
+  background: linear-gradient(
+    145deg,
+    rgba(79, 70, 229, 0.06) 0%,
+    rgba(79, 70, 229, 0.02) 100%
+  );
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.treatment-recommender-skin-analysis__carousel-preview-item--selected {
+  border-color: rgba(90, 158, 148, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(90, 158, 148, 0.22);
+}
+
+.treatment-recommender-skin-analysis__carousel-preview-check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
   color: #fff;
-  cursor: default;
+  background: #5a9e94;
+  line-height: 1;
+}
+
+.treatment-recommender-skin-analysis__carousel-preview-blurb {
+  display: block;
+  margin-top: 4px;
+  padding: 0 4px 6px;
+  font-size: 0.65rem;
+  line-height: 1.3;
+  color: var(--theme-text-muted, #757575);
+  text-align: center;
+  max-width: 112px;
+  align-self: center;
 }
 
 .treatment-recommender-skin-analysis__title {
@@ -3158,4 +3730,386 @@
     width: 90px;
     min-height: 110px;
   }
+}
+
+/* Skincare card: skin-quiz block + catalog chips (aligned with client detail skin quiz) */
+.treatment-recommender-by-treatment__breakdown--skin-quiz
+  .treatment-recommender-skin-analysis__score-breakdown-block {
+  margin-bottom: 12px;
+}
+
+.treatment-recommender-by-treatment__skin-quiz-meta {
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted, #757575);
+  margin: 0 0 8px;
+}
+
+.treatment-recommender-by-treatment__skin-quiz-summary {
+  margin-top: 4px;
+}
+
+.treatment-recommender-by-treatment .skin-analysis-summary-gemstone,
+.treatment-recommender-by-treatment .skin-analysis-summary-type {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
+.treatment-recommender-by-treatment .skin-analysis-result-description {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary, #555);
+  line-height: 1.5;
+}
+
+.treatment-recommender-by-treatment__skin-quiz-rec-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(25, 118, 210, 0.05);
+  border: 1px solid rgba(25, 118, 210, 0.18);
+  border-radius: 8px;
+}
+
+.treatment-recommender-by-treatment__skin-quiz-rec-count {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary, #555);
+}
+
+.treatment-recommender-by-treatment__skin-quiz-browse-btn {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: var(--theme-accent, #1976d2);
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.treatment-recommender-by-treatment__skin-quiz-browse-btn:hover {
+  background: var(--theme-accent-hover, #1565c0);
+}
+
+.treatment-recommender-by-treatment__skincare-browse-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.treatment-recommender-by-treatment__skincare-search-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.treatment-recommender-by-treatment__skincare-search-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--theme-text-secondary, #555);
+}
+
+.treatment-recommender-by-treatment__skincare-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: #fff;
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__skincare-search-input:focus {
+  outline: none;
+  border-color: var(--theme-accent, #1976d2);
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
+}
+
+.treatment-recommender-by-treatment__skincare-search-results-heading {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__skincare-search-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted, #757575);
+}
+
+/* Skincare grouped sections (accordion) */
+.treatment-recommender-by-treatment__skincare-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.treatment-recommender-by-treatment__skincare-group {
+  border: 1px solid var(--theme-border, #e8e8e8);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--theme-bg-card, #fff);
+}
+
+.treatment-recommender-by-treatment__skincare-group-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--theme-bg-hover, #f8f8f8);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 8px;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.treatment-recommender-by-treatment__skincare-group-header:hover {
+  background: var(--theme-bg-subtle, #f0f0f0);
+}
+
+.treatment-recommender-by-treatment__skincare-group-header--expanded {
+  background: var(--theme-bg-card, #fff);
+  border-bottom: 1px solid var(--theme-border, #e8e8e8);
+}
+
+.treatment-recommender-by-treatment__skincare-group-header--expanded:hover {
+  background: var(--theme-bg-hover, #f8f8f8);
+}
+
+.treatment-recommender-by-treatment__skincare-group-label {
+  flex: 1 1 auto;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__skincare-group-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.treatment-recommender-by-treatment__skincare-group-selected-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #2e7d32;
+  background: rgba(46, 125, 50, 0.1);
+  border-radius: 10px;
+  padding: 1px 7px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.treatment-recommender-by-treatment__skincare-group-chevron {
+  flex-shrink: 0;
+  color: var(--theme-text-muted, #999);
+  transition: transform 0.2s ease;
+}
+
+.treatment-recommender-by-treatment__skincare-group-chevron--open {
+  transform: rotate(180deg);
+}
+
+.treatment-recommender-by-treatment__skincare-product-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px 12px;
+  box-sizing: border-box;
+}
+
+.treatment-recommender-by-treatment__skincare-product-chip-grid
+  .skin-analysis-product-chip {
+  padding: 7px 10px;
+  padding-right: 11px;
+  min-height: 38px;
+  gap: 8px;
+}
+
+.treatment-recommender-by-treatment__skincare-product-chip-grid
+  .skin-analysis-product-chip-thumb,
+.treatment-recommender-by-treatment__skincare-product-chip-grid
+  .skin-analysis-product-chip-placeholder {
+  width: 32px;
+  height: 32px;
+}
+
+.treatment-recommender-by-treatment__skincare-product-chip-grid
+  .skin-analysis-product-chip--selected {
+  padding-right: 24px;
+}
+
+
+/* Quiz-recommended: full outline (not left bar only) so it reads clearly in lists */
+.treatment-recommender-by-treatment__skincare-catalog-chip--recommended {
+  background: rgba(25, 118, 210, 0.1);
+  border-color: var(--theme-accent, #1976d2);
+  box-shadow:
+    0 0 0 1px var(--theme-accent, #1976d2),
+    0 2px 8px rgba(25, 118, 210, 0.18);
+}
+
+.treatment-recommender-by-treatment__skincare-catalog-chip--recommended:hover {
+  background: rgba(25, 118, 210, 0.14);
+  border-color: var(--theme-accent, #1976d2);
+  box-shadow:
+    0 0 0 2px var(--theme-accent, #1976d2),
+    0 3px 12px rgba(25, 118, 210, 0.22);
+}
+
+.treatment-recommender-by-treatment .skin-analysis-product-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 7px;
+  padding-right: 9px;
+  background: #fff;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--theme-text-primary, #212121);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.treatment-recommender-by-treatment
+  .skin-analysis-product-chip:not(.skin-analysis-product-chip--selected):not(
+    .treatment-recommender-by-treatment__skincare-catalog-chip--recommended
+  ):hover {
+  border-color: rgba(46, 125, 50, 0.42);
+  box-shadow: 0 1px 4px rgba(46, 125, 50, 0.12);
+}
+
+.treatment-recommender-by-treatment
+  .skin-analysis-product-chip.treatment-recommender-by-treatment__skincare-catalog-chip--recommended:not(
+    .skin-analysis-product-chip--selected
+  ):hover {
+  border-color: var(--theme-accent, #1976d2);
+  box-shadow:
+    0 0 0 2px var(--theme-accent, #1976d2),
+    0 3px 12px rgba(25, 118, 210, 0.22);
+}
+
+.treatment-recommender-by-treatment .skin-analysis-product-chip--selected {
+  border-color: #2e7d32;
+  background: rgba(232, 245, 233, 0.75);
+  box-shadow: 0 0 0 1px #2e7d32;
+  padding-right: 22px;
+}
+
+.treatment-recommender-by-treatment
+  .skin-analysis-product-chip--selected:hover {
+  border-color: #1b5e20;
+  box-shadow: 0 0 0 1px #1b5e20;
+  background: rgba(232, 245, 233, 0.95);
+}
+
+.treatment-recommender-by-treatment
+  .skin-analysis-product-chip.treatment-recommender-by-treatment__skincare-catalog-chip--recommended.skin-analysis-product-chip--selected {
+  border-color: #2e7d32;
+  background: rgba(232, 245, 233, 0.9);
+  box-shadow:
+    0 0 0 2px #2e7d32,
+    0 2px 10px rgba(46, 125, 50, 0.2);
+}
+
+.treatment-recommender-by-treatment
+  .skin-analysis-product-chip.treatment-recommender-by-treatment__skincare-catalog-chip--recommended.skin-analysis-product-chip--selected:hover {
+  border-color: #1b5e20;
+  box-shadow:
+    0 0 0 2px #1b5e20,
+    0 3px 12px rgba(27, 94, 32, 0.22);
+  background: rgba(232, 245, 233, 0.95);
+}
+
+.treatment-recommender-by-treatment .skin-analysis-product-chip-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.treatment-recommender-by-treatment .skin-analysis-product-chip-placeholder {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--theme-bg-subtle, #f0f0f0);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--theme-text-muted, #999);
+  flex-shrink: 0;
+}
+
+.treatment-recommender-by-treatment .skin-analysis-product-chip-name--grow {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.treatment-recommender-by-treatment
+  .skin-analysis-product-chip-name--compact {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+
+.treatment-recommender-by-treatment__carousel-remove.treatment-recommender-by-treatment__skincare-chip-remove {
+  color: #2e7d32;
+  border-color: rgba(46, 125, 50, 0.45);
+}
+
+.treatment-recommender-by-treatment
+  .skin-analysis-product-chip--selected:hover
+  .treatment-recommender-by-treatment__carousel-remove.treatment-recommender-by-treatment__skincare-chip-remove {
+  color: #1b5e20;
+  border-color: rgba(27, 94, 32, 0.55);
+  background: #fff;
+}
+
+.treatment-recommender-by-treatment__skincare-catalog-chip--other {
+  border-style: dashed;
 }

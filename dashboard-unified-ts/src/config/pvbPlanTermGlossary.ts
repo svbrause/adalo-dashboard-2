@@ -8,7 +8,7 @@ import type { DiscussedItem } from "../types";
 export type PlanGlossaryContext = {
   hasMicroneedling: boolean;
   hasChemicalPeel: boolean;
-  hasEnergyDevice: boolean;
+  hasEnergyTreatment: boolean;
   hasNeurotoxin: boolean;
   hasFiller: boolean;
   hasBiostimulants: boolean;
@@ -38,7 +38,8 @@ export function buildPlanGlossaryContext(items: DiscussedItem[]): PlanGlossaryCo
   return {
     hasMicroneedling: t.has("Microneedling"),
     hasChemicalPeel: t.has("Chemical Peel"),
-    hasEnergyDevice: t.has("Energy Device"),
+    hasEnergyTreatment:
+      t.has("Energy Treatment") || t.has("Energy Device"),
     hasNeurotoxin: t.has("Neurotoxin"),
     hasFiller: t.has("Filler"),
     hasBiostimulants: t.has("Biostimulants"),
@@ -122,23 +123,23 @@ export const PVB_PLAN_TERM_GLOSSARY: PvbGlossaryTermDef[] = [
   {
     id: "bbl",
     match: [/\bBBL\b/i, /\bbroadband light\b/i],
-    chapterKeys: ["energy device"],
+    chapterKeys: ["energy treatment", "energy device"],
     title: "BBL (broadband light)",
     body: "A light-based treatment that targets pigment, redness, and early sun damage while gently stimulating collagen over a series of visits.",
     relationToYou: (ctx) =>
-      ctx.hasEnergyDevice
-        ? "In your plan, BBL refers to that light device category when your provider matched energy-based options to your tone and texture goals."
+      ctx.hasEnergyTreatment
+        ? "In your plan, BBL refers to that light-based modality when your provider matched energy-based options to your tone and texture goals."
         : null,
   },
   {
     id: "moxi",
     match: [/\bMoxi\b/i],
-    chapterKeys: ["energy device"],
+    chapterKeys: ["energy treatment", "energy device"],
     title: "Moxi",
     body: "A gentle fractional laser that brightens tone, refines texture, and fits many skin types with relatively mild downtime.",
     relationToYou: (ctx) =>
-      ctx.hasEnergyDevice
-        ? "Your energy-device selections may include Moxi when your team prioritized a lighter laser refresh."
+      ctx.hasEnergyTreatment
+        ? "Your energy-treatment selections may include Moxi when your team prioritized a lighter laser refresh."
         : null,
   },
   {
@@ -186,14 +187,14 @@ export const PVB_PLAN_TERM_GLOSSARY: PvbGlossaryTermDef[] = [
         : null,
   },
   {
-    id: "cosmelan",
-    match: [/\bCosmelan\b/i],
+    id: "depigmentation_peel",
+    match: [/\bDepigmentation\s*peel\b/i, /\bCosmelan\b/i],
     chapterKeys: ["chemical peel"],
-    title: "Cosmelan",
+    title: "Depigmentation peel",
     body: "A professional pigment protocol (often with home care) aimed at stubborn melasma and uneven tone under medical guidance.",
     relationToYou: (ctx) =>
       ctx.hasChemicalPeel
-        ? "Your plan references Cosmelan when pigment correction was a priority in your visit."
+        ? "Your plan references a depigmentation peel when pigment correction was a priority in your visit."
         : null,
   },
 ];

@@ -1,5 +1,4 @@
-// Offer Request Modal – structured fields matching the Offers table.
-// Submits to Help Requests so support can add/edit the offer in Airtable.
+// Offer Request Modal – structured fields; submits to Help Requests for the team to apply.
 
 import { useState, FormEvent, useEffect } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
@@ -118,7 +117,7 @@ export default function OfferRequestModal({
       return;
     }
     if (!provider) {
-      showError('Provider information not available');
+      showError('Please refresh the page and try again.');
       return;
     }
 

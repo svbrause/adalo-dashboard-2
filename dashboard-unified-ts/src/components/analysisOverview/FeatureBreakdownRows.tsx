@@ -13,6 +13,7 @@ export function SubScoreFeatureRow({
   issues,
   detectedIssues,
   animate,
+  variant = "default",
 }: {
   subScore: {
     name: string;
@@ -23,6 +24,8 @@ export function SubScoreFeatureRow({
   issues: string[];
   detectedIssues: Set<string>;
   animate: boolean;
+  /** default: progress bar + score; minimal: name + score only (less visual noise in modals) */
+  variant?: "default" | "minimal";
 }) {
   const [expanded, setExpanded] = useState(false);
   const color = tierColor(scoreTier(subScore.score));
@@ -30,29 +33,40 @@ export function SubScoreFeatureRow({
   const goodIssues = issues.filter((i) => !detectedIssues.has(normalizeIssue(i)));
   const badIssues = issues.filter((i) => detectedIssues.has(normalizeIssue(i)));
 
+  const minimal = variant === "minimal";
+
   return (
-    <div className={`ao-subscore-row ${expanded ? "ao-subscore-row--open" : ""}`}>
+    <div
+      className={`ao-subscore-row ${expanded ? "ao-subscore-row--open" : ""}${minimal ? " ao-subscore-row--minimal" : ""}`}
+    >
       <button
         type="button"
         className="ao-subscore-row__header"
         onClick={() => setExpanded(!expanded)}
       >
         <span className="ao-subscore-row__name">{subScore.name}</span>
-        <div className="ao-subscore-row__bar-wrap">
-          <div className="ao-subscore-row__bar-track">
-            <div
-              className="ao-subscore-row__bar-fill"
-              style={{
-                width: animate ? `${subScore.score}%` : "0%",
-                background: color,
-                transition: animate ? "width 0.8s ease-out" : "none",
-              }}
-            />
+        {!minimal && (
+          <div className="ao-subscore-row__bar-wrap">
+            <div className="ao-subscore-row__bar-track">
+              <div
+                className="ao-subscore-row__bar-fill"
+                style={{
+                  width: animate ? `${subScore.score}%` : "0%",
+                  background: color,
+                  transition: animate ? "width 0.8s ease-out" : "none",
+                }}
+              />
+            </div>
+            <span className="ao-subscore-row__score" style={{ color }}>
+              {subScore.score}
+            </span>
           </div>
-          <span className="ao-subscore-row__score" style={{ color }}>
+        )}
+        {minimal && (
+          <span className="ao-subscore-row__score ao-subscore-row__score--solo" style={{ color }}>
             {subScore.score}
           </span>
-        </div>
+        )}
         <span className="ao-subscore-row__chev" aria-hidden>
           {expanded ? "▲" : "▼"}
         </span>
@@ -81,9 +95,11 @@ export function SubScoreFeatureRow({
 export function AreaThemeFeatureRow({
   theme,
   detectedIssues,
+  variant = "default",
 }: {
   theme: ThemeSummary;
   detectedIssues: Set<string>;
+  variant?: "default" | "minimal";
 }) {
   const [expanded, setExpanded] = useState(false);
   const score =
@@ -96,28 +112,39 @@ export function AreaThemeFeatureRow({
   const goodIssues = theme.issues.filter((i) => !detectedIssues.has(normalizeIssue(i)));
   const badIssues = theme.issues.filter((i) => detectedIssues.has(normalizeIssue(i)));
 
+  const minimal = variant === "minimal";
+
   return (
-    <div className={`ao-subscore-row ${expanded ? "ao-subscore-row--open" : ""}`}>
+    <div
+      className={`ao-subscore-row ${expanded ? "ao-subscore-row--open" : ""}${minimal ? " ao-subscore-row--minimal" : ""}`}
+    >
       <button
         type="button"
         className="ao-subscore-row__header"
         onClick={() => setExpanded(!expanded)}
       >
         <span className="ao-subscore-row__name">{theme.label}</span>
-        <div className="ao-subscore-row__bar-wrap">
-          <div className="ao-subscore-row__bar-track">
-            <div
-              className="ao-subscore-row__bar-fill"
-              style={{
-                width: `${score}%`,
-                background: color,
-              }}
-            />
+        {!minimal && (
+          <div className="ao-subscore-row__bar-wrap">
+            <div className="ao-subscore-row__bar-track">
+              <div
+                className="ao-subscore-row__bar-fill"
+                style={{
+                  width: `${score}%`,
+                  background: color,
+                }}
+              />
+            </div>
+            <span className="ao-subscore-row__score" style={{ color }}>
+              {score}
+            </span>
           </div>
-          <span className="ao-subscore-row__score" style={{ color }}>
+        )}
+        {minimal && (
+          <span className="ao-subscore-row__score ao-subscore-row__score--solo" style={{ color }}>
             {score}
           </span>
-        </div>
+        )}
         <span className="ao-subscore-row__chev" aria-hidden>
           {expanded ? "▲" : "▼"}
         </span>

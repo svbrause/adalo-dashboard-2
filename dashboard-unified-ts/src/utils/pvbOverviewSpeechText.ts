@@ -1,26 +1,10 @@
 import type { BlueprintAnalysisDisplay } from "./postVisitBlueprintAnalysis";
-import type { ChapterOverviewParts } from "./pvbOverviewNarratives";
+import {
+  buildAssessmentFindingsSection,
+  formatEnglishList,
+  type ChapterOverviewParts,
+} from "./pvbOverviewNarratives";
 import type { PvbResolvedPlanGlossaryTerm } from "./pvbPlanTermGlossary";
-
-function normalizeSpaces(s: string): string {
-  return s.replace(/\s+/g, " ").trim();
-}
-
-function takeFirstSentences(text: string, maxSentences: number): string {
-  const clean = normalizeSpaces(text);
-  if (!clean) return "";
-  const parts = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
-  if (parts.length <= maxSentences) return clean;
-  return parts.slice(0, maxSentences).join(" ");
-}
-
-function conciseText(text: string, opts?: { maxSentences?: number; maxChars?: number }): string {
-  const maxSentences = opts?.maxSentences ?? 2;
-  const maxChars = opts?.maxChars ?? 320;
-  const bySentence = takeFirstSentences(text, maxSentences);
-  if (bySentence.length <= maxChars) return bySentence;
-  return `${bySentence.slice(0, maxChars - 1).trimEnd()}…`;
-}
 
 /** Short spoken definitions for matched plan terms (keeps listen length reasonable). */
 export function buildPvbPlanGlossarySpeechAppendix(
@@ -36,21 +20,6 @@ export function buildPvbPlanGlossarySpeechAppendix(
   let s = `Terms from your plan: ${chunks.join(" ")}`;
   if (terms.length > maxTerms) s += " More definitions are on screen.";
   return s;
-}
-
-function stripOverallScoreLanguage(text: string): string {
-  const clean = normalizeSpaces(text);
-  if (!clean) return "";
-  const parts = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
-  const kept = parts.filter((raw) => {
-    const t = raw.toLowerCase();
-    if (t.includes("overall aesthetic score")) return false;
-    if (t.includes("overall assessment")) return false;
-    if (t.includes("overall score")) return false;
-    if (/overall\s*[:\-]?\s*\d+/.test(t)) return false;
-    return true;
-  });
-  return kept.join(" ").trim();
 }
 
 /** Plain text for TTS — main blueprint overview (matches on-screen narrative blocks). */
@@ -74,11 +43,10 @@ export function buildPvbMainOverviewSpeechText(
 
   if (analysisDisplay.profileLabels.length > 0) {
     parts.push(
-      analysisDisplay.profileLabels.map((r) => `${r.label}, ${r.value}`).join(". "),
+      analysisDisplay.profileLabels
+        .map((r) => `${r.label}, ${r.value}`)
+        .join(". "),
     );
-  }
-  if (analysisDisplay.goals.length > 0) {
-    parts.push(`Your focus: ${analysisDisplay.goals.join(", ")}`);
   }
   const { interests, findings } = analysisDisplay.globalPlanInsights;
   if (interests.length > 0) {
@@ -95,45 +63,86 @@ export function buildPvbMainOverviewSpeechText(
   return parts.filter(Boolean).join(" ");
 }
 
+export type MainOverviewSection = { heading: string; text: string };
+
+/** Structured paragraphs with section headings for the top-level Aesthetic Intelligence card. */
+export function buildPvbMainOverviewSections(
+  analysisDisplay: BlueprintAnalysisDisplay,
+  bridgeParagraph: string | null,
+  planFramingParagraphs?: string[] | null,
+): MainOverviewSection[] {
+  const out: MainOverviewSection[] = [];
+  const framing = (planFramingParagraphs ?? [])
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const providerWhy = [framing[0], bridgeParagraph?.trim()]
+    .filter(Boolean)
+    .join(" ");
+  const coordination = framing.slice(1).join(" ");
+  const goalsLead = analysisDisplay.goals
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  const providerWhyWithGoals = [
+    goalsLead.length > 0
+      ? `Your goals are ${formatEnglishList(goalsLead)}.`
+      : null,
+    providerWhy,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (providerWhyWithGoals) {
+    out.push({
+      heading: "Why your provider built this plan",
+      text: providerWhyWithGoals,
+    });
+  }
+
+  if (analysisDisplay.overviewSnapshot) {
+    const findingsText = buildAssessmentFindingsSection(
+      analysisDisplay.overviewSnapshot,
+      analysisDisplay.goals,
+    );
+    if (findingsText) {
+      out.push({
+        heading: "What supported those recommendations",
+        text: findingsText,
+      });
+    }
+  } else {
+    const fallbackSupportText = analysisDisplay.clinicalSnapshotLines
+      .map((row) => `${row.label}: ${row.text}`)
+      .join(" ");
+    if (fallbackSupportText) {
+      out.push({
+        heading: "What supported those recommendations",
+        text: fallbackSupportText,
+      });
+    }
+  }
+
+  if (coordination) {
+    out.push({
+      heading: "How your plan works together",
+      text: coordination,
+    });
+  }
+
+  return out;
+}
+
 /** Paragraph strings for the typewriter (holistic framing, primary narrative, bridge; meta is static below). */
 export function buildPvbMainOverviewTypewriterParagraphs(
   analysisDisplay: BlueprintAnalysisDisplay,
   bridgeParagraph: string | null,
   planFramingParagraphs?: string[] | null,
 ): string[] {
-  const out: string[] = [];
-
-  for (const block of planFramingParagraphs ?? []) {
-    const t = block.trim();
-    if (t) out.push(t);
-  }
-
-  if (analysisDisplay.overviewSnapshot) {
-    const concisePrimary = conciseText(
-      stripOverallScoreLanguage(analysisDisplay.overviewSnapshot.assessmentParagraph),
-      { maxSentences: 1, maxChars: 220 },
-    );
-    if (concisePrimary) out.push(concisePrimary);
-    const ai = stripOverallScoreLanguage(
-      analysisDisplay.overviewSnapshot.aiNarrative?.trim() ?? "",
-    );
-    if (ai) {
-      out.push(
-        `Additional perspective: ${conciseText(ai, {
-          maxSentences: 1,
-          maxChars: 170,
-        })}`,
-      );
-    }
-  } else {
-    for (const row of analysisDisplay.clinicalSnapshotLines) {
-      out.push(`${row.label}: ${row.text}`);
-    }
-  }
-
-  if (bridgeParagraph?.trim()) out.push(bridgeParagraph.trim());
-
-  return out.filter((s) => s.trim().length > 0);
+  return buildPvbMainOverviewSections(
+    analysisDisplay,
+    bridgeParagraph,
+    planFramingParagraphs,
+  ).map((s) => s.text);
 }
 
 export function buildChapterOverviewSpeechText(
@@ -196,6 +205,8 @@ export function buildChapterOverviewTypewriterLayout(o: ChapterOverviewParts): {
  * Order matches the chapter overview typewriter:
  * complement top → intro → plan bullets → analysis → complement bottom (“complement sandwich”).
  */
-export function buildChapterOverviewTypewriterParagraphs(o: ChapterOverviewParts): string[] {
+export function buildChapterOverviewTypewriterParagraphs(
+  o: ChapterOverviewParts,
+): string[] {
   return buildChapterOverviewTypewriterLayout(o).paragraphs;
 }
