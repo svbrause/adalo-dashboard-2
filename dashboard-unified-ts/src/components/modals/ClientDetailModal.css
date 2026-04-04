@@ -461,6 +461,17 @@
   gap: 8px;
 }
 
+.skin-analysis-routine-groups {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.skin-analysis-products--routine-group {
+  margin-top: 0;
+}
+
 .skin-analysis-product-chip {
   display: inline-flex;
   align-items: center;

@@ -61,12 +61,12 @@ import {
   WELLNESS_QUIZ_ENABLED,
 } from "../../data/wellnessQuiz";
 import {
+  buildQuizSkincareRoutineSections,
   computeQuizScores,
   computeQuizProfile,
   SKIN_TYPE_DISPLAY_LABELS,
   SKIN_TYPE_SCORE_ORDER,
   GEMSTONE_BY_SKIN_TYPE,
-  RECOMMENDED_PRODUCT_REASONS,
 } from "../../data/skinTypeQuiz";
 import {
   generateId,
@@ -1579,62 +1579,71 @@ export default function ClientDetailModal({
                             {skincareQuiz.resultDescription}
                           </p>
                         )}
-                        {skincareQuiz.recommendedProductNames &&
-                          skincareQuiz.recommendedProductNames.length > 0 &&
-                          (() => {
-                            const carouselItems = getSkincareCarouselItems();
-                            const products: SkinQuizProduct[] = skincareQuiz!
-                              .recommendedProductNames!.map((name: string) => {
-                                const item = carouselItems.find(
-                                  (p) => p.name === name,
-                                );
-                                return item
-                                  ? {
-                                      name,
-                                      imageUrl: item.imageUrl,
-                                      productUrl: item.productUrl,
-                                      recommendedFor:
-                                        RECOMMENDED_PRODUCT_REASONS[name],
-                                      description: item.description,
-                                      price: item.price,
-                                      imageUrls: item.imageUrls,
-                                    }
-                                  : null;
-                              })
-                              .filter(Boolean) as SkinQuizProduct[];
-                            return (
-                              <div className="skin-analysis-products">
-                                <span className="skin-analysis-products-label">
-                                  Recommended products
-                                </span>
-                                <div className="skin-analysis-product-chips">
-                                  {products.map((p, idx) => (
-                                    <button
-                                      key={idx}
-                                      type="button"
-                                      className="skin-analysis-product-chip"
-                                      onClick={() => setSelectedSkinProduct(p)}
-                                    >
-                                      {p.imageUrl ? (
-                                        <img
-                                          src={p.imageUrl}
-                                          alt=""
-                                          className="skin-analysis-product-chip-thumb"
-                                        />
-                                      ) : (
-                                        <span className="skin-analysis-product-chip-placeholder">
-                                          ◆
-                                        </span>
-                                      )}
-                                      <span className="skin-analysis-product-chip-name">
-                                        {p.name.split("|")[0]?.trim() ?? p.name}
-                                      </span>
-                                    </button>
-                                  ))}
+                        {(() => {
+                          const carouselItems = getSkincareCarouselItems();
+                          const routineSections = buildQuizSkincareRoutineSections(
+                            skincareQuiz.recommendedProductNames,
+                            skincareQuiz.result,
+                            (name) =>
+                              carouselItems.find((p) => p.name === name),
+                          );
+                          if (routineSections.length === 0) return null;
+                          return (
+                            <div className="skin-analysis-routine-groups">
+                              {routineSections.map((section) => (
+                                <div
+                                  key={section.id}
+                                  className="skin-analysis-products skin-analysis-products--routine-group"
+                                >
+                                  <span className="skin-analysis-products-label">
+                                    {section.title}
+                                  </span>
+                                  <div className="skin-analysis-product-chips">
+                                    {section.items.map((product) => {
+                                      const item = carouselItems.find(
+                                        (p) => p.name === product.name,
+                                      );
+                                      const p: SkinQuizProduct = {
+                                        name: product.name,
+                                        imageUrl: item?.imageUrl,
+                                        productUrl: item?.productUrl,
+                                        recommendedFor: product.blurb,
+                                        description: item?.description,
+                                        price: item?.price,
+                                        imageUrls: item?.imageUrls,
+                                      };
+                                      return (
+                                        <button
+                                          key={`${section.id}-${product.name}`}
+                                          type="button"
+                                          className="skin-analysis-product-chip"
+                                          onClick={() =>
+                                            setSelectedSkinProduct(p)
+                                          }
+                                        >
+                                          {p.imageUrl ? (
+                                            <img
+                                              src={p.imageUrl}
+                                              alt=""
+                                              className="skin-analysis-product-chip-thumb"
+                                            />
+                                          ) : (
+                                            <span className="skin-analysis-product-chip-placeholder">
+                                              ◆
+                                            </span>
+                                          )}
+                                          <span className="skin-analysis-product-chip-name">
+                                            {product.displayName}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })()}
+                              ))}
+                            </div>
+                          );
+                        })()}
                         {skincareQuiz.answers &&
                           Object.keys(skincareQuiz.answers).length > 0 &&
                           (() => {

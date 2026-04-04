@@ -979,18 +979,6 @@
   margin-top: 0;
 }
 
-.client-detail-panel .skin-analysis-product-chips--column {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.client-detail-panel
-  .skin-analysis-product-chips--column
-  .skin-analysis-product-chip {
-  width: 100%;
-  justify-content: flex-start;
-}
-
 .client-detail-panel .skin-analysis-product-chip {
   display: inline-flex;
   align-items: center;
