@@ -656,3 +656,299 @@
   line-height: 1.45;
   color: #334155;
 }
+
+/* ── Team notifications / email notification catalog ─────────────────────── */
+
+.settings-email-notif-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-email-notif-divider {
+  margin: 28px 0;
+  border: none;
+  border-top: 1px solid #e2e8f0;
+}
+
+.settings-email-notif-section-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.015em;
+}
+
+.settings-email-notif-recipients {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-email-notif-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-email-notif-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-email-notif-category-header {
+  margin-bottom: 10px;
+}
+
+.settings-email-notif-category-title {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.settings-email-notif-category-desc {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.settings-email-notif-table {
+  width: 100%;
+}
+
+.settings-email-notif-name-cell {
+  min-width: 200px;
+  vertical-align: top;
+}
+
+.settings-email-notif-name {
+  margin: 0 0 3px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.settings-email-notif-subject {
+  margin: 0 0 2px;
+  font-size: 0.78rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.settings-email-notif-subject-label {
+  font-weight: 700;
+  color: #64748b;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 3px;
+}
+
+.settings-email-notif-note {
+  margin: 4px 0 0;
+  font-size: 0.74rem;
+  color: #94a3b8;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.settings-email-notif-trigger-cell {
+  font-size: 0.84rem;
+  color: #334155;
+  line-height: 1.5;
+  vertical-align: top;
+  min-width: 160px;
+}
+
+.settings-email-notif-col-audience {
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+/* Audience pills */
+.settings-email-audience-pill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.settings-email-audience-pill--patient {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.settings-email-audience-pill--team {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.settings-email-audience-pill--both {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.settings-email-notif-gtt {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid #0ea5e9;
+  background: #f0f9ff;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #0c4a6e;
+}
+
+.settings-email-notif-gtt-label {
+  font-weight: 800;
+  color: #0369a1;
+}
+
+.settings-email-notif-gtt--modal {
+  margin-top: 4px;
+  border-radius: 8px;
+}
+
+/* ── Skincare products panel ─────────────────────────────────────────────── */
+
+/* Allow the skincare panel to use the full 1100px page width */
+.settings-page--products {
+  max-width: 1100px;
+}
+
+.settings-skincare-brands {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.settings-skincare-brand-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-skincare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.settings-skincare-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.settings-skincare-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.07);
+}
+
+.settings-skincare-card-img-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #f8fafc;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.settings-skincare-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.settings-skincare-card:hover .settings-skincare-card-img {
+  transform: scale(1.03);
+}
+
+.settings-skincare-card-img-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+.settings-skincare-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 14px;
+  flex: 1 1 auto;
+}
+
+.settings-skincare-card-name {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.settings-skincare-card-price {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.settings-skincare-card-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #64748b;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.settings-skincare-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.settings-skincare-shop-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.82rem;
+}
+
+.settings-skincare-shop-link:hover {
+  background: #f0f9ff;
+  border-color: #7dd3fc;
+  color: #0369a1;
+}
+
+.settings-skincare-card-actions .settings-notif-view-btn {
+  font-size: 0.82rem;
+  padding: 7px 10px;
+  text-align: center;
+}

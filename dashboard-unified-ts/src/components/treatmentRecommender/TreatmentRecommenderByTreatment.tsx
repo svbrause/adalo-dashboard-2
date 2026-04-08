@@ -4506,18 +4506,16 @@ export default function TreatmentRecommenderByTreatment({
                                     });
                                   };
                                   return (
-                                    <details className="treatment-recommender-by-treatment__to-address treatment-recommender-by-treatment__to-address-details">
-                                      <summary className="treatment-recommender-by-treatment__to-address-summary">
-                                        <span className="treatment-recommender-by-treatment__to-address-summary-label">
-                                          Concerns to address
-                                        </span>
+                                    <div className="treatment-recommender-by-treatment__to-address">
+                                      <span className="treatment-recommender-by-treatment__to-address-summary-label">
+                                        Concerns to address
                                         {selected.length > 0 ? (
                                           <span className="treatment-recommender-by-treatment__to-address-summary-meta">
                                             {" "}
                                             · {selected.length} selected
                                           </span>
                                         ) : null}
-                                      </summary>
+                                      </span>
                                       <div className="treatment-recommender-by-treatment__to-address-inner">
                                         <p className="treatment-recommender-by-treatment__to-address-hint">
                                           Concerns this treatment relates to
@@ -4679,7 +4677,7 @@ export default function TreatmentRecommenderByTreatment({
                                           </div>
                                         </div>
                                       </div>
-                                    </details>
+                                    </div>
                                   );
                                 })()}
                                 {addToPlanForTreatment.treatment !== "Skincare" &&

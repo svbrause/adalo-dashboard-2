@@ -880,11 +880,22 @@ export function matchPlanItemToSku(
   const searchTerms = [product, region].filter(Boolean);
   let matched: SkuWithCategory | null = null;
   if (searchTerms.length > 0) {
-    for (const term of searchTerms) {
-      const found = skus.find((s) => skuNameMatches(s.name, term));
-      if (found) {
-        matched = found;
-        break;
+    // For compound product names (e.g. "Moxi + BBL"), prefer a SKU that matches
+    // ALL components over the first partial match. Without this, "Moxi Full Face"
+    // beats "BBL + Moxi Full Face" because both contain "moxi".
+    if (product.includes("+")) {
+      const parts = product.split("+").map((p) => p.trim()).filter(Boolean);
+      const bestMatch = skus.find((s) => parts.every((p) => skuNameMatches(s.name, p)));
+      if (bestMatch) matched = bestMatch;
+    }
+
+    if (!matched) {
+      for (const term of searchTerms) {
+        const found = skus.find((s) => skuNameMatches(s.name, term));
+        if (found) {
+          matched = found;
+          break;
+        }
       }
     }
     if (!matched) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDashboard } from "../../context/DashboardContext";
 import {
   SMS_SETTINGS_PRODUCTS,
   type SmsProductConfig,
@@ -9,10 +10,18 @@ import {
   getDashboardCategoriesForPriceListItem,
   TREATMENT_PRICE_LIST_2025,
 } from "../../data/treatmentPricing2025";
+import { TREATMENT_BOUTIQUE_SKINCARE } from "../modals/DiscussedTreatmentsModal/treatmentBoutiqueProducts";
+import {
+  EMAIL_NOTIFICATION_CATALOG,
+  EMAIL_NOTIFICATION_CATEGORY_COUNT,
+  EMAIL_NOTIFICATION_TOTAL_COUNT,
+  type EmailNotificationEntry,
+} from "../../config/emailNotificationCatalog";
 import PricingChangeRequestModal, {
   type PricingHelpSkuContext,
 } from "../modals/PricingChangeRequestModal";
 import SmsConfigChangeRequestModal from "../modals/SmsConfigChangeRequestModal";
+import ProviderTeamNotificationEmails from "../settings/ProviderTeamNotificationEmails";
 import "./SettingsView.css";
 
 type PreviewSelection = { product: SmsProductConfig; event: SmsTemplateEventConfig } | null;
@@ -20,7 +29,45 @@ type PreviewSelection = { product: SmsProductConfig; event: SmsTemplateEventConf
 type PricingHelpOpen = { sku: PricingHelpSkuContext | null };
 
 /** Hub shows category cards; sub-panels hold the full tables without scrolling past unrelated sections. */
-type SettingsActivePanel = "home" | "notifications" | "pricing";
+type SettingsActivePanel = "home" | "notifications" | "pricing" | "team-emails" | "skincare-products";
+
+// ── Skincare product display helpers ────────────────────────────────────────
+
+/** Strip SEO suffix after | or – to get a clean display name. */
+function skincareDisplayName(fullName: string): string {
+  return fullName.split(/\s*[|–—]\s*/)[0]?.trim() ?? fullName;
+}
+
+function skincareProductBrand(name: string): string {
+  if (/^the treat/i.test(name)) return "The Treatment";
+  if (/^skinceuticals/i.test(name)) return "SkinCeuticals";
+  if (/^gm collin/i.test(name)) return "G.M. Collin";
+  if (/^omnilux/i.test(name)) return "Omnilux";
+  if (/^plated/i.test(name)) return "Plated";
+  return "Other";
+}
+
+/** Parse "$68.00" → 68 for use with formatPrice. Returns null if unparseable. */
+function parseSkincarePrice(priceStr: string | undefined): number | null {
+  if (!priceStr) return null;
+  const n = parseFloat(priceStr.replace(/[^0-9.]/g, ""));
+  return isNaN(n) ? null : n;
+}
+
+type SkincareProductRow = {
+  name: string;
+  displayName: string;
+  brand: string;
+  price: string | undefined;
+  priceNum: number | null;
+  imageUrl: string | undefined;
+  productUrl: string | undefined;
+  description: string | undefined;
+};
+
+const BRAND_ORDER = ["The Treatment", "SkinCeuticals", "G.M. Collin", "Omnilux", "Plated"];
+
+type SkincareBrandGroup = { brand: string; products: SkincareProductRow[] };
 
 type PricingSectionView = {
   category: string;
@@ -36,11 +83,16 @@ type PricingSectionView = {
 };
 
 export default function SettingsView() {
+  const { provider } = useDashboard();
   const [activePanel, setActivePanel] = useState<SettingsActivePanel>("home");
   const [preview, setPreview] = useState<PreviewSelection>(null);
   const [changeRequest, setChangeRequest] = useState<PreviewSelection>(null);
   const [pricingHelp, setPricingHelp] = useState<PricingHelpOpen | null>(null);
   const [pricingSearch, setPricingSearch] = useState("");
+  const [skincareSearch, setSkincareSearch] = useState("");
+  const [skincareProductHelp, setSkincareProductHelp] = useState<PricingHelpOpen | null>(null);
+  const [emailNotifHelp, setEmailNotifHelp] = useState<{ entry: EmailNotificationEntry | null } | null>(null);
+  const [emailNotifPreview, setEmailNotifPreview] = useState<EmailNotificationEntry | null>(null);
   const settingsPanelScrollSkip = useRef(true);
 
   useEffect(() => {
@@ -108,12 +160,62 @@ export default function SettingsView() {
     [],
   );
 
+  const skincareAllProducts = useMemo<SkincareProductRow[]>(() =>
+    TREATMENT_BOUTIQUE_SKINCARE
+      .filter((p) => p.name !== "Other")
+      .map((p) => ({
+        name: p.name,
+        displayName: skincareDisplayName(p.name),
+        brand: skincareProductBrand(p.name),
+        price: p.price,
+        priceNum: parseSkincarePrice(p.price),
+        imageUrl: p.imageUrl,
+        productUrl: p.productUrl,
+        description: p.description,
+      })),
+    [],
+  );
+
+  const skincareGroupsFiltered = useMemo<SkincareBrandGroup[]>(() => {
+    const q = skincareSearch.trim().toLowerCase();
+    const filtered = q
+      ? skincareAllProducts.filter((p) => {
+          const hay = [p.name, p.brand, p.description ?? ""].join(" ").toLowerCase();
+          return hay.includes(q);
+        })
+      : skincareAllProducts;
+
+    const byBrand = new Map<string, SkincareProductRow[]>();
+    for (const p of filtered) {
+      const arr = byBrand.get(p.brand) ?? [];
+      arr.push(p);
+      byBrand.set(p.brand, arr);
+    }
+    const groups: SkincareBrandGroup[] = [];
+    for (const brand of BRAND_ORDER) {
+      const products = byBrand.get(brand);
+      if (products?.length) groups.push({ brand, products });
+    }
+    for (const [brand, products] of byBrand) {
+      if (!BRAND_ORDER.includes(brand)) groups.push({ brand, products });
+    }
+    return groups;
+  }, [skincareAllProducts, skincareSearch]);
+
+  const skincareProductTotal = skincareAllProducts.length;
+  const skincareProductFilteredCount = skincareGroupsFiltered.reduce(
+    (n, g) => n + g.products.length,
+    0,
+  );
+
   return (
     <div
       className={
         activePanel === "home"
           ? "settings-page"
-          : "settings-page settings-page--subpanel"
+          : activePanel === "skincare-products"
+            ? "settings-page settings-page--products"
+            : "settings-page settings-page--subpanel"
       }
     >
       <header className="settings-page-header">
@@ -136,7 +238,11 @@ export default function SettingsView() {
             <h1 className="settings-page-title settings-page-title--subpanel">
               {activePanel === "notifications"
                 ? "Client notifications"
-                : "Treatment pricing"}
+                : activePanel === "team-emails"
+                  ? "Team notifications"
+                  : activePanel === "skincare-products"
+                    ? "Skincare products"
+                    : "Treatment pricing"}
             </h1>
           </div>
         )}
@@ -186,6 +292,54 @@ export default function SettingsView() {
                   onClick={() => setActivePanel("pricing")}
                 >
                   Open treatment pricing
+                  <span className="settings-hub-card-cta-icon" aria-hidden>
+                    →
+                  </span>
+                </button>
+              </div>
+            </li>
+            <li className="settings-hub-card-shell">
+              <div className="settings-hub-card-body">
+                <h2 className="settings-hub-card-title">Team notifications</h2>
+                <p className="settings-hub-card-desc">
+                  All automated emails your system sends — to patients and your team — plus the
+                  recipient addresses for team-facing alerts.
+                </p>
+                <p className="settings-hub-card-meta">
+                  {EMAIL_NOTIFICATION_TOTAL_COUNT} email types · {EMAIL_NOTIFICATION_CATEGORY_COUNT} categories
+                </p>
+              </div>
+              <div className="settings-hub-card-footer">
+                <button
+                  type="button"
+                  className="btn-primary settings-hub-card-cta"
+                  onClick={() => setActivePanel("team-emails")}
+                >
+                  Open team notifications
+                  <span className="settings-hub-card-cta-icon" aria-hidden>
+                    →
+                  </span>
+                </button>
+              </div>
+            </li>
+            <li className="settings-hub-card-shell">
+              <div className="settings-hub-card-body">
+                <h2 className="settings-hub-card-title">Skincare products</h2>
+                <p className="settings-hub-card-desc">
+                  Full boutique catalog with photos, pricing, and shop links. Browse by brand and
+                  request a change if anything needs updating.
+                </p>
+                <p className="settings-hub-card-meta">
+                  {skincareProductTotal} products · {BRAND_ORDER.length} brands
+                </p>
+              </div>
+              <div className="settings-hub-card-footer">
+                <button
+                  type="button"
+                  className="btn-primary settings-hub-card-cta"
+                  onClick={() => setActivePanel("skincare-products")}
+                >
+                  Open skincare products
                   <span className="settings-hub-card-cta-icon" aria-hidden>
                     →
                   </span>
@@ -511,6 +665,357 @@ export default function SettingsView() {
         <PricingChangeRequestModal
           sku={pricingHelp.sku}
           onClose={() => setPricingHelp(null)}
+        />
+      ) : null}
+
+      {activePanel === "team-emails" ? (
+        <section
+          className="settings-card settings-subpanel-card settings-email-notif-panel"
+          aria-labelledby="settings-team-emails-heading"
+        >
+          <h2 id="settings-team-emails-heading" className="visually-hidden">
+            Team notifications
+          </h2>
+
+          {/* ── Section 1: Recipient configuration ──────────────────────── */}
+          <div className="settings-email-notif-recipients">
+            <h3 className="settings-email-notif-section-title">
+              Team recipient emails
+            </h3>
+            <p className="settings-card-lead" style={{ marginBottom: 0 }}>
+              These addresses are CC'd on every team-facing notification (new leads, consultation
+              requests, patient activity alerts). Seeded from the{" "}
+              <strong>Booking Email</strong> field in your provider record — edit and save to
+              override for this browser.
+            </p>
+            <ProviderTeamNotificationEmails
+              providerId={provider?.id ?? ""}
+              provider={provider}
+            />
+          </div>
+
+          <hr className="settings-email-notif-divider" />
+
+          {/* ── Section 2: Email notification catalog ──────────────────── */}
+          <div className="settings-email-notif-catalog">
+            <h3 className="settings-email-notif-section-title">
+              Email notification catalog
+            </h3>
+            <p className="settings-card-lead" style={{ marginBottom: 12 }}>
+              Every automated email your system sends, sourced from the Email Notifications table
+              in Airtable. Use <strong>Request change</strong> on any row to ask our team for
+              updates to subject lines, body copy, or routing.
+            </p>
+
+            <div className="settings-email-notif-categories">
+              {EMAIL_NOTIFICATION_CATALOG.map((category) => (
+                <div key={category.id} className="settings-email-notif-category">
+                  <div className="settings-email-notif-category-header">
+                    <h4 className="settings-email-notif-category-title">{category.label}</h4>
+                    <p className="settings-email-notif-category-desc">{category.description}</p>
+                  </div>
+                  <div className="settings-table-scroll">
+                    <table className="settings-notifications-table settings-email-notif-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Notification</th>
+                          <th scope="col">Trigger</th>
+                          <th scope="col" className="settings-email-notif-col-audience">
+                            Sent to
+                          </th>
+                          <th scope="col" className="settings-col-actions">
+                            Request
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {category.entries.map((entry) => (
+                          <tr key={entry.id}>
+                            <td className="settings-email-notif-name-cell">
+                              <p className="settings-email-notif-name">{entry.name}</p>
+                              <p className="settings-email-notif-subject">
+                                <span className="settings-email-notif-subject-label">Subject: </span>
+                                {entry.subjectTemplate}
+                              </p>
+                              {entry.note ? (
+                                <p className="settings-email-notif-note">{entry.note}</p>
+                              ) : null}
+                              {entry.examplesAtGetTheTreatment ? (
+                                <p className="settings-email-notif-gtt">
+                                  <span className="settings-email-notif-gtt-label">
+                                    getthetreatment.com (from logs):
+                                  </span>{" "}
+                                  {entry.examplesAtGetTheTreatment}
+                                </p>
+                              ) : null}
+                            </td>
+                            <td className="settings-email-notif-trigger-cell">
+                              {entry.trigger}
+                            </td>
+                            <td className="settings-email-notif-col-audience">
+                              <span
+                                className={`settings-email-audience-pill settings-email-audience-pill--${entry.audience}`}
+                              >
+                                {entry.audience === "both"
+                                  ? "Patient + Team"
+                                  : entry.audience === "team"
+                                    ? "Team"
+                                    : "Patient"}
+                              </span>
+                            </td>
+                            <td className="settings-td-actions">
+                              <button
+                                type="button"
+                                className="settings-secondary-btn settings-notif-view-btn"
+                                onClick={() => setEmailNotifPreview(entry)}
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                className="settings-secondary-btn settings-notif-view-btn"
+                                onClick={() => setEmailNotifHelp({ entry })}
+                              >
+                                Request change
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {emailNotifPreview ? (
+        <div
+          className="modal-overlay active"
+          onClick={() => setEmailNotifPreview(null)}
+        >
+          <div
+            className="modal-content settings-template-preview-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="email-notif-preview-title"
+          >
+            <div className="modal-header">
+              <div className="modal-header-info">
+                <h2 id="email-notif-preview-title" className="modal-title">
+                  {emailNotifPreview.name}
+                </h2>
+                <p className="settings-template-preview-meta">
+                  <span
+                    className={`settings-email-audience-pill settings-email-audience-pill--${emailNotifPreview.audience}`}
+                    style={{ marginRight: 8 }}
+                  >
+                    {emailNotifPreview.audience === "both"
+                      ? "Patient + Team"
+                      : emailNotifPreview.audience === "team"
+                        ? "Team"
+                        : "Patient"}
+                  </span>
+                  {emailNotifPreview.subjectTemplate}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setEmailNotifPreview(null)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="settings-template-preview-trigger">
+                <strong>When:</strong> {emailNotifPreview.trigger}
+              </p>
+              <label className="settings-template-preview-label">Email body</label>
+              <pre className="settings-template-preview-pre">{emailNotifPreview.templatePreview}</pre>
+              {emailNotifPreview.examplesAtGetTheTreatment ? (
+                <>
+                  <label className="settings-template-preview-label">
+                    Examples (@getthetreatment.com from Email Notifications logs)
+                  </label>
+                  <p className="settings-email-notif-gtt settings-email-notif-gtt--modal">
+                    {emailNotifPreview.examplesAtGetTheTreatment}
+                  </p>
+                </>
+              ) : null}
+              {emailNotifPreview.note ? (
+                <p className="settings-owner-note">{emailNotifPreview.note}</p>
+              ) : null}
+            </div>
+            <div className="modal-footer settings-template-preview-footer">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setEmailNotifPreview(null)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  const entry = emailNotifPreview;
+                  setEmailNotifPreview(null);
+                  setEmailNotifHelp({ entry });
+                }}
+              >
+                Request change
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {emailNotifHelp ? (
+        <PricingChangeRequestModal
+          sku={
+            emailNotifHelp.entry
+              ? {
+                  category: "Email notifications",
+                  name: emailNotifHelp.entry.name,
+                  price: 0,
+                  note: `Subject: ${emailNotifHelp.entry.subjectTemplate} · Trigger: ${emailNotifHelp.entry.trigger}`,
+                }
+              : null
+          }
+          onClose={() => setEmailNotifHelp(null)}
+        />
+      ) : null}
+
+      {activePanel === "skincare-products" ? (
+        <section
+          className="settings-card settings-subpanel-card"
+          aria-labelledby="settings-skincare-heading"
+        >
+          <h2 id="settings-skincare-heading" className="visually-hidden">
+            Skincare products
+          </h2>
+          <p className="settings-card-lead">
+            Every product in the boutique catalog, organized by brand. Click{" "}
+            <strong>View on shop</strong> to open the product page and use{" "}
+            <strong>Request change</strong> if a price or detail needs updating.
+          </p>
+
+          <div className="settings-pricing-toolbar">
+            <label className="settings-pricing-search-label" htmlFor="settings-skincare-search">
+              Search products
+            </label>
+            <div className="settings-pricing-toolbar-row">
+              <input
+                id="settings-skincare-search"
+                type="search"
+                className="settings-pricing-search"
+                placeholder="Brand, product name, or description…"
+                value={skincareSearch}
+                onChange={(e) => setSkincareSearch(e.target.value)}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                className="settings-secondary-btn settings-pricing-toolbar-btn"
+                onClick={() => setSkincareProductHelp({ sku: null })}
+              >
+                Request other change
+              </button>
+            </div>
+            <p className="settings-pricing-count" aria-live="polite">
+              Showing {skincareProductFilteredCount} of {skincareProductTotal} products
+              {skincareSearch.trim() ? " (filtered)" : ""}
+              {skincareSearch.trim() && skincareGroupsFiltered.length > 0
+                ? ` across ${skincareGroupsFiltered.length} brand${skincareGroupsFiltered.length === 1 ? "" : "s"}`
+                : ""}
+              .
+            </p>
+          </div>
+
+          {skincareGroupsFiltered.length === 0 ? (
+            <p className="settings-muted settings-pricing-empty">
+              Nothing matches your search. Clear the box to see all products.
+            </p>
+          ) : (
+            <div className="settings-skincare-brands">
+              {skincareGroupsFiltered.map((group) => (
+                <div key={group.brand} className="settings-skincare-brand-section">
+                  <h3 className="settings-pricing-section-title">{group.brand}</h3>
+                  <div className="settings-skincare-grid">
+                    {group.products.map((product) => (
+                      <div key={product.name} className="settings-skincare-card">
+                        <div className="settings-skincare-card-img-wrap">
+                          {product.imageUrl ? (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.displayName}
+                              className="settings-skincare-card-img"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="settings-skincare-card-img-placeholder" aria-hidden />
+                          )}
+                        </div>
+                        <div className="settings-skincare-card-body">
+                          <p className="settings-skincare-card-name" title={product.name}>
+                            {product.displayName}
+                          </p>
+                          {product.price ? (
+                            <p className="settings-skincare-card-price">{product.price}</p>
+                          ) : null}
+                          {product.description ? (
+                            <p className="settings-skincare-card-desc">{product.description}</p>
+                          ) : null}
+                          <div className="settings-skincare-card-actions">
+                            {product.productUrl ? (
+                              <a
+                                href={product.productUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="settings-secondary-btn settings-skincare-shop-link"
+                              >
+                                View on shop ↗
+                              </a>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="settings-secondary-btn settings-notif-view-btn"
+                              onClick={() =>
+                                setSkincareProductHelp({
+                                  sku: {
+                                    category: group.brand,
+                                    name: product.displayName,
+                                    price: product.priceNum ?? 0,
+                                    note: product.productUrl
+                                      ? `Shop URL: ${product.productUrl}`
+                                      : undefined,
+                                  },
+                                })
+                              }
+                            >
+                              Request change
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {skincareProductHelp ? (
+        <PricingChangeRequestModal
+          sku={skincareProductHelp.sku}
+          onClose={() => setSkincareProductHelp(null)}
         />
       ) : null}
     </div>

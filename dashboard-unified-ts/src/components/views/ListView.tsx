@@ -98,6 +98,9 @@ export default function ListView() {
     return sort.order === "asc" ? " ↑" : " ↓";
   };
 
+  const isLeadsView = currentView === "leads";
+  const tableColSpan = isLeadsView ? 4 : 6;
+
   if (loading) {
     return (
       <section className="list-view active">
@@ -144,7 +147,7 @@ export default function ListView() {
           </div>
         )}
         <div className="leads-table-container">
-          <table className="leads-table">
+          <table className={isLeadsView ? "leads-table leads-table--leads-compact" : "leads-table"}>
             <thead>
               <tr>
                 <th
@@ -154,14 +157,18 @@ export default function ListView() {
                 >
                   Client{getSortIndicator("name")}
                 </th>
-                <th>Interested Treatments</th>
-                <th
-                  onClick={() => handleColumnSort("facialAnalysisStatus")}
-                  className="table-header-sortable"
-                  title="Click to sort by analysis status"
-                >
-                  Analysis Status{getSortIndicator("facialAnalysisStatus")}
-                </th>
+                {!isLeadsView && (
+                  <>
+                    <th>Interested Treatments</th>
+                    <th
+                      onClick={() => handleColumnSort("facialAnalysisStatus")}
+                      className="table-header-sortable"
+                      title="Click to sort by analysis status"
+                    >
+                      Analysis Status{getSortIndicator("facialAnalysisStatus")}
+                    </th>
+                  </>
+                )}
                 <th
                   onClick={() => handleColumnSort("status")}
                   className="table-header-sortable"
@@ -182,14 +189,14 @@ export default function ListView() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="table-cell-center">
+                  <td colSpan={tableColSpan} className="table-cell-center">
                     <div className="spinner spinner-with-margin"></div>
                     Loading clients...
                   </td>
                 </tr>
               ) : processedClients.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="table-cell-center">
+                  <td colSpan={tableColSpan} className="table-cell-center">
                     {clients.length === 0
                       ? "No clients found"
                       : currentView === "leads"
@@ -212,45 +219,46 @@ export default function ListView() {
                         {client.email || ""}
                       </div>
                     </td>
-                    <td>
-                      <div className="interest-tags-container">
-                        {Array.isArray(client.goals)
-                          ? client.goals.slice(0, 2).map((g, i) => (
-                              <span
-                                key={i}
-                                className="interest-tag interest-tag-sm"
-                              >
-                                {g}
-                              </span>
-                            ))
-                          : null}
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        className="status-badge status-badge-base"
-                        style={{
-                          background: getFacialStatusColorForDisplay(
-                            client.facialAnalysisStatus || null,
-                            hasFacialInterestedTreatments(client),
-                            provider?.code,
-                          ),
-                        }}
-                      >
-                        {formatFacialStatusForDisplay(
-                          client.facialAnalysisStatus || null,
-                          hasFacialInterestedTreatments(client),
-                          provider?.code,
-                        )}
-                      </span>
-                      {client.offerClaimed && (
-                        <div className="status-badge-offer">
-                          <span className="status-badge-offer-content">
-                            ✓ Offer Claimed
+                    {!isLeadsView && (
+                      <>
+                        <td>
+                          <div className="interest-tags-container">
+                            {Array.isArray(client.goals)
+                              ? client.goals.slice(0, 2).map((g, i) => (
+                                  <span key={i} className="interest-tag interest-tag-sm">
+                                    {g}
+                                  </span>
+                                ))
+                              : null}
+                          </div>
+                        </td>
+                        <td>
+                          <span
+                            className="status-badge status-badge-base"
+                            style={{
+                              background: getFacialStatusColorForDisplay(
+                                client.facialAnalysisStatus || null,
+                                hasFacialInterestedTreatments(client),
+                                provider?.code,
+                              ),
+                            }}
+                          >
+                            {formatFacialStatusForDisplay(
+                              client.facialAnalysisStatus || null,
+                              hasFacialInterestedTreatments(client),
+                              provider?.code,
+                            )}
                           </span>
-                        </div>
-                      )}
-                    </td>
+                          {client.offerClaimed && (
+                            <div className="status-badge-offer">
+                              <span className="status-badge-offer-content">
+                                ✓ Offer Claimed
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td onClick={(e) => e.stopPropagation()}>
                       <select
                         className="status-select-inline"

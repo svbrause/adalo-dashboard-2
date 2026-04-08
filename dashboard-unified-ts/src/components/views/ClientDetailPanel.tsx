@@ -1282,8 +1282,9 @@ export default function ClientDetailPanel({
                             &apos;s plan
                           </span>
                           <span className="discussed-treatments-in-facial-subheading">
-                            From the visit and your notes (not limited to facial
-                            scan)
+                            {showTreatmentRecommenderShortcut
+                              ? "From the visit and your notes (not limited to facial scan)"
+                              : "Scan patient before building a plan"}
                           </span>
                         </div>
                         <div className="discussed-treatments-in-facial-actions">
@@ -1303,18 +1304,24 @@ export default function ClientDetailPanel({
                                 Share
                               </button>
                             )}
-                          {showTreatmentRecommenderShortcut && (
-                            <button
-                              type="button"
-                              className="btn-secondary btn-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            disabled={!showTreatmentRecommenderShortcut}
+                            title={
+                              !showTreatmentRecommenderShortcut
+                                ? "Scan the patient first to use the Treatment Recommender"
+                                : undefined
+                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (showTreatmentRecommenderShortcut) {
                                 setRecommenderMode("by-treatment");
-                              }}
-                            >
-                              Treatment Recommender
-                            </button>
-                          )}
+                              }
+                            }}
+                          >
+                            Treatment Recommender
+                          </button>
                           {/* Plan Manage/Add — hidden for now (re-enable when Discussed Treatments modal flow is ready). */}
                           {false && (
                             <button

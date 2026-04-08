@@ -32,7 +32,7 @@ import {
 } from "../../utils/postVisitBlueprint";
 import { formatPrice } from "../../data/treatmentPricing2025";
 import { patientFacingSkincareShortName } from "../../utils/pvbSkincareDisplay";
-import { getTreatmentDisplayName } from "./DiscussedTreatmentsModal/utils";
+import { getTreatmentDisplayName, getTreatmentPlanRowPrimaryLabel } from "./DiscussedTreatmentsModal/utils";
 import {
   computeQuoteSheetDataForDiscussedItems,
   getAlignedCheckoutLineItemsForDiscussedItems,
@@ -100,11 +100,17 @@ function shareRowPrimaryLabel(
       }
     | undefined,
 ): string {
-  if (!line) return getTreatmentDisplayName(item);
+  if (!line) return getTreatmentPlanRowPrimaryLabel(item);
   const raw = (line.skuName ?? line.label ?? "").trim();
   if (line.quoteLineKind === "skincare" && raw) {
     return patientFacingSkincareShortName(raw);
   }
+  // Use the same label the plan list column shows (item.product when set, else
+  // treatment name). This keeps the Share popup consistent with what the provider
+  // sees on the left side of the recommender — e.g. "Moxi + BBL" in both places
+  // instead of "Moxi + BBL" on the plan and "Moxi Full Face" on the share popup.
+  const planLabel = getTreatmentPlanRowPrimaryLabel(item);
+  if (planLabel && planLabel !== "—") return planLabel;
   if (raw) return raw;
   return getTreatmentDisplayName(item);
 }
@@ -626,8 +632,8 @@ export default function ShareTreatmentPlanLinkModal({
         {step === "pick" ? (
           <>
             <p className="share-tp-link-dialog-subtitle">
-              Choose items for the patient link—pricing matches their plan. Now,
-              next visit &amp; Skincare default on; Wishlist off.
+              Select which items to include. Everything checked will appear on
+              the patient's link with the prices from their plan.
             </p>
             <div className="share-tp-link-dialog-body">
               {eligibleItems.length === 0 ? (
