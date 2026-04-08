@@ -59,20 +59,28 @@ export default function PricingChangeRequestModal({
   const [editMode, setEditMode] = useState(false);
 
   function startEdit() {
-    if (!subjectChange) setSubjectChange(sku?.emailSubject ?? "");
-    if (!recipientsChange) setRecipientsChange(sku?.emailRecipients ?? "");
-    if (!bodyChange) setBodyChange(sku?.emailBody ?? "");
     setEditMode(true);
   }
 
   function cancelEdit() {
     setEditMode(false);
-    setSubjectChange("");
-    setRecipientsChange("");
-    setBodyChange("");
+    if (!sku || sku.rowKind !== "email-routing") return;
+    setSubjectChange(sku.emailSubject ?? "");
+    setRecipientsChange(sku.emailRecipients ?? "");
+    setBodyChange(sku.emailBody ?? "");
   }
 
   const isEmailRouting = sku?.rowKind === "email-routing";
+
+  /** When opening a notification (or switching rows), sync fields from catalog. Keys avoid resetting on unrelated parent re-renders. */
+  useEffect(() => {
+    if (!sku || sku.rowKind !== "email-routing") return;
+    setSubjectChange(sku.emailSubject ?? "");
+    setRecipientsChange(sku.emailRecipients ?? "");
+    setBodyChange(sku.emailBody ?? "");
+    setEditMode(false);
+    setEmailNotes("");
+  }, [sku?.rowKind, sku?.name, sku?.category]);
 
   // Pricing / product default text (not used for email-routing)
   const defaultRequest = useMemo(() => {
@@ -146,8 +154,8 @@ export default function PricingChangeRequestModal({
 
   function buildEmailMessage(): string {
     const lines: string[] = [
-      `Notification: ${sku!.name}`,
-      sku!.emailTrigger?.trim() ? `Trigger: ${sku!.emailTrigger.trim()}` : "",
+      `*Notification:* ${sku!.name}`,
+      sku!.emailTrigger?.trim() ? `*Trigger:* ${sku!.emailTrigger.trim()}` : "",
     ].filter(Boolean);
 
     const subjectChanged = subjectChange.trim() !== (sku!.emailSubject?.trim() ?? "");
@@ -157,39 +165,38 @@ export default function PricingChangeRequestModal({
     if (subjectChanged) {
       lines.push(
         "",
-        "Subject:",
-        `  Current: ${sku!.emailSubject ?? "—"}`,
-        `  Requested: ${subjectChange.trim()}`,
+        "*Subject change:*",
+        `• *Current:* ${sku!.emailSubject ?? "—"}`,
+        `• *Requested:* ${subjectChange.trim()}`,
       );
     }
     if (recipientsChanged) {
       lines.push(
         "",
-        "Recipients:",
-        `  Current: ${sku!.emailRecipients ?? "—"}`,
-        `  Requested: ${recipientsChange.trim()}`,
+        "*Recipients change:*",
+        `• *Current:* ${sku!.emailRecipients ?? "—"}`,
+        `• *Requested:* ${recipientsChange.trim()}`,
       );
     }
     if (bodyChanged) {
       lines.push(
         "",
-        "Template:",
-        `  Current: ${sku!.emailBody?.trim() ?? "—"}`,
-        `  Requested: ${bodyChange.trim()}`,
+        "*Template change:*",
+        `• *Current:* ${sku!.emailBody?.trim() ?? "—"}`,
+        `• *Requested:* ${bodyChange.trim()}`,
       );
     }
     if (emailNotes.trim()) {
-      lines.push("", `Notes: ${emailNotes.trim()}`);
+      lines.push("", `*Notes:* ${emailNotes.trim()}`);
     }
     return lines.join("\n");
   }
 
-  const emailHasActualChange = editMode && (
+  const emailHasActualChange =
     subjectChange.trim() !== (sku?.emailSubject?.trim() ?? "") ||
     recipientsChange.trim() !== (sku?.emailRecipients?.trim() ?? "") ||
     bodyChange.trim() !== (sku?.emailBody?.trim() ?? "") ||
-    emailNotes.trim() !== ""
-  );
+    emailNotes.trim() !== "";
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -207,10 +214,6 @@ export default function PricingChangeRequestModal({
     }
 
     if (isEmailRouting) {
-      if (!editMode) {
-        showError("Click Change to edit a field before sending.");
-        return;
-      }
       if (!emailHasActualChange) {
         showError("No changes detected — edit at least one field before sending.");
         return;
@@ -224,14 +227,21 @@ export default function PricingChangeRequestModal({
 
     setLoading(true);
     try {
-      const tag = isEmailRouting ? "[EMAIL NOTIFICATION CHANGE REQUEST]" : "[PRICING CHANGE REQUEST]";
-      const body = isEmailRouting ? buildEmailMessage() : request.trim();
-      const taggedMessage = `${tag}\n${body}`;
+      const category = isEmailRouting
+        ? "Email Notification Change Request"
+        : sku?.rowKind === "product"
+          ? "Skincare Product Change Request"
+          : "Pricing Change Request";
+      const messageBody = isEmailRouting ? buildEmailMessage() : request.trim();
       await submitHelpRequest(
         name.trim(),
         email.trim(),
-        appendTeamNotificationEmailsToHelpMessage(taggedMessage, provider.id, provider),
+        appendTeamNotificationEmailsToHelpMessage(messageBody, provider.id, provider),
         provider.id,
+        {
+          category,
+          providerName: provider.name ?? "",
+        },
       );
       showToast("Request sent to the team.");
       onClose();

@@ -26,8 +26,13 @@ export default function SmsConfigChangeRequestModal({
   const [editMode, setEditMode] = useState(false);
   const [notes, setNotes] = useState("");
 
+  useEffect(() => {
+    setTemplateChange(eventConfig.template);
+    setEditMode(false);
+    setNotes("");
+  }, [product.id, eventConfig.id, eventConfig.template]);
+
   function startEdit() {
-    if (!templateChange) setTemplateChange(eventConfig.template);
     setEditMode(true);
   }
 
@@ -44,21 +49,21 @@ export default function SmsConfigChangeRequestModal({
 
   function buildMessage(): string {
     const lines: string[] = [
-      `Workflow: ${product.productName}`,
-      `Event: ${eventConfig.eventName}`,
-      `Trigger: ${eventConfig.trigger}`,
-      `Status: ${eventConfig.enabled ? "On" : "Off"}`,
+      `*Workflow:* ${product.productName}`,
+      `*Event:* ${eventConfig.eventName}`,
+      `*Trigger:* ${eventConfig.trigger}`,
+      `*Status:* ${eventConfig.enabled ? "On" : "Off"}`,
     ];
     if (templateChanged) {
       lines.push(
         "",
-        "Template:",
-        `  Current: ${eventConfig.template}`,
-        `  Requested: ${templateChange.trim()}`,
+        "*Template change:*",
+        `• *Current:* ${eventConfig.template}`,
+        `• *Requested:* ${templateChange.trim()}`,
       );
     }
     if (notes.trim()) {
-      lines.push("", `Notes: ${notes.trim()}`);
+      lines.push("", `*Notes:* ${notes.trim()}`);
     }
     return lines.join("\n");
   }
@@ -77,23 +82,22 @@ export default function SmsConfigChangeRequestModal({
       showError("Please add a valid email.");
       return;
     }
-    if (!editMode && !notes.trim()) {
-      showError("Click Change to edit the template, or add a note.");
-      return;
-    }
-    if (editMode && !templateChanged && !notes.trim()) {
+    if (!templateChanged && !notes.trim()) {
       showError("No changes detected — edit the template or add a note before sending.");
       return;
     }
 
     setLoading(true);
     try {
-      const taggedMessage = `[SMS CONFIG CHANGE REQUEST]\n${buildMessage()}`;
       await submitHelpRequest(
         name.trim(),
         email.trim(),
-        appendTeamNotificationEmailsToHelpMessage(taggedMessage, provider.id, provider),
+        appendTeamNotificationEmailsToHelpMessage(buildMessage(), provider.id, provider),
         provider.id,
+        {
+          category: "SMS Notification Template Change Request",
+          providerName: provider.name ?? "",
+        },
       );
       showToast("Request sent to the team.");
       onClose();
@@ -175,7 +179,14 @@ export default function SmsConfigChangeRequestModal({
                 <span>{editMode ? "Editing" : "Current template"}</span>
                 {editMode ? (
                   <div className="creq-group-header-actions">
-                    <button type="button" className="creq-field-cancel-btn" onClick={() => { setEditMode(false); setTemplateChange(""); }}>
+                    <button
+                      type="button"
+                      className="creq-field-cancel-btn"
+                      onClick={() => {
+                        setEditMode(false);
+                        setTemplateChange(eventConfig.template);
+                      }}
+                    >
                       Cancel
                     </button>
                     <button type="button" className="creq-field-change-btn" onClick={() => setEditMode(false)}>

@@ -200,6 +200,7 @@ export default function SettingsView() {
   const [skincareSort, setSkincareSort] = useState<SkincareSortId>("brand");
   const [emailNotifHelp, setEmailNotifHelp] = useState<{ entry: AutomatedEmail | null } | null>(null);
   const [emailChangeRequest, setEmailChangeRequest] = useState<AutomatedEmail | null>(null);
+  const [volumePeriod, setVolumePeriod] = useState<"d7" | "d14" | "d30">("d30");
   const settingsPanelScrollSkip = useRef(true);
 
   useEffect(() => {
@@ -646,6 +647,23 @@ export default function SettingsView() {
                       <tr>
                         <th scope="col">Event</th>
                         <th scope="col">When it sends</th>
+                        <th scope="col" className="settings-col-volume">
+                          <div className="settings-volume-header">
+                            <span>Sent</span>
+                            <span className="settings-volume-period-toggle" role="group" aria-label="Time period">
+                              {(["d7", "d14", "d30"] as const).map((p) => (
+                                <button
+                                  key={p}
+                                  type="button"
+                                  className={`settings-volume-period-btn${volumePeriod === p ? " settings-volume-period-btn--active" : ""}`}
+                                  onClick={() => setVolumePeriod(p)}
+                                >
+                                  {p === "d7" ? "7d" : p === "d14" ? "14d" : "30d"}
+                                </button>
+                              ))}
+                            </span>
+                          </div>
+                        </th>
                         <th scope="col" className="settings-col-actions">
                           View
                         </th>
@@ -655,6 +673,8 @@ export default function SettingsView() {
                       {section.items.map((item) => {
                         if (item.type === "sms") {
                           const { event, product } = item;
+                          const vol = event.recentVolume;
+                          const count = vol ? vol[volumePeriod] : undefined;
                           return (
                             <tr key={`sms-${event.id}`}>
                               <td className="settings-notif-notification-cell">
@@ -669,6 +689,15 @@ export default function SettingsView() {
                                   </span>
                                 </div>
                               </td>
+                              <td className="settings-td-volume">
+                                {count === undefined ? (
+                                  <span className="settings-volume-badge settings-volume-badge--unknown">—</span>
+                                ) : count === 0 ? (
+                                  <span className="settings-volume-badge settings-volume-badge--zero">0</span>
+                                ) : (
+                                  <span className="settings-volume-badge settings-volume-badge--active">{count.toLocaleString()}</span>
+                                )}
+                              </td>
                               <td className="settings-td-actions settings-td-actions--single">
                                 <button
                                   type="button"
@@ -682,6 +711,15 @@ export default function SettingsView() {
                           );
                         } else {
                           const { email } = item;
+                          const monthly = email.recentVolumePerMonth;
+                          const emailCount =
+                            monthly == null
+                              ? undefined
+                              : volumePeriod === "d7"
+                              ? Math.round(monthly / 4.3)
+                              : volumePeriod === "d14"
+                              ? Math.round(monthly / 2.15)
+                              : monthly;
                           return (
                             <tr key={`email-${email.id}`}>
                               <td className="settings-notif-notification-cell">
@@ -718,6 +756,17 @@ export default function SettingsView() {
                                     </span>
                                   )}
                                 </div>
+                              </td>
+                              <td className="settings-td-volume">
+                                {emailCount === undefined ? (
+                                  <span className="settings-volume-badge settings-volume-badge--unknown">—</span>
+                                ) : emailCount === 0 ? (
+                                  <span className="settings-volume-badge settings-volume-badge--zero">0</span>
+                                ) : (
+                                  <span className="settings-volume-badge settings-volume-badge--active" title="Estimated from monthly average">
+                                    ~{emailCount.toLocaleString()}
+                                  </span>
+                                )}
                               </td>
                               <td className="settings-td-actions settings-td-actions--single">
                                 <button

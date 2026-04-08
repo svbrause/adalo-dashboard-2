@@ -832,22 +832,33 @@ export async function submitHelpRequest(
   name: string,
   email: string,
   message: string,
-  providerId: string
+  providerId: string,
+  options?: {
+    /** Airtable "Help Request or Analysis Feedback" field — used to categorise the request. */
+    category?: string;
+    /** Airtable "Provider Name" field. */
+    providerName?: string;
+  }
 ): Promise<boolean> {
   const apiUrl = `${API_BASE_URL}/api/dashboard/help-requests`;
+  const fields: Record<string, string> = {
+    Name: name,
+    Email: email,
+    Message: message,
+    "Provider Id": providerId,
+  };
+  if (options?.category?.trim()) {
+    fields["Help Request or Analysis Feedback"] = options.category.trim();
+  }
+  if (options?.providerName?.trim()) {
+    fields["Provider Name"] = options.providerName.trim();
+  }
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      fields: {
-        Name: name,
-        Email: email,
-        Message: message,
-        "Provider Id": providerId,
-      },
-    }),
+    body: JSON.stringify({ fields }),
   });
 
   return response.ok;
