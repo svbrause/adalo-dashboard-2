@@ -515,17 +515,17 @@ function SuggestionCard({
         ) : null}
         <div className="ao-suggestion-card__main">
           <h4 className="ao-suggestion-card__title">{card.suggestionName}</h4>
-          {card.shortSummary && (
+          {card.aiSummary ? (
+            <div className="ao-suggestion-card__ai-text">
+              {card.aiSummary.split(/\n\n+/).map((para, i) => (
+                <p key={i}>{para.replace(/\n/g, " ")}</p>
+              ))}
+            </div>
+          ) : card.shortSummary ? (
             <p className="ao-suggestion-card__short-summary">
               {card.shortSummary}
             </p>
-          )}
-          {card.aiSummary && (
-            <details className="ao-suggestion-card__ai-details">
-              <summary>Learn more</summary>
-              <p className="ao-suggestion-card__ai-text">{card.aiSummary}</p>
-            </details>
-          )}
+          ) : null}
 
           {breakdownRows.length > 0 && (
             <div className="ao-suggestion-card__breakdown">
@@ -579,14 +579,14 @@ function SuggestionCard({
             ) : formOpen ? (
               <div className="ao-suggestion-card__add-form">
                 {treatments.length > 1 && (
-                  <div className="ao-suggestion-card__form-row">
-                    <span>Type</span>
-                    <div className="ao-suggestion-card__chips">
+                  <div className="ao-suggestion-card__form-row plan-add-row">
+                    <span className="plan-add-row-label">Type</span>
+                    <div className="ao-suggestion-card__chips plan-add-chips">
                       {treatments.map((t) => (
                         <button
                           key={t}
                           type="button"
-                          className={`ao-suggestion-card__chip${what === t ? " ao-suggestion-card__chip--selected" : ""}`}
+                          className={`ao-suggestion-card__chip plan-add-chip${what === t ? " ao-suggestion-card__chip--selected plan-add-chip--selected" : ""}`}
                           onClick={() => setWhat(t)}
                         >
                           {t}
@@ -596,16 +596,16 @@ function SuggestionCard({
                   </div>
                 )}
                 {showWhereRow && (
-                  <div className="ao-suggestion-card__form-row">
-                    <span>Where</span>
-                    <div className="ao-suggestion-card__chips">
+                  <div className="ao-suggestion-card__form-row plan-add-row">
+                    <span className="plan-add-row-label">Where</span>
+                    <div className="ao-suggestion-card__chips plan-add-chips">
                       {REGION_OPTIONS.filter(
                         (r) => r !== "Multiple" && r !== "Other",
                       ).map((r) => (
                         <button
                           key={r}
                           type="button"
-                          className={`ao-suggestion-card__chip${where.includes(r) ? " ao-suggestion-card__chip--selected" : ""}`}
+                          className={`ao-suggestion-card__chip plan-add-chip${where.includes(r) ? " ao-suggestion-card__chip--selected plan-add-chip--selected" : ""}`}
                           onClick={() =>
                             setWhere((prev) =>
                               prev.includes(r)
@@ -620,14 +620,14 @@ function SuggestionCard({
                     </div>
                   </div>
                 )}
-                <div className="ao-suggestion-card__form-row">
-                  <span>When</span>
-                  <div className="ao-suggestion-card__chips">
+                <div className="ao-suggestion-card__form-row plan-add-row">
+                  <span className="plan-add-row-label">When</span>
+                  <div className="ao-suggestion-card__chips plan-add-chips">
                     {TIMELINE_OPTIONS_ADD.map((t) => (
                       <button
                         key={t}
                         type="button"
-                        className={`ao-suggestion-card__chip${when === t ? " ao-suggestion-card__chip--selected" : ""}`}
+                        className={`ao-suggestion-card__chip plan-add-chip${when === t ? " ao-suggestion-card__chip--selected plan-add-chip--selected" : ""}`}
                         onClick={() => setWhen(t)}
                       >
                         {t}
@@ -638,8 +638,8 @@ function SuggestionCard({
                 {!isSkincare && (() => {
                   const qtyCtx = getQuantityContext(what, product.trim() || undefined);
                   return (
-                    <div className="ao-suggestion-card__form-row">
-                      <span>{qtyCtx.unitLabel}</span>
+                    <div className="ao-suggestion-card__form-row plan-add-row">
+                      <span className="plan-add-row-label">{qtyCtx.unitLabel}</span>
                       {qtyCtx.quantityControl === "text" ? (
                         <input
                           type="text"
@@ -668,23 +668,23 @@ function SuggestionCard({
                     </div>
                   );
                 })()}
-                <details className="ao-suggestion-card__opt-details">
+                <details className="ao-suggestion-card__opt-details plan-opt-details">
                   <summary>Optional details</summary>
-                  <div className="ao-suggestion-card__opt-fields">
-                    <label className="ao-suggestion-card__field-label">
+                  <div className="ao-suggestion-card__opt-fields plan-opt-fields">
+                    <label className="ao-suggestion-card__field-label plan-opt-field-label">
                       Product
                       <input
                         type="text"
-                        className="ao-suggestion-card__field-input"
+                        className="ao-suggestion-card__field-input plan-opt-input"
                         placeholder="e.g. Juvederm, Botox"
                         value={product}
                         onChange={(e) => setProduct(e.target.value)}
                       />
                     </label>
-                    <label className="ao-suggestion-card__field-label">
+                    <label className="ao-suggestion-card__field-label plan-opt-field-label">
                       Notes
                       <textarea
-                        className="ao-suggestion-card__field-textarea"
+                        className="ao-suggestion-card__field-textarea plan-opt-textarea"
                         placeholder="Optional notes"
                         rows={2}
                         value={notes}
@@ -693,10 +693,10 @@ function SuggestionCard({
                     </label>
                   </div>
                 </details>
-                <div className="ao-suggestion-card__form-actions">
+                <div className="ao-suggestion-card__form-actions plan-add-actions">
                   <button
                     type="button"
-                    className="ao-suggestion-card__confirm-btn"
+                    className="ao-suggestion-card__confirm-btn plan-add-confirm-btn"
                     disabled={saving || !onAddToPlanDirect}
                     onClick={() => void handleConfirm()}
                   >
@@ -704,7 +704,7 @@ function SuggestionCard({
                   </button>
                   <button
                     type="button"
-                    className="ao-suggestion-card__cancel-btn"
+                    className="ao-suggestion-card__cancel-btn plan-add-cancel-btn"
                     disabled={saving}
                     onClick={() => setFormOpen(false)}
                   >

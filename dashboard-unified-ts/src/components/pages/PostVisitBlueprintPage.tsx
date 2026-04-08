@@ -29,6 +29,7 @@ import {
 import {
   isPostVisitBlueprintAdminSender,
   isPostVisitBlueprintAllowedForPatient,
+  isTheTreatmentProviderCode,
 } from "../../utils/providerHelpers";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { buildWellnestBlueprintCasePhotos } from "../../utils/wellnestBlueprintCases";
@@ -124,26 +125,35 @@ function PvbBrandBar({
     providerName: providerName ?? undefined,
   });
   const isWellnest = isWellnestWellnessProviderCode(providerCode);
+  const isTheTreatment = isTheTreatmentProviderCode(providerCode);
   const brandLogoSrc = isAdminSender
     ? ponceBrandLogoSrc
     : isWellnest
       ? WELLNEST_BRAND_LOGO_SRC
-      : THE_TREATMENT_BRAND_LOGO_SRC;
+      : isTheTreatment
+        ? THE_TREATMENT_BRAND_LOGO_SRC
+        : ""; // Other providers: no logo shown until theirs is configured
   const brandLabel = isAdminSender
     ? "Ponce AI"
     : isWellnest
       ? "Wellnest MD"
-      : "The Treatment Skin Boutique";
+      : isTheTreatment
+        ? "The Treatment Skin Boutique"
+        : (providerName?.trim() || "Your provider");
   return (
     <header className="pvb-brand-bar" aria-label={brandLabel}>
-      <img
-        src={brandLogoSrc}
-        alt={brandLabel}
-        className={`pvb-brand-logo${isAdminSender ? " pvb-brand-logo--ponce" : ""}`}
-        width={isAdminSender ? 200 : 220}
-        height={isAdminSender ? 48 : 72}
-        decoding="async"
-      />
+      {brandLogoSrc ? (
+        <img
+          src={brandLogoSrc}
+          alt={brandLabel}
+          className={`pvb-brand-logo${isAdminSender ? " pvb-brand-logo--ponce" : ""}`}
+          width={isAdminSender ? 200 : 220}
+          height={isAdminSender ? 48 : 72}
+          decoding="async"
+        />
+      ) : (
+        <span className="pvb-brand-name-text">{brandLabel}</span>
+      )}
       {isWellnest && (
         <a
           href={WELLNEST_MARKETING_SITE_URL}

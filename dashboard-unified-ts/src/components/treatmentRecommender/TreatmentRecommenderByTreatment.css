@@ -2033,9 +2033,10 @@
   color: var(--theme-text-primary, #212121);
 }
 
-/* Optional details summary: same weight as row labels (500), softer color; no default marker indent */
-.treatment-recommender-by-treatment__details > summary.treatment-recommender-by-treatment__details-summary {
-  list-style: none;
+/* Optional details row: chevron + label */
+.treatment-recommender-by-treatment__details-summary {
+  all: unset;
+  box-sizing: border-box;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2049,18 +2050,7 @@
   user-select: none;
 }
 
-.treatment-recommender-by-treatment__details
-  > summary.treatment-recommender-by-treatment__details-summary::-webkit-details-marker {
-  display: none;
-}
-
-.treatment-recommender-by-treatment__details
-  > summary.treatment-recommender-by-treatment__details-summary::marker {
-  content: "";
-}
-
-.treatment-recommender-by-treatment__details
-  > summary.treatment-recommender-by-treatment__details-summary::before {
+.treatment-recommender-by-treatment__details-summary::before {
   content: "▸";
   flex-shrink: 0;
   width: 1.15em;
@@ -2075,25 +2065,31 @@
   transition: transform 0.15s ease;
 }
 
-.treatment-recommender-by-treatment__details[open]
-  > summary.treatment-recommender-by-treatment__details-summary::before {
+.treatment-recommender-by-treatment__details--open
+  > .treatment-recommender-by-treatment__details-summary::before {
   transform: rotate(90deg);
 }
 
-.treatment-recommender-by-treatment__details
-  > summary.treatment-recommender-by-treatment__details-summary:focus-visible {
+.treatment-recommender-by-treatment__details-summary:focus-visible {
   outline: 2px solid var(--theme-accent, #1976d2);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* Concerns to address: static label (no longer a collapsible <details>) */
-.treatment-recommender-by-treatment__to-address-summary-label {
-  display: block;
+/* Concerns block: visible whenever Optional details is open (no nested disclosure) */
+.treatment-recommender-by-treatment__to-address-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0 0 6px;
+  padding: 0;
+}
+
+.treatment-recommender-by-treatment__to-address-heading-label {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--theme-text-secondary, #616161);
-  margin-bottom: 4px;
 }
 
 .treatment-recommender-by-treatment__to-address-summary-meta {
@@ -2114,14 +2110,13 @@
   margin-top: 10px;
 }
 
-/* Indented column: Concerns, Notes, quantity-in-details, etc. read as nested under Optional details */
+/* Concerns, Notes, quantity-in-details nested under Optional details */
 .treatment-recommender-by-treatment__details-fields-nest {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-top: 2px;
-  padding: 4px 0 0 14px;
-  border-left: 2px solid var(--theme-border, #e0e0e0);
+  padding: 4px 0 0 0;
 }
 
 .treatment-recommender-by-treatment__details-label {
@@ -2152,6 +2147,8 @@
 .treatment-recommender-by-treatment__to-address {
   margin: 0;
   padding: 0;
+  border: none;
+  box-sizing: border-box;
 }
 
 .treatment-recommender-by-treatment__to-address-inner {

@@ -1,7 +1,7 @@
 .settings-page {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 8px 4px 32px;
+  padding: 8px clamp(20px, 4%, 48px) 32px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -9,11 +9,11 @@
 
 /* Client notifications & treatment pricing: slightly narrower for readable line length */
 .settings-page--subpanel {
-  max-width: 900px;
+  max-width: 860px;
 }
 
 .settings-page-header {
-  padding: 0 4px;
+  padding: 0;
 }
 
 .settings-page-title {
@@ -104,6 +104,23 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
+}
+
+.settings-hub-placeholder {
+  padding: 40px 24px;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+.settings-hub-placeholder-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 480px;
+  margin-inline: auto;
 }
 
 .settings-hub-card-shell {
@@ -436,26 +453,58 @@
   color: #991b1b;
 }
 
+.settings-recipient-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-recipient-pill--patient {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.settings-recipient-pill--overflow {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+  font-weight: 600;
+  cursor: default;
+}
+
 .settings-col-actions {
   width: 1%;
   white-space: nowrap;
 }
 
 .settings-td-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  align-items: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .settings-td-actions--single {
-  flex-wrap: nowrap;
-  justify-content: flex-end;
+  text-align: right;
 }
 
 .settings-notif-view-btn {
   padding: 8px 14px;
   font-size: 0.85rem;
+  min-width: 7.5rem;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .settings-link-btn {
@@ -509,314 +558,7 @@
   font-weight: 500;
 }
 
-.settings-template-preview-modal {
-  max-width: 640px;
-  width: calc(100% - 32px);
-}
-
-.settings-template-preview-meta {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
-.settings-template-preview-trigger {
-  margin: 0 0 12px;
-  font-size: 0.88rem;
-  color: #334155;
-  line-height: 1.5;
-}
-
-.settings-template-preview-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #64748b;
-}
-
-.settings-template-preview-pre {
-  margin: 0;
-  padding: 14px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.84rem;
-  color: #0f172a;
-  max-height: min(50vh, 360px);
-  overflow: auto;
-}
-
-.settings-template-preview-footer {
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-/* Treatment pricing reference */
-.settings-pricing-toolbar {
-  margin: 0 0 14px;
-}
-
-.settings-pricing-search-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #64748b;
-}
-
-.settings-pricing-toolbar-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-
-.settings-pricing-search {
-  flex: 1 1 220px;
-  min-width: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-size: 0.9rem;
-  font-family: inherit;
-  color: #0f172a;
-  background: #fff;
-}
-
-.settings-pricing-search:focus {
-  outline: 2px solid #93c5fd;
-  outline-offset: 1px;
-  border-color: #94a3b8;
-}
-
-.settings-pricing-toolbar-btn {
-  flex: 0 0 auto;
-}
-
-.settings-pricing-count {
-  margin: 8px 0 0;
-  font-size: 0.82rem;
-  color: #64748b;
-}
-
-.settings-pricing-empty {
-  margin: 0;
-  padding: 12px 0;
-}
-
-.settings-pricing-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.settings-pricing-section-title {
-  margin: 0 0 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 0.98rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.01em;
-}
-
-.settings-pricing-plan-cat-cell {
-  max-width: 12rem;
-}
-
-.settings-pricing-plan-cat-text {
-  font-size: 0.86rem;
-  font-weight: 500;
-  color: #64748b;
-  line-height: 1.45;
-}
-
-.settings-pricing-table .settings-pricing-price {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: #0f172a;
-  white-space: nowrap;
-}
-
-.settings-pricing-note {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  max-width: 280px;
-  line-height: 1.45;
-  color: #334155;
-}
-
-/* ── Team notifications / email notification catalog ─────────────────────── */
-
-.settings-email-notif-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.settings-email-notif-divider {
-  margin: 28px 0;
-  border: none;
-  border-top: 1px solid #e2e8f0;
-}
-
-.settings-email-notif-section-title {
-  margin: 0 0 10px;
-  font-size: 1rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.015em;
-}
-
-.settings-email-notif-recipients {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.settings-email-notif-catalog {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.settings-email-notif-categories {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.settings-email-notif-category-header {
-  margin-bottom: 10px;
-}
-
-.settings-email-notif-category-title {
-  margin: 0 0 4px;
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #0f172a;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.settings-email-notif-category-desc {
-  margin: 6px 0 0;
-  font-size: 0.82rem;
-  color: #64748b;
-  line-height: 1.5;
-}
-
-.settings-email-notif-table {
-  width: 100%;
-}
-
-.settings-email-notif-name-cell {
-  min-width: 200px;
-  vertical-align: top;
-}
-
-.settings-email-notif-name {
-  margin: 0 0 3px;
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.35;
-}
-
-.settings-email-notif-subject {
-  margin: 0 0 2px;
-  font-size: 0.78rem;
-  color: #475569;
-  line-height: 1.4;
-}
-
-.settings-email-notif-subject-label {
-  font-weight: 700;
-  color: #64748b;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-right: 3px;
-}
-
-.settings-email-notif-note {
-  margin: 4px 0 0;
-  font-size: 0.74rem;
-  color: #94a3b8;
-  font-style: italic;
-  line-height: 1.4;
-}
-
-.settings-email-notif-trigger-cell {
-  font-size: 0.84rem;
-  color: #334155;
-  line-height: 1.5;
-  vertical-align: top;
-  min-width: 160px;
-}
-
-.settings-email-notif-col-audience {
-  width: 1%;
-  white-space: nowrap;
-  vertical-align: top;
-}
-
-/* Audience pills */
-.settings-email-audience-pill {
-  display: inline-block;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.settings-email-audience-pill--patient {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.settings-email-audience-pill--team {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.settings-email-audience-pill--both {
-  background: #fef9c3;
-  color: #854d0e;
-}
-
-.settings-email-notif-gtt {
-  margin: 8px 0 0;
-  padding: 8px 10px;
-  border-left: 3px solid #0ea5e9;
-  background: #f0f9ff;
-  font-size: 0.76rem;
-  line-height: 1.45;
-  color: #0c4a6e;
-}
-
-.settings-email-notif-gtt-label {
-  font-weight: 800;
-  color: #0369a1;
-}
-
-.settings-email-notif-gtt--modal {
-  margin-top: 4px;
-  border-radius: 8px;
-}
+/* (Email routing dashboard styles are in ProviderTeamNotificationEmails.css) */
 
 /* ── Skincare products panel ─────────────────────────────────────────────── */
 
@@ -842,6 +584,10 @@
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
   padding: 4px 0;
+}
+
+.settings-skincare-grid--flat {
+  margin-top: 4px;
 }
 
 .settings-skincare-card {
@@ -893,6 +639,15 @@
   gap: 8px;
   padding: 12px 12px 14px;
   flex: 1 1 auto;
+}
+
+.settings-skincare-card-brand {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
 }
 
 .settings-skincare-card-name {
@@ -951,4 +706,259 @@
   font-size: 0.82rem;
   padding: 7px 10px;
   text-align: center;
+}
+
+.settings-template-preview-modal {
+  max-width: 640px;
+  width: calc(100% - 32px);
+}
+
+.settings-template-preview-meta {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.settings-template-preview-trigger {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.settings-template-preview-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.settings-template-preview-body {
+  margin: 0;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #334155;
+  max-height: min(50vh, 360px);
+  overflow: auto;
+}
+
+/* Merge tags — matches change-request modals (italic indigo, not monospace) */
+.settings-template-preview-modal .template-var {
+  color: #6366f1;
+  font-weight: 500;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.settings-template-preview-footer {
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.settings-template-preview-footer .btn-primary,
+.settings-template-preview-footer .btn-secondary {
+  width: auto;
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 10px 18px;
+}
+
+/* Treatment pricing reference */
+.settings-pricing-toolbar {
+  margin: 0 0 14px;
+}
+
+.settings-pricing-search-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.settings-pricing-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.settings-pricing-search {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #0f172a;
+  background: #fff;
+}
+
+.settings-pricing-search:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+  border-color: #94a3b8;
+}
+
+.settings-pricing-search--block {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Toolbars: fixed short height = clear horizontal bar, not a tall box */
+.settings-pricing-toolbar .settings-pricing-search {
+  box-sizing: border-box;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+}
+
+.settings-pricing-sort-select {
+  min-width: 11.5rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #0f172a;
+  background: #fff;
+  cursor: pointer;
+}
+
+.settings-pricing-toolbar .settings-pricing-sort-select {
+  box-sizing: border-box;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  padding: 5px 26px 5px 10px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+}
+
+.settings-pricing-sort-select:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+  border-color: #94a3b8;
+}
+
+@media (max-width: 768px) {
+  .settings-pricing-toolbar .settings-pricing-search,
+  .settings-pricing-toolbar .settings-pricing-sort-select {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+  }
+}
+
+/* Skincare products: search + sort toolbar */
+.settings-skincare-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.settings-skincare-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-skincare-field--grow {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.settings-skincare-field--action {
+  flex: 0 0 auto;
+}
+
+.settings-pricing-toolbar-btn {
+  flex: 0 0 auto;
+}
+
+.settings-pricing-count {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.settings-pricing-empty {
+  margin: 0;
+  padding: 12px 0;
+}
+
+.settings-pricing-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.settings-pricing-section-title {
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+/* Single table when sorting by name or price (section column added) */
+.settings-pricing-section--flat {
+  margin-top: 4px;
+}
+
+.settings-pricing-flat-section-cell {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  vertical-align: middle;
+  max-width: 10rem;
+}
+
+.settings-pricing-plan-cat-cell {
+  max-width: 12rem;
+}
+
+.settings-pricing-plan-cat-text {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.settings-pricing-table .settings-pricing-price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.settings-pricing-note {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 280px;
+  line-height: 1.45;
+  color: #334155;
 }

@@ -149,7 +149,7 @@ export default function DiscussedTreatmentsModal({
     skincareProductOther: "",
     treatmentProducts: {} as Record<string, string>,
     treatmentProductOther: {} as Record<string, string>,
-    showOptional: true, // Always show optional details
+    showOptional: false,
     brand: "",
     region: "",
     timeline: "",
@@ -990,7 +990,7 @@ export default function DiscussedTreatmentsModal({
         skincareProductOther: "",
         treatmentProducts: {},
         treatmentProductOther: {},
-        showOptional: true,
+        showOptional: false,
         brand: "",
         region: "",
         timeline: "",
@@ -1036,7 +1036,7 @@ export default function DiscussedTreatmentsModal({
       skincareProductOther: "",
       treatmentProducts: {},
       treatmentProductOther: {},
-      showOptional: true,
+      showOptional: false,
       brand: "",
       region: "",
       timeline: "",
@@ -5641,490 +5641,568 @@ export default function DiscussedTreatmentsModal({
                           </div>
                         ) : null}
 
-                        <div className="discussed-treatments-prefill-rows">
-                          {(() => {
-                            const treatmentForQty =
-                              form.selectedTreatments[0] ||
-                              (form.otherTreatment.trim()
-                                ? form.otherTreatment.trim()
-                                : undefined);
-                            const productForQty = treatmentForQty
-                              ? (form.treatmentProducts[treatmentForQty] ?? "")
-                              : "";
-                            const prominent = shouldShowProminentPlanQuantity(
-                              treatmentForQty,
-                              productForQty || undefined,
-                            );
-                            return (
-                              <DiscussedTreatmentsQuantityFormRow
-                                treatment={treatmentForQty ?? ""}
-                                product={productForQty}
-                                quantity={form.quantity ?? ""}
-                                quantityUnit={form.quantityUnit}
-                                onPatch={(patch) =>
-                                  setForm((f) => ({ ...f, ...patch }))
-                                }
-                                labelMode={
-                                  prominent ? "affectsQuote" : "optional"
-                                }
-                              />
-                            );
-                          })()}
-                          {!(addMode === "treatment" && selectedTreatmentFirst === "Skincare") &&
-                          !(addMode === "goal" && form.selectedTreatments.length > 0 && form.selectedTreatments.every((t) => t === "Skincare")) && (
-                          <div className="discussed-treatments-prefill-row">
-                            <span className="discussed-treatments-prefill-label">
-                              Timeline
-                            </span>
-                            <div className="discussed-treatments-chip-row">
-                              {TIMELINE_OPTIONS.map((opt) => (
-                                <label
-                                  key={opt}
-                                  className={`discussed-treatments-prefill-chip ${
-                                    form.timeline === opt ? "selected" : ""
-                                  }`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name="timeline"
-                                    checked={form.timeline === opt}
-                                    onChange={() =>
-                                      setForm((f) => ({ ...f, timeline: opt }))
+                        {(() => {
+                          const treatmentForQty =
+                            form.selectedTreatments[0] ||
+                            (form.otherTreatment.trim()
+                              ? form.otherTreatment.trim()
+                              : undefined);
+                          const productForQty = treatmentForQty
+                            ? (form.treatmentProducts[treatmentForQty] ?? "")
+                            : "";
+                          const prominent = shouldShowProminentPlanQuantity(
+                            treatmentForQty,
+                            productForQty || undefined,
+                          );
+                          return (
+                            <>
+                              <div className="discussed-treatments-prefill-rows">
+                                {prominent && (
+                                  <DiscussedTreatmentsQuantityFormRow
+                                    treatment={treatmentForQty ?? ""}
+                                    product={productForQty}
+                                    quantity={form.quantity ?? ""}
+                                    quantityUnit={form.quantityUnit}
+                                    onPatch={(patch) =>
+                                      setForm((f) => ({ ...f, ...patch }))
                                     }
-                                    className="discussed-treatments-radio-input"
+                                    labelMode="affectsQuote"
                                   />
-                                  {opt}
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                          )}
-
-                          <div className="discussed-treatments-prefill-row">
-                            <span className="discussed-treatments-prefill-label">
-                              Recurring (optional)
-                            </span>
-                            <div className="discussed-treatments-chip-row">
-                              <label
-                                className={`discussed-treatments-prefill-chip ${
-                                  !form.recurring ? "selected" : ""
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="recurring"
-                                  checked={!form.recurring}
-                                  onChange={() =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      recurring: "",
-                                      recurringOther: "",
-                                    }))
+                                )}
+                              </div>
+                              {!form.showOptional ? (
+                                <button
+                                  type="button"
+                                  className="discussed-treatments-optional-toggle"
+                                  onClick={() =>
+                                    setForm((f) => ({ ...f, showOptional: true }))
                                   }
-                                  className="discussed-treatments-radio-input"
-                                />
-                                None
-                              </label>
-                              {RECURRING_OPTIONS.map((opt) => (
-                                <label
-                                  key={opt}
-                                  className={`discussed-treatments-prefill-chip ${
-                                    form.recurring === opt ? "selected" : ""
-                                  }`}
                                 >
-                                  <input
-                                    type="radio"
-                                    name="recurring"
-                                    checked={form.recurring === opt}
-                                    onChange={() =>
-                                      setForm((f) => ({
-                                        ...f,
-                                        recurring: opt,
-                                        recurringOther: "",
-                                      }))
-                                    }
-                                    className="discussed-treatments-radio-input"
-                                  />
-                                  {opt}
-                                </label>
-                              ))}
-                              <label
-                                className={`discussed-treatments-prefill-chip ${
-                                  form.recurring === OTHER_RECURRING_LABEL
-                                    ? "selected"
-                                    : ""
-                                } other-chip`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="recurring"
-                                  checked={
-                                    form.recurring === OTHER_RECURRING_LABEL
-                                  }
-                                  onChange={() =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      recurring: OTHER_RECURRING_LABEL,
-                                    }))
-                                  }
-                                  className="discussed-treatments-radio-input"
-                                />
-                                {OTHER_RECURRING_LABEL}
-                              </label>
-                            </div>
-                            {form.recurring === OTHER_RECURRING_LABEL && (
-                              <input
-                                type="text"
-                                placeholder="e.g. Every 4 weeks"
-                                value={form.recurringOther}
-                                onChange={(e) =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    recurringOther: e.target.value,
-                                  }))
-                                }
-                                className="form-input-base discussed-treatments-other-inline"
-                                style={{ marginTop: 8, maxWidth: 200 }}
-                                aria-label="Other recurring"
-                              />
-                            )}
-                          </div>
-
-                          <div className="form-group discussed-treatments-notes-row">
-                            <label
-                              htmlFor="discussed-notes"
-                              className="form-label"
-                            >
-                              Notes (optional)
-                            </label>
-                            <input
-                              id="discussed-notes"
-                              type="text"
-                              placeholder="Any other detail"
-                              value={form.notes}
-                              onChange={(e) =>
-                                setForm((f) => ({
-                                  ...f,
-                                  notes: e.target.value,
-                                }))
-                              }
-                              className="form-input-base"
-                            />
-                          </div>
-
-                          {/* Post care for [treatment] (when a treatment with post-care is selected) */}
-                          {(() => {
-                            const currentTx =
-                              form.selectedTreatments[0] ||
-                              (form.otherTreatment.trim()
-                                ? form.otherTreatment.trim()
-                                : null);
-                            const pc =
-                              currentTx && resolveTreatmentPostcare(currentTx);
-                            if (!pc) return null;
-                            return (
-                              <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
-                                <h4 className="discussed-treatments-detail-section-title">
-                                  Post care for {currentTx}
-                                </h4>
-                                <div className="discussed-treatments-postcare-actions">
+                                  + Add details (optional — timeline, notes)
+                                </button>
+                              ) : (
+                                <>
                                   <button
                                     type="button"
-                                    className="discussed-treatments-postcare-send-btn"
+                                    className="discussed-treatments-optional-toggle discussed-treatments-optional-hide"
                                     onClick={() =>
-                                      setPostCareModal({
-                                        treatment: currentTx,
-                                        label: pc.sendInstructionsLabel,
-                                        instructionsText: pc.instructionsText,
-                                      })
+                                      setForm((f) => ({ ...f, showOptional: false }))
                                     }
                                   >
-                                    {pc.sendInstructionsLabel}
+                                    − Hide optional details
                                   </button>
-                                  {pc.suggestedProducts.length > 0 && (
-                                    <div className="discussed-treatments-postcare-suggested">
-                                      <span className="discussed-treatments-postcare-suggested-label">
-                                        Patients often add:
+                                  <div className="discussed-treatments-prefill-rows">
+                                    {!prominent && (
+                                      <DiscussedTreatmentsQuantityFormRow
+                                        treatment={treatmentForQty ?? ""}
+                                        product={productForQty}
+                                        quantity={form.quantity ?? ""}
+                                        quantityUnit={form.quantityUnit}
+                                        onPatch={(patch) =>
+                                          setForm((f) => ({ ...f, ...patch }))
+                                        }
+                                        labelMode="optional"
+                                      />
+                                    )}
+                                    {!(addMode === "treatment" && selectedTreatmentFirst === "Skincare") &&
+                                    !(addMode === "goal" && form.selectedTreatments.length > 0 && form.selectedTreatments.every((t) => t === "Skincare")) && (
+                                    <div className="discussed-treatments-prefill-row">
+                                      <span className="discussed-treatments-prefill-label">
+                                        Timeline
                                       </span>
-                                      <div className="discussed-treatments-postcare-chips">
-                                        {pc.suggestedProducts.map((product) => {
-                                          const added =
-                                            isSuggestedProductInPlan(product);
-                                          return (
-                                            <button
-                                              key={product}
-                                              type="button"
-                                              className={`discussed-treatments-postcare-chip${
-                                                added ? " added" : ""
-                                              }`}
-                                              onClick={() =>
-                                                handleAddSuggestedProduct(
-                                                  currentTx,
-                                                  product
-                                                )
+                                      <div className="discussed-treatments-chip-row">
+                                        {TIMELINE_OPTIONS.map((opt) => (
+                                          <label
+                                            key={opt}
+                                            className={`discussed-treatments-prefill-chip ${
+                                              form.timeline === opt ? "selected" : ""
+                                            }`}
+                                          >
+                                            <input
+                                              type="radio"
+                                              name="timeline"
+                                              checked={form.timeline === opt}
+                                              onChange={() =>
+                                                setForm((f) => ({ ...f, timeline: opt }))
                                               }
-                                              disabled={added}
-                                              aria-pressed={added}
-                                              title={
-                                                added
-                                                  ? "Already in plan"
-                                                  : `Add ${product}`
-                                              }
-                                            >
-                                              {added ? "✓ " : "+ "}
-                                              {product}
-                                            </button>
-                                          );
-                                        })}
+                                              className="discussed-treatments-radio-input"
+                                            />
+                                            {opt}
+                                          </label>
+                                        ))}
                                       </div>
                                     </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })()}
+                                    )}
 
-                          <button
-                            type="button"
-                            className="btn-primary discussed-treatments-add-btn"
-                            onClick={handleAdd}
-                            disabled={
-                              (!hasAnyTreatmentSelected &&
-                                !canAddWithGoalOnly) ||
-                              savingAdd
-                            }
-                          >
-                            {savingAdd ? "Saving..." : "Add to plan"}
-                          </button>
-                        </div>
+                                    <div className="discussed-treatments-prefill-row">
+                                      <span className="discussed-treatments-prefill-label">
+                                        Recurring (optional)
+                                      </span>
+                                      <div className="discussed-treatments-chip-row">
+                                        <label
+                                          className={`discussed-treatments-prefill-chip ${
+                                            !form.recurring ? "selected" : ""
+                                          }`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name="recurring"
+                                            checked={!form.recurring}
+                                            onChange={() =>
+                                              setForm((f) => ({
+                                                ...f,
+                                                recurring: "",
+                                                recurringOther: "",
+                                              }))
+                                            }
+                                            className="discussed-treatments-radio-input"
+                                          />
+                                          None
+                                        </label>
+                                        {RECURRING_OPTIONS.map((opt) => (
+                                          <label
+                                            key={opt}
+                                            className={`discussed-treatments-prefill-chip ${
+                                              form.recurring === opt ? "selected" : ""
+                                            }`}
+                                          >
+                                            <input
+                                              type="radio"
+                                              name="recurring"
+                                              checked={form.recurring === opt}
+                                              onChange={() =>
+                                                setForm((f) => ({
+                                                  ...f,
+                                                  recurring: opt,
+                                                  recurringOther: "",
+                                                }))
+                                              }
+                                              className="discussed-treatments-radio-input"
+                                            />
+                                            {opt}
+                                          </label>
+                                        ))}
+                                        <label
+                                          className={`discussed-treatments-prefill-chip ${
+                                            form.recurring === OTHER_RECURRING_LABEL
+                                              ? "selected"
+                                              : ""
+                                          } other-chip`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name="recurring"
+                                            checked={
+                                              form.recurring === OTHER_RECURRING_LABEL
+                                            }
+                                            onChange={() =>
+                                              setForm((f) => ({
+                                                ...f,
+                                                recurring: OTHER_RECURRING_LABEL,
+                                              }))
+                                            }
+                                            className="discussed-treatments-radio-input"
+                                          />
+                                          {OTHER_RECURRING_LABEL}
+                                        </label>
+                                      </div>
+                                      {form.recurring === OTHER_RECURRING_LABEL && (
+                                        <input
+                                          type="text"
+                                          placeholder="e.g. Every 4 weeks"
+                                          value={form.recurringOther}
+                                          onChange={(e) =>
+                                            setForm((f) => ({
+                                              ...f,
+                                              recurringOther: e.target.value,
+                                            }))
+                                          }
+                                          className="form-input-base discussed-treatments-other-inline"
+                                          style={{ marginTop: 8, maxWidth: 200 }}
+                                          aria-label="Other recurring"
+                                        />
+                                      )}
+                                    </div>
+
+                                    <div className="form-group discussed-treatments-notes-row">
+                                      <label
+                                        htmlFor="discussed-notes"
+                                        className="form-label"
+                                      >
+                                        Notes (optional)
+                                      </label>
+                                      <input
+                                        id="discussed-notes"
+                                        type="text"
+                                        placeholder="Any other detail"
+                                        value={form.notes}
+                                        onChange={(e) =>
+                                          setForm((f) => ({
+                                            ...f,
+                                            notes: e.target.value,
+                                          }))
+                                        }
+                                        className="form-input-base"
+                                      />
+                                    </div>
+
+                                    {/* Post care for [treatment] (when a treatment with post-care is selected) */}
+                                    {(() => {
+                                      const currentTx =
+                                        form.selectedTreatments[0] ||
+                                        (form.otherTreatment.trim()
+                                          ? form.otherTreatment.trim()
+                                          : null);
+                                      const pc =
+                                        currentTx && resolveTreatmentPostcare(currentTx);
+                                      if (!pc) return null;
+                                      return (
+                                        <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
+                                          <h4 className="discussed-treatments-detail-section-title">
+                                            Post care for {currentTx}
+                                          </h4>
+                                          <div className="discussed-treatments-postcare-actions">
+                                            <button
+                                              type="button"
+                                              className="discussed-treatments-postcare-send-btn"
+                                              onClick={() =>
+                                                setPostCareModal({
+                                                  treatment: currentTx,
+                                                  label: pc.sendInstructionsLabel,
+                                                  instructionsText: pc.instructionsText,
+                                                })
+                                              }
+                                            >
+                                              {pc.sendInstructionsLabel}
+                                            </button>
+                                            {pc.suggestedProducts.length > 0 && (
+                                              <div className="discussed-treatments-postcare-suggested">
+                                                <span className="discussed-treatments-postcare-suggested-label">
+                                                  Patients often add:
+                                                </span>
+                                                <div className="discussed-treatments-postcare-chips">
+                                                  {pc.suggestedProducts.map((product) => {
+                                                    const added =
+                                                      isSuggestedProductInPlan(product);
+                                                    return (
+                                                      <button
+                                                        key={product}
+                                                        type="button"
+                                                        className={`discussed-treatments-postcare-chip${
+                                                          added ? " added" : ""
+                                                        }`}
+                                                        onClick={() =>
+                                                          handleAddSuggestedProduct(
+                                                            currentTx,
+                                                            product
+                                                          )
+                                                        }
+                                                        disabled={added}
+                                                        aria-pressed={added}
+                                                        title={
+                                                          added
+                                                            ? "Already in plan"
+                                                            : `Add ${product}`
+                                                        }
+                                                      >
+                                                        {added ? "✓ " : "+ "}
+                                                        {product}
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                </>
+                              )}
+
+                              <button
+                                type="button"
+                                className="btn-primary discussed-treatments-add-btn"
+                                onClick={handleAdd}
+                                disabled={
+                                  (!hasAnyTreatmentSelected &&
+                                    !canAddWithGoalOnly) ||
+                                  savingAdd
+                                }
+                              >
+                                {savingAdd ? "Saving..." : "Add to plan"}
+                              </button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   ) : addMode === "treatment" && selectedTreatmentFirst ? (
                     <>
-                      <div className="discussed-treatments-prefill-rows">
-                        {(() => {
-                          const productForQty =
-                            form.treatmentProducts[selectedTreatmentFirst] ?? "";
-                          const prominent = shouldShowProminentPlanQuantity(
-                            selectedTreatmentFirst,
-                            productForQty || undefined,
-                          );
-                          return (
-                            <DiscussedTreatmentsQuantityFormRow
-                              treatment={selectedTreatmentFirst}
-                              product={productForQty}
-                              quantity={form.quantity ?? ""}
-                              quantityUnit={form.quantityUnit}
-                              onPatch={(patch) =>
-                                setForm((f) => ({ ...f, ...patch }))
-                              }
-                              labelMode={
-                                prominent ? "affectsQuote" : "optional"
-                              }
-                            />
-                          );
-                        })()}
-                        {!(addMode === "treatment" && selectedTreatmentFirst === "Skincare") &&
-                        !(addMode === "goal" && form.selectedTreatments.length > 0 && form.selectedTreatments.every((t) => t === "Skincare")) && (
-                        <div className="discussed-treatments-prefill-row">
-                          <span className="discussed-treatments-prefill-label">
-                            Timeline
-                          </span>
-                          <div className="discussed-treatments-chip-row">
-                            {TIMELINE_OPTIONS.map((opt) => (
-                              <label
-                                key={opt}
-                                className={`discussed-treatments-prefill-chip ${
-                                  form.timeline === opt ? "selected" : ""
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="timeline-by-tx"
-                                  checked={form.timeline === opt}
-                                  onChange={() =>
-                                    setForm((f) => ({ ...f, timeline: opt }))
-                                  }
-                                  className="discussed-treatments-radio-input"
-                                />
-                                {opt}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        )}
-                        <div className="discussed-treatments-prefill-row">
-                          <span className="discussed-treatments-prefill-label">
-                            Recurring (optional)
-                          </span>
-                          <div className="discussed-treatments-chip-row">
-                            <label
-                              className={`discussed-treatments-prefill-chip ${
-                                !form.recurring ? "selected" : ""
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="recurring-tx"
-                                checked={!form.recurring}
-                                onChange={() =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    recurring: "",
-                                    recurringOther: "",
-                                  }))
-                                }
-                                className="discussed-treatments-radio-input"
-                              />
-                              None
-                            </label>
-                            {RECURRING_OPTIONS.map((opt) => (
-                              <label
-                                key={opt}
-                                className={`discussed-treatments-prefill-chip ${
-                                  form.recurring === opt ? "selected" : ""
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="recurring-tx"
-                                  checked={form.recurring === opt}
-                                  onChange={() =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      recurring: opt,
-                                      recurringOther: "",
-                                    }))
-                                  }
-                                  className="discussed-treatments-radio-input"
-                                />
-                                {opt}
-                              </label>
-                            ))}
-                            <label
-                              className={`discussed-treatments-prefill-chip ${
-                                form.recurring === OTHER_RECURRING_LABEL
-                                  ? "selected"
-                                  : ""
-                              } other-chip`}
-                            >
-                              <input
-                                type="radio"
-                                name="recurring-tx"
-                                checked={
-                                  form.recurring === OTHER_RECURRING_LABEL
-                                }
-                                onChange={() =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    recurring: OTHER_RECURRING_LABEL,
-                                  }))
-                                }
-                                className="discussed-treatments-radio-input"
-                              />
-                              {OTHER_RECURRING_LABEL}
-                            </label>
-                          </div>
-                          {form.recurring === OTHER_RECURRING_LABEL && (
-                            <input
-                              type="text"
-                              placeholder="e.g. Every 4 weeks"
-                              value={form.recurringOther}
-                              onChange={(e) =>
-                                setForm((f) => ({
-                                  ...f,
-                                  recurringOther: e.target.value,
-                                }))
-                              }
-                              className="form-input-base discussed-treatments-other-inline"
-                              style={{ marginTop: 8, maxWidth: 200 }}
-                              aria-label="Other recurring"
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="form-group discussed-treatments-notes-row">
-                        <label
-                          htmlFor="discussed-notes-tx"
-                          className="form-label"
-                        >
-                          Notes (optional)
-                        </label>
-                        <input
-                          id="discussed-notes-tx"
-                          type="text"
-                          placeholder="Any other detail"
-                          value={form.notes}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, notes: e.target.value }))
-                          }
-                          className="form-input-base"
-                        />
-                      </div>
-                      {/* Post care for [treatment] (treatment mode) */}
                       {(() => {
-                        const pc =
-                          resolveTreatmentPostcare(selectedTreatmentFirst);
-                        if (!pc) return null;
+                        const productForQty =
+                          form.treatmentProducts[selectedTreatmentFirst] ?? "";
+                        const prominent = shouldShowProminentPlanQuantity(
+                          selectedTreatmentFirst,
+                          productForQty || undefined,
+                        );
                         return (
-                          <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
-                            <h4 className="discussed-treatments-detail-section-title">
-                              Post care for {selectedTreatmentFirst}
-                            </h4>
-                            <div className="discussed-treatments-postcare-actions">
-                              <button
-                                type="button"
-                                className="discussed-treatments-postcare-send-btn"
-                                onClick={() =>
-                                  setPostCareModal({
-                                    treatment: selectedTreatmentFirst,
-                                    label: pc.sendInstructionsLabel,
-                                    instructionsText: pc.instructionsText,
-                                  })
-                                }
-                              >
-                                {pc.sendInstructionsLabel}
-                              </button>
-                              {pc.suggestedProducts.length > 0 && (
-                                <div className="discussed-treatments-postcare-suggested">
-                                  <span className="discussed-treatments-postcare-suggested-label">
-                                    Patients often add:
-                                  </span>
-                                  <div className="discussed-treatments-postcare-chips">
-                                    {pc.suggestedProducts.map((product) => {
-                                      const added =
-                                        isSuggestedProductInPlan(product);
-                                      return (
-                                        <button
-                                          key={product}
-                                          type="button"
-                                          className={`discussed-treatments-postcare-chip${
-                                            added ? " added" : ""
-                                          }`}
-                                          onClick={() =>
-                                            handleAddSuggestedProduct(
-                                              selectedTreatmentFirst,
-                                              product,
-                                            )
-                                          }
-                                          disabled={added}
-                                          aria-pressed={added}
-                                          title={
-                                            added
-                                              ? "Already in plan"
-                                              : `Add ${product}`
-                                          }
-                                        >
-                                          {added ? "✓ " : "+ "}
-                                          {product}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
+                          <>
+                            <div className="discussed-treatments-prefill-rows">
+                              {prominent && (
+                                <DiscussedTreatmentsQuantityFormRow
+                                  treatment={selectedTreatmentFirst}
+                                  product={productForQty}
+                                  quantity={form.quantity ?? ""}
+                                  quantityUnit={form.quantityUnit}
+                                  onPatch={(patch) =>
+                                    setForm((f) => ({ ...f, ...patch }))
+                                  }
+                                  labelMode="affectsQuote"
+                                />
                               )}
                             </div>
-                          </div>
+                            {!form.showOptional ? (
+                              <button
+                                type="button"
+                                className="discussed-treatments-optional-toggle"
+                                onClick={() =>
+                                  setForm((f) => ({ ...f, showOptional: true }))
+                                }
+                              >
+                                + Add details (optional — timeline, notes)
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  className="discussed-treatments-optional-toggle discussed-treatments-optional-hide"
+                                  onClick={() =>
+                                    setForm((f) => ({ ...f, showOptional: false }))
+                                  }
+                                >
+                                  − Hide optional details
+                                </button>
+                                <div className="discussed-treatments-prefill-rows">
+                                  {!prominent && (
+                                    <DiscussedTreatmentsQuantityFormRow
+                                      treatment={selectedTreatmentFirst}
+                                      product={productForQty}
+                                      quantity={form.quantity ?? ""}
+                                      quantityUnit={form.quantityUnit}
+                                      onPatch={(patch) =>
+                                        setForm((f) => ({ ...f, ...patch }))
+                                      }
+                                      labelMode="optional"
+                                    />
+                                  )}
+                                  {!(addMode === "treatment" && selectedTreatmentFirst === "Skincare") &&
+                                  !(addMode === "goal" && form.selectedTreatments.length > 0 && form.selectedTreatments.every((t) => t === "Skincare")) && (
+                                  <div className="discussed-treatments-prefill-row">
+                                    <span className="discussed-treatments-prefill-label">
+                                      Timeline
+                                    </span>
+                                    <div className="discussed-treatments-chip-row">
+                                      {TIMELINE_OPTIONS.map((opt) => (
+                                        <label
+                                          key={opt}
+                                          className={`discussed-treatments-prefill-chip ${
+                                            form.timeline === opt ? "selected" : ""
+                                          }`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name="timeline-by-tx"
+                                            checked={form.timeline === opt}
+                                            onChange={() =>
+                                              setForm((f) => ({ ...f, timeline: opt }))
+                                            }
+                                            className="discussed-treatments-radio-input"
+                                          />
+                                          {opt}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  )}
+                                  <div className="discussed-treatments-prefill-row">
+                                    <span className="discussed-treatments-prefill-label">
+                                      Recurring (optional)
+                                    </span>
+                                    <div className="discussed-treatments-chip-row">
+                                      <label
+                                        className={`discussed-treatments-prefill-chip ${
+                                          !form.recurring ? "selected" : ""
+                                        }`}
+                                      >
+                                        <input
+                                          type="radio"
+                                          name="recurring-tx"
+                                          checked={!form.recurring}
+                                          onChange={() =>
+                                            setForm((f) => ({
+                                              ...f,
+                                              recurring: "",
+                                              recurringOther: "",
+                                            }))
+                                          }
+                                          className="discussed-treatments-radio-input"
+                                        />
+                                        None
+                                      </label>
+                                      {RECURRING_OPTIONS.map((opt) => (
+                                        <label
+                                          key={opt}
+                                          className={`discussed-treatments-prefill-chip ${
+                                            form.recurring === opt ? "selected" : ""
+                                          }`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name="recurring-tx"
+                                            checked={form.recurring === opt}
+                                            onChange={() =>
+                                              setForm((f) => ({
+                                                ...f,
+                                                recurring: opt,
+                                                recurringOther: "",
+                                              }))
+                                            }
+                                            className="discussed-treatments-radio-input"
+                                          />
+                                          {opt}
+                                        </label>
+                                      ))}
+                                      <label
+                                        className={`discussed-treatments-prefill-chip ${
+                                          form.recurring === OTHER_RECURRING_LABEL
+                                            ? "selected"
+                                            : ""
+                                        } other-chip`}
+                                      >
+                                        <input
+                                          type="radio"
+                                          name="recurring-tx"
+                                          checked={
+                                            form.recurring === OTHER_RECURRING_LABEL
+                                          }
+                                          onChange={() =>
+                                            setForm((f) => ({
+                                              ...f,
+                                              recurring: OTHER_RECURRING_LABEL,
+                                            }))
+                                          }
+                                          className="discussed-treatments-radio-input"
+                                        />
+                                        {OTHER_RECURRING_LABEL}
+                                      </label>
+                                    </div>
+                                    {form.recurring === OTHER_RECURRING_LABEL && (
+                                      <input
+                                        type="text"
+                                        placeholder="e.g. Every 4 weeks"
+                                        value={form.recurringOther}
+                                        onChange={(e) =>
+                                          setForm((f) => ({
+                                            ...f,
+                                            recurringOther: e.target.value,
+                                          }))
+                                        }
+                                        className="form-input-base discussed-treatments-other-inline"
+                                        style={{ marginTop: 8, maxWidth: 200 }}
+                                        aria-label="Other recurring"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="form-group discussed-treatments-notes-row">
+                                  <label
+                                    htmlFor="discussed-notes-tx"
+                                    className="form-label"
+                                  >
+                                    Notes (optional)
+                                  </label>
+                                  <input
+                                    id="discussed-notes-tx"
+                                    type="text"
+                                    placeholder="Any other detail"
+                                    value={form.notes}
+                                    onChange={(e) =>
+                                      setForm((f) => ({ ...f, notes: e.target.value }))
+                                    }
+                                    className="form-input-base"
+                                  />
+                                </div>
+                                {/* Post care for [treatment] (treatment mode) */}
+                                {(() => {
+                                  const pc =
+                                    resolveTreatmentPostcare(selectedTreatmentFirst);
+                                  if (!pc) return null;
+                                  return (
+                                    <div className="discussed-treatments-add-form-postcare discussed-treatments-postcare-section">
+                                      <h4 className="discussed-treatments-detail-section-title">
+                                        Post care for {selectedTreatmentFirst}
+                                      </h4>
+                                      <div className="discussed-treatments-postcare-actions">
+                                        <button
+                                          type="button"
+                                          className="discussed-treatments-postcare-send-btn"
+                                          onClick={() =>
+                                            setPostCareModal({
+                                              treatment: selectedTreatmentFirst,
+                                              label: pc.sendInstructionsLabel,
+                                              instructionsText: pc.instructionsText,
+                                            })
+                                          }
+                                        >
+                                          {pc.sendInstructionsLabel}
+                                        </button>
+                                        {pc.suggestedProducts.length > 0 && (
+                                          <div className="discussed-treatments-postcare-suggested">
+                                            <span className="discussed-treatments-postcare-suggested-label">
+                                              Patients often add:
+                                            </span>
+                                            <div className="discussed-treatments-postcare-chips">
+                                              {pc.suggestedProducts.map((product) => {
+                                                const added =
+                                                  isSuggestedProductInPlan(product);
+                                                return (
+                                                  <button
+                                                    key={product}
+                                                    type="button"
+                                                    className={`discussed-treatments-postcare-chip${
+                                                      added ? " added" : ""
+                                                    }`}
+                                                    onClick={() =>
+                                                      handleAddSuggestedProduct(
+                                                        selectedTreatmentFirst,
+                                                        product,
+                                                      )
+                                                    }
+                                                    disabled={added}
+                                                    aria-pressed={added}
+                                                    title={
+                                                      added
+                                                        ? "Already in plan"
+                                                        : `Add ${product}`
+                                                    }
+                                                  >
+                                                    {added ? "✓ " : "+ "}
+                                                    {product}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                              </>
+                            )}
+                          </>
                         );
                       })()}
                       <button

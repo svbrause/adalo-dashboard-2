@@ -133,7 +133,10 @@ export function isPostVisitBlueprintAllowedForPatient(payload: {
 
 /**
  * Booking / scheduling URL embedded in Post-Visit Blueprint CTAs.
- * Wellnest uses the provider telehealth / web link when set; The Treatment keeps the public book page.
+ * - Wellnest: uses the provider's telehealth or web link.
+ * - The Treatment: uses the public book-now page.
+ * - All other providers: uses their web link if set, otherwise returns an empty
+ *   string (no booking CTA is shown rather than linking to another clinic's page).
  */
 export function getPostVisitBlueprintBookingUrl(provider: Provider | null): string {
   if (isWellnestWellnessProviderCode(provider?.code)) {
@@ -145,7 +148,13 @@ export function getPostVisitBlueprintBookingUrl(provider: Provider | null): stri
     ).trim();
     return web;
   }
-  return THE_TREATMENT_BOOKING_URL;
+  if (isTheTreatmentProvider(provider)) {
+    return THE_TREATMENT_BOOKING_URL;
+  }
+  // For providers that aren't Wellnest or The Treatment, use their own web link
+  // if available; return empty so the booking CTA is hidden rather than pointing
+  // to an unrelated clinic's page.
+  return String(provider?.["Web Link"] || provider?.WebLink || "").trim();
 }
 
 /** Name fragment that identifies Unique Aesthetics (e.g. "Unique Aesthetics & Wellness"). */

@@ -130,7 +130,7 @@ export function PlanQuantityStepperInput({
         inputMode="numeric"
         className="plan-quantity-stepper__input"
         aria-label={unitLabel}
-        placeholder={defaultQuantity}
+        placeholder="Enter units"
         value={quantity}
         onChange={(e) => {
           const v = e.target.value.replace(/\D/g, "");

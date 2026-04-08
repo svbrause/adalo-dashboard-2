@@ -10,11 +10,10 @@ import {
   fetchTreatmentPhotos,
   fetchTableRecords,
   sendSMSNotification,
-  fetchTreatmentRecommenderCustomOptions,
+  extractRecommenderOptionsFromPricingJson,
   createTreatmentRecommenderCustomOption,
   deleteTreatmentRecommenderOption,
   updateTreatmentRecommenderOption,
-  seedTreatmentRecommenderOptions,
   type TreatmentRecommenderOptionType,
 } from "../../services/api";
 import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
@@ -120,7 +119,6 @@ import {
   getBiostimulantTypeOptionLabels,
   getNeurotoxinTypeOptionLabels,
   getSkuOptionsForCategory,
-  type ProviderPricingJson,
 } from "../../data/treatmentPricing2025";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
 import { PlanQuantityStepperInput } from "./planQuantityStepper";
@@ -144,6 +142,7 @@ function treatmentProductHintForQuantity(row: {
   laserWhat?: string[];
   biostimulantWhat?: string[];
   microneedlingType?: string[];
+  facialServiceWhat?: string[];
   product?: string;
   deliveryForm?: string;
 }): string | undefined {
@@ -176,6 +175,11 @@ function treatmentProductHintForQuantity(row: {
       ? row.microneedlingType.join(", ")
       : row.product?.trim() || undefined;
   }
+  if (row.treatment === "Facial Services") {
+    return row.facialServiceWhat?.length
+      ? row.facialServiceWhat.join(", ")
+      : row.product?.trim() || undefined;
+  }
   return row.product?.trim() || undefined;
 }
 
@@ -187,7 +191,8 @@ function treatmentUsesStructuredProductSelectors(treatment: string): boolean {
     isEnergyTreatmentCategory(t) ||
     t === "Biostimulants" ||
     t === "Microneedling" ||
-    t === "Chemical Peel"
+    t === "Chemical Peel" ||
+    t === "Facial Services"
   );
 }
 
@@ -209,8 +214,10 @@ function initialAddToPlanRowForTreatment(
       treatment === "Biostimulants" ? ([] as string[]) : undefined,
     microneedlingType:
       treatment === "Microneedling" ? ([] as string[]) : undefined,
+    facialServiceWhat:
+      treatment === "Facial Services" ? ([] as string[]) : undefined,
     when: TIMELINE_OPTIONS[0],
-    detailsExpanded: true,
+    detailsExpanded: false,
     product: "",
     notes: "",
     deliveryForm: wellnestOffering ? wellnestDefaultDeliveryForm : "",
@@ -379,6 +386,7 @@ function discussedItemToAddPlanFormState(
   let laserWhat = base.laserWhat;
   let biostimulantWhat = base.biostimulantWhat;
   let microneedlingType = base.microneedlingType;
+  let facialServiceWhat = base.facialServiceWhat;
   let skincareWhat = base.skincareWhat;
   let productFree = "";
 
@@ -411,6 +419,16 @@ function discussedItemToAddPlanFormState(
       opts,
     );
     microneedlingType = matched;
+    productFree = residualParts.join(", ");
+  } else if (treatment === "Facial Services") {
+    const opts =
+      getTreatmentProductOptionsForProvider(providerCode, "Facial Services") ??
+      [];
+    const { matched, residualParts } = matchProductTokensToOptionList(
+      productRaw,
+      opts,
+    );
+    facialServiceWhat = matched;
     productFree = residualParts.join(", ");
   } else if (isSkincare) {
     if (productRaw) {
@@ -458,6 +476,7 @@ function discussedItemToAddPlanFormState(
     laserWhat,
     biostimulantWhat,
     microneedlingType,
+    facialServiceWhat,
     product: productFree,
     deliveryForm: wellnestOffering ? deliveryFormWellnest : undefined,
     dosing: wellnestOffering ? dosingWellnest : undefined,
@@ -477,13 +496,14 @@ function discussedItemToAddPlanFormState(
     laserWhat,
     biostimulantWhat,
     microneedlingType,
+    facialServiceWhat,
     skincareWhat,
     product: productFree,
     quantity,
     notes: parsedNotes.freeNotes,
     deliveryForm: wellnestOffering ? deliveryFormWellnest : base.deliveryForm,
     dosing: wellnestOffering ? dosingWellnest : base.dosing,
-    detailsExpanded: true,
+    detailsExpanded: false,
     findings: item.findings?.length ? [...item.findings] : [],
   };
 }
@@ -537,6 +557,7 @@ function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
 const TREATMENT_PHOTO_ALIASES: Record<string, string[]> = {
   [ENERGY_TREATMENT_CATEGORY]: ["laser", "energy device", "energy treatment"],
   [LEGACY_ENERGY_DEVICE_CATEGORY]: ["laser", "energy device", "energy treatment"],
+  "Facial Services": ["facial", "dermasweep", "dermaplaning", "facial service"],
 };
 
 function photoMatchesTreatment(
@@ -916,6 +937,11 @@ function getUnifiedRecommenderEditSections(
       { optionType: "microneedling_type", title: "Microneedling — Type" },
       { optionType: "microneedling_where", title: "Microneedling — Where" },
     );
+  } else if (treatment === "Facial Services") {
+    mid.push(
+      { optionType: "facial_service_what", title: "Facial services — Type" },
+      { optionType: "where", title: "Facial services — Where" },
+    );
   } else if (treatment === "Biostimulants") {
     mid.push(
       { optionType: "biostimulant_what", title: "Biostimulants — Product" },
@@ -936,77 +962,6 @@ function buildRecommenderOptionValueWithOptionalPrice(
   if (!n) return "";
   const p = priceNote.trim();
   return p ? `${n} · ${p}` : n;
-}
-
-/**
- * Full catalog of recommender defaults to upsert via seed (server skips existing rows).
- * Keeps Airtable aligned with in-app chips so every option has a record id when possible.
- */
-function buildTreatmentRecommenderSeedOptionsForProvider(
-  providerCode: string | undefined,
-  priceList?: ProviderPricingJson,
-): Array<{ optionType: TreatmentRecommenderOptionType; value: string }> {
-  const skincareNames = getSkincareCarouselItems().map((i) => i.name);
-  const baseWhere = REGION_OPTIONS.filter(
-    (r) => r !== "Multiple" && r !== "Other",
-  );
-  const laserList = getTreatmentProductOptionsForProvider(
-    providerCode,
-    ENERGY_TREATMENT_CATEGORY,
-  );
-  const biostimulantTypeLabels = [
-    ...getBiostimulantTypeOptionLabels(priceList),
-    OTHER_PRODUCT_LABEL,
-  ];
-  const fillerSkus = getSkuOptionsForCategory("Filler", priceList);
-  const neurotoxinTypeLabels = [
-    ...getNeurotoxinTypeOptionLabels(priceList),
-    OTHER_PRODUCT_LABEL,
-  ];
-  const chemPeelTypes = getTreatmentProductOptionsForProvider(
-    providerCode,
-    "Chemical Peel",
-  ).filter((v) => v !== OTHER_PRODUCT_LABEL);
-  return [
-    ...baseWhere.map((v) => ({ optionType: "where" as const, value: v })),
-    ...skincareNames.map((v) => ({
-      optionType: "skincare_what" as const,
-      value: v,
-    })),
-    ...laserList.map((v) => ({ optionType: "laser_what" as const, value: v })),
-    ...biostimulantTypeLabels.map((v) => ({
-      optionType: "biostimulant_what" as const,
-      value: v,
-    })),
-    ...REGION_OPTIONS_MICRONEEDLING.map((v) => ({
-      optionType: "microneedling_where" as const,
-      value: v,
-    })),
-    ...MICRONEEDLING_TYPE_OPTIONS.map((v) => ({
-      optionType: "microneedling_type" as const,
-      value: v,
-    })),
-    ...CHEMICAL_PEEL_AREA_OPTIONS.map((v) => ({
-      optionType: "chemical_peel_where" as const,
-      value: v,
-    })),
-    ...fillerSkus.map((s) => ({
-      optionType: "filler_what" as const,
-      value: s.label,
-    })),
-    ...neurotoxinTypeLabels.map((v) => ({
-      optionType: "neurotoxin_what" as const,
-      value: v,
-    })),
-    ...chemPeelTypes.map((v) => ({
-      optionType: "chemical_peel_what" as const,
-      value: v,
-    })),
-    ...TIMELINE_OPTIONS.map((v) => ({
-      optionType: "timeline" as const,
-      value: v,
-    })),
-  ];
 }
 
 type SkincareCarouselRow = ReturnType<typeof getSkincareCarouselItems>[number];
@@ -1112,7 +1067,7 @@ export default function TreatmentRecommenderByTreatment({
   onRecommenderRegionsChange,
   onShareTreatmentPlan,
 }: TreatmentRecommenderByTreatmentProps) {
-  const { provider } = useDashboard();
+  const { provider, setProvider } = useDashboard();
 
   const effectivePriceList = useMemo(
     () =>
@@ -1126,8 +1081,6 @@ export default function TreatmentRecommenderByTreatment({
   const [optionRecords, setOptionRecords] = useState<
     TreatmentRecommenderCustomOption[]
   >([]);
-  /** Bump to refetch options after add/delete. */
-  const [optionRecordsVersion, setOptionRecordsVersion] = useState(0);
   /** Item we just added so we can open it for editing when user clicks "Add additional details". Cleared when modal closes. */
   const [lastAddedItem, setLastAddedItem] = useState<DiscussedItem | null>(
     null,
@@ -1154,6 +1107,8 @@ export default function TreatmentRecommenderByTreatment({
     biostimulantWhat?: string[];
     /** For Microneedling: multi-select type options (e.g. PRP, TCA, TXA, PDGF, Subcision). */
     microneedlingType?: string[];
+    /** For Facial Services: multi-select service line items (e.g. Dermasweep, Signature Facial). */
+    facialServiceWhat?: string[];
     when: string;
     detailsExpanded: boolean;
     product?: string;
@@ -1206,11 +1161,20 @@ export default function TreatmentRecommenderByTreatment({
   const disposeUnifiedEditDraftRow = useCallback(() => {
     const id = unifiedEditDraftRecordIdRef.current;
     unifiedEditDraftRecordIdRef.current = null;
-    if (!id?.trim()) return;
-    void deleteTreatmentRecommenderOption(id.trim())
-      .then(() => setOptionRecordsVersion((v) => v + 1))
+    if (!id?.trim() || !provider?.id) return;
+    // ID format: "custom:{optionType}:{value}"
+    const parts = id.split(":");
+    if (parts.length < 3) return;
+    const optionType = parts[1] as TreatmentRecommenderOptionType;
+    const value = parts.slice(2).join(":");
+    const raw = provider?.["Treatment Pricing"] as string | undefined;
+    void deleteTreatmentRecommenderOption(provider.id, optionType, value, false, raw)
+      .then((updatedRaw) => {
+        if (provider) setProvider({ ...provider, "Treatment Pricing": updatedRaw });
+        setOptionRecords(extractRecommenderOptionsFromPricingJson(updatedRaw));
+      })
       .catch(() => {});
-  }, []);
+  }, [provider, setProvider]);
 
   const cancelUnifiedEditInline = useCallback(() => {
     if (unifiedEditMaterializingKeyRef.current) {
@@ -1469,34 +1433,12 @@ export default function TreatmentRecommenderByTreatment({
     };
   }, []);
 
+  // Derive custom recommender options directly from the provider's "Treatment Pricing" JSON.
+  // No separate Airtable table fetch or seed needed — options are stored inside the JSON.
   useEffect(() => {
-    if (!provider?.id) return;
-    let mounted = true;
-    fetchTreatmentRecommenderCustomOptions(provider.id)
-      .then(async (list) => {
-        if (!mounted) return;
-        const seedOptions = buildTreatmentRecommenderSeedOptionsForProvider(
-          provider?.code,
-          effectivePriceList,
-        );
-        try {
-          await seedTreatmentRecommenderOptions(provider.id, seedOptions);
-          if (!mounted) return;
-          const refetched = await fetchTreatmentRecommenderCustomOptions(
-            provider.id,
-          );
-          if (!mounted) return;
-          setOptionRecords(refetched);
-        } catch {
-          if (!mounted) return;
-          setOptionRecords(list);
-        }
-      })
-      .catch(() => setOptionRecords([]));
-    return () => {
-      mounted = false;
-    };
-  }, [provider?.id, optionRecordsVersion, effectivePriceList]);
+    const raw = provider?.["Treatment Pricing"] as string | undefined;
+    setOptionRecords(extractRecommenderOptionsFromPricingJson(raw));
+  }, [provider?.["Treatment Pricing"]]);
 
   const baseWhereOptions = useMemo(
     () => REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other"),
@@ -1797,6 +1739,15 @@ export default function TreatmentRecommenderByTreatment({
     [provider?.code],
   );
 
+  const facialServiceTypeOptions = useMemo(
+    () =>
+      getTreatmentProductOptionsForProvider(
+        provider?.code,
+        "Facial Services",
+      ).filter((v) => v !== OTHER_PRODUCT_LABEL),
+    [provider?.code],
+  );
+
   const microneedlingWhereOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "microneedling_where"),
     [optionRecords],
@@ -2005,6 +1956,36 @@ export default function TreatmentRecommenderByTreatment({
     }));
   }, [chemicalPeelTypeOptions, chemicalPeelWhatOptionRecords]);
 
+  const facialServiceWhatOptionRecords = useMemo(
+    () => optionRecords.filter((o) => o.optionType === "facial_service_what"),
+    [optionRecords],
+  );
+  const baseFacialServiceTypes = useMemo(
+    () => [...facialServiceTypeOptions],
+    [facialServiceTypeOptions],
+  );
+  const facialServiceWhatDisplayRecords = useMemo(() => {
+    const valueToId = new Map(
+      facialServiceWhatOptionRecords.map((r) => [r.value, r.id]),
+    );
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    for (const v of baseFacialServiceTypes) {
+      if (seen.has(v)) continue;
+      seen.add(v);
+      ordered.push(v);
+    }
+    for (const r of facialServiceWhatOptionRecords) {
+      if (seen.has(r.value)) continue;
+      seen.add(r.value);
+      ordered.push(r.value);
+    }
+    return ordered.map((value) => ({
+      id: valueToId.get(value) ?? "",
+      value,
+    }));
+  }, [facialServiceWhatOptionRecords, baseFacialServiceTypes]);
+
   const canEditRecommenderOptions = Boolean(provider?.id);
 
   const unifiedEditModalOffering = unifiedEditModalTreatment
@@ -2036,6 +2017,8 @@ export default function TreatmentRecommenderByTreatment({
           return chemicalPeelWhereDisplayRecords;
         case "chemical_peel_what":
           return chemicalPeelTypeDisplayRecords;
+        case "facial_service_what":
+          return facialServiceWhatDisplayRecords;
         case "filler_what":
           return fillerTypeDisplayRecords;
         case "neurotoxin_what":
@@ -2054,6 +2037,7 @@ export default function TreatmentRecommenderByTreatment({
       microneedlingWhereDisplayRecords,
       chemicalPeelWhereDisplayRecords,
       chemicalPeelTypeDisplayRecords,
+      facialServiceWhatDisplayRecords,
       fillerTypeDisplayRecords,
       neurotoxinTypeDisplayRecords,
       genericWhereDisplayRecords,
@@ -2351,15 +2335,12 @@ export default function TreatmentRecommenderByTreatment({
     setSkincareProductSearchQuery("");
     setAddToPlanForTreatment((prev) => {
       if (prev?.treatment === treatment) return prev;
-      return {
-        ...initialAddToPlanRowForTreatment(
-          treatment,
-          wellnestOffering,
-          deliveryForm,
-          dosing,
-        ),
-        detailsExpanded: true,
-      };
+      return initialAddToPlanRowForTreatment(
+        treatment,
+        wellnestOffering,
+        deliveryForm,
+        dosing,
+      );
     });
   }, [onAddToPlanDirect]);
 
@@ -2496,6 +2477,7 @@ export default function TreatmentRecommenderByTreatment({
     addToPlanForTreatment?.laserWhat,
     addToPlanForTreatment?.biostimulantWhat,
     addToPlanForTreatment?.microneedlingType,
+    addToPlanForTreatment?.facialServiceWhat,
     addToPlanForTreatment?.deliveryForm,
     addToPlanForTreatment?.product,
     addToPlanForTreatment?.skincareWhat,
@@ -4286,6 +4268,80 @@ export default function TreatmentRecommenderByTreatment({
                                 </div>
                               </div>
                             )}
+                            {treatment === "Facial Services" && (
+                              <div className="treatment-recommender-by-treatment__add-row">
+                                <span className="treatment-recommender-by-treatment__add-row-label">
+                                  Type:
+                                </span>
+                                <div className="treatment-recommender-by-treatment__chips">
+                                  {facialServiceWhatDisplayRecords.map(
+                                    (rec, fsIdx) => {
+                                      const opt = rec.value;
+                                      const selected = (
+                                        addToPlanForTreatment.facialServiceWhat ??
+                                        []
+                                      ).includes(opt);
+                                      const recordId = rec.id || null;
+                                      return (
+                                        <button
+                                          key={
+                                            recordId
+                                              ? String(recordId)
+                                              : `facial-type-${fsIdx}-${opt}`
+                                          }
+                                          type="button"
+                                          className={`treatment-recommender-by-treatment__chip ${
+                                            selected
+                                              ? "treatment-recommender-by-treatment__chip--selected"
+                                              : ""
+                                          }`}
+                                          onClick={() =>
+                                            setAddToPlanForTreatment((prev) => {
+                                              if (!prev) return null;
+                                              const current =
+                                                prev.facialServiceWhat ?? [];
+                                              const next = current.includes(opt)
+                                                ? current.filter(
+                                                    (x) => x !== opt,
+                                                  )
+                                                : [...current, opt];
+                                              return {
+                                                ...prev,
+                                                facialServiceWhat: next,
+                                              };
+                                            })
+                                          }
+                                          title={
+                                            selected
+                                              ? `Remove ${opt}`
+                                              : `Add ${opt}`
+                                          }
+                                          aria-label={
+                                            selected
+                                              ? `Remove ${opt}`
+                                              : `Add ${opt}`
+                                          }
+                                        >
+                                          <span className="treatment-recommender-by-treatment__chip-label">
+                                            {stripOptionalRecommenderPriceFromLabel(
+                                              opt,
+                                            )}
+                                          </span>
+                                          {selected && (
+                                            <span
+                                              className="treatment-recommender-by-treatment__chip-remove"
+                                              aria-hidden
+                                            >
+                                              ×
+                                            </span>
+                                          )}
+                                        </button>
+                                      );
+                                    },
+                                  )}
+                                </div>
+                              </div>
+                            )}
                             {(treatment === "Filler" ||
                               treatment === "Neurotoxin" ||
                               treatment === "Chemical Peel") && (
@@ -4454,25 +4510,29 @@ export default function TreatmentRecommenderByTreatment({
                                   </label>
                                 );
                               })()}
-                            <details
-                              className="treatment-recommender-by-treatment__details"
-                              open={addToPlanForTreatment.detailsExpanded}
-                              onToggle={(e) => {
-                                const el =
-                                  e.currentTarget as HTMLDetailsElement | null;
-                                if (!el) return;
-                                const nextOpen = el.open;
-                                setAddToPlanForTreatment((prev) =>
-                                  prev
-                                    ? { ...prev, detailsExpanded: nextOpen }
-                                    : null,
-                                );
-                              }}
+                            <div
+                              className={`treatment-recommender-by-treatment__details plan-opt-details${
+                                addToPlanForTreatment.detailsExpanded
+                                  ? " treatment-recommender-by-treatment__details--open plan-opt-details--open"
+                                  : ""
+                              }`}
                             >
-                              <summary className="treatment-recommender-by-treatment__details-summary">
+                              <button
+                                type="button"
+                                className="treatment-recommender-by-treatment__details-summary plan-opt-summary"
+                                aria-expanded={addToPlanForTreatment.detailsExpanded}
+                                onClick={() =>
+                                  setAddToPlanForTreatment((prev) =>
+                                    prev
+                                      ? { ...prev, detailsExpanded: !prev.detailsExpanded }
+                                      : null,
+                                  )
+                                }
+                              >
                                 Optional details
-                              </summary>
-                              <div className="treatment-recommender-by-treatment__details-fields">
+                              </button>
+                              {addToPlanForTreatment.detailsExpanded && (
+                              <div className="treatment-recommender-by-treatment__details-fields plan-opt-fields">
                                 <div className="treatment-recommender-by-treatment__details-fields-nest">
                                 {(() => {
                                   const byArea =
@@ -4506,16 +4566,21 @@ export default function TreatmentRecommenderByTreatment({
                                     });
                                   };
                                   return (
-                                    <div className="treatment-recommender-by-treatment__to-address">
-                                      <span className="treatment-recommender-by-treatment__to-address-summary-label">
-                                        Concerns to address
+                                    <div
+                                      className="treatment-recommender-by-treatment__to-address"
+                                      role="group"
+                                      aria-label="Concerns to address"
+                                    >
+                                      <div className="treatment-recommender-by-treatment__to-address-heading">
+                                        <span className="treatment-recommender-by-treatment__to-address-heading-label">
+                                          Concerns to address
+                                        </span>
                                         {selected.length > 0 ? (
                                           <span className="treatment-recommender-by-treatment__to-address-summary-meta">
-                                            {" "}
                                             · {selected.length} selected
                                           </span>
                                         ) : null}
-                                      </span>
+                                      </div>
                                       <div className="treatment-recommender-by-treatment__to-address-inner">
                                         <p className="treatment-recommender-by-treatment__to-address-hint">
                                           Concerns this treatment relates to
@@ -4836,10 +4901,10 @@ export default function TreatmentRecommenderByTreatment({
                                       />
                                     </label>
                                   )}
-                                <label className="treatment-recommender-by-treatment__details-label">
+                                <label className="treatment-recommender-by-treatment__details-label plan-opt-field-label">
                                   Notes
                                   <textarea
-                                    className="treatment-recommender-by-treatment__details-textarea"
+                                    className="treatment-recommender-by-treatment__details-textarea plan-opt-textarea"
                                     placeholder="Optional notes"
                                     rows={2}
                                     value={addToPlanForTreatment.notes ?? ""}
@@ -4854,18 +4919,19 @@ export default function TreatmentRecommenderByTreatment({
                                 </label>
                                 </div>
                               </div>
-                            </details>
-                            <div className="treatment-recommender-by-treatment__add-actions">
+                              )}
+                            </div>
+                            <div className="treatment-recommender-by-treatment__add-actions plan-add-actions">
                               <button
                                 type="button"
-                                className="treatment-recommender-by-treatment__add-btn"
+                                className="treatment-recommender-by-treatment__add-btn plan-add-confirm-btn"
                                 onClick={handleAddToPlanConfirm}
                               >
                                 {editingPlanItemId ? "Save changes" : "Confirm"}
                               </button>
                               <button
                                 type="button"
-                                className="treatment-recommender-by-treatment__cancel-btn"
+                                className="treatment-recommender-by-treatment__cancel-btn plan-add-cancel-btn"
                                 onClick={() => {
                                   setEditingPlanItemId(null);
                                   setAddToPlanForTreatment(null);
@@ -5388,17 +5454,28 @@ export default function TreatmentRecommenderByTreatment({
                     inputs.name,
                     showPriceField ? inputs.priceNote : "",
                   );
-                  if (!val) return;
+                  if (!val || !provider?.id) return;
+                  const raw = provider?.["Treatment Pricing"] as string | undefined;
                   createTreatmentRecommenderCustomOption(
                     provider.id,
                     section.optionType,
                     val,
+                    raw,
                   )
-                    .then(() => {
-                      setOptionRecordsVersion((v) => v + 1);
+                    .then(({ updatedPricingRaw }) => {
+                      if (provider) setProvider({ ...provider, "Treatment Pricing": updatedPricingRaw });
+                      setOptionRecords(
+                        extractRecommenderOptionsFromPricingJson(updatedPricingRaw),
+                      );
                       closeComposer();
                     })
-                    .catch(() => showToast("Could not add"));
+                    .catch((err: unknown) =>
+                      showToast(
+                        err instanceof Error && err.message
+                          ? `Could not add: ${err.message}`
+                          : "Could not add — please try again",
+                      ),
+                    );
                 };
                 return (
                   <section
@@ -5463,36 +5540,37 @@ export default function TreatmentRecommenderByTreatment({
                                         setUnifiedEditMaterializingKey(
                                           rowMatKey,
                                         );
+                                        const raw = provider?.["Treatment Pricing"] as string | undefined;
                                         createTreatmentRecommenderCustomOption(
                                           provider.id,
                                           section.optionType,
                                           rec.value,
+                                          raw,
                                         )
-                                          .then((created) => {
+                                          .then(({ option: created, updatedPricingRaw }) => {
                                             if (
                                               unifiedEditMaterializeAbortRef.current
                                             ) {
                                               unifiedEditMaterializeAbortRef.current = false;
                                               void deleteTreatmentRecommenderOption(
-                                                created.id,
+                                                provider.id,
+                                                section.optionType,
+                                                created.value,
+                                                false,
+                                                updatedPricingRaw,
                                               )
-                                                .then(() =>
-                                                  setOptionRecordsVersion(
-                                                    (v) => v + 1,
-                                                  ),
-                                                )
+                                                .then((raw2) => {
+                                                  if (provider) setProvider({ ...provider, "Treatment Pricing": raw2 });
+                                                  setOptionRecords(
+                                                    extractRecommenderOptionsFromPricingJson(raw2),
+                                                  );
+                                                })
                                                 .catch(() => {});
                                               return;
                                             }
-                                            setOptionRecords((prev) =>
-                                              prev.some(
-                                                (o) => o.id === created.id,
-                                              )
-                                                ? prev
-                                                : [...prev, created],
-                                            );
-                                            setOptionRecordsVersion(
-                                              (v) => v + 1,
+                                            if (provider) setProvider({ ...provider, "Treatment Pricing": updatedPricingRaw });
+                                            setOptionRecords(
+                                              extractRecommenderOptionsFromPricingJson(updatedPricingRaw),
                                             );
                                             unifiedEditDraftRecordIdRef.current =
                                               created.id;
@@ -5535,15 +5613,20 @@ export default function TreatmentRecommenderByTreatment({
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter") {
                                         e.preventDefault();
+                                        const raw = provider?.["Treatment Pricing"] as string | undefined;
                                         updateTreatmentRecommenderOption(
-                                          rec.id,
+                                          provider?.id ?? "",
+                                          section.optionType,
+                                          rec.value,
                                           editingValue,
+                                          raw,
                                         )
-                                          .then(() => {
+                                          .then(({ updatedPricingRaw }) => {
                                             unifiedEditDraftRecordIdRef.current =
                                               null;
-                                            setOptionRecordsVersion(
-                                              (v) => v + 1,
+                                            if (provider) setProvider({ ...provider, "Treatment Pricing": updatedPricingRaw });
+                                            setOptionRecords(
+                                              extractRecommenderOptionsFromPricingJson(updatedPricingRaw),
                                             );
                                             setEditingRecordId(null);
                                             setEditingValue("");
@@ -5562,22 +5645,29 @@ export default function TreatmentRecommenderByTreatment({
                                   <button
                                     type="button"
                                     className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--primary"
-                                    onClick={() =>
+                                    onClick={() => {
+                                      const raw = provider?.["Treatment Pricing"] as string | undefined;
                                       updateTreatmentRecommenderOption(
-                                        rec.id,
+                                        provider?.id ?? "",
+                                        section.optionType,
+                                        rec.value,
                                         editingValue,
+                                        raw,
                                       )
-                                        .then(() => {
+                                        .then(({ updatedPricingRaw }) => {
                                           unifiedEditDraftRecordIdRef.current =
                                             null;
-                                          setOptionRecordsVersion((v) => v + 1);
+                                          if (provider) setProvider({ ...provider, "Treatment Pricing": updatedPricingRaw });
+                                          setOptionRecords(
+                                            extractRecommenderOptionsFromPricingJson(updatedPricingRaw),
+                                          );
                                           setEditingRecordId(null);
                                           setEditingValue("");
                                         })
                                         .catch(() =>
                                           showToast("Could not update"),
-                                        )
-                                    }
+                                        );
+                                    }}
                                   >
                                     Save
                                   </button>
@@ -5624,17 +5714,25 @@ export default function TreatmentRecommenderByTreatment({
                                         (unifiedEditRowBusy &&
                                           editingRecordId !== rec.id)
                                       }
-                                      onClick={() =>
-                                        deleteTreatmentRecommenderOption(rec.id)
-                                          .then(() =>
-                                            setOptionRecordsVersion(
-                                              (v) => v + 1,
-                                            ),
-                                          )
+                                      onClick={() => {
+                                        const raw = provider?.["Treatment Pricing"] as string | undefined;
+                                        deleteTreatmentRecommenderOption(
+                                          provider?.id ?? "",
+                                          section.optionType,
+                                          rec.value,
+                                          false,
+                                          raw,
+                                        )
+                                          .then((updatedRaw) => {
+                                            if (provider) setProvider({ ...provider, "Treatment Pricing": updatedRaw });
+                                            setOptionRecords(
+                                              extractRecommenderOptionsFromPricingJson(updatedRaw),
+                                            );
+                                          })
                                           .catch(() =>
                                             showToast("Could not remove"),
-                                          )
-                                      }
+                                          );
+                                      }}
                                     >
                                       Remove
                                     </button>

@@ -383,15 +383,19 @@
   .search-section {
     min-width: 150px;
     flex: 1 1 100%;
-    order: 3;
+    order: 4;
   }
-  
-  .filter-section {
+
+  .view-toggle-section {
+    order: 1;
+  }
+
+  .sort-section {
     order: 2;
   }
   
-  .view-toggle-section {
-    order: 1;
+  .filter-section {
+    order: 3;
   }
 }
 

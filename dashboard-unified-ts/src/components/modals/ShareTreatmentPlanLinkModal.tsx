@@ -31,8 +31,7 @@ import {
   warmPostVisitBlueprintForSend,
 } from "../../utils/postVisitBlueprint";
 import { formatPrice } from "../../data/treatmentPricing2025";
-import { patientFacingSkincareShortName } from "../../utils/pvbSkincareDisplay";
-import { getTreatmentDisplayName, getTreatmentPlanRowPrimaryLabel } from "./DiscussedTreatmentsModal/utils";
+import { getTreatmentPlanRowPrimaryLabel } from "./DiscussedTreatmentsModal/utils";
 import {
   computeQuoteSheetDataForDiscussedItems,
   getAlignedCheckoutLineItemsForDiscussedItems,
@@ -75,44 +74,20 @@ function shareTimelineGroupSortIndex(title: string): number {
 /** Per-line amount: show line total only (no unit math) when we have a numeric total. */
 function shareRowPriceDisplay(
   line:
-    | { price?: number; displayPrice?: string; isEstimate?: boolean }
+    | { price?: number; displayPrice?: string; isEstimate?: boolean; missingInfo?: string }
     | undefined,
-): string {
-  if (!line) return formatPrice(0);
-  if (line.displayPrice === "Price varies") return "Price varies";
+): { text: string; warning?: string } {
+  if (!line) return { text: formatPrice(0) };
+  if (line.missingInfo) return { text: "Price varies", warning: line.missingInfo };
+  if (line.displayPrice === "Price varies") return { text: "Price varies" };
   if (line.isEstimate && line.displayPrice?.trim()) {
-    return line.displayPrice.trim();
+    return { text: line.displayPrice.trim() };
   }
   if (line.price != null && line.price > 0) {
-    return formatPrice(line.price);
+    return { text: formatPrice(line.price) };
   }
-  if (line.displayPrice?.trim()) return line.displayPrice.trim();
-  return formatPrice(0);
-}
-
-function shareRowPrimaryLabel(
-  item: DiscussedItem,
-  line:
-    | {
-        skuName?: string;
-        label: string;
-        quoteLineKind?: "skincare" | "treatment";
-      }
-    | undefined,
-): string {
-  if (!line) return getTreatmentPlanRowPrimaryLabel(item);
-  const raw = (line.skuName ?? line.label ?? "").trim();
-  if (line.quoteLineKind === "skincare" && raw) {
-    return patientFacingSkincareShortName(raw);
-  }
-  // Use the same label the plan list column shows (item.product when set, else
-  // treatment name). This keeps the Share popup consistent with what the provider
-  // sees on the left side of the recommender — e.g. "Moxi + BBL" in both places
-  // instead of "Moxi + BBL" on the plan and "Moxi Full Face" on the share popup.
-  const planLabel = getTreatmentPlanRowPrimaryLabel(item);
-  if (planLabel && planLabel !== "—") return planLabel;
-  if (raw) return raw;
-  return getTreatmentDisplayName(item);
+  if (line.displayPrice?.trim()) return { text: line.displayPrice.trim() };
+  return { text: formatPrice(0) };
 }
 
 export default function ShareTreatmentPlanLinkModal({
@@ -631,10 +606,6 @@ export default function ShareTreatmentPlanLinkModal({
         </h3>
         {step === "pick" ? (
           <>
-            <p className="share-tp-link-dialog-subtitle">
-              Select which items to include. Everything checked will appear on
-              the patient's link with the prices from their plan.
-            </p>
             <div className="share-tp-link-dialog-body">
               {eligibleItems.length === 0 ? (
                 <p className="share-treatment-plan-link-empty">
@@ -662,15 +633,15 @@ export default function ShareTreatmentPlanLinkModal({
                                 />
                                 <span className="share-tp-link-quote-row-text">
                                   <span className="share-treatment-plan-link-row-title">
-                                    {shareRowPrimaryLabel(item, line)}
+                                    {getTreatmentPlanRowPrimaryLabel(item)}
                                   </span>
                                   <span className="share-treatment-plan-link-row-meta">
                                     {sectionLabelForShareRow(item)}
                                   </span>
                                 </span>
-                                <strong className="share-tp-link-quote-row-price">
-                                  {shareRowPriceDisplay(line)}
-                                </strong>
+                                <span className="share-tp-link-quote-row-price-block">
+                                  {(() => { const p = shareRowPriceDisplay(line); return (<><strong>{p.text}</strong>{p.warning && <span className="share-tp-link-quote-row-missing">⚠ {p.warning}</span>}</>); })()}
+                                </span>
                               </label>
                             </li>
                           );
@@ -708,12 +679,12 @@ export default function ShareTreatmentPlanLinkModal({
                                     />
                                     <span className="share-tp-link-quote-row-text">
                                       <span className="share-treatment-plan-link-row-title">
-                                        {shareRowPrimaryLabel(item, line)}
+                                        {getTreatmentPlanRowPrimaryLabel(item)}
                                       </span>
                                     </span>
-                                    <strong className="share-tp-link-quote-row-price">
-                                      {shareRowPriceDisplay(line)}
-                                    </strong>
+                                    <span className="share-tp-link-quote-row-price-block">
+                                      {(() => { const p = shareRowPriceDisplay(line); return (<><strong>{p.text}</strong>{p.warning && <span className="share-tp-link-quote-row-missing">⚠ {p.warning}</span>}</>); })()}
+                                    </span>
                                   </label>
                                 </li>
                               );

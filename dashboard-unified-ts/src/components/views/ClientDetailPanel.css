@@ -702,6 +702,10 @@
 
 .discussed-treatments-record-price-outer {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   font-size: 13px;
   font-weight: 700;
   color: var(--theme-text-primary);
@@ -709,6 +713,14 @@
   text-align: right;
   line-height: 1.3;
   max-width: 42%;
+}
+
+.discussed-treatments-record-price-missing {
+  font-size: 11px;
+  font-weight: 400;
+  color: #b45309;
+  white-space: normal;
+  line-height: 1.3;
 }
 
 .discussed-treatments-record-heading-block-outer {

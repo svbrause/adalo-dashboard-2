@@ -526,6 +526,14 @@ export default function ClientDetailModal({
     intakeWellnessInterests.length > 0 ||
     wellnessPlanItems.length > 0;
 
+  const treatmentPlanSubheading = showTreatmentRecommenderShortcut
+    ? "From the visit and your notes (not limited to facial scan)"
+    : hasFacialAnalysisForm
+      ? "Scan patient before building a plan"
+      : hasWebPopupForm
+        ? "Complete intake before building a plan"
+        : "From the visit and your notes (not limited to facial scan)";
+
   return (
     <div className="modal-overlay active" onClick={onClose}>
       <div
@@ -1146,8 +1154,7 @@ export default function ClientDetailModal({
                         &apos;s plan
                       </span>
                       <span className="discussed-treatments-in-facial-subheading">
-                        From the visit and your notes (not limited to facial
-                        scan)
+                        {treatmentPlanSubheading}
                       </span>
                     </div>
                     <div className="discussed-treatments-in-facial-actions">
@@ -1167,18 +1174,27 @@ export default function ClientDetailModal({
                             Share
                           </button>
                         )}
-                      {showTreatmentRecommenderShortcut && (
-                        <button
-                          type="button"
-                          className="btn-secondary btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRecommenderMode("by-treatment");
-                          }}
-                        >
-                          Treatment Recommender
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        disabled={!showTreatmentRecommenderShortcut}
+                        title={
+                          !showTreatmentRecommenderShortcut
+                            ? hasFacialAnalysisForm
+                              ? "Scan patient before building a plan"
+                              : hasWebPopupForm
+                                ? "Complete intake before building a plan"
+                                : "Add visit or intake data to use the recommender"
+                            : undefined
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!showTreatmentRecommenderShortcut) return;
+                          setRecommenderMode("by-treatment");
+                        }}
+                      >
+                        Treatment Recommender
+                      </button>
                       {/* Plan Manage/Add — hidden for now (re-enable when Discussed Treatments modal flow is ready). */}
                       {false && (
                         <button
@@ -1245,7 +1261,7 @@ export default function ClientDetailModal({
                                 </h4>
                                 <div className="discussed-treatments-records-list-outer">
                                   {sectionItems.map((item) => {
-                                    const priceLabel =
+                                    const priceData =
                                       discussedPlanPriceLabels.get(item.id) ??
                                       null;
                                     const planSecondary =
@@ -1267,12 +1283,17 @@ export default function ClientDetailModal({
                                             </div>
                                           ) : null}
                                         </div>
-                                        {priceLabel ? (
+                                        {priceData ? (
                                           <div
                                             className="discussed-treatments-record-price-outer"
                                             title="From practice price list / checkout"
                                           >
-                                            {priceLabel}
+                                            <span>{priceData.label}</span>
+                                            {priceData.missingInfo && (
+                                              <span className="discussed-treatments-record-price-missing">
+                                                ⚠ {priceData.missingInfo}
+                                              </span>
+                                            )}
                                           </div>
                                         ) : null}
                                       </div>

@@ -41,7 +41,7 @@ interface SkinTypeQuizModalProps {
   providerName?: string | null;
 }
 
-const DEFAULT_PROVIDER_NAME = "The Treatment Skin Boutique";
+const DEFAULT_PROVIDER_NAME = "your practice";
 
 export default function SkinTypeQuizModal({
   client,

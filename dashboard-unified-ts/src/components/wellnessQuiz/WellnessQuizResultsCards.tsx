@@ -85,7 +85,7 @@ export default function WellnessQuizResultsCards({
                     });
                   }}
                 >
-                  Add to treatment plan
+                  Add to plan
                 </button>
               </div>
             )}

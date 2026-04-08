@@ -147,7 +147,7 @@ export default function SkinQuizProductModal({
               className="skin-quiz-product-modal-btn skin-quiz-product-modal-btn--primary"
               onClick={handleAddToPlan}
             >
-              Add to treatment plan
+              Add to plan
             </button>
           )}
           {product.productUrl && (

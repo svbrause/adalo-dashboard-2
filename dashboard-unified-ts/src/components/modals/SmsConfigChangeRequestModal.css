@@ -1,32 +1,351 @@
+/* ── Modal shell ──────────────────────────────────────────────────────────── */
+
 .sms-config-request-modal {
-  max-width: 760px;
-  width: min(760px, calc(100vw - 24px));
+  max-width: 640px;
+  width: min(640px, calc(100vw - 32px));
+}
+
+.sms-config-request-modal .modal-header-info {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
 }
 
 .sms-config-request-subtitle {
-  margin: 6px 0 0;
+  margin: 0;
   color: #64748b;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
 }
 
+/*
+ * The form sits between .modal-content (a flex column) and .modal-body.
+ * Making it a flex column with flex:1 + min-height:0 restores the layout chain:
+ *   modal-content (flex col, max-height:85vh, overflow:hidden)
+ *     modal-header (auto height, shrinks to fit)
+ *     form         (flex:1, min-height:0, flex col)  ← fills remaining height
+ *       modal-body (flex:1, min-height:0, overflow-y:auto) ← scrolls
+ *       modal-footer (flex-shrink:0)                  ← always visible
+ *
+ * No overflow:hidden on the form — modal-content already clips at 85vh.
+ */
+.sms-config-request-modal form {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * Override the global responsive padding (32px 48px at ≥1200px) that crushes
+ * content inside this narrow modal.
+ * overscroll-behavior:contain stops scroll events from leaking through the
+ * overlay and scrolling the page behind the modal.
+ */
+.sms-config-request-modal .modal-body {
+  padding: 16px 20px !important;
+  overscroll-behavior: contain;
+}
+
+/* ── Inner flex layout for body content ──────────────────────────────────── */
+
 .sms-config-request-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Sender row (name + email side-by-side) ───────────────────────────────── */
+
+.creq-sender-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 
-.sms-config-request-body .form-group:last-child {
-  grid-column: 1 / -1;
-}
-
-.sms-config-request-body textarea {
-  min-height: 180px;
-  resize: vertical;
-}
-
-@media (max-width: 760px) {
-  .sms-config-request-body {
+@media (max-width: 500px) {
+  .creq-sender-row {
     grid-template-columns: 1fr;
   }
 }
 
+/* ── Read-only context summary card ──────────────────────────────────────── */
+
+.creq-context {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.creq-context-row {
+  display: flex;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.creq-context-label {
+  color: #94a3b8;
+  min-width: 76px;
+  flex-shrink: 0;
+  font-size: 11.5px;
+  padding-top: 1px;
+}
+
+.creq-context-value {
+  color: #334155;
+  font-size: 12.5px;
+}
+
+/* ── Per-field change block ───────────────────────────────────────────────── */
+
+/* Unified card wrapping all fields — single border, dividers between rows */
+.creq-fields-group {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.creq-field {
+  /* individual fields have no own border when inside a group */
+}
+
+.creq-fields-group .creq-field + .creq-field {
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Group-level toolbar row (sits above the fields, holds the single Change button) */
+.creq-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+}
+
+.creq-field-header {
+  background: #f1f5f9;
+  padding: 5px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+/* Inline textarea — edit mode, looks like a standard input field */
+.creq-inline-textarea {
+  flex: 1;
+  min-width: 0;
+  margin: 5px 10px;
+  padding: 6px 10px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-family: inherit;
+  font-size: 12.5px;
+  color: #1e293b;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.creq-inline-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+.creq-inline-textarea--body {
+  white-space: pre-wrap;
+}
+
+/* Preview (collapsed) layout — label inline to the left of the value */
+.creq-field--preview {
+  display: flex;
+  align-items: baseline;
+}
+
+.creq-field--preview .creq-field-header {
+  border-bottom: none;
+  border-right: 1px solid #e2e8f0;
+  width: 96px;
+  flex-shrink: 0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  align-self: flex-start;
+}
+
+.creq-field--preview .creq-field-preview {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Body field — allow preview to wrap but still show label inline */
+.creq-field--multiline-preview {
+  align-items: flex-start;
+}
+
+/* "Change" button inside the field header — matches .btn-primary style */
+.creq-field-change-btn {
+  padding: 7px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--theme-primary-btn, #000);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+  min-height: 34px;
+  min-width: 80px;
+}
+.creq-field-change-btn:hover {
+  background: var(--theme-primary-btn-hover, #222);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.creq-field-cancel-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  min-height: 32px;
+  min-width: 72px;
+}
+.creq-field-cancel-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #94a3b8;
+}
+
+/* Cancel + Save side by side in the group header */
+.creq-group-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Template variable pill — replaces {{var_name}} in read-only views */
+.template-var {
+  color: #6366f1;
+  font-weight: 500;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* Collapsed preview — shown when the field is not yet expanded */
+.creq-field-preview {
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.creq-field-preview--multiline {
+  white-space: pre-wrap;
+}
+
+/* Side-by-side: current on left, proposed on right */
+.creq-field-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.creq-field-current {
+  padding: 8px 12px;
+  background: #fafafa;
+  border-right: 1px solid #e2e8f0;
+  /* Cap height so long bodies don't dominate; scrolls internally */
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.creq-field-section-tag {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+  margin-bottom: 3px;
+}
+
+.creq-field-current-val {
+  margin: 0;
+  font-size: 12.5px;
+  color: #475569;
+  white-space: pre-wrap;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.creq-field-proposed {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.creq-field-proposed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.creq-field-fill-btn {
+  padding: 1px 7px;
+  font-size: 10.5px;
+  font-family: inherit;
+  font-weight: 500;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.6;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.creq-field-fill-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.creq-field-proposed textarea {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 80px;
+  font-family: inherit;
+  font-size: 12.5px;
+  resize: vertical;
+}

@@ -321,6 +321,8 @@ export function getQuantityContext(
     t.includes("energy device") ||
     t === "energy treatment" ||
     t.includes("energy treatment") ||
+    t === "facial services" ||
+    t.includes("facial services") ||
     t === "rf" ||
     t === "radiofrequency" ||
     t.includes("radiofrequency") ||
@@ -421,7 +423,19 @@ export function getDisplayAreaForItem(item: DiscussedItem): string | null {
 /** Bullet character used to separate attributes in one line. */
 export const TREATMENT_PLAN_BULLET = " • ";
 
-/** Display name for the treatment heading: when treatment is "Goal only", show the goal/interest (e.g. "Fade Scars") instead. */
+/**
+ * Category-level display name for a treatment item.
+ *
+ * USE FOR: the detail drawer heading in DiscussedTreatmentsModal, SMS body text
+ * (ShareTreatmentPlanModal), and any surface that wants the broad category
+ * (e.g. "Laser", "Filler") rather than the specific product.
+ *
+ * For "Goal only" rows it returns the goal/interest string instead.
+ * For Skincare it returns the patient-facing short product name.
+ *
+ * DO NOT USE for plan list rows or the share-link modal — use
+ * {@link getTreatmentPlanRowPrimaryLabel} there so the product name leads.
+ */
 export function getTreatmentDisplayName(item: DiscussedItem): string {
   if (item.treatment === TREATMENT_GOAL_ONLY && item.interest?.trim()) {
     return item.interest.trim();
@@ -434,9 +448,16 @@ export function getTreatmentDisplayName(item: DiscussedItem): string {
 }
 
 /**
- * Display name for checkout / quote lines: same idea as {@link getTreatmentPlanRowPrimaryLabel} —
- * lead with the chosen product or device (Ultherapy, Moxi, Juvederm) when set, not the broad
- * category (Energy Treatment, Laser, Filler). Skincare keeps the full boutique product string.
+ * Display name specifically for checkout / quote line items.
+ *
+ * USE FOR: the label string passed into `getCheckoutSummaryWithSkus` and
+ * `getAlignedCheckoutLineItemsForDiscussedItems` (i.e. TreatmentPlanCheckout,
+ * ShareTreatmentPlanLinkModal pricing lines). It leads with the chosen product
+ * or device (Ultherapy, Moxi, Juvederm) — not the broad category — so the SKU
+ * lookup can match correctly. Skincare rows keep the full boutique string.
+ *
+ * DO NOT USE for list row headings — use {@link getTreatmentPlanRowPrimaryLabel}
+ * so Skincare gets the shorter patient-facing name.
  */
 export function getCheckoutDisplayName(item: DiscussedItem): string {
   if (
@@ -475,8 +496,16 @@ export function formatTreatmentPlanRecordMetaLine(item: DiscussedItem): string {
 }
 
 /**
- * Plan list / sidebar: lead with the specific product or device when set (e.g. Radiesse, Ultherapy);
- * otherwise the treatment line matches {@link getTreatmentDisplayName}.
+ * Product-first label for plan list rows and the share-link modal.
+ *
+ * USE FOR: every place the treatment shows up as a named list row — [Name]'s
+ * plan in DiscussedTreatmentsModal (PlanListColumn), the inline plan list in
+ * TreatmentRecommenderByTreatment, and the row titles in ShareTreatmentPlanLinkModal.
+ *
+ * Leads with the chosen product or device (e.g. "Moxi", "Juvederm") when set,
+ * falling back to the broad category. This is intentionally different from
+ * {@link getTreatmentDisplayName}, which returns the category first.
+ * Pair with {@link getTreatmentPlanRowSecondaryLabel} for the sub-line.
  */
 export function getTreatmentPlanRowPrimaryLabel(item: DiscussedItem): string {
   if (item.treatment === TREATMENT_GOAL_ONLY && item.interest?.trim()) {
@@ -494,8 +523,11 @@ export function getTreatmentPlanRowPrimaryLabel(item: DiscussedItem): string {
 }
 
 /**
- * Second line under {@link getTreatmentPlanRowPrimaryLabel}: category + area + qty,
- * omitting the product when it is already the primary label.
+ * Supporting sub-line shown directly under {@link getTreatmentPlanRowPrimaryLabel}.
+ *
+ * USE FOR: the secondary/meta text below the main label in plan list rows (e.g.
+ * "Filler • Cheeks • 1 syringe"). Returns null when there is no meaningful
+ * secondary context to show. Always pair with getTreatmentPlanRowPrimaryLabel.
  */
 export function getTreatmentPlanRowSecondaryLabel(
   item: DiscussedItem,

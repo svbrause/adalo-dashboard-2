@@ -4,6 +4,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import { submitHelpRequest } from '../../services/api';
 import { isValidEmail } from '../../utils/validation';
+import { appendTeamNotificationEmailsToHelpMessage } from '../../utils/providerNotificationEmails';
 import { setBodyScrollLock } from '../../utils/scrollLock';
 import { showToast, showError } from '../../utils/toast';
 import { Offer } from '../../types';
@@ -129,7 +130,12 @@ export default function OfferRequestModal({
         notes,
         mode === 'edit' ? initialOffer?.name : undefined
       );
-      await submitHelpRequest(requesterName, requesterEmail, message, provider.id);
+      await submitHelpRequest(
+        requesterName,
+        requesterEmail,
+        appendTeamNotificationEmailsToHelpMessage(message, provider.id, provider),
+        provider.id,
+      );
       showToast("Request submitted. The Ponce support team will follow up.");
       onClose();
     } catch (err: unknown) {

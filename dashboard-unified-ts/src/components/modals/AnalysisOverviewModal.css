@@ -860,20 +860,19 @@
   color: var(--theme-text-primary, #212121);
 }
 
-.ao-suggestion-card__ai-details {
-  margin: 0 0 10px;
-  font-size: 0.8125rem;
-}
-
-.ao-suggestion-card__ai-details summary {
-  cursor: pointer;
-  color: var(--theme-link, #0d6efd);
-}
-
 .ao-suggestion-card__ai-text {
-  margin: 8px 0 0;
-  line-height: 1.45;
-  color: var(--theme-text-secondary, #616161);
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--theme-text-primary, #212121);
+}
+
+.ao-suggestion-card__ai-text p {
+  margin: 0 0 6px;
+}
+
+.ao-suggestion-card__ai-text p:last-child {
+  margin-bottom: 0;
 }
 
 .ao-suggestion-card__breakdown {

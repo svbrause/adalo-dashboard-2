@@ -4,6 +4,7 @@ import { useState, FormEvent, useEffect } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import { submitHelpRequest } from "../../services/api";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
+import { appendTeamNotificationEmailsToHelpMessage } from "../../utils/providerNotificationEmails";
 import { isValidEmail } from "../../utils/validation";
 import { showToast, showError } from "../../utils/toast";
 import "./HelpRequestModal.css";
@@ -79,7 +80,11 @@ export default function HelpRequestModal({
       await submitHelpRequest(
         formData.name,
         formData.email,
-        formData.message,
+        appendTeamNotificationEmailsToHelpMessage(
+          formData.message,
+          provider.id,
+          provider,
+        ),
         provider.id,
       );
       showToast(

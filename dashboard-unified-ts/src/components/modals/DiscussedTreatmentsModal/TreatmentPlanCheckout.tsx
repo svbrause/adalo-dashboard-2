@@ -483,6 +483,18 @@ export default function TreatmentPlanCheckout({
               <span className="treatment-plan-checkout-row-label">
                 {getListLabel(eff)}
               </span>
+              {line.missingInfo && !showInlineEdit && (
+                <button
+                  type="button"
+                  className="treatment-plan-checkout-row-missing"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingIndex(idx);
+                  }}
+                >
+                  ⚠ {line.missingInfo}
+                </button>
+              )}
               <div className="treatment-plan-checkout-row-actions">
                 {onUpdateItem && !inWishlist && (
                   <button
@@ -514,7 +526,9 @@ export default function TreatmentPlanCheckout({
                 </button>
               </div>
             </div>
-            <span className="treatment-plan-checkout-row-price">
+            <span
+              className={`treatment-plan-checkout-row-price${line.displayPrice === "Price varies" ? " treatment-plan-checkout-row-price--unknown" : ""}`}
+            >
               {line.displayPrice}
             </span>
           </div>
@@ -1085,12 +1099,12 @@ function CheckoutDetailPanel({
                     −
                   </button>
                   <span
-                    className="treatment-plan-checkout-units-stepper-value"
+                    className={`treatment-plan-checkout-units-stepper-value${!(quantityValue && /^\d+$/.test(quantityValue)) ? " treatment-plan-checkout-units-stepper-value--empty" : ""}`}
                     aria-live="polite"
                   >
                     {quantityValue && /^\d+$/.test(quantityValue)
                       ? quantityValue
-                      : "—"}
+                      : "Enter units"}
                   </span>
                   <button
                     type="button"
@@ -1270,12 +1284,12 @@ function CheckoutDetailPanel({
                 −
               </button>
               <span
-                className="treatment-plan-checkout-units-stepper-value"
+                className={`treatment-plan-checkout-units-stepper-value${!(quantityValue && /^\d+$/.test(quantityValue)) ? " treatment-plan-checkout-units-stepper-value--empty" : ""}`}
                 aria-live="polite"
               >
                 {quantityValue && /^\d+$/.test(quantityValue)
                   ? quantityValue
-                  : "—"}
+                  : "Enter units"}
               </span>
               <button
                 type="button"
@@ -1321,13 +1335,20 @@ function CheckoutDetailPanel({
       )}
       <div className="treatment-plan-checkout-detail-section">
         <span className="treatment-plan-checkout-detail-label">Price</span>
-        <p
-          className="treatment-plan-checkout-detail-value"
-          style={{ fontWeight: 600, color: "var(--theme-accent, #6366f1)" }}
-        >
-          {line.displayPrice}
-          {line.isEstimate && " (estimate)"}
-        </p>
+        <div className="treatment-plan-checkout-detail-price-block">
+          <p
+            className="treatment-plan-checkout-detail-value"
+            style={{ fontWeight: 600, color: "var(--theme-accent, #6366f1)" }}
+          >
+            {line.displayPrice}
+            {line.isEstimate && line.displayPrice !== "Price varies" && " (estimate)"}
+          </p>
+          {line.missingInfo && (
+            <p className="treatment-plan-checkout-detail-missing">
+              ⚠ {line.missingInfo}
+            </p>
+          )}
+        </div>
       </div>
       {line.skuName && line.skuName !== line.label && (
         <p
@@ -1454,8 +1475,8 @@ export function getDiscussedItemQuoteOrderRankById(
  */
 export function getDiscussedPlanItemPriceLabels(
   items: DiscussedItem[],
-): ReadonlyMap<string, string> {
-  const map = new Map<string, string>();
+): ReadonlyMap<string, { label: string; missingInfo?: string }> {
+  const map = new Map<string, { label: string; missingInfo?: string }>();
   if (items.length === 0) return map;
   const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items);
   items.forEach((item, idx) => {
@@ -1466,7 +1487,7 @@ export function getDiscussedPlanItemPriceLabels(
     const label =
       (line.displayPrice && line.displayPrice.trim()) ||
       formatPrice(line.price ?? 0);
-    map.set(id, label);
+    map.set(id, { label, missingInfo: line.missingInfo });
   });
   return map;
 }

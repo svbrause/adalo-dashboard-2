@@ -18,6 +18,7 @@ export interface TreatmentPriceItem {
 export type DashboardTreatmentCategory =
   | "Skincare"
   | "Energy Treatment"
+  | "Facial Services"
   | "Chemical Peel"
   | "Microneedling"
   | "Filler"
@@ -268,11 +269,6 @@ function getItemsForDashboardCategory(
         );
       }
     } else if (
-      section.category === "Facial Services" &&
-      category === "Skincare"
-    ) {
-      flat.push(...section.items);
-    } else if (
       section.category === "Chemical Peel" &&
       category === "Chemical Peel"
     ) {
@@ -323,7 +319,9 @@ export function getDashboardCategoriesForPriceListItem(
 ): DashboardTreatmentCategory[] {
   const sec = (sheetSectionCategory ?? "").trim();
   const n = itemName ?? "";
-  if (sec === "Facial Services") return ["Skincare"];
+  if (sec === "Facial Services") {
+    return ["Facial Services"];
+  }
   if (sec === "Chemical Peel") return ["Chemical Peel"];
   if (sec === "Sofwave" || sec === "Ultherapy" || sec === "Laser") {
     return ["Energy Treatment"];
@@ -434,8 +432,9 @@ export const PROVIDER_CODE_RESTRICTED_TO_PRICE_LIST = "TheTreatment250";
 
 /** Dashboard treatment category → price list section names (for SKU lookup). */
 const DASHBOARD_TO_PRICE_SECTIONS: Record<string, string[]> = {
-  Skincare: ["Facial Services"],
+  Skincare: [],
   "Energy Treatment": ["Laser", "Sofwave", "Ultherapy"],
+  "Facial Services": ["Facial Services"],
   "Chemical Peel": ["Chemical Peel"],
   Microneedling: ["Medical Spa"],
   Filler: ["Injectables"],
@@ -517,6 +516,13 @@ export function getChemicalPeelSkusFromPriceList(): string[] {
   return section.items.map((i) => i.name);
 }
 
+/** Facial service names from the 2025 price list. */
+export function getFacialServiceTypesFromPriceList(): string[] {
+  const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Facial Services");
+  if (!section) return [];
+  return section.items.map((i) => i.name);
+}
+
 /** Chemical peel type names from the 2025 price list (without area suffix). */
 export function getChemicalPeelTypesFromPriceList(): string[] {
   const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Chemical Peel");
@@ -573,13 +579,24 @@ function isCaGeneralOption(item: TreatmentPriceItem): boolean {
 export function getMicroneedlingTypesFromPriceList(): string[] {
   const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Medical Spa");
   if (!section) return [];
-  return section.items
+  const names = section.items
     .filter(
       (i) =>
         isCaGeneralOption(i) &&
-        (i.name.includes("Microneedling") || i.name.includes("PRFM"))
+        (i.name.includes("Microneedling") || i.name.includes("PRFM")) &&
+        // Exclude standalone "PRFM Additional Tube" — it's an add-on, not a standalone type.
+        // The compound option "PRFM Microneedling + Additional Tube" is injected below instead.
+        i.name !== "PRFM Additional Tube"
     )
     .map((i) => i.name);
+
+  // Insert the compound option immediately after "PRFM Microneedling".
+  const prfmIdx = names.indexOf("PRFM Microneedling");
+  if (prfmIdx !== -1) {
+    names.splice(prfmIdx + 1, 0, "PRFM Microneedling + Additional Tube");
+  }
+
+  return names;
 }
 
 /** Neurotoxin type names from the 2025 price list (Injectables: Botox, Dysport, Sweating). Used as Type options so selection matches pricing. */
@@ -815,6 +832,16 @@ export function matchPlanItemToSku(
     }
   }
 
+  // Microneedling: "PRFM Microneedling + Additional Tube" = PRFM Microneedling ($775) + PRFM Additional Tube ($250) = $1025.
+  // Use CA/Claremont pricing only (Henderson SKUs are excluded via preferClaremontCaSkus above).
+  if (treatment === "Microneedling" && /additional\s*tube/i.test(product)) {
+    const prfmSku = skus.find((s) => s.name === "PRFM Microneedling");
+    const addOnSku = skus.find((s) => s.name === "PRFM Additional Tube");
+    if (prfmSku && addOnSku) {
+      return { sku: prfmSku, totalPrice: prfmSku.price + addOnSku.price };
+    }
+  }
+
   // Chemical Peel: when both type and area are selected, require both to match the SKU.
   if (treatment === "Chemical Peel" && product && region) {
     const byTypeAndArea = skus.find(
@@ -1029,6 +1056,8 @@ export interface CheckoutLineItemDetail {
   isEstimate?: boolean;
   /** Product description (skincare only; when set, longevity/recovery/sessions are omitted) */
   description?: string;
+  /** Human-readable explanation of why pricing is unavailable (shown as an actionable warning in checkout UI). */
+  missingInfo?: string;
   /** Quote UI grouping: `skincare` = Skin Boutique retail product line only; `treatment` = everything else (including facials under Skincare category) */
   quoteLineKind?: "skincare" | "treatment";
 }
@@ -1148,6 +1177,12 @@ export function getCheckoutSummaryWithSkus(
         !productName;
       if (injectableNeedsProductForQuote) {
         const m = meta(cat);
+        const missingInfo =
+          cat === "Neurotoxin"
+            ? "Select a type (e.g. Botox, Dysport) to get a price"
+            : cat === "Filler"
+              ? "Select a filler type to get a price"
+              : "Select a type (e.g. Radiesse, Sculptra) to get a price";
         lineItems.push({
           label,
           price: 0,
@@ -1156,6 +1191,7 @@ export function getCheckoutSummaryWithSkus(
           downtime: m?.downtime,
           sessions: m?.sessions,
           isEstimate: true,
+          missingInfo,
           quoteLineKind: treatmentLineKind,
         });
         hasUnknownPrices = true;
@@ -1188,6 +1224,7 @@ export function getCheckoutSummaryWithSkus(
           downtime: categoryMetaFallback?.downtime,
           sessions: categoryMetaFallback?.sessions,
           isEstimate: true,
+          missingInfo: "No pricing available for this treatment",
           quoteLineKind: treatmentLineKind,
         });
         hasUnknownPrices = true;
@@ -1256,19 +1293,207 @@ export function mergeProviderPricing(
 
 /**
  * Build the effective price list for a provider: parse their override, merge with defaults.
+ * Handles both the old bare-array format and the new ProviderPricingDocument format.
  * Callers pass `provider["Treatment Pricing"]`.
  */
 export function getEffectivePriceList(
   providerTreatmentPricingRaw: string | null | undefined,
 ): ProviderPricingJson {
-  return mergeProviderPricing(parseProviderPricingJson(providerTreatmentPricingRaw));
+  if (!providerTreatmentPricingRaw?.trim()) return TREATMENT_PRICE_LIST_2025;
+  try {
+    const parsed = JSON.parse(providerTreatmentPricingRaw);
+    // New document format: { pricing?, recommenderOptions? }
+    if (parsed && !Array.isArray(parsed) && typeof parsed === "object") {
+      return mergeProviderPricing(
+        Array.isArray(parsed.pricing) ? (parsed.pricing as ProviderPricingJson) : null,
+      );
+    }
+    // Old format: bare array
+    if (Array.isArray(parsed)) return mergeProviderPricing(parsed as ProviderPricingJson);
+    return TREATMENT_PRICE_LIST_2025;
+  } catch {
+    return TREATMENT_PRICE_LIST_2025;
+  }
 }
 
 /**
  * Serialize a price list back to the JSON string for Airtable.
+ * @deprecated Prefer `serializeProviderPricingDocument` so recommenderOptions are preserved.
  */
 export function serializePricingJson(pricing: ProviderPricingJson): string {
   return JSON.stringify(pricing, null, 2);
+}
+
+// ---------------------------------------------------------------------------
+// Combined "Treatment Pricing" document (pricing + custom recommender options)
+// ---------------------------------------------------------------------------
+
+/**
+ * Full shape of the "Treatment Pricing" long-text field.
+ * Old providers may have a bare JSON array (ProviderPricingJson); new entries use
+ * this object wrapper so recommender options live alongside pricing overrides.
+ *
+ * The `recommenderOptions` map stores ONLY values the provider has manually added
+ * beyond the static defaults.  Deletions of default options are tracked separately
+ * in `recommenderRemovedDefaults`.
+ */
+export interface ProviderPricingDocument {
+  pricing?: ProviderPricingJson;
+  /** Provider-added custom option values, keyed by TreatmentRecommenderOptionType. */
+  recommenderOptions?: Record<string, string[]>;
+  /** Default option values the provider has removed, keyed by TreatmentRecommenderOptionType. */
+  recommenderRemovedDefaults?: Record<string, string[]>;
+}
+
+/**
+ * Parse the raw "Treatment Pricing" JSON into a ProviderPricingDocument.
+ * Handles the old bare-array format transparently.
+ */
+export function parseProviderPricingDocument(
+  raw: string | null | undefined,
+): ProviderPricingDocument {
+  if (!raw?.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      // Old format: bare pricing array — lift it into the document wrapper.
+      return { pricing: parsed as ProviderPricingJson };
+    }
+    if (parsed && typeof parsed === "object") {
+      return parsed as ProviderPricingDocument;
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Extract just the pricing section from the document, falling back to
+ * `parseProviderPricingJson` for old-format data.
+ */
+export function getPricingFromDocument(
+  raw: string | null | undefined,
+): ProviderPricingJson | null {
+  const doc = parseProviderPricingDocument(raw);
+  return doc.pricing ?? null;
+}
+
+/**
+ * Build the effective price list from the document format.
+ * Callers pass `provider["Treatment Pricing"]`.
+ */
+export function getEffectivePriceListFromDocument(
+  raw: string | null | undefined,
+): ProviderPricingJson {
+  return mergeProviderPricing(getPricingFromDocument(raw));
+}
+
+/**
+ * Serialize a ProviderPricingDocument back to the JSON string for Airtable.
+ */
+export function serializeProviderPricingDocument(
+  doc: ProviderPricingDocument,
+): string {
+  return JSON.stringify(doc, null, 2);
+}
+
+/**
+ * Return the custom recommender option values for a given optionType.
+ */
+export function getCustomRecommenderOptions(
+  doc: ProviderPricingDocument,
+  optionType: string,
+): string[] {
+  return doc.recommenderOptions?.[optionType] ?? [];
+}
+
+/**
+ * Return the removed-default values for a given optionType.
+ */
+export function getRemovedDefaultRecommenderOptions(
+  doc: ProviderPricingDocument,
+  optionType: string,
+): string[] {
+  return doc.recommenderRemovedDefaults?.[optionType] ?? [];
+}
+
+/**
+ * Return a new document with `value` added to the custom options for `optionType`.
+ * Deduplicates by value (case-sensitive).
+ */
+export function addCustomRecommenderOption(
+  doc: ProviderPricingDocument,
+  optionType: string,
+  value: string,
+): ProviderPricingDocument {
+  const existing = getCustomRecommenderOptions(doc, optionType);
+  if (existing.includes(value)) return doc;
+  // If the value was previously removed as a default, un-remove it instead of duplicating.
+  const removed = getRemovedDefaultRecommenderOptions(doc, optionType).filter(
+    (v) => v !== value,
+  );
+  return {
+    ...doc,
+    recommenderOptions: {
+      ...(doc.recommenderOptions ?? {}),
+      [optionType]: [...existing, value],
+    },
+    recommenderRemovedDefaults: {
+      ...(doc.recommenderRemovedDefaults ?? {}),
+      [optionType]: removed,
+    },
+  };
+}
+
+/**
+ * Return a new document with `value` removed from both custom options and
+ * (if it was a default value) added to the removed-defaults list.
+ */
+export function removeRecommenderOption(
+  doc: ProviderPricingDocument,
+  optionType: string,
+  value: string,
+  isDefault: boolean,
+): ProviderPricingDocument {
+  const custom = getCustomRecommenderOptions(doc, optionType).filter(
+    (v) => v !== value,
+  );
+  const removed = getRemovedDefaultRecommenderOptions(doc, optionType);
+  const newRemoved =
+    isDefault && !removed.includes(value) ? [...removed, value] : removed;
+  return {
+    ...doc,
+    recommenderOptions: {
+      ...(doc.recommenderOptions ?? {}),
+      [optionType]: custom,
+    },
+    recommenderRemovedDefaults: {
+      ...(doc.recommenderRemovedDefaults ?? {}),
+      [optionType]: newRemoved,
+    },
+  };
+}
+
+/**
+ * Return a new document with `oldValue` renamed to `newValue` inside custom options.
+ */
+export function renameCustomRecommenderOption(
+  doc: ProviderPricingDocument,
+  optionType: string,
+  oldValue: string,
+  newValue: string,
+): ProviderPricingDocument {
+  const custom = getCustomRecommenderOptions(doc, optionType).map((v) =>
+    v === oldValue ? newValue : v,
+  );
+  return {
+    ...doc,
+    recommenderOptions: {
+      ...(doc.recommenderOptions ?? {}),
+      [optionType]: custom,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

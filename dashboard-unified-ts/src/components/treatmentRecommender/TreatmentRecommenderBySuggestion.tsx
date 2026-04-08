@@ -598,7 +598,7 @@ export default function TreatmentRecommenderBySuggestion({
                           title={
                             p.blurb
                               ? `Add to plan – ${p.blurb}`
-                              : "Add to treatment plan"
+                              : "Add to plan"
                           }
                         >
                           {p.imageUrl ? (
@@ -773,9 +773,9 @@ export default function TreatmentRecommenderBySuggestion({
                           ) : addToPlanForSuggestion?.suggestionName ===
                             suggestionName ? (
                             <div className="treatment-recommender-by-suggestion__add-form">
-                              <div className="treatment-recommender-by-suggestion__add-row">
-                                <span>Type:</span>
-                                <div className="treatment-recommender-by-suggestion__chips">
+                              <div className="treatment-recommender-by-suggestion__add-row plan-add-row">
+                                <span className="plan-add-row-label">Type:</span>
+                                <div className="treatment-recommender-by-suggestion__chips plan-add-chips">
                                   {getTreatmentsForInterest(
                                     addToPlanForSuggestion.suggestionName,
                                     provider?.code,
@@ -783,9 +783,9 @@ export default function TreatmentRecommenderBySuggestion({
                                     <button
                                       key={t}
                                       type="button"
-                                      className={`treatment-recommender-by-suggestion__chip ${
+                                      className={`treatment-recommender-by-suggestion__chip plan-add-chip${
                                         addToPlanForSuggestion.what === t
-                                          ? "treatment-recommender-by-suggestion__chip--selected"
+                                          ? " treatment-recommender-by-suggestion__chip--selected plan-add-chip--selected"
                                           : ""
                                       }`}
                                       onClick={() =>
@@ -799,18 +799,18 @@ export default function TreatmentRecommenderBySuggestion({
                                   ))}
                                 </div>
                               </div>
-                              <div className="treatment-recommender-by-suggestion__add-row">
-                                <span>Where:</span>
-                                <div className="treatment-recommender-by-suggestion__chips">
+                              <div className="treatment-recommender-by-suggestion__add-row plan-add-row">
+                                <span className="plan-add-row-label">Where:</span>
+                                <div className="treatment-recommender-by-suggestion__chips plan-add-chips">
                                   {REGION_OPTIONS.filter(
                                     (r) => r !== "Multiple" && r !== "Other",
                                   ).map((r) => (
                                     <button
                                       key={r}
                                       type="button"
-                                      className={`treatment-recommender-by-suggestion__chip ${
+                                      className={`treatment-recommender-by-suggestion__chip plan-add-chip${
                                         addToPlanForSuggestion.where.includes(r)
-                                          ? "treatment-recommender-by-suggestion__chip--selected"
+                                          ? " treatment-recommender-by-suggestion__chip--selected plan-add-chip--selected"
                                           : ""
                                       }`}
                                       onClick={() => {
@@ -833,18 +833,18 @@ export default function TreatmentRecommenderBySuggestion({
                                   ))}
                                 </div>
                               </div>
-                              <div className="treatment-recommender-by-suggestion__add-row">
-                                <span>When:</span>
-                                <div className="treatment-recommender-by-suggestion__chips">
+                              <div className="treatment-recommender-by-suggestion__add-row plan-add-row">
+                                <span className="plan-add-row-label">When:</span>
+                                <div className="treatment-recommender-by-suggestion__chips plan-add-chips">
                                   {TIMELINE_OPTIONS.filter(
                                     (t) => t !== "Completed",
                                   ).map((t) => (
                                     <button
                                       key={t}
                                       type="button"
-                                      className={`treatment-recommender-by-suggestion__chip ${
+                                      className={`treatment-recommender-by-suggestion__chip plan-add-chip${
                                         addToPlanForSuggestion.when === t
-                                          ? "treatment-recommender-by-suggestion__chip--selected"
+                                          ? " treatment-recommender-by-suggestion__chip--selected plan-add-chip--selected"
                                           : ""
                                       }`}
                                       onClick={() =>
@@ -923,9 +923,9 @@ export default function TreatmentRecommenderBySuggestion({
                                     </label>
                                   );
                                 })()}
-                              <details className="treatment-recommender-by-suggestion__details">
+                              <details className="treatment-recommender-by-suggestion__details plan-opt-details">
                                 <summary>Optional details</summary>
-                                <div className="treatment-recommender-by-suggestion__details-fields">
+                                <div className="treatment-recommender-by-suggestion__details-fields plan-opt-fields">
                                   {addToPlanForSuggestion.what !== "Skincare" &&
                                   !shouldShowProminentPlanQuantity(
                                     addToPlanForSuggestion.what,
@@ -1002,11 +1002,11 @@ export default function TreatmentRecommenderBySuggestion({
                                         );
                                       })()
                                     : null}
-                                  <label className="treatment-recommender-by-suggestion__details-label">
+                                  <label className="treatment-recommender-by-suggestion__details-label plan-opt-field-label">
                                     Product
                                     <input
                                       type="text"
-                                      className="treatment-recommender-by-suggestion__details-input"
+                                      className="treatment-recommender-by-suggestion__details-input plan-opt-input"
                                       placeholder="e.g. Juvederm, Botox"
                                       value={
                                         addToPlanForSuggestion.product ?? ""
@@ -1023,10 +1023,10 @@ export default function TreatmentRecommenderBySuggestion({
                                       }
                                     />
                                   </label>
-                                  <label className="treatment-recommender-by-suggestion__details-label">
+                                  <label className="treatment-recommender-by-suggestion__details-label plan-opt-field-label">
                                     Notes
                                     <textarea
-                                      className="treatment-recommender-by-suggestion__details-textarea"
+                                      className="treatment-recommender-by-suggestion__details-textarea plan-opt-textarea"
                                       placeholder="Optional notes"
                                       rows={2}
                                       value={addToPlanForSuggestion.notes ?? ""}
@@ -1041,17 +1041,17 @@ export default function TreatmentRecommenderBySuggestion({
                                   </label>
                                 </div>
                               </details>
-                              <div className="treatment-recommender-by-suggestion__add-actions">
+                              <div className="treatment-recommender-by-suggestion__add-actions plan-add-actions">
                                 <button
                                   type="button"
-                                  className="treatment-recommender-by-suggestion__add-btn"
+                                  className="treatment-recommender-by-suggestion__add-btn treatment-recommender-by-suggestion__confirm-btn plan-add-confirm-btn"
                                   onClick={handleAddToPlanConfirm}
                                 >
                                   Confirm
                                 </button>
                                 <button
                                   type="button"
-                                  className="treatment-recommender-by-suggestion__cancel-btn"
+                                  className="treatment-recommender-by-suggestion__cancel-btn plan-add-cancel-btn"
                                   onClick={() =>
                                     setAddToPlanForSuggestion(null)
                                   }

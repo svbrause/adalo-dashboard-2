@@ -51,29 +51,51 @@
   border-collapse: collapse;
 }
 
-/* Column min-widths so table doesn't scrunch on narrow screens */
-.leads-table th:nth-child(1),
-.leads-table td:nth-child(1) {
+/* Leads tab: Client, Lead stage, Last activity, Actions */
+.leads-table--leads-compact {
+  min-width: 640px;
+}
+
+.leads-table--leads-compact th:nth-child(1),
+.leads-table--leads-compact td:nth-child(1) {
   min-width: 220px;
 }
-.leads-table th:nth-child(2),
-.leads-table td:nth-child(2) {
+.leads-table--leads-compact th:nth-child(2),
+.leads-table--leads-compact td:nth-child(2) {
   min-width: 180px;
 }
-.leads-table th:nth-child(3),
-.leads-table td:nth-child(3) {
-  min-width: 180px;
-}
-.leads-table th:nth-child(4),
-.leads-table td:nth-child(4) {
-  min-width: 180px;
-}
-.leads-table th:nth-child(5),
-.leads-table td:nth-child(5) {
+.leads-table--leads-compact th:nth-child(3),
+.leads-table--leads-compact td:nth-child(3) {
   min-width: 130px;
 }
-.leads-table th:nth-child(6),
-.leads-table td:nth-child(6) {
+.leads-table--leads-compact th:nth-child(4),
+.leads-table--leads-compact td:nth-child(4) {
+  min-width: 100px;
+}
+
+/* Column min-widths so table doesn't scrunch on narrow screens (Clients list, 6 cols) */
+.leads-table:not(.leads-table--leads-compact) th:nth-child(1),
+.leads-table:not(.leads-table--leads-compact) td:nth-child(1) {
+  min-width: 220px;
+}
+.leads-table:not(.leads-table--leads-compact) th:nth-child(2),
+.leads-table:not(.leads-table--leads-compact) td:nth-child(2) {
+  min-width: 180px;
+}
+.leads-table:not(.leads-table--leads-compact) th:nth-child(3),
+.leads-table:not(.leads-table--leads-compact) td:nth-child(3) {
+  min-width: 180px;
+}
+.leads-table:not(.leads-table--leads-compact) th:nth-child(4),
+.leads-table:not(.leads-table--leads-compact) td:nth-child(4) {
+  min-width: 180px;
+}
+.leads-table:not(.leads-table--leads-compact) th:nth-child(5),
+.leads-table:not(.leads-table--leads-compact) td:nth-child(5) {
+  min-width: 130px;
+}
+.leads-table:not(.leads-table--leads-compact) th:nth-child(6),
+.leads-table:not(.leads-table--leads-compact) td:nth-child(6) {
   min-width: 100px;
 }
 
@@ -261,23 +283,20 @@
     margin-top: 1px;
   }
 
-  /* Col 2: Interested treatments — hide on list to keep rows tight */
-  .leads-table td:nth-child(2) {
+  /* Clients list (6 cols): hide middle columns on small screens; show name + date */
+  .leads-table:not(.leads-table--leads-compact) td:nth-child(2) {
     display: none;
   }
 
-  /* Col 3: Analysis status — hide */
-  .leads-table td:nth-child(3) {
+  .leads-table:not(.leads-table--leads-compact) td:nth-child(3) {
     display: none;
   }
 
-  /* Col 4: Lead stage select — hide */
-  .leads-table td:nth-child(4) {
+  .leads-table:not(.leads-table--leads-compact) td:nth-child(4) {
     display: none;
   }
 
-  /* Col 5: Date — same row height as name; text baseline-aligned via flex center */
-  .leads-table td:nth-child(5) {
+  .leads-table:not(.leads-table--leads-compact) td:nth-child(5) {
     flex: 0 1 auto;
     max-width: 36%;
     min-width: 0;
@@ -291,8 +310,30 @@
     text-overflow: ellipsis;
   }
 
-  /* Col 6: View button — hide (whole row is tappable) */
-  .leads-table td:nth-child(6) {
+  .leads-table:not(.leads-table--leads-compact) td:nth-child(6) {
+    display: none;
+  }
+
+  /* Leads list (4 cols): hide lead stage + view; show name + last activity */
+  .leads-table--leads-compact td:nth-child(2) {
+    display: none;
+  }
+
+  .leads-table--leads-compact td:nth-child(3) {
+    flex: 0 1 auto;
+    max-width: 36%;
+    min-width: 0;
+    padding: 8px 0 8px 8px;
+    font-size: 12px;
+    color: #8e8e93;
+    text-align: right;
+    align-items: flex-end;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .leads-table--leads-compact td:nth-child(4) {
     display: none;
   }
 

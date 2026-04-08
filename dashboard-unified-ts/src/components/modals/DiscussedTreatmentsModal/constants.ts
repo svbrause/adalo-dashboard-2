@@ -6,6 +6,7 @@ import {
   TREATMENT_CATEGORIES_IN_PRICE_LIST,
   isProviderRestrictedToPricingSheet,
   getEnergyDeviceTypesFromPriceList,
+  getFacialServiceTypesFromPriceList,
   getChemicalPeelTypesFromPriceList,
   getChemicalPeelAreasFromPriceList,
   getMicroneedlingTypesFromPriceList,
@@ -394,6 +395,31 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
       "With TXA (tranexamic acid)",
     ],
   },
+  {
+    treatment: "Facial Services",
+    keywords: ["acne", "breakout", "oil", "pore", "congestion"],
+    products: ["Acne Facial"],
+  },
+  {
+    treatment: "Facial Services",
+    keywords: ["dull", "radiance", "brightening", "glow", "even skin", "tone", "dark spot"],
+    products: ["Glass Skin Facial", "Dermasweep", "Dermasweep w/ Premium Infusion"],
+  },
+  {
+    treatment: "Facial Services",
+    keywords: ["texture", "rough", "exfoliate", "resurfacing", "dermaplaning", "dermasweep"],
+    products: ["Dermasweep", "Dermasweep w/ Premium Infusion", "Dermaplaning"],
+  },
+  {
+    treatment: "Facial Services",
+    keywords: ["sensitive", "redness", "rosacea", "calm", "soothe", "irritat"],
+    products: ["Calming Facial"],
+  },
+  {
+    treatment: "Facial Services",
+    keywords: ["hydrate", "dry skin", "dehydrat", "moisture"],
+    products: ["Signature Facial", "Focused Facial"],
+  },
 ];
 
 /** Skincare category options for filtering the product carousel (treatment recommender). Includes an "Other" category for products not in the first five. */
@@ -451,6 +477,7 @@ export const SKINCARE_USE_CASE_LABELS: string[] = [
 export const TREATMENT_PRODUCT_OPTIONS: Record<string, string[]> = {
   Skincare: [...SKINCARE_PRODUCTS],
   [ENERGY_TREATMENT_CATEGORY]: [...ENERGY_DEVICE_TYPES],
+  "Facial Services": [...getFacialServiceTypesFromPriceList(), OTHER_PRODUCT_LABEL],
   Filler: [...getFillerTypesFromPriceList(), OTHER_PRODUCT_LABEL],
   Neurotoxin: [...getNeurotoxinTypesFromPriceList(), OTHER_PRODUCT_LABEL],
   "Chemical Peel": [...getChemicalPeelTypesFromPriceList(), OTHER_PRODUCT_LABEL],
@@ -494,6 +521,17 @@ export const TREATMENT_POSTCARE: Record<
 • Avoid harsh actives (retinoids, acids) for 3–5 days
 • No hot tubs, saunas, or intense exercise for 24–48 hours
 • Apply healing balm or recommended post-care as directed`,
+    suggestedProducts: [],
+  },
+  "Facial Services": {
+    sendInstructionsLabel: "Send facial post-care instructions",
+    instructionsText: `Post-Care Instructions for Facial Service
+
+• Avoid touching or picking at skin for 24 hours
+• Use gentle cleanser and moisturizer; avoid harsh actives for 24–48 hours
+• Apply SPF 50+ daily; avoid direct sun exposure
+• No waxing or abrasive treatments on treated area for 48 hours
+• For Dermasweep/Dermaplaning: avoid retinoids and exfoliants for 3–5 days`,
     suggestedProducts: [],
   },
   "Chemical Peel": {
@@ -725,7 +763,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["dark spot", "red spot"],
     goal: "Even Skin Tone",
     region: "Other",
-    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Skincare"],
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Facial Services", "Skincare"],
   },
   {
     keywords: ["gummy smile"],
@@ -746,6 +784,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     treatments: [
       ENERGY_TREATMENT_CATEGORY,
       "Chemical Peel",
+      "Facial Services",
       "Microneedling",
       "Filler",
       "Neurotoxin",
@@ -802,6 +841,7 @@ export const SURGICAL_TREATMENTS = [
 const ALL_TREATMENTS_RAW = [
   "Skincare",
   ENERGY_TREATMENT_CATEGORY,
+  "Facial Services",
   "Chemical Peel",
   "Microneedling",
   "Filler",
@@ -815,14 +855,19 @@ export const ALL_TREATMENTS = ALL_TREATMENTS_RAW.filter(
 );
 export const OTHER_TREATMENT_LABEL = "Other";
 
-/** Treatment options for the current provider. When provider is TheTreatment250, only categories that exist in the 2025 pricing sheet are returned. */
+/**
+ * Treatment options for the current provider. When provider is TheTreatment250, only categories
+ * that exist in the 2025 pricing sheet are returned — with the exception of Skincare, which is
+ * always included because its pricing comes from the boutique product catalog rather than the
+ * in-office price list (so it correctly has no entries in TREATMENT_CATEGORIES_IN_PRICE_LIST).
+ */
 export function getTreatmentOptionsForProvider(providerCode: string | undefined): string[] {
   if (isWellnestWellnessProviderCode(providerCode)) {
     return Array.from(new Set([...getWellnestTreatmentOptionNames(), ...ALL_TREATMENTS]));
   }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...ALL_TREATMENTS];
   return ALL_TREATMENTS.filter((t) =>
-    (TREATMENT_CATEGORIES_IN_PRICE_LIST as readonly string[]).includes(t),
+    t === "Skincare" || (TREATMENT_CATEGORIES_IN_PRICE_LIST as readonly string[]).includes(t),
   );
 }
 
@@ -862,6 +907,11 @@ export const TREATMENT_META: Record<
     longevity: "6–12+ months",
     downtime: "3–7 days",
     priceRange: _priceRange("Energy Treatment") ?? "$250–$3,900",
+  },
+  "Facial Services": {
+    longevity: "4–6 weeks",
+    downtime: "None",
+    priceRange: _priceRange("Facial Services") ?? "$75–$325",
   },
   "Chemical Peel": {
     longevity: "1–3 months",
@@ -942,8 +992,8 @@ export const INTEREST_TO_TREATMENTS: {
   },
   { keywords: ["nose", "balance nose"], treatments: ["Skincare", "Filler"] },
   {
-    keywords: ["hydrate skin", "exfoliate", "skin tone", "even skin"],
-    treatments: ["Skincare", "Chemical Peel", "Microneedling", ENERGY_TREATMENT_CATEGORY],
+    keywords: ["hydrate skin", "exfoliate", "skin tone", "even skin", "glow", "radiance", "refresh"],
+    treatments: ["Skincare", "Facial Services", "Chemical Peel", "Microneedling", ENERGY_TREATMENT_CATEGORY],
   },
   {
     keywords: ["laxity", "tighten", "sag"],
@@ -959,11 +1009,24 @@ export const INTEREST_TO_TREATMENTS: {
       "Skincare",
       ENERGY_TREATMENT_CATEGORY,
       "Chemical Peel",
+      "Facial Services",
       "Microneedling",
       "Filler",
       "Neurotoxin",
       "Biostimulants",
     ],
+  },
+  {
+    keywords: ["acne", "breakout", "pore", "oily", "congestion"],
+    treatments: ["Skincare", "Facial Services", "Chemical Peel"],
+  },
+  {
+    keywords: ["sensitive", "redness", "rosacea", "calm", "irritat"],
+    treatments: ["Skincare", "Facial Services"],
+  },
+  {
+    keywords: ["dermaplaning", "dermasweep", "resurfacing", "texture"],
+    treatments: ["Facial Services", "Chemical Peel", "Microneedling"],
   },
 ];
 
@@ -1016,6 +1079,7 @@ export const CHECKOUT_TREATMENT_TYPE_OPTIONS: Record<string, string[]> = {
   Neurotoxin: [...getNeurotoxinTypesFromPriceList()],
   Biostimulants: [...getBiostimulantsTypesFromPriceList()],
   "Chemical Peel": [...(TREATMENT_PRODUCT_OPTIONS["Chemical Peel"] ?? [])],
+  "Facial Services": [...(TREATMENT_PRODUCT_OPTIONS["Facial Services"] ?? [])],
 };
 
 /** Checkout treatment type options filtered by provider (e.g. TheTreatment250 only sees options in the price list). */

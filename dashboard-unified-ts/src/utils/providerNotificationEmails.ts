@@ -96,7 +96,7 @@ export function getEffectiveTeamNotificationEmails(
 }
 
 /**
- * Appends a footer so support can CC or route to the practice's chosen inboxes.
+ * Appends a footer so support can CC or route to the practice’s chosen inboxes.
  * Omits the footer when the effective list is empty.
  */
 export function appendTeamNotificationEmailsToHelpMessage(

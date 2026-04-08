@@ -71,6 +71,7 @@ const PLAN_TREATMENT_TO_PHOTO_KEYWORDS: Record<string, string[]> = {
   neurotoxin: ["neurotoxin", "botox", "dysport", "xeomin", "jeuveau", "daxxify", "tox"],
   biostimulants: ["biostim", "sculptra", "radiesse", "prf"],
   kybella: ["kybella", "deoxycholic"],
+  "facial services": ["facial", "dermasweep", "dermaplaning", "exfoliat"],
   skincare: ["skincare", "peel", "facial"], // broad; many skincare cases won't tag — cards may have 0 photos
   prp: ["prp"],
   pdgf: ["pdgf"],

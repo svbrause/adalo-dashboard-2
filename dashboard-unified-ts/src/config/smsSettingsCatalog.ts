@@ -38,7 +38,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         id: "finder-followup",
         eventName: "Follow-up reminder",
         trigger:
-          "No booking within follow-up window.",
+          "Lead submitted the Treatment Finder but hasn't booked an appointment yet.",
         enabled: true,
         channel: "sms",
         template:

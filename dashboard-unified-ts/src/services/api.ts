@@ -867,225 +867,169 @@ export type TreatmentRecommenderOptionType =
   | "filler_what"
   | "neurotoxin_what"
   | "chemical_peel_what"
+  | "facial_service_what"
   | "timeline";
 
-const TREATMENT_RECOMMENDER_OPTION_TYPES: readonly TreatmentRecommenderOptionType[] =
-  [
-    "where",
-    "skincare_what",
-    "laser_what",
-    "biostimulant_what",
-    "microneedling_where",
-    "microneedling_type",
-    "chemical_peel_where",
-    "filler_what",
-    "neurotoxin_what",
-    "chemical_peel_what",
-    "timeline",
-  ];
-
-/**
- * Values for Airtable single-select "Option Type" on create/seed.
- * Airtable rejects unknown choices and may try to add a new option (422 / permission errors).
- * These labels must exist as choices in the base (add any missing ones in Airtable field config).
- */
-const TREATMENT_RECOMMENDER_OPTION_TYPE_AIRTABLE_LABEL: Record<
-  TreatmentRecommenderOptionType,
-  string
-> = {
-  where: "Where",
-  skincare_what: "Skincare What",
-  laser_what: "Laser What",
-  biostimulant_what: "Biostimulant What",
-  microneedling_where: "Microneedling Where",
-  microneedling_type: "Microneedling Type",
-  chemical_peel_where: "Chemical Peel Where",
-  filler_what: "Filler What",
-  neurotoxin_what: "Neurotoxin What",
-  chemical_peel_what: "Chemical Peel What",
-  timeline: "Timeline",
-};
-
-/** Use when writing to Airtable via POST / seed (single-select field). */
-export function treatmentRecommenderOptionTypeForAirtable(
-  optionType: TreatmentRecommenderOptionType,
-): string {
-  return TREATMENT_RECOMMENDER_OPTION_TYPE_AIRTABLE_LABEL[optionType];
-}
-
-function normalizeTreatmentRecommenderOptionType(
-  raw: string,
-): TreatmentRecommenderOptionType {
-  const t = String(raw).trim().toLowerCase().replace(/\s+/g, "_");
-  return (TREATMENT_RECOMMENDER_OPTION_TYPES as readonly string[]).includes(t)
-    ? (t as TreatmentRecommenderOptionType)
-    : "where";
-}
-
 export interface TreatmentRecommenderCustomOption {
+  /** Deterministic stable ID: `"custom:{optionType}:{value}"` or `"removed:{optionType}:{value}"`. */
   id: string;
   optionType: TreatmentRecommenderOptionType;
   value: string;
+  /** True when this record marks a default option that the provider has removed. */
+  isRemovedDefault?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// JSON-based recommender options — stored in Provider "Treatment Pricing" field
+// ---------------------------------------------------------------------------
+
+import {
+  parseProviderPricingDocument,
+  serializeProviderPricingDocument,
+  addCustomRecommenderOption,
+  removeRecommenderOption,
+  renameCustomRecommenderOption,
+  type ProviderPricingDocument,
+} from "../data/treatmentPricing2025";
+
+/** Build a stable synthetic ID for a recommender option stored in the pricing JSON. */
+function recommenderOptionId(
+  kind: "custom" | "removed",
+  optionType: string,
+  value: string,
+): string {
+  return `${kind}:${optionType}:${value}`;
 }
 
 /**
- * Fetch custom options for the treatment recommender (Where / What chips).
- * Stored in Airtable; returned options are merged with static options in the UI.
+ * Derive the full list of TreatmentRecommenderCustomOption records from the
+ * provider's "Treatment Pricing" JSON string.  No network call needed.
  */
-export async function fetchTreatmentRecommenderCustomOptions(
-  providerId: string
-): Promise<TreatmentRecommenderCustomOption[]> {
-  if (!providerId?.trim()) return [];
-  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options?providerId=${encodeURIComponent(providerId.trim())}`;
-  const response = await fetch(apiUrl, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  });
-  if (!response.ok) {
-    const err = await safeJsonParse(response).catch(() => ({}));
-    throw new Error(
-      err.message || err.error?.message || "Failed to fetch recommender options"
-    );
-  }
-  const data = await safeJsonParse(response);
-  const records = data.records ?? data.options ?? [];
-  const normalizedType = (raw: string): TreatmentRecommenderOptionType =>
-    normalizeTreatmentRecommenderOptionType(raw);
-  return (Array.isArray(records) ? records : []).map((r: AirtableRecord | TreatmentRecommenderCustomOption) => {
-    if ("optionType" in r && "value" in r) {
-      return { id: (r as TreatmentRecommenderCustomOption).id, optionType: normalizedType((r as TreatmentRecommenderCustomOption).optionType), value: (r as TreatmentRecommenderCustomOption).value };
+export function extractRecommenderOptionsFromPricingJson(
+  treatmentPricingRaw: string | null | undefined,
+): TreatmentRecommenderCustomOption[] {
+  const doc = parseProviderPricingDocument(treatmentPricingRaw);
+  const results: TreatmentRecommenderCustomOption[] = [];
+  for (const [optionType, values] of Object.entries(
+    doc.recommenderOptions ?? {},
+  )) {
+    for (const value of values ?? []) {
+      if (value?.trim()) {
+        results.push({
+          id: recommenderOptionId("custom", optionType, value),
+          optionType: optionType as TreatmentRecommenderOptionType,
+          value: value.trim(),
+        });
+      }
     }
-    const f = (r as AirtableRecord).fields || {};
-    return {
-      id: (r as AirtableRecord).id,
-      optionType: normalizedType(f["Option Type"] ?? f.optionType ?? "where"),
-      value: String(f["Value"] ?? f.value ?? "").trim(),
-    };
-  }).filter((o: TreatmentRecommenderCustomOption) => o.value.length > 0);
+  }
+  for (const [optionType, values] of Object.entries(
+    doc.recommenderRemovedDefaults ?? {},
+  )) {
+    for (const value of values ?? []) {
+      if (value?.trim()) {
+        results.push({
+          id: recommenderOptionId("removed", optionType, value),
+          optionType: optionType as TreatmentRecommenderOptionType,
+          value: value.trim(),
+          isRemovedDefault: true,
+        });
+      }
+    }
+  }
+  return results;
 }
 
 /**
- * Create a custom option and persist it in Airtable so it appears for future sessions.
+ * Persist updated recommender options by merging them into the provider's
+ * "Treatment Pricing" JSON and PATCHing the Provider record.
+ * Returns the updated raw JSON string so callers can update the provider in context.
+ */
+async function persistRecommenderDocument(
+  providerId: string,
+  currentRaw: string | null | undefined,
+  updater: (doc: ProviderPricingDocument) => ProviderPricingDocument,
+): Promise<string> {
+  const doc = parseProviderPricingDocument(currentRaw);
+  const updated = updater(doc);
+  const newRaw = serializeProviderPricingDocument(updated);
+  await updateProviderFields(providerId, { "Treatment Pricing": newRaw });
+  return newRaw;
+}
+
+/**
+ * Add a custom option to the provider's "Treatment Pricing" JSON.
+ * Returns the new option and the updated raw pricing JSON.
  */
 export async function createTreatmentRecommenderCustomOption(
   providerId: string,
   optionType: TreatmentRecommenderOptionType,
-  value: string
-): Promise<TreatmentRecommenderCustomOption> {
+  value: string,
+  currentPricingRaw: string | null | undefined,
+): Promise<{ option: TreatmentRecommenderCustomOption; updatedPricingRaw: string }> {
   const trimmed = value?.trim();
   if (!trimmed || !providerId?.trim()) {
     throw new Error("Provider and option value are required");
   }
-  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options`;
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      providerId: providerId.trim(),
-      optionType: treatmentRecommenderOptionTypeForAirtable(optionType),
-      value: trimmed,
-    }),
-  });
-  if (!response.ok) {
-    const err = await safeJsonParse(response).catch(() => ({}));
-    throw new Error(
-      err.message || err.error?.message || "Failed to add option"
-    );
-  }
-  const data = await safeJsonParse(response);
-  const rec = data.record ?? data;
-  const f = rec?.fields ?? rec;
-  if (rec?.id && (f?.Value ?? f?.value ?? rec?.value)) {
-    const rawType = String(
-      f["Option Type"] ?? f.optionType ?? rec.optionType ?? optionType,
-    );
-    return {
-      id: rec.id,
-      optionType: normalizeTreatmentRecommenderOptionType(rawType),
-      value: String(f["Value"] ?? f.value ?? rec.value ?? trimmed).trim(),
-    };
-  }
-  return { id: rec?.id ?? crypto.randomUUID(), optionType, value: trimmed };
-}
-
-/**
- * Delete a treatment recommender option by record ID (so providers can remove defaults or custom options).
- */
-export async function deleteTreatmentRecommenderOption(recordId: string): Promise<void> {
-  if (!recordId?.trim()) throw new Error("recordId is required");
-  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options/${encodeURIComponent(recordId.trim())}`;
-  const response = await fetch(apiUrl, { method: "DELETE", headers: { "Content-Type": "application/json" } });
-  if (!response.ok) {
-    const err = await safeJsonParse(response).catch(() => ({}));
-    throw new Error(err.message || err.error?.message || "Failed to delete option");
-  }
-}
-
-/**
- * Update a treatment recommender option's value (rename).
- */
-export async function updateTreatmentRecommenderOption(
-  recordId: string,
-  value: string
-): Promise<TreatmentRecommenderCustomOption> {
-  const trimmed = value?.trim();
-  if (!recordId?.trim() || !trimmed) throw new Error("recordId and value are required");
-  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options/${encodeURIComponent(recordId.trim())}`;
-  const response = await fetch(apiUrl, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ value: trimmed }),
-  });
-  if (!response.ok) {
-    const err = await safeJsonParse(response).catch(() => ({}));
-    throw new Error(err.message || err.error?.message || "Failed to update option");
-  }
-  const data = await safeJsonParse(response);
-  const rec = data.record ?? data;
-  const f = rec?.fields ?? rec;
-  const rawType = String(
-    f?.["Option Type"] ?? f?.optionType ?? rec?.optionType ?? "where",
-  )
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_");
-  const optionType =
-    normalizeTreatmentRecommenderOptionType(rawType);
+  const updatedPricingRaw = await persistRecommenderDocument(
+    providerId,
+    currentPricingRaw,
+    (doc) => addCustomRecommenderOption(doc, optionType, trimmed),
+  );
   return {
-    id: rec?.id ?? recordId,
-    optionType,
-    value: String(f?.Value ?? f?.value ?? rec?.value ?? trimmed).trim(),
+    option: {
+      id: recommenderOptionId("custom", optionType, trimmed),
+      optionType,
+      value: trimmed,
+    },
+    updatedPricingRaw,
   };
 }
 
 /**
- * Seed default treatment recommender options for a provider (inserts into Airtable; skips existing).
- * Returns how many options were inserted.
+ * Remove a recommender option from the provider's "Treatment Pricing" JSON.
+ * Pass `isDefault: true` when removing a built-in default so it is remembered.
+ * Returns the updated raw pricing JSON.
  */
-export async function seedTreatmentRecommenderOptions(
+export async function deleteTreatmentRecommenderOption(
   providerId: string,
-  options: Array<{ optionType: TreatmentRecommenderOptionType; value: string }>
-): Promise<{ inserted: number }> {
+  optionType: TreatmentRecommenderOptionType,
+  value: string,
+  isDefault: boolean,
+  currentPricingRaw: string | null | undefined,
+): Promise<string> {
   if (!providerId?.trim()) throw new Error("providerId is required");
-  if (!Array.isArray(options) || options.length === 0) throw new Error("options array is required");
-  const apiUrl = `${API_BASE_URL}/api/dashboard/treatment-recommender-options/seed`;
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      providerId: providerId.trim(),
-      options: options.map((o) => ({
-        ...o,
-        optionType: treatmentRecommenderOptionTypeForAirtable(o.optionType),
-      })),
-    }),
-  });
-  if (!response.ok) {
-    const err = await safeJsonParse(response).catch(() => ({}));
-    throw new Error(err.message || err.error?.message || "Failed to seed options");
-  }
-  const data = await safeJsonParse(response);
-  return { inserted: data.inserted ?? 0 };
+  return persistRecommenderDocument(providerId, currentPricingRaw, (doc) =>
+    removeRecommenderOption(doc, optionType, value, isDefault),
+  );
+}
+
+/**
+ * Rename a custom recommender option inside the provider's "Treatment Pricing" JSON.
+ * Returns the updated option and the updated raw pricing JSON.
+ */
+export async function updateTreatmentRecommenderOption(
+  providerId: string,
+  optionType: TreatmentRecommenderOptionType,
+  oldValue: string,
+  newValue: string,
+  currentPricingRaw: string | null | undefined,
+): Promise<{ option: TreatmentRecommenderCustomOption; updatedPricingRaw: string }> {
+  const trimmed = newValue?.trim();
+  if (!trimmed) throw new Error("value is required");
+  const updatedPricingRaw = await persistRecommenderDocument(
+    providerId,
+    currentPricingRaw,
+    (doc) => renameCustomRecommenderOption(doc, optionType, oldValue, trimmed),
+  );
+  return {
+    option: {
+      id: recommenderOptionId("custom", optionType, trimmed),
+      optionType,
+      value: trimmed,
+    },
+    updatedPricingRaw,
+  };
 }
 
 /**

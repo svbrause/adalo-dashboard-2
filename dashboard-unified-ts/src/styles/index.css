@@ -2,6 +2,7 @@
 @import "./utilities.css";
 @import "./forms.css";
 @import "./pastel-teal-theme.css";
+@import "./plan-add-form.css";
 
 * {
   margin: 0;
@@ -32,6 +33,28 @@ html {
   --theme-shadow: rgba(0, 0, 0, 0.05);
   --theme-shadow-hover: rgba(0, 0, 0, 0.1);
   --theme-heading-font: "Montserrat", sans-serif;
+
+  /* ── Design scale tokens ──────────────────────────────────────────────── */
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+
+  /* Font sizes */
+  --font-xs: 0.72rem;   /* ~11.5px — labels, caps, pills */
+  --font-sm: 0.82rem;   /* ~13px  — meta, secondary text */
+  --font-base: 0.9rem;  /* ~14.4px — body text */
+  --font-md: 1rem;      /* ~16px  — card titles, section headers */
+  --font-lg: 1.05rem;   /* ~16.8px — modal titles, prominent labels */
 }
 
 body {
@@ -1223,6 +1246,18 @@ body.theme-warm .kanban-cards.drag-over {
   flex-direction: row;
   align-items: center;
   gap: 8px;
+}
+
+.discussed-treatments-in-facial-actions .btn-secondary:disabled,
+.btn-secondary--locked {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  color: #999 !important;
+  background: #e8e8e8 !important;
+  border-color: #ccc !important;
+  filter: grayscale(1) brightness(0.95) !important;
+  pointer-events: none;
+  transform: none !important;
 }
 
 .discussed-treatments-in-facial-heading-block {

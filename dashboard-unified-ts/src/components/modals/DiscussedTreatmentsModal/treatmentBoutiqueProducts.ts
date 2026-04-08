@@ -75,6 +75,50 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/peel-off-face-mask-1.jpg?v=1762994015",
     price: "$40.00",
   },
+  /* SkinCeuticals — multi-product routines & bundles (shop.getthetreatment.com/collections/all-products) */
+  {
+    name: "Anti-Aging Routine | Firming, Brightening & Wrinkle-Smoothing Trio",
+    productUrl: "https://shop.getthetreatment.com/products/anti-aging-routine",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/2640/6190/files/anti-aging-skincare-routine-best.jpg?v=1763000603",
+    price: "$441.00",
+  },
+  {
+    name: "Corrective Serum Bundle | Targeted Anti-Aging, Brightening & Skin Repair System",
+    productUrl: "https://shop.getthetreatment.com/products/corrective-serum-bundle",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/2640/6190/files/skinceuticals-serum-set-1_62a6e872-f1c1-4b34-bdb0-442f77e84984.jpg?v=1772583112",
+    price: "$409.50",
+  },
+  {
+    name: "Morning Defense Routine | Vitamin C Antioxidant, Hyaluronic Acid Serum & Tinted SPF 44 Daily Protection System",
+    productUrl: "https://shop.getthetreatment.com/products/morning-defense-routine",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/2640/6190/files/morning-defense-skincare-bundle.jpg?v=1772641216",
+    price: "$318.60",
+  },
+  {
+    name: "Oily Skin Routine Set | Clarifying Cleanser + Antioxidant Serum for Clear, Balanced Skin",
+    productUrl: "https://shop.getthetreatment.com/products/oily-skin-routine",
+    imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/oily-skin-routine.jpg?v=1763054332",
+    price: "$207.00",
+    imageUrls: [
+      "https://cdn.shopify.com/s/files/1/2640/6190/files/oily-skin-routine.jpg?v=1763054332",
+      "https://cdn.shopify.com/s/files/1/2640/6190/files/skin-care-routine-for-oily-skin.png?v=1763057015",
+    ],
+  },
+  {
+    name: "Post-Injectable Serum Routine | Firming Antioxidant Serum + Hydrating Intensifier for Smooth, Supported Skin",
+    productUrl: "https://shop.getthetreatment.com/products/post-injectable-routine-set",
+    imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/skin-booster-injection.jpg?v=1763054332",
+    price: "$243.00",
+  },
+  {
+    name: "Signature Routine Bundle | Complete Daily Cleanse, Correct & Hydrate Skincare System",
+    productUrl: "https://shop.getthetreatment.com/products/signature-routine-set",
+    imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/skinceuticals-c-e-ferulic.jpg?v=1763058575",
+    price: "$387.00",
+  },
   /* SkinCeuticals */
   {
     name: "SkinCeuticals A.G.E. Advanced Eye Cream | Nourishing Pre-Cleanse for Radiant, Balanced Skin Anti-Aging Treatment for Wrinkles & Puffiness",

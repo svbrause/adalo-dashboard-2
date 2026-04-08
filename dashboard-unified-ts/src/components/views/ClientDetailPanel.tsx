@@ -582,6 +582,14 @@ export default function ClientDetailPanel({
     intakeWellnessInterests.length > 0 ||
     wellnessPlanItems.length > 0;
 
+  const treatmentPlanSubheading = showTreatmentRecommenderShortcut
+    ? "From the visit and your notes (not limited to facial scan)"
+    : hasFacialAnalysisForm
+      ? "Scan patient before building a plan"
+      : hasWebPopupForm
+        ? "Complete intake before building a plan"
+        : "From the visit and your notes (not limited to facial scan)";
+
   // Import the rest of the component content from ClientDetailModal
   // This is a large component, so I'll need to copy the JSX structure
   // but adapt it for a panel instead of modal
@@ -1282,9 +1290,7 @@ export default function ClientDetailPanel({
                             &apos;s plan
                           </span>
                           <span className="discussed-treatments-in-facial-subheading">
-                            {showTreatmentRecommenderShortcut
-                              ? "From the visit and your notes (not limited to facial scan)"
-                              : "Scan patient before building a plan"}
+                            {treatmentPlanSubheading}
                           </span>
                         </div>
                         <div className="discussed-treatments-in-facial-actions">
@@ -1306,20 +1312,31 @@ export default function ClientDetailPanel({
                             )}
                           <button
                             type="button"
-                            className="btn-secondary btn-sm"
+                            className={`btn-secondary btn-sm${!showTreatmentRecommenderShortcut ? " btn-secondary--locked" : ""}`}
                             disabled={!showTreatmentRecommenderShortcut}
                             title={
                               !showTreatmentRecommenderShortcut
-                                ? "Scan the patient first to use the Treatment Recommender"
+                                ? hasFacialAnalysisForm
+                                  ? "Scan patient before building a plan"
+                                  : hasWebPopupForm
+                                    ? "Complete intake before building a plan"
+                                    : "Add visit or intake data to use the recommender"
                                 : undefined
                             }
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (showTreatmentRecommenderShortcut) {
-                                setRecommenderMode("by-treatment");
-                              }
+                              if (!showTreatmentRecommenderShortcut) return;
+                              setRecommenderMode("by-treatment");
                             }}
                           >
+                            {!showTreatmentRecommenderShortcut && (
+                              <span
+                                aria-hidden="true"
+                                style={{ fontSize: "12px", opacity: 0.7 }}
+                              >
+                                🔒
+                              </span>
+                            )}
                             Treatment Recommender
                           </button>
                           {/* Plan Manage/Add — hidden for now (re-enable when Discussed Treatments modal flow is ready). */}
@@ -1393,7 +1410,7 @@ export default function ClientDetailPanel({
                                     </h4>
                                     <div className="discussed-treatments-records-list-outer">
                                       {sectionItems.map((item) => {
-                                        const priceLabel =
+                                        const priceData =
                                           discussedPlanPriceLabels.get(
                                             item.id,
                                           ) ?? null;
@@ -1418,12 +1435,17 @@ export default function ClientDetailPanel({
                                                 </div>
                                               ) : null}
                                             </div>
-                                            {priceLabel ? (
+                                            {priceData ? (
                                               <div
                                                 className="discussed-treatments-record-price-outer"
                                                 title="From practice price list / checkout"
                                               >
-                                                {priceLabel}
+                                                <span>{priceData.label}</span>
+                                                {priceData.missingInfo && (
+                                                  <span className="discussed-treatments-record-price-missing">
+                                                    ⚠ {priceData.missingInfo}
+                                                  </span>
+                                                )}
                                               </div>
                                             ) : null}
                                           </div>
