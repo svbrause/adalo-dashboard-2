@@ -1,5 +1,5 @@
 .settings-page {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 8px clamp(20px, 4%, 48px) 32px;
   display: flex;
@@ -7,9 +7,9 @@
   gap: 20px;
 }
 
-/* Client notifications & treatment pricing: slightly narrower for readable line length */
+/* Notifications & treatment pricing: a bit narrower than the hub but room for wide tables */
 .settings-page--subpanel {
-  max-width: 860px;
+  max-width: 1000px;
 }
 
 .settings-page-header {
@@ -825,9 +825,9 @@
 
 /* ── Skincare products panel ─────────────────────────────────────────────── */
 
-/* Allow the skincare panel to use the full 1100px page width */
+/* Match main settings page width */
 .settings-page--products {
-  max-width: 1100px;
+  max-width: 1200px;
 }
 
 .settings-skincare-brands {
