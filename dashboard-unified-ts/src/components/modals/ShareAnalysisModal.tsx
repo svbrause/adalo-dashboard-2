@@ -120,7 +120,7 @@ export default function ShareAnalysisModal({
       >
         <div className="modal-header">
           <div className="modal-header-info">
-            <h2 className="modal-title">Share Analysis with Patient</h2>
+            <h2 className="modal-title">Share</h2>
             <p className="modal-subtitle">
               Lets patient access their analysis results and self-review via
               their mobile device

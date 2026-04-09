@@ -31,6 +31,7 @@ import {
   warmPostVisitBlueprintForSend,
 } from "../../utils/postVisitBlueprint";
 import { formatPrice } from "../../data/treatmentPricing2025";
+import { planPricingFixActionLabel } from "../../utils/planPricingWarnings";
 import { getTreatmentPlanRowPrimaryLabel } from "./DiscussedTreatmentsModal/utils";
 import {
   computeQuoteSheetDataForDiscussedItems,
@@ -46,6 +47,11 @@ export interface ShareTreatmentPlanLinkModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   recommenderFocusRegions?: string[];
+  /**
+   * When set, rows with incomplete pricing show a button that calls this with the discussed item id.
+   * Parent should close this modal and open the plan editor (plan builder or Discussed modal).
+   */
+  onNavigateToEditPlanItem?: (discussedItemId: string) => void;
 }
 
 function sectionLabelForShareRow(item: DiscussedItem): string {
@@ -96,6 +102,7 @@ export default function ShareTreatmentPlanLinkModal({
   onClose,
   onSuccess,
   recommenderFocusRegions,
+  onNavigateToEditPlanItem,
 }: ShareTreatmentPlanLinkModalProps) {
   const { provider } = useDashboard();
   const firstName = client.name?.trim().split(/\s+/)[0] || "Patient";
@@ -651,8 +658,10 @@ export default function ShareTreatmentPlanLinkModal({
                       <ul className="share-tp-link-quote-rows">
                         {skincareShareItems.map((item) => {
                           const line = lineForItem(item);
+                          const showFix =
+                            Boolean(line?.missingInfo) && onNavigateToEditPlanItem;
                           return (
-                            <li key={item.id}>
+                            <li key={item.id} className="share-tp-link-quote-row-li">
                               <label className="share-tp-link-quote-row">
                                 <input
                                   type="checkbox"
@@ -668,9 +677,32 @@ export default function ShareTreatmentPlanLinkModal({
                                   </span>
                                 </span>
                                 <span className="share-tp-link-quote-row-price-block">
-                                  {(() => { const p = shareRowPriceDisplay(line); return (<><strong>{p.text}</strong>{p.warning && <span className="share-tp-link-quote-row-missing">⚠ {p.warning}</span>}</>); })()}
+                                  {(() => {
+                                    const p = shareRowPriceDisplay(line);
+                                    return (
+                                      <>
+                                        <strong>{p.text}</strong>
+                                        {p.warning && (
+                                          <span className="share-tp-link-quote-row-missing">
+                                            ⚠ {p.warning}
+                                          </span>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 </span>
                               </label>
+                              {showFix ? (
+                                <div className="share-tp-link-quote-row-fix">
+                                  <button
+                                    type="button"
+                                    className="plan-pricing-fix-action-btn"
+                                    onClick={() => onNavigateToEditPlanItem(item.id)}
+                                  >
+                                    {planPricingFixActionLabel(line?.missingInfo)}
+                                  </button>
+                                </div>
+                              ) : null}
                             </li>
                           );
                         })}
@@ -697,8 +729,10 @@ export default function ShareTreatmentPlanLinkModal({
                           <ul className="share-tp-link-quote-rows">
                             {group.items.map((item) => {
                               const line = lineForItem(item);
+                              const showFix =
+                                Boolean(line?.missingInfo) && onNavigateToEditPlanItem;
                               return (
-                                <li key={item.id}>
+                                <li key={item.id} className="share-tp-link-quote-row-li">
                                   <label className="share-tp-link-quote-row">
                                     <input
                                       type="checkbox"
@@ -711,9 +745,32 @@ export default function ShareTreatmentPlanLinkModal({
                                       </span>
                                     </span>
                                     <span className="share-tp-link-quote-row-price-block">
-                                      {(() => { const p = shareRowPriceDisplay(line); return (<><strong>{p.text}</strong>{p.warning && <span className="share-tp-link-quote-row-missing">⚠ {p.warning}</span>}</>); })()}
+                                      {(() => {
+                                        const p = shareRowPriceDisplay(line);
+                                        return (
+                                          <>
+                                            <strong>{p.text}</strong>
+                                            {p.warning && (
+                                              <span className="share-tp-link-quote-row-missing">
+                                                ⚠ {p.warning}
+                                              </span>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
                                     </span>
                                   </label>
+                                  {showFix ? (
+                                    <div className="share-tp-link-quote-row-fix">
+                                      <button
+                                        type="button"
+                                        className="plan-pricing-fix-action-btn"
+                                        onClick={() => onNavigateToEditPlanItem(item.id)}
+                                      >
+                                        {planPricingFixActionLabel(line?.missingInfo)}
+                                      </button>
+                                    </div>
+                                  ) : null}
                                 </li>
                               );
                             })}

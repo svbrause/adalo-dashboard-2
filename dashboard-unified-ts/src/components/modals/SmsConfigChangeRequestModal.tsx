@@ -11,12 +11,15 @@ import "./SmsConfigChangeRequestModal.css";
 interface SmsConfigChangeRequestModalProps {
   product: SmsProductConfig;
   eventConfig: SmsTemplateEventConfig;
+  /** Prefills “Additional notes” (e.g. enable/disable request from notifications table). */
+  initialNotes?: string;
   onClose: () => void;
 }
 
 export default function SmsConfigChangeRequestModal({
   product,
   eventConfig,
+  initialNotes,
   onClose,
 }: SmsConfigChangeRequestModalProps) {
   const { provider } = useDashboard();
@@ -29,8 +32,8 @@ export default function SmsConfigChangeRequestModal({
   useEffect(() => {
     setTemplateChange(eventConfig.template);
     setEditMode(false);
-    setNotes("");
-  }, [product.id, eventConfig.id, eventConfig.template]);
+    setNotes(initialNotes ?? "");
+  }, [product.id, eventConfig.id, eventConfig.template, initialNotes]);
 
   function startEdit() {
     setEditMode(true);

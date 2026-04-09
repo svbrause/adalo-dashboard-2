@@ -205,6 +205,19 @@
   border-bottom: 1px solid var(--plan-quote-row-divider);
 }
 
+.share-tp-link-quote-row-li {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.share-tp-link-quote-row-fix {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 16px 10px 16px;
+  margin-top: -4px;
+}
+
 .share-tp-link-quote-rows li:last-child {
   border-bottom: none;
 }

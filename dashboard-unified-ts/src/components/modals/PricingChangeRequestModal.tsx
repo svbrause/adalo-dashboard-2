@@ -29,16 +29,21 @@ export type PricingHelpSkuContext = {
   emailRecipients?: string;
   /** email-routing: representative body copy of the email. */
   emailBody?: string;
+  /** email-routing: whether this notification is currently active in the catalog. */
+  notificationIsActive?: boolean;
 };
 
 type PricingChangeRequestModalProps = {
   /** When set, the form is prefilled for this SKU; otherwise a general pricing request. */
   sku: PricingHelpSkuContext | null;
+  /** Prefills “Notes to team” for email-routing (e.g. enable/disable request from notifications table). */
+  initialEmailNotes?: string;
   onClose: () => void;
 };
 
 export default function PricingChangeRequestModal({
   sku,
+  initialEmailNotes,
   onClose,
 }: PricingChangeRequestModalProps) {
   const { provider } = useDashboard();
@@ -82,8 +87,8 @@ export default function PricingChangeRequestModal({
     setRecipientsChange(sku.emailRecipients ?? "");
     setBodyChange(sku.emailBody ?? "");
     setEditMode(false);
-    setEmailNotes("");
-  }, [sku?.rowKind, sku?.name, sku?.category]);
+    setEmailNotes(initialEmailNotes ?? "");
+  }, [sku?.rowKind, sku?.name, sku?.category, initialEmailNotes]);
 
   // Sync treatment pricing fields
   useEffect(() => {
@@ -142,6 +147,9 @@ export default function PricingChangeRequestModal({
     const lines: string[] = [
       `*Notification:* ${sku!.name}`,
       sku!.emailTrigger?.trim() ? `*Trigger:* ${sku!.emailTrigger.trim()}` : "",
+      sku!.notificationIsActive !== undefined
+        ? `*Status (catalog):* ${sku!.notificationIsActive ? "On" : "Off"}`
+        : "",
     ].filter(Boolean);
 
     if (subjectChange.trim() !== (sku!.emailSubject?.trim() ?? "")) {
@@ -351,6 +359,16 @@ export default function PricingChangeRequestModal({
             {/* ── EMAIL ROUTING ──────────────────────────────────────────── */}
             {isEmailRouting && (
               <>
+                {sku!.notificationIsActive !== undefined && (
+                  <div className="creq-context">
+                    <div className="creq-context-row">
+                      <span className="creq-context-label">Status</span>
+                      <span className="creq-context-value">
+                        {sku!.notificationIsActive ? "On" : "Off"}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div className="creq-fields-group">
                   <div className="creq-group-header">
                     <span>{editMode ? "Editing" : "Current content"}</span>

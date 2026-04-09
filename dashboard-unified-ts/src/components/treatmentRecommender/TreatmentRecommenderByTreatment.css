@@ -29,7 +29,8 @@
 .treatment-recommender-by-treatment__client-photo-wrap {
   width: 100%;
   max-width: 280px;
-  aspect-ratio: 3 / 4;
+  /* Slightly squarer than 3:4 so more vertical space remains for the plan block */
+  aspect-ratio: 1 / 1;
   border-radius: 12px;
   overflow: hidden;
   background: var(--theme-border, #e8e8e8);
@@ -126,6 +127,40 @@
   gap: 12px;
   border-top: 1px solid var(--theme-border, #e8e8e8);
   padding-top: 16px;
+  min-height: 0;
+}
+
+/* Scrollable plan list / empty state; Quote stays in .plan-actions below (desktop) */
+.treatment-recommender-by-treatment__plan-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Desktop: plan block grows under the photo; list scrolls inside; Quote stays pinned at bottom */
+@media (min-width: 769px) {
+  .treatment-recommender-by-treatment__client-column {
+    overflow-y: hidden;
+    min-height: 0;
+  }
+
+  .treatment-recommender-by-treatment__plan-section {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .treatment-recommender-by-treatment__plan-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .treatment-recommender-by-treatment__plan-actions {
+    padding-top: 10px;
+    border-top: 1px solid var(--theme-border, #e8e8e8);
+  }
 }
 
 .treatment-recommender-by-treatment__plan-title-row {
@@ -216,16 +251,47 @@
   border-bottom: none;
 }
 
+.treatment-recommender-by-treatment__plan-row-wrap--pricing-incomplete
+  .treatment-recommender-by-treatment__plan-row {
+  border-left: 3px solid var(--plan-pricing-warning-stripe, #f59e0b);
+  padding-left: 13px;
+  margin-left: 0;
+}
+
+/* Label styling from global .plan-pricing-warning-pill (+ optional local hook) */
+.treatment-recommender-by-treatment__plan-row-pricing-badge {
+  margin-top: 0;
+}
+
 .treatment-recommender-by-treatment__plan-row-wrap--editing
   .treatment-recommender-by-treatment__plan-row {
   background: var(--theme-bg-subtle, #f8fafc);
 }
 
-.treatment-recommender-by-treatment__plan-row {
+.treatment-recommender-by-treatment__plan-row-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__plan-row-body {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+
+.treatment-recommender-by-treatment__plan-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   flex: 1;
   min-width: 0;
   padding: 12px 16px;
@@ -1040,6 +1106,35 @@
 
 .treatment-recommender-by-treatment__add-form-toolbar .edit-toggle-btn {
   margin: 0;
+}
+
+/* Inline next to quantity / type fields (add-to-plan draft pricing preview) */
+.treatment-recommender-by-treatment__add-plan-field-pricing-hint {
+  margin: 6px 0 0;
+  max-width: 100%;
+  padding: 6px 8px 6px 10px;
+  border-left: 2px solid var(--plan-pricing-warning-stripe, #f59e0b);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--theme-text-secondary, #64748b);
+  background: var(--plan-pricing-warning-bg, #fffbeb);
+  box-sizing: border-box;
+}
+
+.treatment-recommender-by-treatment__add-plan-pricing-hint-label {
+  font-weight: 600;
+  color: var(--theme-text-muted, #64748b);
+}
+
+.treatment-recommender-by-treatment__add-plan-actions-pricing-hint-wrap {
+  flex: 1 0 100%;
+  width: 100%;
+}
+
+.treatment-recommender-by-treatment__pricing-qty
+  + .treatment-recommender-by-treatment__add-plan-field-pricing-hint {
+  margin-top: 8px;
 }
 
 .treatment-recommender-by-treatment__add-row {
@@ -3443,7 +3538,7 @@
     grid-row: 1;
     width: 100px;
     max-width: 100px;
-    aspect-ratio: 3 / 4;
+    aspect-ratio: 1 / 1;
   }
 
   /* Front / Side below the photo (same width as photo column) */

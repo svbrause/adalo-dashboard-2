@@ -36,6 +36,8 @@ interface PlanListColumnProps {
   onDragOver: (e: React.DragEvent<HTMLElement>, sectionLabel: string) => void;
   onDragLeave: (e?: React.DragEvent<HTMLElement>) => void;
   onDrop: (e: React.DragEvent<HTMLElement>, sectionLabel: string) => void;
+  /** Short labels (e.g. “Needs units”) when checkout pricing is incomplete for that row. */
+  planPricingBadgeByItemId?: ReadonlyMap<string, string>;
 }
 
 export default function PlanListColumn({
@@ -56,6 +58,7 @@ export default function PlanListColumn({
   onDragOver,
   onDragLeave,
   onDrop,
+  planPricingBadgeByItemId,
 }: PlanListColumnProps) {
   const firstName = clientName?.trim().split(/\s+/)[0] || "Patient";
 
@@ -162,9 +165,11 @@ export default function PlanListColumn({
                   {sectionItems.map((item) => {
                     const planSecondary =
                       getTreatmentPlanRowSecondaryLabel(item);
+                    const pricingBadge = planPricingBadgeByItemId?.get(item.id);
                     return (
                       <div
                         key={item.id}
+                        id={`discussed-plan-item-${item.id}`}
                         draggable
                         onDragStart={(e) => onDragStart(e, item.id)}
                         onDragEnd={onDragEnd}
@@ -172,7 +177,11 @@ export default function PlanListColumn({
                           selectedPlanItemId === item.id || editingId === item.id
                             ? "selected"
                             : ""
-                        } ${draggedItemId === item.id ? "dragging" : ""}`}
+                        } ${draggedItemId === item.id ? "dragging" : ""}${
+                          pricingBadge
+                            ? " discussed-treatments-record-row--pricing-incomplete"
+                            : ""
+                        }`}
                         onClick={() => onSelectItem(item.id)}
                         role="button"
                         tabIndex={0}
@@ -200,6 +209,14 @@ export default function PlanListColumn({
                           {planSecondary ? (
                             <div className="discussed-treatments-record-meta-line">
                               {planSecondary}
+                            </div>
+                          ) : null}
+                          {pricingBadge ? (
+                            <div
+                              className="plan-pricing-warning-pill discussed-treatments-record-pricing-badge"
+                              title="Add units or product type so checkout can show a firm price"
+                            >
+                              {pricingBadge}
                             </div>
                           ) : null}
                         </div>

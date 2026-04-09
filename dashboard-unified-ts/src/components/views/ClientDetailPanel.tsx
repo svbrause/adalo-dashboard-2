@@ -45,6 +45,7 @@ import {
   getDiscussedPlanCheckoutSubtotals,
 } from "../modals/DiscussedTreatmentsModal/TreatmentPlanCheckout";
 import { formatPrice } from "../../data/treatmentPricing2025";
+import { planPricingFixActionLabel } from "../../utils/planPricingWarnings";
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import AnalysisOverviewModal, {
   type DetailView,
@@ -221,12 +222,38 @@ export default function ClientDetailPanel({
   const [recommenderMode, setRecommenderMode] = useState<
     "by-treatment" | "by-suggestion" | null
   >(null);
-  /** Region filter chips from the active treatment recommender — passed into post-visit blueprint for AI mirror. */
+  /** Region filter chips from the active plan builder — passed into post-visit blueprint for AI mirror. */
   const [recommenderFocusRegions, setRecommenderFocusRegions] = useState<
     string[]
   >([]);
+  /** “Fix in plan” from share link modal opens the plan builder on this line once. */
+  const [shareLinkPendingPlanEditId, setShareLinkPendingPlanEditId] = useState<
+    string | null
+  >(null);
   const scanDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const handleConsumedShareLinkPlanEdit = useCallback(() => {
+    setShareLinkPendingPlanEditId(null);
+  }, []);
+
+  const handleShareLinkNavigateToPlanItem = useCallback(
+    (discussedItemId: string) => {
+      setShowShareTreatmentPlanLink(false);
+      setShareLinkPendingPlanEditId(discussedItemId);
+      setRecommenderMode("by-treatment");
+    },
+    [],
+  );
+
+  /** Jump from client detail plan list into plan builder with this line open for editing. */
+  const openPlanBuilderForDiscussedItem = useCallback(
+    (discussedItemId: string) => {
+      setShareLinkPendingPlanEditId(discussedItemId);
+      setRecommenderMode("by-treatment");
+    },
+    [],
+  );
 
   useEffect(() => {
     if (client) {
@@ -399,9 +426,7 @@ export default function ClientDetailPanel({
         onUpdate();
         return newItem;
       } catch (e) {
-        showError(
-          e instanceof Error ? e.message : "Failed to add to plan",
-        );
+        showError(e instanceof Error ? e.message : "Failed to add to plan");
         throw e;
       }
     },
@@ -620,7 +645,7 @@ export default function ClientDetailPanel({
                 <h2 className="client-detail-panel-title">{client.name}</h2>
                 {recommenderMode && (
                   <span className="client-detail-panel-header-subtitle">
-                    Treatment Recommender
+                    Plan Builder
                   </span>
                 )}
                 {!recommenderMode && (
@@ -698,6 +723,10 @@ export default function ClientDetailPanel({
                             ? setShowShareTreatmentPlanLink(true)
                             : setShowShareTreatmentPlan(true)
                       : undefined
+                  }
+                  initialOpenPlanItemId={shareLinkPendingPlanEditId}
+                  onConsumedInitialOpenPlanItemId={
+                    handleConsumedShareLinkPlanEdit
                   }
                 />
               )}
@@ -801,7 +830,7 @@ export default function ClientDetailPanel({
                                   <polyline points="16 6 12 2 8 6"></polyline>
                                   <line x1="12" y1="2" x2="12" y2="15"></line>
                                 </svg>
-                                Share Analysis
+                                Share
                               </button>
                             )}
                           </div>
@@ -1326,7 +1355,7 @@ export default function ClientDetailPanel({
                                 ? "Scan patient before building a plan"
                                 : hasWebPopupForm
                                   ? "Complete intake before building a plan"
-                                  : "Add visit or intake data to use the recommender"
+                                  : "Add visit or intake data to use the plan builder"
                               : undefined
                           }
                           onClick={(e) => {
@@ -1343,7 +1372,7 @@ export default function ClientDetailPanel({
                               🔒
                             </span>
                           )}
-                          Treatment Recommender
+                          Build Plan
                         </button>
                         {/* Plan Manage/Add — hidden for now (re-enable when Discussed Treatments modal flow is ready). */}
                         {false && (
@@ -1360,166 +1389,194 @@ export default function ClientDetailPanel({
                       </div>
                     </div>
                     <div className="discussed-treatments-in-facial-summary-row">
-                        {client.discussedItems &&
-                        client.discussedItems.length > 0 ? (
-                          <div className="discussed-treatments-plan-sections-outer share-tp-link-quote">
-                            {(() => {
-                              const items = client.discussedItems || [];
-                              const skincareItems = items
-                                .filter(
-                                  (i) => i.treatment?.trim() === "Skincare",
-                                )
+                      {client.discussedItems &&
+                      client.discussedItems.length > 0 ? (
+                        <div className="discussed-treatments-plan-sections-outer share-tp-link-quote">
+                          {(() => {
+                            const items = client.discussedItems || [];
+                            const skincareItems = items
+                              .filter((i) => i.treatment?.trim() === "Skincare")
+                              .sort(
+                                (a, b) =>
+                                  (planQuoteOrderRank.get(a.id) ?? 9999) -
+                                  (planQuoteOrderRank.get(b.id) ?? 9999),
+                              );
+                            const treatmentItemsForLabel = (
+                              sectionLabel: (typeof PLAN_SECTIONS)[number],
+                            ) =>
+                              (client.discussedItems || [])
+                                .filter((item) => {
+                                  if (item.treatment?.trim() === "Skincare")
+                                    return false;
+                                  const t = item.timeline?.trim();
+                                  if (sectionLabel === "Now")
+                                    return t === "Now";
+                                  if (sectionLabel === "Add next visit")
+                                    return t === "Add next visit";
+                                  if (sectionLabel === "Completed")
+                                    return t === "Completed";
+                                  return t === "Wishlist" || !t;
+                                })
                                 .sort(
                                   (a, b) =>
                                     (planQuoteOrderRank.get(a.id) ?? 9999) -
                                     (planQuoteOrderRank.get(b.id) ?? 9999),
                                 );
-                              const treatmentItemsForLabel = (
-                                sectionLabel: (typeof PLAN_SECTIONS)[number],
-                              ) =>
-                                (client.discussedItems || [])
-                                  .filter((item) => {
-                                    if (item.treatment?.trim() === "Skincare")
-                                      return false;
-                                    const t = item.timeline?.trim();
-                                    if (sectionLabel === "Now")
-                                      return t === "Now";
-                                    if (sectionLabel === "Add next visit")
-                                      return t === "Add next visit";
-                                    if (sectionLabel === "Completed")
-                                      return t === "Completed";
-                                    return t === "Wishlist" || !t;
-                                  })
-                                  .sort(
-                                    (a, b) =>
-                                      (planQuoteOrderRank.get(a.id) ?? 9999) -
-                                      (planQuoteOrderRank.get(b.id) ?? 9999),
-                                  );
-                              const hasTreatmentsBlock = PLAN_SECTIONS.some(
-                                (sl) =>
-                                  treatmentItemsForLabel(sl).length > 0,
-                              );
-                              const renderPlanRow = (item: DiscussedItem) => {
-                                const priceData =
-                                  discussedPlanPriceLabels.get(item.id) ??
-                                  null;
-                                const planSecondary =
-                                  getTreatmentPlanRowSecondaryLabel(item);
-                                return (
-                                  <div
-                                    key={item.id}
-                                    className="discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta discussed-treatments-record-row-with-price"
-                                  >
-                                    <div className="discussed-treatments-record-row-main">
-                                      <div className="discussed-treatments-record-treatment-heading-outer">
-                                        {getTreatmentPlanRowPrimaryLabel(item)}
-                                      </div>
-                                      {planSecondary ? (
-                                        <div className="discussed-treatments-record-meta-line-outer">
-                                          {planSecondary}
-                                        </div>
-                                      ) : null}
+                            const hasTreatmentsBlock = PLAN_SECTIONS.some(
+                              (sl) => treatmentItemsForLabel(sl).length > 0,
+                            );
+                            const renderPlanRow = (item: DiscussedItem) => {
+                              const priceData =
+                                discussedPlanPriceLabels.get(item.id) ?? null;
+                              const planSecondary =
+                                getTreatmentPlanRowSecondaryLabel(item);
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta discussed-treatments-record-row-with-price"
+                                >
+                                  <div className="discussed-treatments-record-row-main">
+                                    <div className="discussed-treatments-record-treatment-heading-outer">
+                                      {getTreatmentPlanRowPrimaryLabel(item)}
                                     </div>
-                                    {priceData ? (
-                                      <div
-                                        className="discussed-treatments-record-price-outer"
-                                        title="From practice price list / checkout"
-                                      >
-                                        <span>{priceData.label}</span>
-                                        {priceData.missingInfo && (
-                                          <span className="discussed-treatments-record-price-missing">
-                                            ⚠ {priceData.missingInfo}
-                                          </span>
-                                        )}
+                                    {planSecondary ? (
+                                      <div className="discussed-treatments-record-meta-line-outer">
+                                        {planSecondary}
                                       </div>
                                     ) : null}
                                   </div>
-                                );
-                              };
-                              return (
-                                <>
-                                  {skincareItems.length > 0 ? (
-                                    <div className="share-tp-link-quote-section">
-                                      <h4 className="share-tp-link-quote-section-title">
-                                        {SKINCARE_SECTION_LABEL}
-                                      </h4>
-                                      <div className="discussed-treatments-records-list-outer">
-                                        {skincareItems.map(renderPlanRow)}
-                                      </div>
-                                      {planCheckoutSubtotals &&
-                                      planCheckoutSubtotals.skincareLineCount >
-                                        0 ? (
-                                        <div className="share-tp-link-quote-subtotal">
-                                          <span>Skincare subtotal</span>
-                                          <strong>
-                                            {formatPrice(
-                                              planCheckoutSubtotals.skincareSubtotal,
-                                            )}
-                                          </strong>
-                                        </div>
+                                  {priceData ? (
+                                    <div
+                                      className="discussed-treatments-record-price-outer"
+                                      title="From practice price list / checkout"
+                                    >
+                                      <span>{priceData.label}</span>
+                                      {priceData.missingInfo && (
+                                        <span className="plan-pricing-warning-callout discussed-treatments-record-price-missing">
+                                          ⚠ {priceData.missingInfo}
+                                        </span>
+                                      )}
+                                      {priceData.missingInfo ? (
+                                        <button
+                                          type="button"
+                                          className="plan-pricing-fix-action-btn"
+                                          disabled={
+                                            !showTreatmentRecommenderShortcut
+                                          }
+                                          title={
+                                            !showTreatmentRecommenderShortcut
+                                              ? hasFacialAnalysisForm
+                                                ? "Scan patient before building a plan"
+                                                : hasWebPopupForm
+                                                  ? "Complete intake before building a plan"
+                                                  : "Add visit or intake data to use the plan builder"
+                                              : undefined
+                                          }
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (
+                                              !showTreatmentRecommenderShortcut
+                                            )
+                                              return;
+                                            openPlanBuilderForDiscussedItem(
+                                              item.id,
+                                            );
+                                          }}
+                                        >
+                                          {planPricingFixActionLabel(
+                                            priceData.missingInfo,
+                                          )}
+                                        </button>
                                       ) : null}
                                     </div>
                                   ) : null}
-                                  {hasTreatmentsBlock ? (
-                                    <div className="share-tp-link-quote-section share-tp-link-quote-section--treatments">
-                                      <h4 className="share-tp-link-quote-section-title">
-                                        Treatments
-                                      </h4>
-                                      {PLAN_SECTIONS.map((sectionLabel) => {
-                                        const sectionItems =
-                                          treatmentItemsForLabel(sectionLabel);
-                                        if (sectionItems.length === 0)
-                                          return null;
-                                        return (
-                                          <div
-                                            key={sectionLabel}
-                                            className="share-tp-link-timeline-group"
-                                          >
-                                            <h5 className="share-tp-link-timeline-group-title">
-                                              {sectionLabel}
-                                            </h5>
-                                            <div className="discussed-treatments-records-list-outer">
-                                              {sectionItems.map(renderPlanRow)}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                      {planCheckoutSubtotals &&
-                                      planCheckoutSubtotals.treatmentLineCount >
-                                        0 ? (
-                                        <div className="share-tp-link-quote-subtotal">
-                                          <span>Treatments subtotal</span>
-                                          <strong>
-                                            {formatPrice(
-                                              planCheckoutSubtotals.treatmentsSubtotal,
-                                            )}
-                                          </strong>
-                                        </div>
-                                      ) : null}
+                                </div>
+                              );
+                            };
+                            return (
+                              <>
+                                {skincareItems.length > 0 ? (
+                                  <div className="share-tp-link-quote-section">
+                                    <h4 className="share-tp-link-quote-section-title">
+                                      {SKINCARE_SECTION_LABEL}
+                                    </h4>
+                                    <div className="discussed-treatments-records-list-outer">
+                                      {skincareItems.map(renderPlanRow)}
                                     </div>
-                                  ) : null}
-                                  {planCheckoutSubtotals ? (
-                                    <div className="share-tp-link-quote-footer">
-                                      <div className="share-tp-link-quote-total">
-                                        <span>Total</span>
+                                    {planCheckoutSubtotals &&
+                                    planCheckoutSubtotals.skincareLineCount >
+                                      0 ? (
+                                      <div className="share-tp-link-quote-subtotal">
+                                        <span>Skincare subtotal</span>
                                         <strong>
                                           {formatPrice(
-                                            planCheckoutSubtotals.total,
+                                            planCheckoutSubtotals.skincareSubtotal,
                                           )}
                                         </strong>
                                       </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                                {hasTreatmentsBlock ? (
+                                  <div className="share-tp-link-quote-section share-tp-link-quote-section--treatments">
+                                    <h4 className="share-tp-link-quote-section-title">
+                                      Treatments
+                                    </h4>
+                                    {PLAN_SECTIONS.map((sectionLabel) => {
+                                      const sectionItems =
+                                        treatmentItemsForLabel(sectionLabel);
+                                      if (sectionItems.length === 0)
+                                        return null;
+                                      return (
+                                        <div
+                                          key={sectionLabel}
+                                          className="share-tp-link-timeline-group"
+                                        >
+                                          <h5 className="share-tp-link-timeline-group-title">
+                                            {sectionLabel}
+                                          </h5>
+                                          <div className="discussed-treatments-records-list-outer">
+                                            {sectionItems.map(renderPlanRow)}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                    {planCheckoutSubtotals &&
+                                    planCheckoutSubtotals.treatmentLineCount >
+                                      0 ? (
+                                      <div className="share-tp-link-quote-subtotal">
+                                        <span>Treatments subtotal</span>
+                                        <strong>
+                                          {formatPrice(
+                                            planCheckoutSubtotals.treatmentsSubtotal,
+                                          )}
+                                        </strong>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                                {planCheckoutSubtotals ? (
+                                  <div className="share-tp-link-quote-footer">
+                                    <div className="share-tp-link-quote-total">
+                                      <span>Total</span>
+                                      <strong>
+                                        {formatPrice(
+                                          planCheckoutSubtotals.total,
+                                        )}
+                                      </strong>
                                     </div>
-                                  ) : null}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          <span className="discussed-treatments-in-facial-summary">
-                            None
-                          </span>
-                        )}
-                      </div>
+                                  </div>
+                                ) : null}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <span className="discussed-treatments-in-facial-summary">
+                          None
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {treatmentPreviewUiEnabled &&
@@ -1636,7 +1693,7 @@ export default function ClientDetailPanel({
                                   setShowAnalysisOverview(true);
                                 }}
                               >
-                                Analysis Overview
+                                Explore Analysis Overview
                               </button>
                             )}
                             <button
@@ -1647,7 +1704,7 @@ export default function ClientDetailPanel({
                                 setShowShareAnalysis(true);
                               }}
                             >
-                              Share with Patient
+                              Share
                             </button>
                           </>
                         )}
@@ -1674,7 +1731,7 @@ export default function ClientDetailPanel({
                                     handleScanInClinic();
                                   }}
                                 >
-                                  Scan In-Clinic
+                                  Scan In Clinic
                                 </button>
                                 {!isUniqueAestheticsProvider(provider) && (
                                   <button
@@ -1708,8 +1765,7 @@ export default function ClientDetailPanel({
                       <div className="detail-empty-state">
                         {hasWebPopupForm ? (
                           <div className="detail-empty-state-text">
-                            Request a facial analysis scan for this client using
-                            the "Scan Patient" button above.
+                            {`Request a facial analysis scan for this client using the "Scan Patient" button above.`}
                           </div>
                         ) : (
                           <div className="detail-empty-center">
@@ -1740,7 +1796,7 @@ export default function ClientDetailPanel({
                               className="btn-secondary btn-sm"
                               onClick={() => setShowSkinTypeQuiz(true)}
                             >
-                              {skincareQuiz ? "View Results" : "Take now"}
+                              {skincareQuiz ? "View Results" : "Take Now"}
                             </button>
                             <button
                               type="button"
@@ -1753,14 +1809,20 @@ export default function ClientDetailPanel({
                               }}
                               disabled={!client.phone && !client.email}
                               title={
-                                client.phone
-                                  ? "Send quiz link via SMS"
-                                  : client.email
-                                    ? "Send quiz link via email"
-                                    : "Add phone or email to send to patient"
+                                skincareQuiz
+                                  ? client.phone
+                                    ? "Share Quiz Link Via SMS"
+                                    : client.email
+                                      ? "Share Quiz Link Via Email"
+                                      : "Add Phone or Email to Share"
+                                  : client.phone
+                                    ? "Request Quiz Via SMS"
+                                    : client.email
+                                      ? "Request Quiz Via Email"
+                                      : "Add Phone or Email to Request From Patient"
                               }
                             >
-                              Send to Patient
+                              {skincareQuiz ? "Share" : "Request With Patient"}
                             </button>
                           </div>
                         </div>
@@ -1806,74 +1868,71 @@ export default function ClientDetailPanel({
                               </p>
                             )}
                             {(() => {
-                                const carouselItems =
-                                  getSkincareCarouselItems();
-                                const routineSections =
-                                  buildQuizSkincareRoutineSections(
-                                    skincareQuiz.recommendedProductNames,
-                                    skincareQuiz.result,
-                                    (name) =>
-                                      carouselItems.find(
-                                        (p) => p.name === name,
-                                      ),
-                                  );
-                                if (routineSections.length === 0) return null;
-                                return (
-                                  <div className="skin-analysis-routine-groups">
-                                    {routineSections.map((section) => (
-                                      <div
-                                        key={section.id}
-                                        className="skin-analysis-products skin-analysis-products--routine-group"
-                                      >
-                                        <span className="skin-analysis-products-label">
-                                          {section.title}
-                                        </span>
-                                        <div className="skin-analysis-product-chips">
-                                          {section.items.map((product) => {
-                                            const item = carouselItems.find(
-                                              (p) => p.name === product.name,
-                                            );
-                                            const p: SkinQuizProduct = {
-                                              name: product.name,
-                                              imageUrl: item?.imageUrl,
-                                              productUrl: item?.productUrl,
-                                              recommendedFor: product.blurb,
-                                              description: item?.description,
-                                              price: item?.price,
-                                              imageUrls: item?.imageUrls,
-                                            };
-                                            return (
-                                              <button
-                                                key={`${section.id}-${product.name}`}
-                                                type="button"
-                                                className="skin-analysis-product-chip"
-                                                onClick={() =>
-                                                  setSelectedSkinProduct(p)
-                                                }
-                                              >
-                                                {p.imageUrl ? (
-                                                  <img
-                                                    src={p.imageUrl}
-                                                    alt=""
-                                                    className="skin-analysis-product-chip-thumb"
-                                                  />
-                                                ) : (
-                                                  <span className="skin-analysis-product-chip-placeholder">
-                                                    ◆
-                                                  </span>
-                                                )}
-                                                <span className="skin-analysis-product-chip-name">
-                                                  {product.displayName}
-                                                </span>
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
+                              const carouselItems = getSkincareCarouselItems();
+                              const routineSections =
+                                buildQuizSkincareRoutineSections(
+                                  skincareQuiz.recommendedProductNames,
+                                  skincareQuiz.result,
+                                  (name) =>
+                                    carouselItems.find((p) => p.name === name),
                                 );
-                              })()}
+                              if (routineSections.length === 0) return null;
+                              return (
+                                <div className="skin-analysis-routine-groups">
+                                  {routineSections.map((section) => (
+                                    <div
+                                      key={section.id}
+                                      className="skin-analysis-products skin-analysis-products--routine-group"
+                                    >
+                                      <span className="skin-analysis-products-label">
+                                        {section.title}
+                                      </span>
+                                      <div className="skin-analysis-product-chips">
+                                        {section.items.map((product) => {
+                                          const item = carouselItems.find(
+                                            (p) => p.name === product.name,
+                                          );
+                                          const p: SkinQuizProduct = {
+                                            name: product.name,
+                                            imageUrl: item?.imageUrl,
+                                            productUrl: item?.productUrl,
+                                            recommendedFor: product.blurb,
+                                            description: item?.description,
+                                            price: item?.price,
+                                            imageUrls: item?.imageUrls,
+                                          };
+                                          return (
+                                            <button
+                                              key={`${section.id}-${product.name}`}
+                                              type="button"
+                                              className="skin-analysis-product-chip"
+                                              onClick={() =>
+                                                setSelectedSkinProduct(p)
+                                              }
+                                            >
+                                              {p.imageUrl ? (
+                                                <img
+                                                  src={p.imageUrl}
+                                                  alt=""
+                                                  className="skin-analysis-product-chip-thumb"
+                                                />
+                                              ) : (
+                                                <span className="skin-analysis-product-chip-placeholder">
+                                                  ◆
+                                                </span>
+                                              )}
+                                              <span className="skin-analysis-product-chip-name">
+                                                {product.displayName}
+                                              </span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
                             {skincareQuiz.answers &&
                               Object.keys(skincareQuiz.answers).length > 0 &&
                               (() => {
@@ -1978,7 +2037,7 @@ export default function ClientDetailPanel({
                                   setShowSendSMS(true);
                                 }}
                               >
-                                Send results via SMS
+                                Send Results Via SMS
                               </button>
                             )}
                           <button
@@ -1989,7 +2048,7 @@ export default function ClientDetailPanel({
                               setShowWellnessQuiz(true);
                             }}
                           >
-                            {client.wellnessQuiz ? "View Results" : "Take now"}
+                            {client.wellnessQuiz ? "View Results" : "Take Now"}
                           </button>
                         </div>
                       </div>
@@ -2174,6 +2233,7 @@ export default function ClientDetailPanel({
                 setShowShareTreatmentPlanLink(false);
                 onUpdate();
               }}
+              onNavigateToEditPlanItem={handleShareLinkNavigateToPlanItem}
             />
           )}
           {showPhotoViewer && client && (

@@ -341,6 +341,16 @@
   padding-left: 9px;
 }
 
+.discussed-treatments-record-row--pricing-incomplete:not(.selected) {
+  border-left: 3px solid var(--plan-pricing-warning-stripe, #f59e0b);
+  padding-left: 9px;
+}
+
+/* Typography from global .plan-pricing-warning-pill */
+.discussed-treatments-record-pricing-badge {
+  align-self: flex-start;
+}
+
 /* New-item row: top of list when add form is shown (no move control) */
 .discussed-treatments-record-row-new {
   cursor: default;

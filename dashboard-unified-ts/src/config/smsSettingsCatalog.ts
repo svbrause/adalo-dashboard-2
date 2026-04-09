@@ -177,7 +177,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         id: "plan-share-manual",
         eventName: "Share treatment plan",
         trigger:
-          "Staff clicks Share Treatment Plan with Patient and sends from the modal",
+          "Staff clicks Share and sends from the modal",
         enabled: true,
         channel: "sms",
         template:
@@ -198,7 +198,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         id: "analysis-share-manual",
         eventName: "Share analysis results",
         trigger:
-          "Staff clicks Share Analysis with Patient and sends from the modal",
+          "Staff clicks Share and sends from the modal",
         enabled: true,
         channel: "sms",
         template:

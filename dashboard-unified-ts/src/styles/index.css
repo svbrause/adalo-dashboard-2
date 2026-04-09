@@ -57,6 +57,16 @@ html {
   --font-base: 0.9rem;  /* ~14.4px — body text */
   --font-md: 1rem;      /* ~16px  — card titles, section headers */
   --font-lg: 1.05rem;   /* ~16.8px — modal titles, prominent labels */
+
+  /* Plan pricing warnings + “Fix in plan” CTAs (recommender, share link, client detail) */
+  --plan-pricing-warning-fg: #b45309;
+  --plan-pricing-warning-bg: #fffbeb;
+  --plan-pricing-warning-border: #fde68a;
+  --plan-pricing-warning-stripe: #f59e0b;
+  --plan-pricing-fix-fg: #0f766e;
+  --plan-pricing-fix-bg: #ecfdf5;
+  --plan-pricing-fix-border: #0d9488;
+  --plan-pricing-fix-bg-hover: #d1fae5;
 }
 
 body {
@@ -1292,9 +1302,6 @@ body.theme-warm .kanban-cards.drag-over {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--theme-text-primary);
 }
 
 .detail-section-title-treatment-plan .treatment-plan-section-subtitle {
@@ -1401,7 +1408,7 @@ body.theme-warm .kanban-cards.drag-over {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: 6px;
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--theme-text-primary, #3a3c3e);
@@ -1411,12 +1418,68 @@ body.theme-warm .kanban-cards.drag-over {
   max-width: 42%;
 }
 
-.discussed-treatments-record-price-missing {
+/* Short label e.g. NEEDS UNITS — matches treatment recommender left column */
+.plan-pricing-warning-pill {
+  display: inline-block;
+  margin-top: 4px;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.25;
+  color: var(--plan-pricing-warning-fg);
+  background: var(--plan-pricing-warning-bg);
+  border: 1px solid var(--plan-pricing-warning-border);
+  padding: 3px 7px;
+  border-radius: 6px;
+}
+
+/* Sentence-case line e.g. ⚠ Add units… on client detail */
+.plan-pricing-warning-callout {
+  display: inline-block;
+  margin-top: 2px;
+  max-width: 100%;
+  box-sizing: border-box;
   font-size: 0.75rem;
-  font-weight: 400;
-  color: #b45309;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--plan-pricing-warning-fg);
+  background: var(--plan-pricing-warning-bg);
+  border: 1px solid var(--plan-pricing-warning-border);
+  padding: 6px 10px;
+  border-radius: 8px;
   white-space: normal;
-  line-height: 1.3;
+  text-align: right;
+}
+
+/* Share link modal + client detail “Fix in plan” — one CTA style */
+.plan-pricing-fix-action-btn {
+  appearance: none;
+  margin-top: 2px;
+  border: 1px solid var(--plan-pricing-fix-border);
+  background: var(--plan-pricing-fix-bg);
+  color: var(--plan-pricing-fix-fg);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  max-width: 100%;
+}
+
+.plan-pricing-fix-action-btn:hover:not(:disabled) {
+  background: var(--plan-pricing-fix-bg-hover);
+  border-color: #0f766e;
+}
+
+.plan-pricing-fix-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .discussed-treatments-record-heading-block-outer {

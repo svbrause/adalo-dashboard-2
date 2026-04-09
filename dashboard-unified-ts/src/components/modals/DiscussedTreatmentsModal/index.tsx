@@ -57,6 +57,8 @@ import TreatmentPhotos, {
 import ShareTreatmentPlanModal from "../ShareTreatmentPlanModal";
 import ShareTreatmentPlanLinkModal from "../ShareTreatmentPlanLinkModal";
 import TreatmentPlanCheckoutModal from "../TreatmentPlanCheckoutModal";
+import { getAlignedCheckoutLineItemsForDiscussedItems } from "./TreatmentPlanCheckout";
+import { planPricingWarningShort } from "../../../utils/planPricingWarnings";
 import { isPostVisitBlueprintSender } from "../../../utils/providerHelpers";
 import "./index.css";
 
@@ -67,7 +69,7 @@ export default function DiscussedTreatmentsModal({
   /** When set, open the add form with this prefill (e.g. from Treatment Explorer "Add to plan" when opened from Client Detail) */
   initialAddFormPrefill = null,
   onClearInitialPrefill,
-  /** When set, open the modal with this item selected for editing (e.g. "Add additional details" from Treatment Recommender) */
+  /** When set, open the modal with this item selected for editing (e.g. "Add additional details" from plan builder) */
   initialEditingItem = null,
 }: DiscussedTreatmentsModalProps & {
   initialAddFormPrefill?: TreatmentPlanPrefill | null;
@@ -403,6 +405,18 @@ export default function DiscussedTreatmentsModal({
       ? [SKINCARE_SECTION_LABEL, ...PLAN_SECTIONS]
       : [...PLAN_SECTIONS];
   }, [itemsBySection]);
+
+  /** Short badges on the plan list when a row is missing units/type for pricing (matches share-link warnings). */
+  const planPricingBadgeByItemId = useMemo(() => {
+    const lines = getAlignedCheckoutLineItemsForDiscussedItems(items);
+    const m = new Map<string, string>();
+    items.forEach((it, i) => {
+      const mi = lines[i]?.missingInfo;
+      const short = planPricingWarningShort(mi);
+      if (short) m.set(it.id, short);
+    });
+    return m;
+  }, [items]);
 
   /** Preview for the "New item" row when add form is visible (left column stays connected). */
   const newItemPreview = useMemo(() => {
@@ -1199,7 +1213,7 @@ export default function DiscussedTreatmentsModal({
     onClearInitialPrefill();
   }, [initialAddFormPrefill, onClearInitialPrefill]);
 
-  /** When opened with an item to edit (e.g. "Add additional details" from Treatment Recommender), ensure it's in the list and open edit form */
+  /** When opened with an item to edit (e.g. "Add additional details" from plan builder), ensure it's in the list and open edit form */
   useEffect(() => {
     if (!initialEditingItem) return;
     const item = initialEditingItem;
@@ -1567,6 +1581,7 @@ export default function DiscussedTreatmentsModal({
                 onDragOver={(e, sectionLabel) => handleDragOver(e, sectionLabel)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e, sectionLabel) => handleDrop(e, sectionLabel)}
+                planPricingBadgeByItemId={planPricingBadgeByItemId}
               />
             )}
             <div
@@ -6335,6 +6350,17 @@ export default function DiscussedTreatmentsModal({
             onSuccess={() => {
               setShowShareTreatmentPlanLink(false);
               onUpdate();
+            }}
+            onNavigateToEditPlanItem={(discussedItemId) => {
+              setShowShareTreatmentPlanLink(false);
+              const row = items.find((i) => i.id === discussedItemId);
+              if (!row) return;
+              handleEditStart(row);
+              window.requestAnimationFrame(() => {
+                document
+                  .getElementById(`discussed-plan-item-${discussedItemId}`)
+                  ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+              });
             }}
           />
         )}

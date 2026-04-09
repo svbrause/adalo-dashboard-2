@@ -29,6 +29,17 @@ import "./SettingsView.css";
 
 type PreviewSelection = { product: SmsProductConfig; event: SmsTemplateEventConfig } | null;
 
+type ChangeRequestSelection = {
+  product: SmsProductConfig;
+  event: SmsTemplateEventConfig;
+  initialNotes?: string;
+} | null;
+
+type EmailChangeRequestSelection = {
+  entry: AutomatedEmail;
+  initialEmailNotes?: string;
+} | null;
+
 type UnifiedNotifItem =
   | { type: "sms"; event: SmsTemplateEventConfig; product: SmsProductConfig }
   | { type: "email"; email: AutomatedEmail };
@@ -83,6 +94,23 @@ function getItemTrigger(item: UnifiedNotifItem): string {
 }
 
 /** Collapse adjacent items that share the same trigger into a single grouped row. */
+function isNotificationItemActive(item: UnifiedNotifItem): boolean {
+  return item.type === "sms" ? item.event.enabled : item.email.active;
+}
+
+/** Prefilled note for SMS enable/disable request (catalog is the source of truth until the team changes it). */
+function prefilledSmsStatusRequestNote(enabled: boolean): string {
+  return enabled
+    ? "Please turn this text notification OFF for our practice (or tell us who should receive it instead)."
+    : "Please turn this text notification ON for our practice.";
+}
+
+function prefilledEmailStatusRequestNote(active: boolean): string {
+  return active
+    ? "Please turn this automated email OFF for our practice (or adjust who receives it)."
+    : "Please turn this automated email ON for our practice.";
+}
+
 function collapseByTrigger(items: UnifiedNotifItem[]): NotifRowDisplay[] {
   const rows: NotifRowDisplay[] = [];
   let i = 0;
@@ -268,14 +296,14 @@ export default function SettingsView() {
 
   const [activePanel, setActivePanel] = useState<SettingsActivePanel>("home");
   const [preview, setPreview] = useState<PreviewSelection>(null);
-  const [changeRequest, setChangeRequest] = useState<PreviewSelection>(null);
+  const [changeRequest, setChangeRequest] = useState<ChangeRequestSelection>(null);
   const [pricingHelp, setPricingHelp] = useState<PricingHelpOpen | null>(null);
   const [pricingSearch, setPricingSearch] = useState("");
   const [pricingSort, setPricingSort] = useState<PricingSortId>("section");
   const [skincareSearch, setSkincareSearch] = useState("");
   const [skincareSort, setSkincareSort] = useState<SkincareSortId>("brand");
   const [emailNotifHelp, setEmailNotifHelp] = useState<{ entry: AutomatedEmail | null } | null>(null);
-  const [emailChangeRequest, setEmailChangeRequest] = useState<AutomatedEmail | null>(null);
+  const [emailChangeRequest, setEmailChangeRequest] = useState<EmailChangeRequestSelection>(null);
   const settingsPanelScrollSkip = useRef(true);
 
   useEffect(() => {
@@ -537,19 +565,13 @@ export default function SettingsView() {
       if (smsProduct) {
         items.push(
           ...smsProduct.events
-            .filter(
-              (event) =>
-                event.enabled && !event.hideFromNotificationSettings,
-            )
+            .filter((event) => !event.hideFromNotificationSettings)
             .map((event) => ({ type: "sms" as const, event, product: smsProduct })),
         );
       }
       items.push(
         ...emails
-          .filter(
-            (email) =>
-              email.active && !email.hideFromNotificationSettings,
-          )
+          .filter((email) => !email.hideFromNotificationSettings)
           .map((email) => ({ type: "email" as const, email })),
       );
 
@@ -701,16 +723,19 @@ export default function SettingsView() {
             Notifications
           </h2>
           <p className="settings-card-lead">
-            These are the automated texts and emails sent to patients and your team. Click <strong>Open</strong> in the Preview column to see each message, and use <strong>Request change</strong> if something needs updating.
+            These are the automated texts and emails sent to patients and your team. <strong>Status</strong> shows whether each line is on or off in our catalog; click it to ask the team to turn something on or off. Click <strong>Open</strong> in the Preview column to read the message, or use <strong>Request change</strong> from a preview to edit copy or routing.
           </p>
 
           <details className="settings-howto">
             <summary className="settings-howto-summary">How to use this</summary>
             <ol className="settings-howto-list">
               <li>Notifications are grouped by workflow (e.g. facial analysis, website leads).</li>
-              <li>You can see both <strong>SMS</strong> and <strong>EMAIL</strong> messages here.</li>
+              <li>You can see both <strong>SMS</strong> and <strong>EMAIL</strong> messages here, including ones that are currently off.</li>
               <li>
                 The <strong>Preview</strong> column opens the template; <strong>Sent to</strong> shows who receives it.
+              </li>
+              <li>
+                Click <strong>On</strong> or <strong>Off</strong> under Status to send a prefilled request to enable or disable that notification.
               </li>
             </ol>
           </details>
@@ -736,6 +761,9 @@ export default function SettingsView() {
                         <th scope="col" className="settings-col-when">
                           When it sends
                         </th>
+                        <th scope="col" className="settings-col-status">
+                          Status
+                        </th>
                         <th scope="col" className="settings-col-sent-to">
                           Sent to
                         </th>
@@ -758,16 +786,20 @@ export default function SettingsView() {
                               {row.items.map((it, ii) => {
                                 const isContinue = ii > 0;
                                 const isGroupedHead = ii === 0 && span > 1;
+                                const rowActive = isNotificationItemActive(it);
                                 return (
                                   <tr
                                     key={ii}
-                                    className={
+                                    className={[
                                       isContinue
                                         ? "settings-notif-row--split-continue"
                                         : isGroupedHead
                                           ? "settings-notif-row--grouped settings-notif-row--grouped-head"
-                                          : "settings-notif-row--grouped"
-                                    }
+                                          : "settings-notif-row--grouped",
+                                      !rowActive ? "settings-notif-row--inactive" : "",
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" ")}
                                   >
                                     {ii === 0 ? (
                                       <>
@@ -795,6 +827,56 @@ export default function SettingsView() {
                                         </td>
                                       </>
                                     ) : null}
+                                    <td className="settings-td-status">
+                                      {it.type === "sms" ? (
+                                        <button
+                                          type="button"
+                                          className={
+                                            it.event.enabled
+                                              ? "settings-notif-status-btn settings-notif-status-btn--on"
+                                              : "settings-notif-status-btn settings-notif-status-btn--off"
+                                          }
+                                          aria-pressed={it.event.enabled}
+                                          title={
+                                            it.event.enabled
+                                              ? "Request to turn this text off or change routing"
+                                              : "Request to turn this text on"
+                                          }
+                                          onClick={() =>
+                                            setChangeRequest({
+                                              product: it.product,
+                                              event: it.event,
+                                              initialNotes: prefilledSmsStatusRequestNote(it.event.enabled),
+                                            })
+                                          }
+                                        >
+                                          {it.event.enabled ? "On" : "Off"}
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          className={
+                                            it.email.active
+                                              ? "settings-notif-status-btn settings-notif-status-btn--on"
+                                              : "settings-notif-status-btn settings-notif-status-btn--off"
+                                          }
+                                          aria-pressed={it.email.active}
+                                          title={
+                                            it.email.active
+                                              ? "Request to turn this email off or change routing"
+                                              : "Request to turn this email on"
+                                          }
+                                          onClick={() =>
+                                            setEmailChangeRequest({
+                                              entry: it.email,
+                                              initialEmailNotes: prefilledEmailStatusRequestNote(it.email.active),
+                                            })
+                                          }
+                                        >
+                                          {it.email.active ? "On" : "Off"}
+                                        </button>
+                                      )}
+                                    </td>
                                     <td className="settings-td-sent-to">
                                       {it.type === "sms" ? (
                                         <div className="settings-notif-sent-to-row">
@@ -877,12 +959,40 @@ export default function SettingsView() {
                         if (item.type === "sms") {
                           const { event, product } = item;
                           return (
-                            <tr key={`sms-${event.id}`}>
+                            <tr
+                              key={`sms-${event.id}`}
+                              className={!event.enabled ? "settings-notif-row--inactive" : undefined}
+                            >
                               <td className="settings-notif-notification-cell">
                                 <div className="settings-notif-event-name">{event.eventName}</div>
                               </td>
                               <td className="settings-notif-when-cell">
                                 <p className="settings-notif-trigger settings-notif-trigger--no-gap">{event.trigger}</p>
+                              </td>
+                              <td className="settings-td-status">
+                                <button
+                                  type="button"
+                                  className={
+                                    event.enabled
+                                      ? "settings-notif-status-btn settings-notif-status-btn--on"
+                                      : "settings-notif-status-btn settings-notif-status-btn--off"
+                                  }
+                                  aria-pressed={event.enabled}
+                                  title={
+                                    event.enabled
+                                      ? "Request to turn this text off or change routing"
+                                      : "Request to turn this text on"
+                                  }
+                                  onClick={() =>
+                                    setChangeRequest({
+                                      product,
+                                      event,
+                                      initialNotes: prefilledSmsStatusRequestNote(event.enabled),
+                                    })
+                                  }
+                                >
+                                  {event.enabled ? "On" : "Off"}
+                                </button>
                               </td>
                               <td className="settings-td-sent-to">
                                 <div className="settings-notif-sent-to-row">
@@ -914,12 +1024,39 @@ export default function SettingsView() {
                         }
                         const { email } = item;
                         return (
-                          <tr key={`email-${email.id}`}>
+                          <tr
+                            key={`email-${email.id}`}
+                            className={!email.active ? "settings-notif-row--inactive" : undefined}
+                          >
                             <td className="settings-notif-notification-cell">
                               <div className="settings-notif-event-name">{email.name}</div>
                             </td>
                             <td className="settings-notif-when-cell">
                               <p className="settings-notif-trigger settings-notif-trigger--no-gap">{email.trigger}</p>
+                            </td>
+                            <td className="settings-td-status">
+                              <button
+                                type="button"
+                                className={
+                                  email.active
+                                    ? "settings-notif-status-btn settings-notif-status-btn--on"
+                                    : "settings-notif-status-btn settings-notif-status-btn--off"
+                                }
+                                aria-pressed={email.active}
+                                title={
+                                  email.active
+                                    ? "Request to turn this email off or change routing"
+                                    : "Request to turn this email on"
+                                }
+                                onClick={() =>
+                                  setEmailChangeRequest({
+                                    entry: email,
+                                    initialEmailNotes: prefilledEmailStatusRequestNote(email.active),
+                                  })
+                                }
+                              >
+                                {email.active ? "On" : "Off"}
+                              </button>
                             </td>
                             <td className="settings-td-sent-to">
                               <div className="settings-notif-sent-to-row">
@@ -1050,8 +1187,9 @@ export default function SettingsView() {
                 className="btn-primary"
                 onClick={() => {
                   const entry = emailNotifHelp.entry;
+                  if (!entry) return;
                   setEmailNotifHelp(null);
-                  setEmailChangeRequest(entry);
+                  setEmailChangeRequest({ entry });
                 }}
               >
                 Request change
@@ -1516,6 +1654,7 @@ export default function SettingsView() {
         <SmsConfigChangeRequestModal
           product={changeRequest.product}
           eventConfig={changeRequest.event}
+          initialNotes={changeRequest.initialNotes}
           onClose={() => setChangeRequest(null)}
         />
       ) : null}
@@ -1524,17 +1663,19 @@ export default function SettingsView() {
         <PricingChangeRequestModal
           sku={{
             category: "Email routing",
-            name: emailChangeRequest.name,
+            name: emailChangeRequest.entry.name,
             price: 0,
             rowKind: "email-routing",
-            emailTrigger: emailChangeRequest.trigger,
-            emailSubject: emailChangeRequest.exampleSubject,
+            emailTrigger: emailChangeRequest.entry.trigger,
+            emailSubject: emailChangeRequest.entry.exampleSubject,
             emailRecipients: [
-              emailChangeRequest.goesToPatient ? "Patient" : "",
-              ...emailChangeRequest.teamRecipients.map((r) => r.email),
+              emailChangeRequest.entry.goesToPatient ? "Patient" : "",
+              ...emailChangeRequest.entry.teamRecipients.map((r) => r.email),
             ].filter(Boolean).join(", "),
-            emailBody: emailChangeRequest.body,
+            emailBody: emailChangeRequest.entry.body,
+            notificationIsActive: emailChangeRequest.entry.active,
           }}
+          initialEmailNotes={emailChangeRequest.initialEmailNotes}
           onClose={() => setEmailChangeRequest(null)}
         />
       ) : null}

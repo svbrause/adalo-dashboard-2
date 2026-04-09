@@ -41,6 +41,7 @@ import {
   getDiscussedPlanCheckoutSubtotals,
 } from "./DiscussedTreatmentsModal/TreatmentPlanCheckout";
 import { formatPrice } from "../../data/treatmentPricing2025";
+import { planPricingFixActionLabel } from "../../utils/planPricingWarnings";
 import TreatmentPhotosModal from "./TreatmentPhotosModal";
 import AnalysisOverviewModal, {
   type DetailView,
@@ -211,6 +212,8 @@ export default function ClientDetailModal({
   const [recommenderMode, setRecommenderMode] = useState<
     "by-treatment" | "by-suggestion" | null
   >(null);
+  const [shareLinkPendingPlanEditId, setShareLinkPendingPlanEditId] =
+    useState<string | null>(null);
   const [showSkinTypeQuiz, setShowSkinTypeQuiz] = useState(false);
   const [showWellnessQuiz, setShowWellnessQuiz] = useState(false);
   const [selectedSkinProduct, setSelectedSkinProduct] =
@@ -218,6 +221,27 @@ export default function ClientDetailModal({
   const [enrichedSkincareQuiz, setEnrichedSkincareQuiz] =
     useState<Client["skincareQuiz"]>(undefined);
   const scanDropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleConsumedShareLinkPlanEdit = useCallback(() => {
+    setShareLinkPendingPlanEditId(null);
+  }, []);
+
+  const handleShareLinkNavigateToPlanItem = useCallback(
+    (discussedItemId: string) => {
+      setShowShareTreatmentPlanLink(false);
+      setShareLinkPendingPlanEditId(discussedItemId);
+      setRecommenderMode("by-treatment");
+    },
+    [],
+  );
+
+  const openPlanBuilderForDiscussedItem = useCallback(
+    (discussedItemId: string) => {
+      setShareLinkPendingPlanEditId(discussedItemId);
+      setRecommenderMode("by-treatment");
+    },
+    [],
+  );
 
   useEffect(() => {
     if (client) {
@@ -561,7 +585,7 @@ export default function ClientDetailModal({
             <h2 className="modal-title">{client.name}</h2>
             {recommenderMode && (
               <span className="client-detail-modal-header-subtitle">
-                Treatment Recommender
+                Plan builder
               </span>
             )}
             {!recommenderMode && (
@@ -633,6 +657,8 @@ export default function ClientDetailModal({
                         : setShowShareTreatmentPlan(true)
                   : undefined
               }
+              initialOpenPlanItemId={shareLinkPendingPlanEditId}
+              onConsumedInitialOpenPlanItemId={handleConsumedShareLinkPlanEdit}
             />
           )}
           {recommenderMode === "by-suggestion" && client && (
@@ -727,7 +753,7 @@ export default function ClientDetailModal({
                               <polyline points="16 6 12 2 8 6"></polyline>
                               <line x1="12" y1="2" x2="12" y2="15"></line>
                             </svg>
-                            Share Analysis
+                            Share
                           </button>
                         )}
                       </div>
@@ -1190,7 +1216,7 @@ export default function ClientDetailModal({
                             ? "Scan patient before building a plan"
                             : hasWebPopupForm
                               ? "Complete intake before building a plan"
-                              : "Add visit or intake data to use the recommender"
+                              : "Add visit or intake data to use the plan builder"
                           : undefined
                       }
                       onClick={(e) => {
@@ -1199,7 +1225,7 @@ export default function ClientDetailModal({
                         setRecommenderMode("by-treatment");
                       }}
                     >
-                      Treatment Recommender
+                      Build Plan
                     </button>
                     {/* Plan Manage/Add — hidden for now (re-enable when Discussed Treatments modal flow is ready). */}
                     {false && (
@@ -1278,10 +1304,40 @@ export default function ClientDetailModal({
                                   >
                                     <span>{priceData.label}</span>
                                     {priceData.missingInfo && (
-                                      <span className="discussed-treatments-record-price-missing">
+                                      <span className="plan-pricing-warning-callout discussed-treatments-record-price-missing">
                                         ⚠ {priceData.missingInfo}
                                       </span>
                                     )}
+                                    {priceData.missingInfo ? (
+                                      <button
+                                        type="button"
+                                        className="plan-pricing-fix-action-btn"
+                                        disabled={
+                                          !showTreatmentRecommenderShortcut
+                                        }
+                                        title={
+                                          !showTreatmentRecommenderShortcut
+                                            ? hasFacialAnalysisForm
+                                              ? "Scan patient before building a plan"
+                                              : hasWebPopupForm
+                                                ? "Complete intake before building a plan"
+                                                : "Add visit or intake data to use the plan builder"
+                                            : undefined
+                                        }
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!showTreatmentRecommenderShortcut)
+                                            return;
+                                          openPlanBuilderForDiscussedItem(
+                                            item.id,
+                                          );
+                                        }}
+                                      >
+                                        {planPricingFixActionLabel(
+                                          priceData.missingInfo,
+                                        )}
+                                      </button>
+                                    ) : null}
                                   </div>
                                 ) : null}
                               </div>
@@ -1480,7 +1536,7 @@ export default function ClientDetailModal({
                               setShowAnalysisOverview(true);
                             }}
                           >
-                            Overview
+                            Explore Analysis Overview
                           </button>
                         )}
                         <button
@@ -1491,7 +1547,7 @@ export default function ClientDetailModal({
                             setShowShareAnalysis(true);
                           }}
                         >
-                          Share with Patient
+                          Share
                         </button>
                       </>
                     )}
@@ -1518,7 +1574,7 @@ export default function ClientDetailModal({
                                 handleScanInClinic();
                               }}
                             >
-                              Scan In-Clinic
+                              Scan In Clinic
                             </button>
                             {!isUniqueAestheticsProvider(provider) && (
                               <button
@@ -1599,7 +1655,7 @@ export default function ClientDetailModal({
                           className="btn-secondary btn-sm"
                           onClick={() => setShowSkinTypeQuiz(true)}
                         >
-                          {skincareQuiz ? "View Results" : "Take now"}
+                          {skincareQuiz ? "View Results" : "Take Now"}
                         </button>
                         <button
                           type="button"
@@ -1610,14 +1666,22 @@ export default function ClientDetailModal({
                           }}
                           disabled={!client.phone && !client.email}
                           title={
-                            client.phone
-                              ? "Send quiz link via SMS"
-                              : client.email
-                                ? "Send quiz link via email"
-                                : "Add phone or email to send to patient"
+                            skincareQuiz
+                              ? client.phone
+                                ? "Share Quiz Link Via SMS"
+                                : client.email
+                                  ? "Share Quiz Link Via Email"
+                                  : "Add Phone or Email to Share"
+                              : client.phone
+                                ? "Request Quiz Via SMS"
+                                : client.email
+                                  ? "Request Quiz Via Email"
+                                  : "Add Phone or Email to Request From Patient"
                           }
                         >
-                          Send to Patient
+                          {skincareQuiz
+                            ? "Share"
+                            : "Request With Patient"}
                         </button>
                       </div>
                     </div>
@@ -1816,7 +1880,7 @@ export default function ClientDetailModal({
                               setShowSendSMS(true);
                             }}
                           >
-                            Send results via SMS
+                            Send Results Via SMS
                           </button>
                         )}
                       <button
@@ -1827,7 +1891,7 @@ export default function ClientDetailModal({
                           setShowWellnessQuiz(true);
                         }}
                       >
-                        {client.wellnessQuiz ? "View Results" : "Take now"}
+                        {client.wellnessQuiz ? "View Results" : "Take Now"}
                       </button>
                     </div>
                   </div>
@@ -2041,6 +2105,7 @@ export default function ClientDetailModal({
             setShowShareTreatmentPlanLink(false);
             onUpdate();
           }}
+          onNavigateToEditPlanItem={handleShareLinkNavigateToPlanItem}
         />
       )}
       {showPhotoViewer && client && (

@@ -420,15 +420,64 @@
 }
 
 /* Divider between SMS and email sub-rows — only under Sent to + Preview (rowspan keeps Event/When clean) */
+.settings-notif-row--split-continue .settings-td-status,
 .settings-notif-row--split-continue .settings-td-sent-to,
 .settings-notif-row--split-continue .settings-td-actions {
   border-top: 1px solid #e2e8f0;
 }
 
 /* Avoid double rule: first sub-row has no bottom border when another channel row follows */
+.settings-notif-row--grouped-head .settings-td-status,
 .settings-notif-row--grouped-head .settings-td-sent-to,
 .settings-notif-row--grouped-head .settings-td-actions {
   border-bottom: none;
+}
+
+.settings-notif-row--inactive td {
+  background: #fafafa;
+}
+
+.settings-td-status {
+  vertical-align: middle;
+  text-align: center;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.settings-notif-status-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.settings-notif-status-btn--on {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.settings-notif-status-btn--on:hover {
+  background: #bbf7d0;
+}
+
+.settings-notif-status-btn--off {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+.settings-notif-status-btn--off:hover {
+  background: #e2e8f0;
+  color: #334155;
 }
 
 .settings-notif-event-name--alt {
@@ -447,6 +496,7 @@
 }
 
 /* Beat `.settings-notifications-table td { vertical-align: top }` for these columns */
+.settings-notifications-table--compact td.settings-td-status,
 .settings-notifications-table--compact td.settings-td-sent-to,
 .settings-notifications-table--compact td.settings-td-actions {
   vertical-align: middle;
@@ -597,14 +647,20 @@
 }
 
 .settings-col-when {
-  width: 38%;
-  min-width: 12rem;
+  width: 34%;
+  min-width: 11rem;
+}
+
+.settings-col-status {
+  width: 1%;
+  min-width: 4.5rem;
+  text-align: center;
 }
 
 .settings-col-sent-to {
-  width: 22%;
-  min-width: 140px;
-  max-width: 200px;
+  width: 20%;
+  min-width: 130px;
+  max-width: 190px;
 }
 
 .settings-col-actions {

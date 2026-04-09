@@ -156,7 +156,7 @@ export default function ShareTreatmentPlanModal({
       >
         <div className="modal-header">
           <div className="modal-header-info">
-            <h2 className="modal-title">Share Treatment Plan with Patient</h2>
+            <h2 className="modal-title">Share</h2>
             <p className="modal-subtitle">
               Share the treatment plan with your patient via SMS
             </p>

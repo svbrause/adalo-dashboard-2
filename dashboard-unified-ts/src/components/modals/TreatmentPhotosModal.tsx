@@ -10,7 +10,7 @@ import "./TreatmentPhotosModal.css";
 
 export interface TreatmentPhotosModalProps {
   client: Client;
-  /** Pre-selected treatment to filter by (e.g. from Treatment Recommender by treatment) */
+  /** Pre-selected treatment to filter by (e.g. from plan builder by treatment) */
   selectedTreatment?: string;
   /** Pre-selected region to filter by */
   selectedRegion?: string;

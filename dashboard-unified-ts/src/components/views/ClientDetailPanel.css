@@ -279,6 +279,19 @@
   margin-left: 8px;
 }
 
+/* Section headings — same as Client Detail Modal; overrides global label-style .detail-section-title */
+.client-detail-panel .detail-section .detail-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.client-detail-panel .detail-section-header-flex .detail-section-title {
+  margin-bottom: 0;
+}
+
 .client-detail-panel .detail-offer-claimed-box {
   padding: 12px;
   background: #f7f4f1;

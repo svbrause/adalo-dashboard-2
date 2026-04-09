@@ -109,6 +109,8 @@ import type {
   TreatmentPlanAddDirectOptions,
   TreatmentPlanPrefill,
 } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
+import { getAlignedCheckoutLineItemsForDiscussedItems } from "../modals/DiscussedTreatmentsModal/TreatmentPlanCheckout";
+import { planPricingWarningShort } from "../../utils/planPricingWarnings";
 import { WELLNEST_CURATED_BLUEPRINT_CASES } from "../../data/wellnestCuratedBlueprintCases";
 import {
   photoMatchesPlanTreatment,
@@ -130,9 +132,6 @@ import "./TreatmentRecommenderByTreatment.css";
 
 /** Biostimulants before/after image for the treatment card. */
 import biostimulantsBeforeAfterUrl from "../../assets/images/Biostimulators-Before-and-After-With-Pictures-1.webp";
-
-/** Show the Checkout button in the plan sidebar. Enabled in local/dev (npm run dev); hidden in production. */
-const SHOW_CHECKOUT_BUTTON = import.meta.env.DEV;
 
 /** Safe fragment for DOM ids in optional-details sections (treatment names may include spaces). */
 function planOptDomIdSuffix(treatmentName: string): string {
@@ -1043,6 +1042,110 @@ function TreatmentRecommenderSkincareSelectChip({
   );
 }
 
+/** Synthetic discussed row for quote preview — mirrors {@link handleAddToPlanConfirm} patch fields. */
+function discussedItemPreviewFromAddPlanForm(
+  row: AddPlanFormState,
+  skincareProductOverride?: string,
+): DiscussedItem {
+  const isSkincare = row.treatment === "Skincare";
+  const isLaser = isEnergyTreatmentCategory(row.treatment);
+  const wellnestOffering = getWellnestOfferingByTreatmentName(row.treatment);
+  const region =
+    isSkincare || isLaser
+      ? ""
+      : row.where.length > 0
+        ? row.where.join(", ")
+        : "";
+  const treatmentProduct = treatmentProductHintForQuantity(row);
+  const productOut =
+    skincareProductOverride !== undefined
+      ? skincareProductOverride.trim() || undefined
+      : treatmentProduct?.trim() || undefined;
+  const noteParts: string[] = [];
+  if (wellnestOffering && row.deliveryForm?.trim()) {
+    noteParts.push(`Delivery form: ${row.deliveryForm.trim()}`);
+  }
+  if (wellnestOffering && row.dosing?.trim()) {
+    noteParts.push(`Dosing: ${row.dosing.trim()}`);
+  }
+  if (row.notes?.trim()) {
+    noteParts.push(row.notes.trim());
+  }
+  const notesJoined = noteParts.length > 0 ? noteParts.join(" | ") : undefined;
+  const findingsForItem = row.findings?.filter((f) => (f ?? "").trim());
+  return {
+    id: "__add-plan-preview__",
+    treatment: row.treatment,
+    timeline: row.when,
+    region: region || undefined,
+    product: productOut,
+    quantity: row.quantity?.trim() || undefined,
+    notes: notesJoined,
+    findings: findingsForItem?.length ? findingsForItem : [],
+  };
+}
+
+/** Same missing-info rules as checkout / plan list — for inline add-to-plan hints. */
+function getMissingPricingInfoForAddPlanDraft(
+  row: AddPlanFormState,
+): string | null {
+  if (row.treatment === "Skincare") {
+    const names = (row.skincareWhat ?? []).map((n) => n.trim()).filter(Boolean);
+    if (names.length > 1) {
+      const previews = names.map((name) =>
+        discussedItemPreviewFromAddPlanForm(row, name),
+      );
+      const lines = getAlignedCheckoutLineItemsForDiscussedItems(previews);
+      for (const line of lines) {
+        if (line.missingInfo) return line.missingInfo;
+      }
+      return null;
+    }
+  }
+  const preview = discussedItemPreviewFromAddPlanForm(row);
+  const line = getAlignedCheckoutLineItemsForDiscussedItems([preview])[0];
+  return line?.missingInfo ?? null;
+}
+
+/** Where to show the inline pricing hint so it sits next to the field that fixes it. */
+type AddPlanPricingHintPlacement =
+  | "units"
+  | "injectable_type"
+  | "biostim_product"
+  | "generic";
+
+function inferAddPlanPricingHintPlacement(
+  missingInfo: string,
+): AddPlanPricingHintPlacement {
+  const m = missingInfo.toLowerCase();
+  if (m.includes("unit")) return "units";
+  if (
+    m.includes("filler type") ||
+    m.includes("botox") ||
+    m.includes("dysport")
+  ) {
+    return "injectable_type";
+  }
+  if (m.includes("radiesse") || m.includes("sculptra")) {
+    return "biostim_product";
+  }
+  return "generic";
+}
+
+function AddPlanFieldPricingHint({ message }: { message: string }) {
+  return (
+    <p
+      className="treatment-recommender-by-treatment__add-plan-field-pricing-hint"
+      role="status"
+    >
+      <span className="treatment-recommender-by-treatment__add-plan-pricing-hint-label">
+        Pricing:
+      </span>{" "}
+      {message}
+    </p>
+  );
+}
+
 export interface TreatmentRecommenderByTreatmentProps {
   client: Client;
   onBack: () => void;
@@ -1065,6 +1168,9 @@ export interface TreatmentRecommenderByTreatmentProps {
   onRecommenderRegionsChange?: (regions: readonly string[]) => void;
   /** When set, shows Share next to “{name}'s plan” (same rules as client detail treatment plan). */
   onShareTreatmentPlan?: () => void;
+  /** Open plan editor for this item once (e.g. “Fix in plan” from share link modal). */
+  initialOpenPlanItemId?: string | null;
+  onConsumedInitialOpenPlanItemId?: () => void;
 }
 
 export default function TreatmentRecommenderByTreatment({
@@ -1077,6 +1183,8 @@ export default function TreatmentRecommenderByTreatment({
   onUpdatePlanItem,
   onRecommenderRegionsChange,
   onShareTreatmentPlan,
+  initialOpenPlanItemId,
+  onConsumedInitialOpenPlanItemId,
 }: TreatmentRecommenderByTreatmentProps) {
   const { provider, setProvider } = useDashboard();
 
@@ -1134,6 +1242,39 @@ export default function TreatmentRecommenderByTreatment({
   const [editingPlanItemId, setEditingPlanItemId] = useState<string | null>(
     null,
   );
+
+  useEffect(() => {
+    if (!initialOpenPlanItemId) return;
+    if (!onUpdatePlanItem || !onAddToPlanDirect) {
+      onConsumedInitialOpenPlanItemId?.();
+      return;
+    }
+    const list = client.discussedItems ?? [];
+    const item = list.find((i) => i.id === initialOpenPlanItemId);
+    if (!item) {
+      onConsumedInitialOpenPlanItemId?.();
+      return;
+    }
+    setEditingPlanItemId(initialOpenPlanItemId);
+    setAddToPlanForTreatment(
+      discussedItemToAddPlanFormState(item, provider?.code),
+    );
+    const t = window.setTimeout(() => {
+      document
+        .getElementById(`treatment-plan-item-${initialOpenPlanItemId}`)
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 100);
+    onConsumedInitialOpenPlanItemId?.();
+    return () => window.clearTimeout(t);
+  }, [
+    initialOpenPlanItemId,
+    client.discussedItems,
+    onUpdatePlanItem,
+    onAddToPlanDirect,
+    onConsumedInitialOpenPlanItemId,
+    provider?.code,
+  ]);
+
   const [addPlanToAddressOtherOpen, setAddPlanToAddressOtherOpen] =
     useState(false);
   const [addPlanToAddressOtherSearch, setAddPlanToAddressOtherSearch] =
@@ -2455,6 +2596,22 @@ export default function TreatmentRecommenderByTreatment({
     }
   };
 
+  const addPlanDraftPricing = useMemo(() => {
+    if (!addToPlanForTreatment) {
+      return {
+        message: null as string | null,
+        placement: null as AddPlanPricingHintPlacement | null,
+      };
+    }
+    const message = getMissingPricingInfoForAddPlanDraft(
+      addToPlanForTreatment as AddPlanFormState,
+    );
+    const placement = message
+      ? inferAddPlanPricingHintPlacement(message)
+      : null;
+    return { message, placement };
+  }, [addToPlanForTreatment]);
+
   /** Whether this treatment is already in the treatment plan (so we show "Added" and allow add-another flow). */
   const isTreatmentInPlan = (treatmentName: string): boolean => {
     if (lastAddedItem && lastAddedItem.treatment === treatmentName) return true;
@@ -2656,6 +2813,17 @@ export default function TreatmentRecommenderByTreatment({
   const planItemCount = (client.discussedItems ?? []).length;
   const firstName = client.name?.trim().split(/\s+/)[0] || "Patient";
 
+  const checkoutLinesByDiscussedIndex = useMemo(
+    () =>
+      getAlignedCheckoutLineItemsForDiscussedItems(client.discussedItems ?? []),
+    [client.discussedItems],
+  );
+  const discussedIndexByIdForPricing = useMemo(() => {
+    const m = new Map<string, number>();
+    (client.discussedItems ?? []).forEach((d, i) => m.set(d.id, i));
+    return m;
+  }, [client.discussedItems]);
+
   return (
     <div className="treatment-recommender-by-treatment">
       <aside className="treatment-recommender-by-treatment__client-column">
@@ -2733,13 +2901,14 @@ export default function TreatmentRecommenderByTreatment({
               </button>
             ) : null}
           </div>
-          {planItemCount === 0 ? (
-            <p className="treatment-recommender-by-treatment__plan-empty">
-              No plan items yet.
-            </p>
-          ) : (
-            <div className="treatment-recommender-by-treatment__plan-list">
-              {planSectionLabels.map((sectionLabel) => {
+          <div className="treatment-recommender-by-treatment__plan-body">
+            {planItemCount === 0 ? (
+              <p className="treatment-recommender-by-treatment__plan-empty">
+                No plan items yet.
+              </p>
+            ) : (
+              <div className="treatment-recommender-by-treatment__plan-list">
+                {planSectionLabels.map((sectionLabel) => {
                 const sectionItems =
                   (planItemsBySection as Record<string, DiscussedItem[]>)[
                     sectionLabel
@@ -2758,14 +2927,21 @@ export default function TreatmentRecommenderByTreatment({
                       const planSecondary =
                         getTreatmentPlanRowSecondaryLabel(item);
                       const planFullLine = formatTreatmentPlanRowFullLine(item);
-                      return (
+                      const pricingIdx = discussedIndexByIdForPricing.get(item.id);
+                    const pricingMissing =
+                      pricingIdx !== undefined
+                        ? checkoutLinesByDiscussedIndex[pricingIdx]?.missingInfo
+                        : undefined;
+                    const pricingWarnShort = planPricingWarningShort(pricingMissing);
+                    return (
                         <div
                           key={item.id}
+                          id={`treatment-plan-item-${item.id}`}
                           className={`treatment-recommender-by-treatment__plan-row-wrap${
                             editingPlanItemId === item.id
                               ? " treatment-recommender-by-treatment__plan-row-wrap--editing"
                               : ""
-                          }`}
+                          }${pricingMissing ? " treatment-recommender-by-treatment__plan-row-wrap--pricing-incomplete" : ""}`}
                         >
                           {onUpdatePlanItem && onAddToPlanDirect ? (
                             <button
@@ -2780,7 +2956,7 @@ export default function TreatmentRecommenderByTreatment({
                               title={
                                 editingPlanItemId === item.id
                                   ? "Click to close editor"
-                                  : "Click to edit on treatment card"
+                                  : "Click to edit this plan line"
                               }
                               onClick={() => {
                                 if (editingPlanItemId === item.id) {
@@ -2797,28 +2973,52 @@ export default function TreatmentRecommenderByTreatment({
                                 }
                               }}
                             >
-                              <span className="treatment-recommender-by-treatment__plan-row-treatment">
-                                {planPrimary}
-                              </span>
-                              {planSecondary ? (
-                                <span className="treatment-recommender-by-treatment__plan-row-meta">
-                                  {planSecondary}
+                              <span className="treatment-recommender-by-treatment__plan-row-inner">
+                                <span className="treatment-recommender-by-treatment__plan-row-body">
+                                  <span className="treatment-recommender-by-treatment__plan-row-treatment">
+                                    {planPrimary}
+                                  </span>
+                                  {planSecondary ? (
+                                    <span className="treatment-recommender-by-treatment__plan-row-meta">
+                                      {planSecondary}
+                                    </span>
+                                  ) : null}
+                                  {pricingWarnShort ? (
+                                    <span
+                                      className="plan-pricing-warning-pill treatment-recommender-by-treatment__plan-row-pricing-badge"
+                                      title={pricingMissing}
+                                    >
+                                      {pricingWarnShort}
+                                    </span>
+                                  ) : null}
                                 </span>
-                              ) : null}
+                              </span>
                             </button>
                           ) : (
                             <div
                               className="treatment-recommender-by-treatment__plan-row treatment-recommender-by-treatment__plan-row--readonly"
                               aria-label={`${planFullLine} on plan`}
                             >
-                              <span className="treatment-recommender-by-treatment__plan-row-treatment">
-                                {planPrimary}
-                              </span>
-                              {planSecondary ? (
-                                <span className="treatment-recommender-by-treatment__plan-row-meta">
-                                  {planSecondary}
+                              <span className="treatment-recommender-by-treatment__plan-row-inner">
+                                <span className="treatment-recommender-by-treatment__plan-row-body">
+                                  <span className="treatment-recommender-by-treatment__plan-row-treatment">
+                                    {planPrimary}
+                                  </span>
+                                  {planSecondary ? (
+                                    <span className="treatment-recommender-by-treatment__plan-row-meta">
+                                      {planSecondary}
+                                    </span>
+                                  ) : null}
+                                  {pricingWarnShort ? (
+                                    <span
+                                      className="plan-pricing-warning-pill treatment-recommender-by-treatment__plan-row-pricing-badge"
+                                      title={pricingMissing}
+                                    >
+                                      {pricingWarnShort}
+                                    </span>
+                                  ) : null}
                                 </span>
-                              ) : null}
+                              </span>
                             </div>
                           )}
                           <div className="treatment-recommender-by-treatment__plan-row-actions">
@@ -2847,10 +3047,11 @@ export default function TreatmentRecommenderByTreatment({
                     })}
                   </div>
                 );
-              })}
-            </div>
-          )}
-          {SHOW_CHECKOUT_BUTTON && onOpenCheckout && (
+                })}
+              </div>
+            )}
+          </div>
+          {onOpenCheckout ? (
             <div className="treatment-recommender-by-treatment__plan-actions">
               <button
                 type="button"
@@ -2861,7 +3062,7 @@ export default function TreatmentRecommenderByTreatment({
                 Quote
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </aside>
 
@@ -3861,6 +4062,13 @@ export default function TreatmentRecommenderByTreatment({
                                 )}
                               </>
                             )}
+                            {treatment === "Skincare" &&
+                            addPlanDraftPricing.placement === "generic" &&
+                            addPlanDraftPricing.message ? (
+                              <AddPlanFieldPricingHint
+                                message={addPlanDraftPricing.message}
+                              />
+                            ) : null}
                             {treatment !== "Skincare" && !wellnestOffering && (
                               <div className="treatment-recommender-by-treatment__add-row">
                                 <span className="treatment-recommender-by-treatment__add-row-label">
@@ -4207,6 +4415,13 @@ export default function TreatmentRecommenderByTreatment({
                                 </div>
                               </div>
                             )}
+                            {treatment === "Biostimulants" &&
+                            addPlanDraftPricing.placement === "biostim_product" &&
+                            addPlanDraftPricing.message ? (
+                              <AddPlanFieldPricingHint
+                                message={addPlanDraftPricing.message}
+                              />
+                            ) : null}
                             {treatment === "Microneedling" && (
                               <div className="treatment-recommender-by-treatment__add-row">
                                 <span className="treatment-recommender-by-treatment__add-row-label">
@@ -4425,6 +4640,15 @@ export default function TreatmentRecommenderByTreatment({
                                 </div>
                               </div>
                             )}
+                            {(treatment === "Filler" ||
+                              treatment === "Neurotoxin" ||
+                              treatment === "Chemical Peel") &&
+                            addPlanDraftPricing.placement === "injectable_type" &&
+                            addPlanDraftPricing.message ? (
+                              <AddPlanFieldPricingHint
+                                message={addPlanDraftPricing.message}
+                              />
+                            ) : null}
                             <div className="treatment-recommender-by-treatment__add-row">
                               <span>When:</span>
                               <div className="treatment-recommender-by-treatment__chips">
@@ -4474,51 +4698,59 @@ export default function TreatmentRecommenderByTreatment({
                                   qtyHint,
                                 );
                                 return (
-                                  <label className="treatment-recommender-by-treatment__details-label treatment-recommender-by-treatment__pricing-qty">
-                                    <span className="treatment-recommender-by-treatment__pricing-qty-label">
-                                      {qtyCtx.unitLabel}
-                                    </span>
-                                    {qtyCtx.quantityControl === "text" ? (
-                                      <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        className="treatment-recommender-by-treatment__details-input"
-                                        aria-label={qtyCtx.unitLabel}
-                                        placeholder={qtyCtx.inputPlaceholder ?? qtyCtx.defaultQuantity}
-                                        value={
-                                          addToPlanForTreatment.quantity ?? ""
-                                        }
-                                        onChange={(e) => {
-                                          const v = e.target.value.replace(
-                                            /\D/g,
-                                            "",
-                                          );
-                                          setAddToPlanForTreatment((prev) =>
-                                            prev
-                                              ? { ...prev, quantity: v }
-                                              : null,
-                                          );
-                                        }}
+                                  <>
+                                    <label className="treatment-recommender-by-treatment__details-label treatment-recommender-by-treatment__pricing-qty">
+                                      <span className="treatment-recommender-by-treatment__pricing-qty-label">
+                                        {qtyCtx.unitLabel}
+                                      </span>
+                                      {qtyCtx.quantityControl === "text" ? (
+                                        <input
+                                          type="text"
+                                          inputMode="numeric"
+                                          className="treatment-recommender-by-treatment__details-input"
+                                          aria-label={qtyCtx.unitLabel}
+                                          placeholder={qtyCtx.inputPlaceholder ?? qtyCtx.defaultQuantity}
+                                          value={
+                                            addToPlanForTreatment.quantity ?? ""
+                                          }
+                                          onChange={(e) => {
+                                            const v = e.target.value.replace(
+                                              /\D/g,
+                                              "",
+                                            );
+                                            setAddToPlanForTreatment((prev) =>
+                                              prev
+                                                ? { ...prev, quantity: v }
+                                                : null,
+                                            );
+                                          }}
+                                        />
+                                      ) : (
+                                        <PlanQuantityStepperInput
+                                          unitLabel={qtyCtx.unitLabel}
+                                          quantity={
+                                            addToPlanForTreatment.quantity ?? ""
+                                          }
+                                          options={qtyCtx.options}
+                                          defaultQuantity={qtyCtx.defaultQuantity}
+                                          inputId={`plan-qty-prominent-${treatment}`}
+                                          onQuantityChange={(next) =>
+                                            setAddToPlanForTreatment((prev) =>
+                                              prev
+                                                ? { ...prev, quantity: next }
+                                                : null,
+                                            )
+                                          }
+                                        />
+                                      )}
+                                    </label>
+                                    {addPlanDraftPricing.placement === "units" &&
+                                    addPlanDraftPricing.message ? (
+                                      <AddPlanFieldPricingHint
+                                        message={addPlanDraftPricing.message}
                                       />
-                                    ) : (
-                                      <PlanQuantityStepperInput
-                                        unitLabel={qtyCtx.unitLabel}
-                                        quantity={
-                                          addToPlanForTreatment.quantity ?? ""
-                                        }
-                                        options={qtyCtx.options}
-                                        defaultQuantity={qtyCtx.defaultQuantity}
-                                        inputId={`plan-qty-prominent-${treatment}`}
-                                        onQuantityChange={(next) =>
-                                          setAddToPlanForTreatment((prev) =>
-                                            prev
-                                              ? { ...prev, quantity: next }
-                                              : null,
-                                          )
-                                        }
-                                      />
-                                    )}
-                                  </label>
+                                    ) : null}
+                                  </>
                                 );
                               })()}
                             <div
@@ -4842,6 +5074,15 @@ export default function TreatmentRecommenderByTreatment({
                                                 />
                                               )}
                                             </label>
+                                            {addPlanDraftPricing.placement ===
+                                              "units" &&
+                                            addPlanDraftPricing.message ? (
+                                              <AddPlanFieldPricingHint
+                                                message={
+                                                  addPlanDraftPricing.message
+                                                }
+                                              />
+                                            ) : null}
                                           </div>
                                         </section>
                                       );
@@ -4981,6 +5222,15 @@ export default function TreatmentRecommenderByTreatment({
                               )}
                             </div>
                             <div className="treatment-recommender-by-treatment__add-actions plan-add-actions">
+                              {addPlanDraftPricing.placement === "generic" &&
+                              addPlanDraftPricing.message &&
+                              treatment !== "Skincare" ? (
+                                <div className="treatment-recommender-by-treatment__add-plan-actions-pricing-hint-wrap">
+                                  <AddPlanFieldPricingHint
+                                    message={addPlanDraftPricing.message}
+                                  />
+                                </div>
+                              ) : null}
                               <button
                                 type="button"
                                 className="treatment-recommender-by-treatment__add-btn plan-add-confirm-btn"
