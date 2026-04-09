@@ -1,7 +1,7 @@
 // Analysis Overview Modal – high-level scores, categories, areas (desktop-optimized)
 // Supports drill-down into category detail and area detail views.
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useId } from "react";
 import {
   AreaThemeFeatureRow,
   SubScoreFeatureRow,
@@ -410,6 +410,8 @@ function SuggestionCard({
   const [product, setProduct] = useState("");
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
+  const optProductSectionId = useId();
+  const optNotesSectionId = useId();
 
   const issuesList = useMemo(() => {
     const fromMapping = SUGGESTION_TO_ISSUES[card.suggestionName] ?? [];
@@ -670,27 +672,47 @@ function SuggestionCard({
                 })()}
                 <details className="ao-suggestion-card__opt-details plan-opt-details">
                   <summary>Optional details</summary>
-                  <div className="ao-suggestion-card__opt-fields plan-opt-fields">
-                    <label className="ao-suggestion-card__field-label plan-opt-field-label">
-                      Product
-                      <input
-                        type="text"
-                        className="ao-suggestion-card__field-input plan-opt-input"
-                        placeholder="e.g. Juvederm, Botox"
-                        value={product}
-                        onChange={(e) => setProduct(e.target.value)}
-                      />
-                    </label>
-                    <label className="ao-suggestion-card__field-label plan-opt-field-label">
-                      Notes
+                  <div className="ao-suggestion-card__opt-fields plan-opt-fields plan-opt-fields-inner">
+                    <section
+                      className="plan-opt-section"
+                      aria-labelledby={optProductSectionId}
+                    >
+                      <h4
+                        className="plan-opt-section__title"
+                        id={optProductSectionId}
+                      >
+                        Product
+                      </h4>
+                      <div className="plan-opt-section__body">
+                        <input
+                          type="text"
+                          className="ao-suggestion-card__field-input plan-opt-input"
+                          placeholder="e.g. Juvederm, Botox"
+                          value={product}
+                          onChange={(e) => setProduct(e.target.value)}
+                          aria-labelledby={optProductSectionId}
+                        />
+                      </div>
+                    </section>
+                    <section
+                      className="plan-opt-section plan-opt-section--notes"
+                      aria-labelledby={optNotesSectionId}
+                    >
+                      <h4
+                        className="plan-opt-section__title"
+                        id={optNotesSectionId}
+                      >
+                        Notes
+                      </h4>
                       <textarea
                         className="ao-suggestion-card__field-textarea plan-opt-textarea"
-                        placeholder="Optional notes"
+                        placeholder="Optional notes for this line item"
                         rows={2}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
+                        aria-labelledby={optNotesSectionId}
                       />
-                    </label>
+                    </section>
                   </div>
                 </details>
                 <div className="ao-suggestion-card__form-actions plan-add-actions">

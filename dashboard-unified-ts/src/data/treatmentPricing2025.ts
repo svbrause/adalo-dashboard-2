@@ -805,12 +805,8 @@ export function matchPlanItemToSku(
         (s.name.includes("Botox") && s.name.includes("Unit")) ||
         (s.name.includes("Dysport") && s.name.includes("Unit")))
   );
-  const effectiveQty =
-    !Number.isNaN(qty) && qty > 0
-      ? qty
-      : treatment === "Neurotoxin"
-        ? DEFAULT_NEUROTOXIN_UNITS_FOR_QUOTE
-        : 0;
+  // No quantity fallback for neurotoxin — blank units means price is unknown (shown as "Price varies").
+  const effectiveQty = !Number.isNaN(qty) && qty > 0 ? qty : 0;
   if (perUnitSkus.length > 0 && effectiveQty > 0) {
     // Do not assume Botox/Dysport 1-unit × default units when no product/SKU is chosen.
     if (treatment === "Neurotoxin" && !product) {
@@ -946,6 +942,17 @@ export function matchPlanItemToSku(
     }
   }
   if (!matched) return null;
+  // Neurotoxin per-unit SKUs (Botox/Dysport 1-Unit): require units. Generic name matching can
+  // still resolve a 1-Unit SKU; without units, list price must not be shown as the line total.
+  if (treatment === "Neurotoxin") {
+    const isPerUnitNeuroSku =
+      !matched.name.includes("Henderson") &&
+      (matched.name.includes("1-Unit") ||
+        (matched.name.includes("Botox") && matched.name.includes("Unit")) ||
+        (matched.name.includes("Dysport") && matched.name.includes("Unit")));
+    const hasUnits = !Number.isNaN(qty) && qty > 0;
+    if (isPerUnitNeuroSku && !hasUnits) return null;
+  }
   // Filler: quantity is in Syringes; if set, price should scale by quantity.
   if (treatment === "Filler" && !Number.isNaN(qty) && qty > 0) {
     return {
@@ -1170,6 +1177,25 @@ export function getCheckoutSummaryWithSkus(
         });
         total += minPrice;
         if (minPrice <= 0) hasUnknownPrices = true;
+        continue;
+      }
+      // Neurotoxin: type selected (product set) but units left blank → can't calculate price.
+      const quantityStr = (item.quantity ?? "").trim();
+      const hasNoUnits = !quantityStr || isNaN(Number(quantityStr)) || Number(quantityStr) <= 0;
+      if (cat === "Neurotoxin" && productName && hasNoUnits) {
+        const m = meta(cat);
+        lineItems.push({
+          label,
+          price: 0,
+          displayPrice: "Price varies",
+          longevity: m?.longevity,
+          downtime: m?.downtime,
+          sessions: m?.sessions,
+          isEstimate: true,
+          missingInfo: "Add units to get a price",
+          quoteLineKind: treatmentLineKind,
+        });
+        hasUnknownPrices = true;
         continue;
       }
       const injectableNeedsProductForQuote =

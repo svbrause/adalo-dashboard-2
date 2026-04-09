@@ -30,10 +30,23 @@
   overflow: hidden;
 }
 
-.share-tp-link-dialog-title {
+.share-tp-link-dialog-header {
   flex-shrink: 0;
-  margin-bottom: 16px;
 }
+
+.share-tp-link-dialog-header .share-tp-link-dialog-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.share-tp-link-dialog-subheading {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--theme-text-muted, #64748b);
+}
+
 
 .share-tp-link-dialog-body {
   flex: 1;

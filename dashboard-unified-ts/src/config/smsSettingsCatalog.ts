@@ -1,3 +1,9 @@
+import {
+  FACIAL_ANALYSIS_IN_PROGRESS_TRIGGER,
+  FACIAL_ANALYSIS_READY_TO_REVIEW_TRIGGER,
+  TREATMENT_FINDER_WEBSITE_COMPLETION_TRIGGER,
+} from "./notificationTriggers";
+
 export type SmsChannel = "sms" | "email";
 
 export interface SmsTemplateEventConfig {
@@ -7,6 +13,8 @@ export interface SmsTemplateEventConfig {
   enabled: boolean;
   channel: SmsChannel;
   template: string;
+  /** When true, omit from the Settings → Notifications table (templates may still exist in backend). */
+  hideFromNotificationSettings?: boolean;
   /** Send counts derived from Airtable SMS log (as of Apr 8 2026). Undefined = not tracked in this data source. */
   recentVolume?: { d7: number; d14: number; d30: number };
 }
@@ -24,13 +32,13 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
     id: "treatment-finder",
     productName: "Website quiz leads",
     description:
-      "Text messages for people who take the treatment quiz on your website and what happens next.",
+      "Text messages for people who take the Treatment Finder quiz on your website and what happens next.",
     owner: "Growth / Leads",
     events: [
       {
         id: "finder-welcome",
         eventName: "Welcome + next step",
-        trigger: "Someone submits the treatment finder form on your website.",
+        trigger: TREATMENT_FINDER_WEBSITE_COMPLETION_TRIGGER,
         enabled: true,
         channel: "sms",
         template:
@@ -41,8 +49,8 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         id: "finder-followup",
         eventName: "Follow-up reminder",
         trigger:
-          "Lead submitted the Treatment Finder but hasn't booked an appointment yet.",
-        enabled: true,
+          "Lead submitted the Treatment Finder but hasn't booked an appointment yet",
+        enabled: false,
         channel: "sms",
         template:
           "Hi {{first_name}}, we wanted to follow up and see if you're ready to book your visit. Our team can help with facials, Botox, fillers, laser treatments, and more. Book using the link below or call us at (844)344-7546. {{booking_link}}",
@@ -60,7 +68,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
       {
         id: "skincare-quiz-invite",
         eventName: "Quiz invite",
-        trigger: "Staff sends skincare quiz link to a lead or patient.",
+        trigger: "Staff sends skincare quiz link to a lead or patient",
         enabled: false,
         channel: "sms",
         template:
@@ -71,7 +79,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         id: "skincare-quiz-results",
         eventName: "Quiz results link",
         trigger:
-          "Staff sends skincare quiz message for a record that already has saved quiz results.",
+          "Staff sends skincare quiz message for a record that already has saved quiz results",
         enabled: false,
         channel: "sms",
         template:
@@ -82,26 +90,25 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
   },
   {
     id: "skin-analysis",
-    productName: "At-Home Facial Analysis",
+    productName: "AI Facial Analysis",
     description:
-      "At-home AI facial scan and analysis lifecycle messaging (invite, processing, ready, and reminders).",
+      "AI facial scan and analysis lifecycle messaging (invite, processing, ready, and reminders).",
     owner: "Clinical Ops",
     events: [
       {
         id: "analysis-scan-invite",
-        eventName: "AI scan invite",
-        trigger:
-          "Lead or patient is sent the at-home AI facial scan link.",
+        eventName: "Scan invite",
+        trigger: "They're sent a link to take their AI facial scan",
         enabled: false,
         channel: "sms",
         template:
-          "The Treatment Skin Boutique: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the 5-min at-home AI facial scan prior to your next appointment: {{scan_link}}",
+          "The Treatment Skin Boutique: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the quick AI facial scan prior to your next appointment: {{scan_link}}",
         recentVolume: { d7: 0, d14: 0, d30: 506 },
       },
       {
         id: "analysis-processing",
-        eventName: "Scan received / processing",
-        trigger: "Patient submits scan and analysis generation begins.",
+        eventName: "Analysis in progress",
+        trigger: FACIAL_ANALYSIS_IN_PROGRESS_TRIGGER,
         enabled: true,
         channel: "sms",
         template:
@@ -110,8 +117,8 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
       },
       {
         id: "analysis-ready",
-        eventName: "Analysis ready",
-        trigger: "Analysis status changes to Ready for Review",
+        eventName: "Report ready",
+        trigger: FACIAL_ANALYSIS_READY_TO_REVIEW_TRIGGER,
         enabled: true,
         channel: "sms",
         template:
@@ -121,7 +128,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
       {
         id: "analysis-review-reminder",
         eventName: "Review reminder",
-        trigger: "Analysis not reviewed within reminder window",
+        trigger: "They haven't opened their report after a gentle reminder",
         enabled: false,
         channel: "sms",
         template:
@@ -131,23 +138,12 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
       {
         id: "analysis-final-reminder",
         eventName: "Final reminder",
-        trigger: "Analysis still not opened by final reminder window.",
+        trigger: "They still haven't opened their report after the last reminder",
         enabled: false,
         channel: "sms",
         template:
           "Final reminder: Your analysis is still available. Don't miss it! {{analysis_link}}. Reply STOP to opt out.",
         recentVolume: { d7: 0, d14: 87, d30: 210 },
-      },
-      {
-        id: "analysis-share-manual",
-        eventName: "Share analysis (manual send)",
-        trigger:
-          "Staff clicks Share Analysis with Patient and sends from the modal.",
-        enabled: true,
-        channel: "sms",
-        template:
-          "{{provider_name}}: Your facial analysis results are ready! Access your personalized analysis and self-review at patients.ponce.ai. Log in with your email address to view your results.",
-        recentVolume: { d7: 0, d14: 0, d30: 8 },
       },
     ],
   },
@@ -159,31 +155,10 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
     owner: "Clinical Ops",
     events: [
       {
-        id: "plan-delivered",
-        eventName: "Post-Visit Blueprint sent",
-        trigger: "Provider taps Send Post-Visit Blueprint (manual).",
-        enabled: true,
-        channel: "sms",
-        template:
-          "Hi {{first_name}}, your custom treatment blueprint from {{clinic_name}} is ready. Review your plan here: {{blueprint_link}}",
-        recentVolume: { d7: 0, d14: 0, d30: 1 },
-      },
-      {
-        id: "plan-share-manual",
-        eventName: "Share treatment plan (manual send)",
-        trigger:
-          "Staff clicks Share Treatment Plan with Patient and sends from the modal.",
-        enabled: true,
-        channel: "sms",
-        template:
-          "{{provider_name}}: Your treatment plan is ready. Here's what we discussed:\n\n{{plan_sections_and_items}}",
-        recentVolume: { d7: 0, d14: 0, d30: 31 },
-      },
-      {
         id: "plan-followup",
         eventName: "Plan follow-up",
         trigger: "No booking after plan delivery",
-        enabled: true,
+        enabled: false,
         channel: "sms",
         template:
           "Hi {{first_name}}, wanted to follow up on your treatment plan. Reply here if you'd like to adjust your plan or timeline.",
@@ -193,20 +168,42 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
   },
   {
     id: "manual-messaging",
-    productName: "Manual SMS (Staff Initiated)",
+    productName: "Staff-Sent Messages",
     description:
-      "Messages sent directly by staff from chat/popups using custom text.",
+      "Text messages sent manually by staff — sharing treatment plans, post-visit blueprints, and analysis results with patients.",
     owner: "Front Desk / Clinical Ops",
     events: [
       {
-        id: "manual-generic-send",
-        eventName: "Generic SMS send",
+        id: "plan-share-manual",
+        eventName: "Share treatment plan",
         trigger:
-          "Staff opens Send SMS / SMS popup and sends a custom message.",
+          "Staff clicks Share Treatment Plan with Patient and sends from the modal",
         enabled: true,
         channel: "sms",
         template:
-          "Free-form custom text entered by staff at send time (no fixed template).",
+          "{{provider_name}}: Your treatment plan is ready. Here's what we discussed:\n\n{{plan_sections_and_items}}",
+        recentVolume: { d7: 0, d14: 0, d30: 31 },
+      },
+      {
+        id: "plan-delivered",
+        eventName: "Post-Visit Blueprint sent",
+        trigger: "Provider taps Send Post-Visit Blueprint",
+        enabled: true,
+        channel: "sms",
+        template:
+          "Hi {{first_name}}, your custom treatment blueprint from {{clinic_name}} is ready. Review your plan here: {{blueprint_link}}",
+        recentVolume: { d7: 0, d14: 0, d30: 1 },
+      },
+      {
+        id: "analysis-share-manual",
+        eventName: "Share analysis results",
+        trigger:
+          "Staff clicks Share Analysis with Patient and sends from the modal",
+        enabled: true,
+        channel: "sms",
+        template:
+          "{{provider_name}}: Your facial analysis results are ready! Access your personalized analysis and self-review at patients.ponce.ai. Log in with your email address to view your results.",
+        recentVolume: { d7: 0, d14: 0, d30: 8 },
       },
     ],
   },
@@ -223,6 +220,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         trigger: "Appointment is created",
         enabled: true,
         channel: "sms",
+        hideFromNotificationSettings: true,
         template:
           "You're booked for {{appointment_date}} at {{location_name}}. Reply if you need to reschedule.",
       },
@@ -232,6 +230,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         trigger: "24 hours before appointment",
         enabled: true,
         channel: "sms",
+        hideFromNotificationSettings: true,
         template:
           "Reminder: your appointment is tomorrow at {{appointment_time}} at {{location_name}}.",
       },

@@ -3,6 +3,8 @@
 @import "./forms.css";
 @import "./pastel-teal-theme.css";
 @import "./plan-add-form.css";
+@import "../components/modals/planQuoteSurfaces.css";
+@import "../components/modals/ShareTreatmentPlanLinkModal.css";
 
 * {
   margin: 0;
@@ -1266,20 +1268,6 @@ body.theme-warm .kanban-cards.drag-over {
   gap: 2px;
 }
 
-.discussed-treatments-in-facial-heading {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--theme-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.discussed-treatments-in-facial-subheading {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--theme-text-muted);
-}
-
 .discussed-treatments-in-facial-summary-row {
   margin-top: 4px;
 }
@@ -1289,22 +1277,194 @@ body.theme-warm .kanban-cards.drag-over {
   color: var(--theme-text-muted);
 }
 
-/* Treatment plan + wellness summary on client detail (panel + modal) */
+/* Treatment plan on client detail — same shell as Facial Analysis / bordered sections */
 .detail-section-treatment-plan {
+  border-top: 2px solid var(--theme-border);
   margin-top: 20px;
-  margin-bottom: 20px;
+  background: #fafafa;
   padding: 20px;
-  background: var(--theme-bg-subtle, #f5f5f5);
   border-radius: 8px;
-  box-shadow: 0 0 0 1px var(--theme-border, #e5e5e5);
   border-left: 4px solid var(--theme-accent);
 }
 
-.client-detail-panel .detail-section-treatment-plan .discussed-treatments-in-facial-section,
-.client-detail-modal .detail-section-treatment-plan .discussed-treatments-in-facial-section {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
+.detail-section-title.detail-section-title-inline.detail-section-title-treatment-plan {
+  margin: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.detail-section-title-treatment-plan .treatment-plan-section-subtitle {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--theme-text-muted);
+  line-height: 1.45;
+}
+
+/* Plan quote blocks — aligned with Share treatment plan modal (share-tp-link-quote-*) */
+.discussed-treatments-plan-sections-outer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.discussed-treatments-plan-section-outer {
+  border: 1px solid var(--plan-quote-border);
+  border-radius: var(--plan-quote-radius);
+  overflow: hidden;
+  background: var(--plan-quote-surface-bg);
+}
+
+.discussed-treatments-plan-section-title-outer {
+  font-size: var(--plan-quote-section-title-size);
+  font-weight: var(--plan-quote-section-title-weight);
+  text-transform: uppercase;
+  letter-spacing: var(--plan-quote-section-title-spacing);
+  color: var(--plan-quote-section-title-color);
+  background: var(--plan-quote-section-header-bg);
+  margin: 0;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--plan-quote-row-divider);
+}
+
+.discussed-treatments-records-list-outer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 0;
+  overflow: hidden;
+  border: none;
+  background: transparent;
+}
+
+.discussed-treatments-record-row-outer {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--plan-quote-row-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.discussed-treatments-record-row-outer:last-child {
+  border-bottom: none;
+}
+
+.discussed-treatments-record-row-one-line
+  .discussed-treatments-record-line-outer {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.discussed-treatments-record-row-heading-meta
+  .discussed-treatments-record-treatment-heading-outer {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #1e293b);
+  line-height: 1.35;
+}
+
+.discussed-treatments-record-row-heading-meta
+  .discussed-treatments-record-meta-line-outer {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--theme-text-muted, #64748b);
+  line-height: 1.45;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.discussed-treatments-record-row-heading-meta.discussed-treatments-record-row-with-price {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.discussed-treatments-record-row-with-price .discussed-treatments-record-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.discussed-treatments-record-price-outer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #3a3c3e);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  line-height: 1.3;
+  max-width: 42%;
+}
+
+.discussed-treatments-record-price-missing {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #b45309;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.discussed-treatments-record-heading-block-outer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.discussed-treatments-record-primary-outer {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  line-height: 1.4;
+}
+
+.discussed-treatments-record-area-subheading-outer {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--theme-text-secondary, #666);
+  line-height: 1.3;
+}
+
+.discussed-treatments-record-meta-outer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--theme-text-secondary);
+  line-height: 1.35;
+}
+
+.discussed-treatments-record-product-outer,
+.discussed-treatments-record-for-outer,
+.discussed-treatments-record-region-outer {
+  display: inline-flex;
+  align-items: center;
+}
+
+.discussed-treatments-record-for-outer::before {
+  content: "For: ";
+  opacity: 0.7;
+  margin-right: 3px;
+}
+
+.discussed-treatments-record-quantity-outer {
+  display: inline-flex;
+  align-items: center;
 }
 
 .detail-section-wellness-overview {

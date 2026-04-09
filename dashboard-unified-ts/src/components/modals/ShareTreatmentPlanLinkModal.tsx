@@ -242,6 +242,11 @@ export default function ShareTreatmentPlanLinkModal({
     string | null
   >(null);
 
+  const modalSubheading =
+    step === "pick"
+      ? `Choose what appears on ${firstName}'s plan page and review pricing, then continue to send the link by SMS.`
+      : `Confirm the phone number and optional note. The greeting and link at the start of the text stay fixed until you send.`;
+
   useEffect(() => {
     if (!isPostVisitBlueprintSender(provider)) return;
     warmPostVisitBlueprintForSend(client, discussedItems);
@@ -571,13 +576,27 @@ export default function ShareTreatmentPlanLinkModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="share-treatment-plan-link-title"
+        aria-describedby="share-treatment-plan-link-subtitle"
       >
         <div
           className="share-treatment-plan-link-dialog"
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 id="share-treatment-plan-link-title">Share treatment plan</h2>
-          <p>Your account cannot send the patient treatment plan link.</p>
+          <header className="share-tp-link-dialog-header">
+            <h2
+              id="share-treatment-plan-link-title"
+              className="share-tp-link-dialog-title"
+            >
+              Share treatment plan
+            </h2>
+            <p
+              id="share-treatment-plan-link-subtitle"
+              className="share-tp-link-dialog-subheading"
+            >
+              Your account can&apos;t send the patient plan link. Ask an
+              administrator if you need access.
+            </p>
+          </header>
           <button type="button" className="btn-primary" onClick={onClose}>
             Close
           </button>
@@ -593,17 +612,26 @@ export default function ShareTreatmentPlanLinkModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-treatment-plan-link-title"
+      aria-describedby="share-treatment-plan-link-subtitle"
     >
       <div
         className="treatment-plan-checkout-blueprint-compose-modal share-treatment-plan-link-dialog"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3
-          id="share-treatment-plan-link-title"
-          className="share-tp-link-dialog-title"
-        >
-          Share treatment plan
-        </h3>
+        <header className="share-tp-link-dialog-header">
+          <h3
+            id="share-treatment-plan-link-title"
+            className="share-tp-link-dialog-title"
+          >
+            Share treatment plan
+          </h3>
+          <p
+            id="share-treatment-plan-link-subtitle"
+            className="share-tp-link-dialog-subheading"
+          >
+            {modalSubheading}
+          </p>
+        </header>
         {step === "pick" ? (
           <>
             <div className="share-tp-link-dialog-body">

@@ -60,6 +60,15 @@ import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
 import "../modals/AnalysisOverviewModal.css";
 import "./TreatmentRecommenderBySuggestion.css";
 
+/** Safe fragment for DOM ids in optional-details sections (treatment names may include spaces). */
+function planOptDomIdSuffix(treatmentName: string): string {
+  const s = treatmentName
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9_-]/g, "");
+  return s.length > 0 ? s : "treatment";
+}
+
 function getDetectedIssues(client: Client): Set<string> {
   const set = new Set<string>();
   const raw = client.allIssues;
@@ -925,7 +934,7 @@ export default function TreatmentRecommenderBySuggestion({
                                 })()}
                               <details className="treatment-recommender-by-suggestion__details plan-opt-details">
                                 <summary>Optional details</summary>
-                                <div className="treatment-recommender-by-suggestion__details-fields plan-opt-fields">
+                                <div className="treatment-recommender-by-suggestion__details-fields plan-opt-fields plan-opt-fields-inner">
                                   {addToPlanForSuggestion.what !== "Skincare" &&
                                   !shouldShowProminentPlanQuantity(
                                     addToPlanForSuggestion.what,
@@ -938,96 +947,131 @@ export default function TreatmentRecommenderBySuggestion({
                                           addToPlanForSuggestion.product?.trim() ||
                                             undefined,
                                         );
+                                        const oid = planOptDomIdSuffix(
+                                          addToPlanForSuggestion.what,
+                                        );
                                         return (
-                                          <label className="treatment-recommender-by-suggestion__details-label">
-                                            <span className="treatment-recommender-by-suggestion__quantity-unit-label">
-                                              {qtyCtx.unitLabel}
-                                            </span>
-                                            {qtyCtx.quantityControl === "text" ? (
-                                              <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                className="treatment-recommender-by-suggestion__details-input"
-                                                aria-label={qtyCtx.unitLabel}
-                                                placeholder={
-                                                  qtyCtx.defaultQuantity
-                                                }
-                                                value={
-                                                  addToPlanForSuggestion.quantity ??
-                                                  ""
-                                                }
-                                                onChange={(e) => {
-                                                  const v =
-                                                    e.target.value.replace(
-                                                      /\D/g,
-                                                      "",
-                                                    );
-                                                  setAddToPlanForSuggestion(
-                                                    (prev) =>
-                                                      prev
-                                                        ? {
-                                                            ...prev,
-                                                            quantity: v,
-                                                          }
-                                                        : null,
-                                                  );
-                                                }}
-                                              />
-                                            ) : (
-                                              <PlanQuantityStepperInput
-                                                unitLabel={qtyCtx.unitLabel}
-                                                quantity={
-                                                  addToPlanForSuggestion.quantity ??
-                                                  ""
-                                                }
-                                                options={qtyCtx.options}
-                                                defaultQuantity={
-                                                  qtyCtx.defaultQuantity
-                                                }
-                                                inputId={`suggestion-qty-details-${addToPlanForSuggestion.what}`}
-                                                onQuantityChange={(next) =>
-                                                  setAddToPlanForSuggestion(
-                                                    (prev) =>
-                                                      prev
-                                                        ? {
-                                                            ...prev,
-                                                            quantity: next,
-                                                          }
-                                                        : null,
-                                                  )
-                                                }
-                                              />
-                                            )}
-                                          </label>
+                                          <section
+                                            className="plan-opt-section"
+                                            aria-labelledby={`suggestion-plan-opt-qty-${oid}`}
+                                          >
+                                            <h4
+                                              className="plan-opt-section__title"
+                                              id={`suggestion-plan-opt-qty-${oid}`}
+                                            >
+                                              Quantity
+                                            </h4>
+                                            <div className="plan-opt-section__body">
+                                              <label className="treatment-recommender-by-suggestion__details-label">
+                                                <span className="treatment-recommender-by-suggestion__quantity-unit-label">
+                                                  {qtyCtx.unitLabel}
+                                                </span>
+                                                {qtyCtx.quantityControl === "text" ? (
+                                                  <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    className="treatment-recommender-by-suggestion__details-input"
+                                                    aria-label={qtyCtx.unitLabel}
+                                                    placeholder={
+                                                      qtyCtx.defaultQuantity
+                                                    }
+                                                    value={
+                                                      addToPlanForSuggestion.quantity ??
+                                                      ""
+                                                    }
+                                                    onChange={(e) => {
+                                                      const v =
+                                                        e.target.value.replace(
+                                                          /\D/g,
+                                                          "",
+                                                        );
+                                                      setAddToPlanForSuggestion(
+                                                        (prev) =>
+                                                          prev
+                                                            ? {
+                                                                ...prev,
+                                                                quantity: v,
+                                                              }
+                                                            : null,
+                                                      );
+                                                    }}
+                                                  />
+                                                ) : (
+                                                  <PlanQuantityStepperInput
+                                                    unitLabel={qtyCtx.unitLabel}
+                                                    quantity={
+                                                      addToPlanForSuggestion.quantity ??
+                                                      ""
+                                                    }
+                                                    options={qtyCtx.options}
+                                                    defaultQuantity={
+                                                      qtyCtx.defaultQuantity
+                                                    }
+                                                    inputId={`suggestion-qty-details-${addToPlanForSuggestion.what}`}
+                                                    onQuantityChange={(next) =>
+                                                      setAddToPlanForSuggestion(
+                                                        (prev) =>
+                                                          prev
+                                                            ? {
+                                                                ...prev,
+                                                                quantity: next,
+                                                              }
+                                                            : null,
+                                                      )
+                                                    }
+                                                  />
+                                                )}
+                                              </label>
+                                            </div>
+                                          </section>
                                         );
                                       })()
                                     : null}
-                                  <label className="treatment-recommender-by-suggestion__details-label plan-opt-field-label">
-                                    Product
-                                    <input
-                                      type="text"
-                                      className="treatment-recommender-by-suggestion__details-input plan-opt-input"
-                                      placeholder="e.g. Juvederm, Botox"
-                                      value={
-                                        addToPlanForSuggestion.product ?? ""
-                                      }
-                                      onChange={(e) =>
-                                        setAddToPlanForSuggestion((prev) =>
-                                          prev
-                                            ? {
-                                                ...prev,
-                                                product: e.target.value,
-                                              }
-                                            : null,
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                  <label className="treatment-recommender-by-suggestion__details-label plan-opt-field-label">
-                                    Notes
+                                  <section
+                                    className="plan-opt-section"
+                                    aria-labelledby={`suggestion-plan-opt-product-${planOptDomIdSuffix(addToPlanForSuggestion.what)}`}
+                                  >
+                                    <h4
+                                      className="plan-opt-section__title"
+                                      id={`suggestion-plan-opt-product-${planOptDomIdSuffix(addToPlanForSuggestion.what)}`}
+                                    >
+                                      Product
+                                    </h4>
+                                    <div className="plan-opt-section__body">
+                                      <input
+                                        type="text"
+                                        className="treatment-recommender-by-suggestion__details-input plan-opt-input"
+                                        placeholder="e.g. Juvederm, Botox"
+                                        value={
+                                          addToPlanForSuggestion.product ?? ""
+                                        }
+                                        onChange={(e) =>
+                                          setAddToPlanForSuggestion((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  product: e.target.value,
+                                                }
+                                              : null,
+                                          )
+                                        }
+                                        aria-labelledby={`suggestion-plan-opt-product-${planOptDomIdSuffix(addToPlanForSuggestion.what)}`}
+                                      />
+                                    </div>
+                                  </section>
+                                  <section
+                                    className="plan-opt-section plan-opt-section--notes"
+                                    aria-labelledby={`suggestion-plan-opt-notes-${planOptDomIdSuffix(addToPlanForSuggestion.what)}`}
+                                  >
+                                    <h4
+                                      className="plan-opt-section__title"
+                                      id={`suggestion-plan-opt-notes-${planOptDomIdSuffix(addToPlanForSuggestion.what)}`}
+                                    >
+                                      Notes
+                                    </h4>
                                     <textarea
                                       className="treatment-recommender-by-suggestion__details-textarea plan-opt-textarea"
-                                      placeholder="Optional notes"
+                                      placeholder="Optional notes for this line item"
                                       rows={2}
                                       value={addToPlanForSuggestion.notes ?? ""}
                                       onChange={(e) =>
@@ -1037,8 +1081,9 @@ export default function TreatmentRecommenderBySuggestion({
                                             : null,
                                         )
                                       }
+                                      aria-labelledby={`suggestion-plan-opt-notes-${planOptDomIdSuffix(addToPlanForSuggestion.what)}`}
                                     />
-                                  </label>
+                                  </section>
                                 </div>
                               </details>
                               <div className="treatment-recommender-by-suggestion__add-actions plan-add-actions">

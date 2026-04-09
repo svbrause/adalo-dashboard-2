@@ -16,7 +16,7 @@ export function normalizeLeadSourceKey(source: string | null | undefined): strin
 }
 
 /**
- * Web Popup Leads rows that were added in-clinic or from the dashboard — not the online treatment finder funnel.
+ * Web Popup Leads rows that were added in-clinic or from the dashboard — not the Online Treatment Finder funnel.
  * Used to split Clients vs Leads in the sidebar and to hide the Online Treatment Finder section.
  */
 export function isManualOrInClinicWebPopupLeadSource(

@@ -134,6 +134,15 @@ import biostimulantsBeforeAfterUrl from "../../assets/images/Biostimulators-Befo
 /** Show the Checkout button in the plan sidebar. Enabled in local/dev (npm run dev); hidden in production. */
 const SHOW_CHECKOUT_BUTTON = import.meta.env.DEV;
 
+/** Safe fragment for DOM ids in optional-details sections (treatment names may include spaces). */
+function planOptDomIdSuffix(treatmentName: string): string {
+  const s = treatmentName
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9_-]/g, "");
+  return s.length > 0 ? s : "treatment";
+}
+
 /** Product / type string used with {@link getQuantityContext} (matches checkout labeling). */
 function treatmentProductHintForQuantity(row: {
   treatment: string;
@@ -192,7 +201,9 @@ function treatmentUsesStructuredProductSelectors(treatment: string): boolean {
     t === "Biostimulants" ||
     t === "Microneedling" ||
     t === "Chemical Peel" ||
-    t === "Facial Services"
+    t === "Facial Services" ||
+    t === "Neurotoxin" ||
+    t === "Filler"
   );
 }
 
@@ -2715,7 +2726,7 @@ export default function TreatmentRecommenderByTreatment({
             {onShareTreatmentPlan ? (
               <button
                 type="button"
-                className="treatment-recommender-by-treatment__plan-share-btn"
+                className="btn-secondary btn-sm treatment-recommender-by-treatment__plan-share-btn"
                 onClick={() => onShareTreatmentPlan()}
               >
                 Share
@@ -4473,7 +4484,7 @@ export default function TreatmentRecommenderByTreatment({
                                         inputMode="numeric"
                                         className="treatment-recommender-by-treatment__details-input"
                                         aria-label={qtyCtx.unitLabel}
-                                        placeholder={qtyCtx.defaultQuantity}
+                                        placeholder={qtyCtx.inputPlaceholder ?? qtyCtx.defaultQuantity}
                                         value={
                                           addToPlanForTreatment.quantity ?? ""
                                         }
@@ -4533,7 +4544,7 @@ export default function TreatmentRecommenderByTreatment({
                               </button>
                               {addToPlanForTreatment.detailsExpanded && (
                               <div className="treatment-recommender-by-treatment__details-fields plan-opt-fields">
-                                <div className="treatment-recommender-by-treatment__details-fields-nest">
+                                <div className="treatment-recommender-by-treatment__details-fields-nest plan-opt-fields-inner">
                                 {(() => {
                                   const byArea =
                                     getFindingsByAreaForTreatment(treatment);
@@ -4566,10 +4577,13 @@ export default function TreatmentRecommenderByTreatment({
                                     });
                                   };
                                   return (
+                                    <section
+                                      className="plan-opt-section plan-opt-section--concerns"
+                                      aria-label="Concerns to address"
+                                    >
                                     <div
                                       className="treatment-recommender-by-treatment__to-address"
                                       role="group"
-                                      aria-label="Concerns to address"
                                     >
                                       <div className="treatment-recommender-by-treatment__to-address-heading">
                                         <span className="treatment-recommender-by-treatment__to-address-heading-label">
@@ -4743,6 +4757,7 @@ export default function TreatmentRecommenderByTreatment({
                                         </div>
                                       </div>
                                     </div>
+                                    </section>
                                   );
                                 })()}
                                 {addToPlanForTreatment.treatment !== "Skincare" &&
@@ -4762,150 +4777,193 @@ export default function TreatmentRecommenderByTreatment({
                                         qtyHint,
                                       );
                                       return (
-                                        <label className="treatment-recommender-by-treatment__details-label">
-                                          <span className="treatment-recommender-by-treatment__quantity-unit-label">
-                                            {qtyCtx.unitLabel}
-                                          </span>
-                                          {qtyCtx.quantityControl === "text" ? (
-                                            <input
-                                              type="text"
-                                              inputMode="numeric"
-                                              className="treatment-recommender-by-treatment__details-input"
-                                              aria-label={qtyCtx.unitLabel}
-                                              placeholder={
-                                                qtyCtx.defaultQuantity
-                                              }
-                                              value={
-                                                addToPlanForTreatment.quantity ??
-                                                ""
-                                              }
-                                              onChange={(e) => {
-                                                const v =
-                                                  e.target.value.replace(
-                                                    /\D/g,
-                                                    "",
-                                                  );
-                                                setAddToPlanForTreatment(
-                                                  (prev) =>
-                                                    prev
-                                                      ? { ...prev, quantity: v }
-                                                      : null,
-                                                );
-                                              }}
-                                            />
-                                          ) : (
-                                            <PlanQuantityStepperInput
-                                              unitLabel={qtyCtx.unitLabel}
-                                              quantity={
-                                                addToPlanForTreatment.quantity ??
-                                                ""
-                                              }
-                                              options={qtyCtx.options}
-                                              defaultQuantity={
-                                                qtyCtx.defaultQuantity
-                                              }
-                                              inputId={`plan-qty-details-${treatment}`}
-                                              onQuantityChange={(next) =>
-                                                setAddToPlanForTreatment(
-                                                  (prev) =>
-                                                    prev
-                                                      ? { ...prev, quantity: next }
-                                                      : null,
-                                                )
-                                              }
-                                            />
-                                          )}
-                                        </label>
+                                        <section
+                                          className="plan-opt-section"
+                                          aria-labelledby={`plan-opt-qty-${planOptDomIdSuffix(treatment)}`}
+                                        >
+                                          <h4
+                                            className="plan-opt-section__title"
+                                            id={`plan-opt-qty-${planOptDomIdSuffix(treatment)}`}
+                                          >
+                                            Quantity
+                                          </h4>
+                                          <div className="plan-opt-section__body">
+                                            <label className="treatment-recommender-by-treatment__details-label">
+                                              <span className="treatment-recommender-by-treatment__quantity-unit-label">
+                                                {qtyCtx.unitLabel}
+                                              </span>
+                                              {qtyCtx.quantityControl === "text" ? (
+                                                <input
+                                                  type="text"
+                                                  inputMode="numeric"
+                                                  className="treatment-recommender-by-treatment__details-input"
+                                                  aria-label={qtyCtx.unitLabel}
+                                                  placeholder={
+                                                    qtyCtx.inputPlaceholder ?? qtyCtx.defaultQuantity
+                                                  }
+                                                  value={
+                                                    addToPlanForTreatment.quantity ??
+                                                    ""
+                                                  }
+                                                  onChange={(e) => {
+                                                    const v =
+                                                      e.target.value.replace(
+                                                        /\D/g,
+                                                        "",
+                                                      );
+                                                    setAddToPlanForTreatment(
+                                                      (prev) =>
+                                                        prev
+                                                          ? { ...prev, quantity: v }
+                                                          : null,
+                                                    );
+                                                  }}
+                                                />
+                                              ) : (
+                                                <PlanQuantityStepperInput
+                                                  unitLabel={qtyCtx.unitLabel}
+                                                  quantity={
+                                                    addToPlanForTreatment.quantity ??
+                                                    ""
+                                                  }
+                                                  options={qtyCtx.options}
+                                                  defaultQuantity={
+                                                    qtyCtx.defaultQuantity
+                                                  }
+                                                  inputId={`plan-qty-details-${treatment}`}
+                                                  onQuantityChange={(next) =>
+                                                    setAddToPlanForTreatment(
+                                                      (prev) =>
+                                                        prev
+                                                          ? { ...prev, quantity: next }
+                                                          : null,
+                                                    )
+                                                  }
+                                                />
+                                              )}
+                                            </label>
+                                          </div>
+                                        </section>
                                       );
                                     })()
                                   : null}
                                 {wellnestOffering && (
-                                  <>
-                                    <label className="treatment-recommender-by-treatment__details-label">
-                                      Delivery form
-                                      <select
-                                        className="treatment-recommender-by-treatment__details-input"
-                                        value={
-                                          addToPlanForTreatment.deliveryForm ??
-                                          ""
-                                        }
-                                        onChange={(e) =>
-                                          setAddToPlanForTreatment((prev) =>
-                                            prev
-                                              ? {
-                                                  ...prev,
-                                                  deliveryForm: e.target.value,
-                                                }
-                                              : null,
-                                          )
-                                        }
-                                      >
-                                        {getWellnestProductOptionsForTreatment(
-                                          treatment,
-                                        ).map((opt, wIdx) => (
-                                          <option
-                                            key={`wellnest-opt-${wIdx}-${opt}`}
-                                            value={opt}
-                                          >
-                                            {opt}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </label>
-                                    <label className="treatment-recommender-by-treatment__details-label">
-                                      Dosing
-                                      <input
-                                        type="text"
-                                        className="treatment-recommender-by-treatment__details-input"
-                                        placeholder="e.g. 5 weeks"
-                                        value={
-                                          addToPlanForTreatment.dosing ?? ""
-                                        }
-                                        onChange={(e) =>
-                                          setAddToPlanForTreatment((prev) =>
-                                            prev
-                                              ? {
-                                                  ...prev,
-                                                  dosing: e.target.value,
-                                                }
-                                              : null,
-                                          )
-                                        }
-                                      />
-                                    </label>
-                                  </>
+                                  <section
+                                    className="plan-opt-section"
+                                    aria-labelledby={`plan-opt-delivery-${planOptDomIdSuffix(treatment)}`}
+                                  >
+                                    <h4
+                                      className="plan-opt-section__title"
+                                      id={`plan-opt-delivery-${planOptDomIdSuffix(treatment)}`}
+                                    >
+                                      Delivery & dosing
+                                    </h4>
+                                    <div className="plan-opt-section__body">
+                                      <label className="treatment-recommender-by-treatment__details-label">
+                                        Delivery form
+                                        <select
+                                          className="treatment-recommender-by-treatment__details-input"
+                                          value={
+                                            addToPlanForTreatment.deliveryForm ??
+                                            ""
+                                          }
+                                          onChange={(e) =>
+                                            setAddToPlanForTreatment((prev) =>
+                                              prev
+                                                ? {
+                                                    ...prev,
+                                                    deliveryForm: e.target.value,
+                                                  }
+                                                : null,
+                                            )
+                                          }
+                                        >
+                                          {getWellnestProductOptionsForTreatment(
+                                            treatment,
+                                          ).map((opt, wIdx) => (
+                                            <option
+                                              key={`wellnest-opt-${wIdx}-${opt}`}
+                                              value={opt}
+                                            >
+                                              {opt}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </label>
+                                      <label className="treatment-recommender-by-treatment__details-label">
+                                        Dosing
+                                        <input
+                                          type="text"
+                                          className="treatment-recommender-by-treatment__details-input"
+                                          placeholder="e.g. 5 weeks"
+                                          value={
+                                            addToPlanForTreatment.dosing ?? ""
+                                          }
+                                          onChange={(e) =>
+                                            setAddToPlanForTreatment((prev) =>
+                                              prev
+                                                ? {
+                                                    ...prev,
+                                                    dosing: e.target.value,
+                                                  }
+                                                : null,
+                                            )
+                                          }
+                                        />
+                                      </label>
+                                    </div>
+                                  </section>
                                 )}
                                 {!wellnestOffering &&
                                   !treatmentUsesStructuredProductSelectors(
                                     addToPlanForTreatment.treatment,
                                   ) && (
-                                    <label className="treatment-recommender-by-treatment__details-label">
-                                      Product
-                                      <input
-                                        type="text"
-                                        className="treatment-recommender-by-treatment__details-input"
-                                        placeholder="e.g. Juvederm, Botox"
-                                        value={
-                                          addToPlanForTreatment.product ?? ""
-                                        }
-                                        onChange={(e) =>
-                                          setAddToPlanForTreatment((prev) =>
-                                            prev
-                                              ? {
-                                                  ...prev,
-                                                  product: e.target.value,
-                                                }
-                                              : null,
-                                          )
-                                        }
-                                      />
-                                    </label>
+                                    <section
+                                      className="plan-opt-section"
+                                      aria-labelledby={`plan-opt-product-${planOptDomIdSuffix(treatment)}`}
+                                    >
+                                      <h4
+                                        className="plan-opt-section__title"
+                                        id={`plan-opt-product-${planOptDomIdSuffix(treatment)}`}
+                                      >
+                                        Product
+                                      </h4>
+                                      <div className="plan-opt-section__body">
+                                        <input
+                                          type="text"
+                                          className="treatment-recommender-by-treatment__details-input"
+                                          placeholder="e.g. Juvederm, Botox"
+                                          value={
+                                            addToPlanForTreatment.product ?? ""
+                                          }
+                                          onChange={(e) =>
+                                            setAddToPlanForTreatment((prev) =>
+                                              prev
+                                                ? {
+                                                    ...prev,
+                                                    product: e.target.value,
+                                                  }
+                                                : null,
+                                            )
+                                          }
+                                          aria-labelledby={`plan-opt-product-${planOptDomIdSuffix(treatment)}`}
+                                        />
+                                      </div>
+                                    </section>
                                   )}
-                                <label className="treatment-recommender-by-treatment__details-label plan-opt-field-label">
-                                  Notes
+                                <section
+                                  className="plan-opt-section plan-opt-section--notes"
+                                  aria-labelledby={`plan-opt-notes-${planOptDomIdSuffix(treatment)}`}
+                                >
+                                  <h4
+                                    className="plan-opt-section__title"
+                                    id={`plan-opt-notes-${planOptDomIdSuffix(treatment)}`}
+                                  >
+                                    Notes
+                                  </h4>
                                   <textarea
                                     className="treatment-recommender-by-treatment__details-textarea plan-opt-textarea"
-                                    placeholder="Optional notes"
+                                    placeholder="Optional notes for this line item"
                                     rows={2}
                                     value={addToPlanForTreatment.notes ?? ""}
                                     onChange={(e) =>
@@ -4915,8 +4973,9 @@ export default function TreatmentRecommenderByTreatment({
                                           : null,
                                       )
                                     }
+                                    aria-labelledby={`plan-opt-notes-${planOptDomIdSuffix(treatment)}`}
                                   />
-                                </label>
+                                </section>
                                 </div>
                               </div>
                               )}

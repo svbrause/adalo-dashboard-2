@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   SMS_SETTINGS_PRODUCTS,
   type SmsProductConfig,
@@ -28,6 +28,82 @@ import { renderTemplateVars } from "../../utils/renderTemplateVars";
 import "./SettingsView.css";
 
 type PreviewSelection = { product: SmsProductConfig; event: SmsTemplateEventConfig } | null;
+
+type UnifiedNotifItem =
+  | { type: "sms"; event: SmsTemplateEventConfig; product: SmsProductConfig }
+  | { type: "email"; email: AutomatedEmail };
+
+function notificationItemKey(item: UnifiedNotifItem): string {
+  return item.type === "sms" ? `sms:${item.event.id}` : `email:${item.email.id}`;
+}
+
+/** Welcome SMS + team email first, then follow-up SMS — keeps the “same submission” pair together. */
+function orderTreatmentFinderNotifItems(items: UnifiedNotifItem[]): UnifiedNotifItem[] {
+  const rank = new Map<string, number>([
+    ["sms:finder-welcome", 0],
+    ["email:new-lead-treatment-finder", 1],
+    ["sms:finder-followup", 2],
+  ]);
+  return [...items].sort(
+    (a, b) =>
+      (rank.get(notificationItemKey(a)) ?? 99) -
+      (rank.get(notificationItemKey(b)) ?? 99),
+  );
+}
+
+/** Interleave facial-analysis SMS + emails so paired “same moment” rows sit together. */
+function orderSkinAnalysisNotifItems(items: UnifiedNotifItem[]): UnifiedNotifItem[] {
+  const rank = new Map<string, number>([
+    ["sms:analysis-scan-invite", 0],
+    ["sms:analysis-processing", 1],
+    ["email:analysis-initiated", 2],
+    ["sms:analysis-ready", 3],
+    ["email:analysis-report-ready", 4],
+    ["sms:analysis-review-reminder", 5],
+    ["sms:analysis-final-reminder", 6],
+    ["email:analysis-upload-reminder", 7],
+    ["email:analysis-awaiting-review", 8],
+    ["email:patient-opened-report", 9],
+  ]);
+  return [...items].sort(
+    (a, b) =>
+      (rank.get(notificationItemKey(a)) ?? 99) -
+      (rank.get(notificationItemKey(b)) ?? 99),
+  );
+}
+
+// ── Grouped-row helpers ─────────────────────────────────────────────────────
+
+type NotifRowDisplay =
+  | { kind: "single"; item: UnifiedNotifItem }
+  | { kind: "grouped"; trigger: string; items: UnifiedNotifItem[] };
+
+function getItemTrigger(item: UnifiedNotifItem): string {
+  return item.type === "sms" ? item.event.trigger : item.email.trigger;
+}
+
+/** Collapse adjacent items that share the same trigger into a single grouped row. */
+function collapseByTrigger(items: UnifiedNotifItem[]): NotifRowDisplay[] {
+  const rows: NotifRowDisplay[] = [];
+  let i = 0;
+  while (i < items.length) {
+    const trigger = getItemTrigger(items[i]);
+    const group: UnifiedNotifItem[] = [items[i]];
+    while (
+      i + group.length < items.length &&
+      getItemTrigger(items[i + group.length]) === trigger
+    ) {
+      group.push(items[i + group.length]);
+    }
+    if (group.length === 1) {
+      rows.push({ kind: "single", item: group[0] });
+    } else {
+      rows.push({ kind: "grouped", trigger, items: group });
+    }
+    i += group.length;
+  }
+  return rows;
+}
 
 type PricingHelpOpen = { sku: PricingHelpSkuContext | null };
 
@@ -200,7 +276,6 @@ export default function SettingsView() {
   const [skincareSort, setSkincareSort] = useState<SkincareSortId>("brand");
   const [emailNotifHelp, setEmailNotifHelp] = useState<{ entry: AutomatedEmail | null } | null>(null);
   const [emailChangeRequest, setEmailChangeRequest] = useState<AutomatedEmail | null>(null);
-  const [volumePeriod, setVolumePeriod] = useState<"d7" | "d14" | "d30">("d30");
   const settingsPanelScrollSkip = useRef(true);
 
   useEffect(() => {
@@ -394,7 +469,8 @@ export default function SettingsView() {
       {
         id: "treatment-finder",
         name: "Website quiz leads",
-        description: "Messages and alerts for people who take the treatment quiz on your website.",
+        description:
+          "Messages and alerts for people who take the Treatment Finder quiz on your website.",
         smsId: "treatment-finder",
         emailCategories: ["new-leads"],
         emailIds: [],
@@ -409,8 +485,9 @@ export default function SettingsView() {
       },
       {
         id: "skin-analysis",
-        name: "At-Home Facial Analysis",
-        description: "At-home AI facial scan and analysis lifecycle messaging and team alerts.",
+        name: "AI Facial Analysis",
+        description:
+          "AI facial scan and analysis lifecycle messaging (invite, processing, ready, reminders) and team alerts.",
         smsId: "skin-analysis",
         emailCategories: ["facial-analysis"],
         emailIds: ["patient-opened-report"],
@@ -441,8 +518,8 @@ export default function SettingsView() {
       },
       {
         id: "manual-messaging",
-        name: "Manual SMS (Staff Initiated)",
-        description: "Messages sent directly by staff from chat/popups using custom text.",
+        name: "Staff-Sent Messages",
+        description: "Text messages sent manually by staff — sharing treatment plans, post-visit blueprints, and analysis results with patients.",
         smsId: "manual-messaging",
         emailCategories: [],
         emailIds: [],
@@ -455,21 +532,24 @@ export default function SettingsView() {
         (e) => config.emailCategories.includes(e.category) || config.emailIds.includes(e.id)
       );
 
-      const items: Array<
-        | { type: "sms"; event: SmsTemplateEventConfig; product: SmsProductConfig }
-        | { type: "email"; email: AutomatedEmail }
-      > = [];
+      const items: UnifiedNotifItem[] = [];
 
       if (smsProduct) {
         items.push(
           ...smsProduct.events
-            .filter((event) => event.enabled)
+            .filter(
+              (event) =>
+                event.enabled && !event.hideFromNotificationSettings,
+            )
             .map((event) => ({ type: "sms" as const, event, product: smsProduct })),
         );
       }
       items.push(
         ...emails
-          .filter((email) => email.active)
+          .filter(
+            (email) =>
+              email.active && !email.hideFromNotificationSettings,
+          )
           .map((email) => ({ type: "email" as const, email })),
       );
 
@@ -477,7 +557,12 @@ export default function SettingsView() {
         id: config.id,
         name: config.name,
         description: config.description,
-        items,
+        items:
+          config.id === "treatment-finder"
+            ? orderTreatmentFinderNotifItems(items)
+            : config.id === "skin-analysis"
+              ? orderSkinAnalysisNotifItems(items)
+              : items,
       };
     }).filter((section) => section.items.length > 0);
   }, []);
@@ -616,7 +701,7 @@ export default function SettingsView() {
             Notifications
           </h2>
           <p className="settings-card-lead">
-            These are the automated texts and emails sent to patients and your team. Open <strong>View SMS</strong> or <strong>View Email</strong> to see the full details, and use <strong>Request change</strong> if something needs updating.
+            These are the automated texts and emails sent to patients and your team. Click <strong>Open</strong> in the Preview column to see each message, and use <strong>Request change</strong> if something needs updating.
           </p>
 
           <details className="settings-howto">
@@ -625,7 +710,7 @@ export default function SettingsView() {
               <li>Notifications are grouped by workflow (e.g. facial analysis, website leads).</li>
               <li>You can see both <strong>SMS</strong> and <strong>EMAIL</strong> messages here.</li>
               <li>
-                Click <strong>View SMS</strong> or <strong>View Email</strong> to see the exact message and who it sends to.
+                The <strong>Preview</strong> column opens the template; <strong>Sent to</strong> shows who receives it.
               </li>
             </ol>
           </details>
@@ -645,90 +730,206 @@ export default function SettingsView() {
                   <table className="settings-notifications-table settings-notifications-table--compact">
                     <thead>
                       <tr>
-                        <th scope="col">Event</th>
-                        <th scope="col">When it sends</th>
-                        <th scope="col" className="settings-col-volume">
-                          <div className="settings-volume-header">
-                            <span>Sent</span>
-                            <span className="settings-volume-period-toggle" role="group" aria-label="Time period">
-                              {(["d7", "d14", "d30"] as const).map((p) => (
-                                <button
-                                  key={p}
-                                  type="button"
-                                  className={`settings-volume-period-btn${volumePeriod === p ? " settings-volume-period-btn--active" : ""}`}
-                                  onClick={() => setVolumePeriod(p)}
-                                >
-                                  {p === "d7" ? "7d" : p === "d14" ? "14d" : "30d"}
-                                </button>
-                              ))}
-                            </span>
-                          </div>
+                        <th scope="col" className="settings-col-event">
+                          Event
+                        </th>
+                        <th scope="col" className="settings-col-when">
+                          When it sends
+                        </th>
+                        <th scope="col" className="settings-col-sent-to">
+                          Sent to
                         </th>
                         <th scope="col" className="settings-col-actions">
-                          View
+                          Preview
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {section.items.map((item) => {
+                      {collapseByTrigger(section.items).map((row, rowIdx) => {
+                        if (row.kind === "grouped") {
+                          const names = [...new Set(
+                            row.items.map((it) =>
+                              it.type === "sms" ? it.event.eventName : it.email.name,
+                            ),
+                          )];
+                          const span = row.items.length;
+                          return (
+                            <Fragment key={`grouped-${rowIdx}`}>
+                              {row.items.map((it, ii) => {
+                                const isContinue = ii > 0;
+                                const isGroupedHead = ii === 0 && span > 1;
+                                return (
+                                  <tr
+                                    key={ii}
+                                    className={
+                                      isContinue
+                                        ? "settings-notif-row--split-continue"
+                                        : isGroupedHead
+                                          ? "settings-notif-row--grouped settings-notif-row--grouped-head"
+                                          : "settings-notif-row--grouped"
+                                    }
+                                  >
+                                    {ii === 0 ? (
+                                      <>
+                                        <td
+                                          className="settings-notif-notification-cell"
+                                          rowSpan={span}
+                                        >
+                                          {names.map((n, ni) => (
+                                            <div
+                                              key={ni}
+                                              className={
+                                                ni === 0
+                                                  ? "settings-notif-event-name"
+                                                  : "settings-notif-event-name settings-notif-event-name--alt"
+                                              }
+                                            >
+                                              {n}
+                                            </div>
+                                          ))}
+                                        </td>
+                                        <td className="settings-notif-when-cell" rowSpan={span}>
+                                          <p className="settings-notif-trigger settings-notif-trigger--no-gap">
+                                            {row.trigger}
+                                          </p>
+                                        </td>
+                                      </>
+                                    ) : null}
+                                    <td className="settings-td-sent-to">
+                                      {it.type === "sms" ? (
+                                        <div className="settings-notif-sent-to-row">
+                                          <span
+                                            className="settings-notif-channel-indicator settings-notif-channel-indicator--sms"
+                                            aria-hidden
+                                          >
+                                            SMS
+                                          </span>
+                                          <div className="settings-notif-recipient-pills">
+                                            <span className="settings-recipient-pill settings-recipient-pill--patient">
+                                              Patient
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="settings-notif-sent-to-row">
+                                          <span
+                                            className="settings-notif-channel-indicator settings-notif-channel-indicator--email"
+                                            aria-hidden
+                                          >
+                                            Email
+                                          </span>
+                                          <div className="settings-notif-recipient-pills">
+                                            {it.email.goesToPatient && (
+                                              <span className="settings-recipient-pill settings-recipient-pill--patient">
+                                                Patient
+                                              </span>
+                                            )}
+                                            {it.email.teamRecipients.map((r) => (
+                                              <span
+                                                key={r.email}
+                                                className="settings-recipient-pill"
+                                                title={r.label}
+                                              >
+                                                {r.email}
+                                              </span>
+                                            ))}
+                                            {!it.email.goesToPatient &&
+                                              it.email.teamRecipients.length === 0 && (
+                                                <span className="settings-muted" style={{ fontSize: "0.75rem" }}>
+                                                  Not routed
+                                                </span>
+                                              )}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="settings-td-actions settings-td-actions--single">
+                                      {it.type === "sms" ? (
+                                        <button
+                                          type="button"
+                                          className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--sms"
+                                          aria-label="Preview SMS notification"
+                                          onClick={() =>
+                                            setPreview({ product: it.product, event: it.event })
+                                          }
+                                        >
+                                          Open
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--email"
+                                          aria-label="Preview email notification"
+                                          onClick={() => setEmailNotifHelp({ entry: it.email })}
+                                        >
+                                          Open
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </Fragment>
+                          );
+                        }
+
+                        const { item } = row;
                         if (item.type === "sms") {
                           const { event, product } = item;
-                          const vol = event.recentVolume;
-                          const count = vol ? vol[volumePeriod] : undefined;
                           return (
                             <tr key={`sms-${event.id}`}>
                               <td className="settings-notif-notification-cell">
                                 <div className="settings-notif-event-name">{event.eventName}</div>
                               </td>
                               <td className="settings-notif-when-cell">
-                                <p className="settings-notif-trigger">{event.trigger}</p>
-                                <div className="settings-notif-meta-pills" aria-label="Channel and status">
-                                  <span className="settings-channel-pill">{event.channel.toUpperCase()}</span>
-                                  <span className="settings-recipient-pill settings-recipient-pill--patient">
-                                    Patient
-                                  </span>
-                                </div>
+                                <p className="settings-notif-trigger settings-notif-trigger--no-gap">{event.trigger}</p>
                               </td>
-                              <td className="settings-td-volume">
-                                {count === undefined ? (
-                                  <span className="settings-volume-badge settings-volume-badge--unknown">—</span>
-                                ) : count === 0 ? (
-                                  <span className="settings-volume-badge settings-volume-badge--zero">0</span>
-                                ) : (
-                                  <span className="settings-volume-badge settings-volume-badge--active">{count.toLocaleString()}</span>
-                                )}
+                              <td className="settings-td-sent-to">
+                                <div className="settings-notif-sent-to-row">
+                                  <span
+                                    className="settings-notif-channel-indicator settings-notif-channel-indicator--sms"
+                                    aria-hidden
+                                  >
+                                    SMS
+                                  </span>
+                                  <div className="settings-notif-recipient-pills">
+                                    <span className="settings-recipient-pill settings-recipient-pill--patient">
+                                      Patient
+                                    </span>
+                                  </div>
+                                </div>
                               </td>
                               <td className="settings-td-actions settings-td-actions--single">
                                 <button
                                   type="button"
-                                  className="settings-secondary-btn settings-notif-view-btn"
+                                  className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--sms"
+                                  aria-label="Preview SMS notification"
                                   onClick={() => setPreview({ product, event })}
                                 >
-                                  View SMS
+                                  Open
                                 </button>
                               </td>
                             </tr>
                           );
-                        } else {
-                          const { email } = item;
-                          const monthly = email.recentVolumePerMonth;
-                          const emailCount =
-                            monthly == null
-                              ? undefined
-                              : volumePeriod === "d7"
-                              ? Math.round(monthly / 4.3)
-                              : volumePeriod === "d14"
-                              ? Math.round(monthly / 2.15)
-                              : monthly;
-                          return (
-                            <tr key={`email-${email.id}`}>
-                              <td className="settings-notif-notification-cell">
-                                <div className="settings-notif-event-name">{email.name}</div>
-                              </td>
-                              <td className="settings-notif-when-cell">
-                                <p className="settings-notif-trigger">{email.trigger}</p>
-                                <div className="settings-notif-meta-pills" aria-label="Channel and status">
-                                  <span className="settings-channel-pill">EMAIL</span>
+                        }
+                        const { email } = item;
+                        return (
+                          <tr key={`email-${email.id}`}>
+                            <td className="settings-notif-notification-cell">
+                              <div className="settings-notif-event-name">{email.name}</div>
+                            </td>
+                            <td className="settings-notif-when-cell">
+                              <p className="settings-notif-trigger settings-notif-trigger--no-gap">{email.trigger}</p>
+                            </td>
+                            <td className="settings-td-sent-to">
+                              <div className="settings-notif-sent-to-row">
+                                <span
+                                  className="settings-notif-channel-indicator settings-notif-channel-indicator--email"
+                                  aria-hidden
+                                >
+                                  Email
+                                </span>
+                                <div className="settings-notif-meta-pills" aria-label="Recipients">
                                   {email.goesToPatient && (
                                     <span className="settings-recipient-pill settings-recipient-pill--patient">
                                       Patient
@@ -756,30 +957,20 @@ export default function SettingsView() {
                                     </span>
                                   )}
                                 </div>
-                              </td>
-                              <td className="settings-td-volume">
-                                {emailCount === undefined ? (
-                                  <span className="settings-volume-badge settings-volume-badge--unknown">—</span>
-                                ) : emailCount === 0 ? (
-                                  <span className="settings-volume-badge settings-volume-badge--zero">0</span>
-                                ) : (
-                                  <span className="settings-volume-badge settings-volume-badge--active" title="Estimated from monthly average">
-                                    ~{emailCount.toLocaleString()}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="settings-td-actions settings-td-actions--single">
-                                <button
-                                  type="button"
-                                  className="settings-secondary-btn settings-notif-view-btn"
-                                  onClick={() => setEmailNotifHelp({ entry: email })}
-                                >
-                                  View Email
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        }
+                              </div>
+                            </td>
+                            <td className="settings-td-actions settings-td-actions--single">
+                              <button
+                                type="button"
+                                className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--email"
+                                aria-label="Preview email notification"
+                                onClick={() => setEmailNotifHelp({ entry: email })}
+                              >
+                                Open
+                              </button>
+                            </td>
+                          </tr>
+                        );
                       })}
                     </tbody>
                   </table>
@@ -882,7 +1073,7 @@ export default function SettingsView() {
             Prices used in quotes and checkout, grouped the same way as your printed list. When it
             applies, you will see which <strong>treatment type</strong> a line belongs to (for example
             Voluma as a filler, Sculptra as a biostimulant). Search by section, treatment type, name,
-            or note. To change a price or name, use <strong>Request change</strong>—our team will
+            or price note. To change a price or name, use <strong>Request change</strong>—our team will
             update the list.
           </p>
 
@@ -890,7 +1081,7 @@ export default function SettingsView() {
             <summary className="settings-howto-summary">How to use this</summary>
             <ol className="settings-howto-list">
               <li>
-                Search by section, treatment type (for example “Filler”), service name, or note. Use{" "}
+                Search by section, treatment type (for example “Filler”), service name, or price note. Use{" "}
                 <strong>Sort by</strong> to keep catalog sections or list all matching rows by name or
                 price.
               </li>
@@ -914,7 +1105,7 @@ export default function SettingsView() {
                   id="settings-pricing-search"
                   type="search"
                   className="settings-pricing-search settings-pricing-search--block"
-                  placeholder="Section, treatment type, service, or note…"
+                  placeholder="Section, treatment type, service, or price note…"
                   value={pricingSearch}
                   onChange={(e) => setPricingSearch(e.target.value)}
                   autoComplete="off"
@@ -984,7 +1175,7 @@ export default function SettingsView() {
                           <th scope="col">Service</th>
                           <th scope="col">Treatment type</th>
                           <th scope="col">Price</th>
-                          <th scope="col">Note</th>
+                          <th scope="col">Price note</th>
                           <th scope="col" className="settings-col-actions">
                             Request
                           </th>
@@ -1028,6 +1219,7 @@ export default function SettingsView() {
                                 onClick={() =>
                                   setPricingHelp({
                                     sku: {
+                                      rowKind: "treatment",
                                       category: section.category,
                                       name: row.name,
                                       price: row.price,
@@ -1058,7 +1250,7 @@ export default function SettingsView() {
                       <th scope="col">Service</th>
                       <th scope="col">Treatment type</th>
                       <th scope="col">Price</th>
-                      <th scope="col">Note</th>
+                      <th scope="col">Price note</th>
                       <th scope="col" className="settings-col-actions">
                         Request
                       </th>
@@ -1103,6 +1295,7 @@ export default function SettingsView() {
                             onClick={() =>
                               setPricingHelp({
                                 sku: {
+                                  rowKind: "treatment",
                                   category: row.category,
                                   name: row.name,
                                   price: row.price,

@@ -147,6 +147,64 @@
   margin-top: var(--space-sm, 8px);
 }
 
+/* Vertical stack of grouped blocks inside optional details (clear priority: context → amount → delivery → free text) */
+.plan-opt-fields-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.plan-opt-section {
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--theme-border, #e8e8e8);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--theme-bg-subtle, #fafafa);
+  box-sizing: border-box;
+}
+
+.plan-opt-section + .plan-opt-section {
+  margin-top: 10px;
+}
+
+.plan-opt-section__title {
+  margin: 0 0 8px;
+  padding: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.plan-opt-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-opt-section__body > input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.plan-opt-section textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+/* Concerns chips: keep on white so chips stay readable */
+.plan-opt-section--concerns {
+  background: var(--theme-bg-card, #fff);
+  border-color: var(--theme-border, #e0e0e0);
+}
+
+/* Notes last — slightly softer edge */
+.plan-opt-section--notes {
+  background: var(--theme-bg-card, #fff);
+}
+
 .plan-opt-field-label {
   display: flex;
   flex-direction: column;

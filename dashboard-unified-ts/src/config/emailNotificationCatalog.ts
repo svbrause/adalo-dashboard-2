@@ -1,3 +1,9 @@
+import {
+  FACIAL_ANALYSIS_IN_PROGRESS_TRIGGER,
+  FACIAL_ANALYSIS_READY_TO_REVIEW_TRIGGER,
+  TREATMENT_FINDER_WEBSITE_COMPLETION_TRIGGER,
+} from "./notificationTriggers";
+
 /**
  * Automated email routing configuration.
  *
@@ -35,6 +41,8 @@ export type AutomatedEmail = {
   body?: string;
   /** Category grouping. */
   category: EmailCategory;
+  /** When true, omit from the Settings → Notifications table. */
+  hideFromNotificationSettings?: boolean;
 };
 
 export type EmailCategory =
@@ -57,7 +65,7 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   {
     id: "new-lead-treatment-finder",
     name: "New Treatment Finder lead",
-    trigger: "Someone completes the Treatment Finder quiz",
+    trigger: TREATMENT_FINDER_WEBSITE_COMPLETION_TRIGGER,
     exampleSubject: "New Lead Treatment Finder",
     goesToPatient: false,
     teamRecipients: [
@@ -80,8 +88,8 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   // ── Facial analysis ────────────────────────────────────────────────────────
   {
     id: "analysis-initiated",
-    name: "Analysis started",
-    trigger: "Patient uploads their scan photos",
+    name: "Analysis in progress",
+    trigger: FACIAL_ANALYSIS_IN_PROGRESS_TRIGGER,
     exampleSubject: "Your Personalized Facial Analysis Is On Its Way",
     goesToPatient: true,
     teamRecipients: [
@@ -101,7 +109,7 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   {
     id: "analysis-report-ready",
     name: "Report ready",
-    trigger: "AI analysis is complete",
+    trigger: FACIAL_ANALYSIS_READY_TO_REVIEW_TRIGGER,
     exampleSubject: "{Patient}'s Facial Analysis Report is Ready for Review",
     goesToPatient: true,
     teamRecipients: [
@@ -123,7 +131,7 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   {
     id: "analysis-upload-reminder",
     name: "Photo upload reminder",
-    trigger: "Patient started the process but hasn't uploaded photos yet",
+    trigger: "They started the scan but haven't uploaded photos yet",
     exampleSubject: "Upload your photos to complete your facial analysis",
     goesToPatient: true,
     teamRecipients: [],
@@ -136,7 +144,7 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   {
     id: "analysis-awaiting-review",
     name: "Report awaiting review",
-    trigger: "Patient hasn't opened their report after several days",
+    trigger: "They haven't opened their report in several days",
     exampleSubject: "Your Facial Analysis Report is Awaiting Your Review",
     goesToPatient: true,
     teamRecipients: [],
@@ -149,7 +157,8 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   {
     id: "analysis-submission-issue",
     name: "Submission issue",
-    trigger: "Problem detected with the patient's scan photos",
+    hideFromNotificationSettings: true,
+    trigger: "We couldn't use their scan photos as submitted (quality or clarity)",
     exampleSubject: "Action Needed: Issues with Your Facial Assessment Submission",
     goesToPatient: true,
     teamRecipients: [],
@@ -171,7 +180,7 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   {
     id: "patient-opened-report",
     name: "Patient opened their report",
-    trigger: "Patient opens their facial analysis report",
+    trigger: "They open their facial analysis report",
     exampleSubject: "{Patient} Has Reviewed Their Facial Analysis Report",
     goesToPatient: false,
     teamRecipients: [
@@ -295,4 +304,7 @@ export function getActiveTeamRecipients(): EmailRecipient[] {
 }
 
 export const AUTOMATED_EMAIL_COUNT = AUTOMATED_EMAILS.length;
-export const ACTIVE_EMAIL_COUNT = AUTOMATED_EMAILS.filter((e) => e.active).length;
+/** Active rows shown in Settings → Notifications (excludes hideFromNotificationSettings). */
+export const ACTIVE_EMAIL_COUNT = AUTOMATED_EMAILS.filter(
+  (e) => e.active && !e.hideFromNotificationSettings,
+).length;

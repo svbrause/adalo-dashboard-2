@@ -28,7 +28,7 @@ import {
   WELLNEST_OFFERINGS,
 } from "../../../data/wellnestOfferings";
 import { patientFacingSkincareShortName } from "../../../utils/pvbSkincareDisplay";
-import { DEFAULT_NEUROTOXIN_UNITS_FOR_QUOTE } from "../../../data/treatmentPricing2025";
+import {} from "../../../data/treatmentPricing2025";
 
 /** Strip trailing " · $123" from recommender / Airtable option values. */
 export function stripOptionalRecommenderPriceFromLabel(value: string): string {
@@ -230,8 +230,13 @@ export interface QuantityContext {
   unitLabel: string;
   options: string[];
   quantityControl: QuantityControl;
-  /** Default when opening a form or when quantity is empty (string for API/pricing). */
+  /**
+   * Default value pre-filled when opening the form.
+   * Empty string means the field opens blank (user must enter a value before pricing calculates).
+   */
   defaultQuantity: string;
+  /** Placeholder text shown in the input when empty. Separate from defaultQuantity so a blank default can still have a hint. */
+  inputPlaceholder?: string;
 }
 
 /**
@@ -296,12 +301,12 @@ export function getQuantityContext(
     t === "dysport" ||
     t === "xeomin"
   ) {
-    const defaultQuantity = String(DEFAULT_NEUROTOXIN_UNITS_FOR_QUOTE);
     return {
       unitLabel: "Units (Botox/Dysport)",
       options: [...QUANTITY_OPTIONS_TOX],
       quantityControl: "text",
-      defaultQuantity,
+      defaultQuantity: "",
+      inputPlaceholder: "e.g. 20",
     };
   }
   if (t === "biostimulants" || t.includes("biostimulant")) {

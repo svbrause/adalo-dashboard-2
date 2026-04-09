@@ -1493,6 +1493,45 @@ export function getDiscussedPlanItemPriceLabels(
 }
 
 /**
+ * Skincare vs treatments subtotals and grand total — same line math as checkout / Share treatment plan.
+ * Boutique skincare rows use `quoteLineKind === "skincare"`; all other rows are treatments.
+ */
+export function getDiscussedPlanCheckoutSubtotals(
+  items: DiscussedItem[],
+): {
+  skincareSubtotal: number;
+  treatmentsSubtotal: number;
+  total: number;
+  skincareLineCount: number;
+  treatmentLineCount: number;
+} | null {
+  if (items.length === 0) return null;
+  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items);
+  let skincareSubtotal = 0;
+  let treatmentsSubtotal = 0;
+  let skincareLineCount = 0;
+  let treatmentLineCount = 0;
+  for (let i = 0; i < items.length; i++) {
+    const line = lineItems[i];
+    const price = line?.price ?? 0;
+    if (line?.quoteLineKind === "skincare") {
+      skincareSubtotal += price;
+      skincareLineCount += 1;
+    } else {
+      treatmentsSubtotal += price;
+      treatmentLineCount += 1;
+    }
+  }
+  return {
+    skincareSubtotal,
+    treatmentsSubtotal,
+    total: skincareSubtotal + treatmentsSubtotal,
+    skincareLineCount,
+    treatmentLineCount,
+  };
+}
+
+/**
  * Quote line items for the post-visit blueprint / share flow: one row per on-blueprint plan row
  * (includes wishlist and empty timeline), in the same order as {@link getQuoteLineDiscussedItemIndexOrder}.
  * Wishlist rows use the same reference pricing as checkout so share preview and “Your plan” can show amounts.

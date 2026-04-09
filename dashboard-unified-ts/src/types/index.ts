@@ -131,7 +131,7 @@ export interface Client {
   areasOfInterestFromForm: string;
   archived: boolean;
   offerClaimed: boolean;
-  /** Whether the $50 coupon was earned (e.g. completed online treatment finder). When undefined, treated as true for Web Popup Leads. */
+  /** Whether the $50 coupon was earned (e.g. completed online Treatment Finder). When undefined, treated as true for Web Popup Leads. */
   offerEarned?: boolean;
   /** Offer/coupon expiration date (e.g. $50 off). ISO date string or null. */
   offerExpirationDate: string | null;
@@ -223,7 +223,7 @@ export interface FilterState {
   analysisStatus: string;
   /** Whether skin analysis data exists for this client. ""=all, "has", "blank". */
   skinAnalysisState: "" | "has" | "blank";
-  /** Whether treatment finder data exists for this client. ""=all, "has", "blank". */
+  /** Whether Treatment Finder data exists for this client. ""=all, "has", "blank". */
   treatmentFinderState: "" | "has" | "blank";
   /** Whether a treatment plan exists (discussed items). ""=all, "has", "blank". */
   treatmentPlanState: "" | "has" | "blank";

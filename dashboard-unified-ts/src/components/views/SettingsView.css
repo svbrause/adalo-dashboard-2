@@ -387,14 +387,16 @@
   letter-spacing: 0.04em;
 }
 
-/* Client notifications: 3 columns (notification / when / actions) */
+/* Client notifications: event / when / sent to / preview */
 .settings-notifications-table--compact .settings-notif-notification-cell {
-  width: 26%;
-  min-width: 10rem;
+  width: 18%;
+  max-width: 220px;
+  min-width: 7rem;
 }
 
 .settings-notifications-table--compact .settings-notif-when-cell {
-  min-width: 0;
+  min-width: 12rem;
+  width: 38%;
 }
 
 .settings-notif-event-name {
@@ -410,6 +412,111 @@
   font-size: 0.86rem;
   line-height: 1.5;
   color: #334155;
+}
+
+/* Grouped notification: first sub-row (SMS); rowspan covers Event + When */
+.settings-notif-row--grouped td {
+  vertical-align: middle;
+}
+
+/* Divider between SMS and email sub-rows — only under Sent to + Preview (rowspan keeps Event/When clean) */
+.settings-notif-row--split-continue .settings-td-sent-to,
+.settings-notif-row--split-continue .settings-td-actions {
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Avoid double rule: first sub-row has no bottom border when another channel row follows */
+.settings-notif-row--grouped-head .settings-td-sent-to,
+.settings-notif-row--grouped-head .settings-td-actions {
+  border-bottom: none;
+}
+
+.settings-notif-event-name--alt {
+  font-weight: 500;
+  color: #64748b;
+  font-size: 0.84rem;
+  margin-top: 4px;
+}
+
+.settings-notif-trigger--no-gap {
+  margin-bottom: 0;
+}
+
+.settings-td-sent-to {
+  min-width: 0;
+}
+
+/* Beat `.settings-notifications-table td { vertical-align: top }` for these columns */
+.settings-notifications-table--compact td.settings-td-sent-to,
+.settings-notifications-table--compact td.settings-td-actions {
+  vertical-align: middle;
+}
+
+.settings-notif-sent-to-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-notif-channel-indicator {
+  flex-shrink: 0;
+  width: 2.6rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.settings-notif-channel-indicator--sms {
+  color: #1d4ed8;
+}
+
+.settings-notif-channel-indicator--email {
+  color: #6d28d9;
+}
+
+.settings-notif-recipient-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-notif-sent-to-row .settings-notif-meta-pills {
+  flex: 1;
+  min-width: 0;
+}
+
+/* View buttons — fixed width so they always align on the right edge */
+.settings-notif-view-btn--sms,
+.settings-notif-view-btn--email {
+  flex-shrink: 0;
+  min-width: 84px;
+  text-align: center;
+}
+
+.settings-notif-view-btn--sms {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.settings-notif-view-btn--sms:hover {
+  background: #eff6ff;
+  border-color: #60a5fa;
+}
+
+.settings-notif-view-btn--email {
+  border-color: #c4b5fd;
+  color: #6d28d9;
+}
+
+.settings-notif-view-btn--email:hover {
+  background: #f5f3ff;
+  border-color: #a78bfa;
 }
 
 .settings-notif-meta-pills {
@@ -484,8 +591,25 @@
   cursor: default;
 }
 
+.settings-col-event {
+  width: 18%;
+  max-width: 220px;
+}
+
+.settings-col-when {
+  width: 38%;
+  min-width: 12rem;
+}
+
+.settings-col-sent-to {
+  width: 22%;
+  min-width: 140px;
+  max-width: 200px;
+}
+
 .settings-col-actions {
   width: 1%;
+  min-width: 5.5rem;
   white-space: nowrap;
 }
 

@@ -346,20 +346,29 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     [provider],
   );
 
+  // Always holds the latest refreshClients so the provider-ID effect below never has a stale closure
+  const refreshClientsRef = useRef(refreshClients);
+  useEffect(() => {
+    refreshClientsRef.current = refreshClients;
+  }, [refreshClients]);
+
   // Clear merged-ID cache when provider changes so a different login gets a fresh merge
   useEffect(() => {
     merged250447IdsRef.current = null;
   }, [provider?.id]);
 
-  // Load clients when provider changes
+  // Load clients only when the provider identity (ID) changes — not on every field update such
+  // as Treatment Pricing. Triggering a full reload on any field update sets loading=true, which
+  // unmounts ClientDetailPanel and loses local state like recommenderMode.
   useEffect(() => {
-    if (provider) {
-      refreshClients();
+    if (provider?.id) {
+      refreshClientsRef.current();
     } else {
       setClients([]);
       setEffectiveProviderIds([]);
     }
-  }, [provider, refreshClients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider?.id]);
 
   return (
     <DashboardContext.Provider

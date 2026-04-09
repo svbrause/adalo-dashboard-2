@@ -175,17 +175,22 @@
 /* Preview (collapsed) layout — label inline to the left of the value */
 .creq-field--preview {
   display: flex;
-  align-items: baseline;
+  align-items: stretch;
 }
 
 .creq-field--preview .creq-field-header {
   border-bottom: none;
   border-right: 1px solid #e2e8f0;
-  width: 96px;
-  flex-shrink: 0;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  align-self: flex-start;
+  /* Slightly narrower than 132px; still fits common labels with tight padding */
+  flex: 0 0 118px;
+  width: 118px;
+  box-sizing: border-box;
+  padding: 10px 8px 10px 10px;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-start;
+  line-height: 1.25;
+  hyphens: none;
 }
 
 .creq-field--preview .creq-field-preview {
@@ -193,9 +198,29 @@
   overflow: hidden;
 }
 
-/* Body field — allow preview to wrap but still show label inline */
+/* Multiline value: label column still stretches full row height (meets next row’s top border) */
 .creq-field--multiline-preview {
-  align-items: flex-start;
+  align-items: stretch;
+}
+
+.creq-field-price-note-stack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+.creq-field-hint {
+  margin: 8px 10px 4px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.creq-field-hint-example {
+  font-weight: 600;
+  color: #475569;
 }
 
 /* "Change" button inside the field header — matches .btn-primary style */
@@ -271,6 +296,50 @@
 }
 .creq-field-preview--multiline {
   white-space: pre-wrap;
+}
+
+/* Highlight when the user has typed a new value differing from the original */
+.creq-field-preview--changed {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+/* Inline input — for single-line editable fields (price, URL) */
+.creq-inline-input {
+  flex: 1;
+  min-width: 0;
+  margin: 5px 10px;
+  padding: 6px 10px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-family: inherit;
+  font-size: 12.5px;
+  color: #1e293b;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.creq-inline-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* Muted placeholder text when no value is on file */
+.creq-field-preview-empty {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Clickable link in context or preview cells */
+.creq-context-link {
+  color: #3b82f6;
+  font-size: 12.5px;
+  text-decoration: none;
+}
+.creq-context-link:hover {
+  text-decoration: underline;
 }
 
 /* Side-by-side: current on left, proposed on right */
