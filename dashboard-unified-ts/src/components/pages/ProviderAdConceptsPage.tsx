@@ -10,11 +10,32 @@ import {
   WebinarCarouselPreview,
 } from "./metaAdGraphics/WebinarPromoFrames";
 import {
+  WebinarAdPhotoPortrait,
+  WebinarAdPhotoSquare,
+  WebinarAdPhotoStory,
+  type SpeakerKey,
+} from "./metaAdGraphics/WebinarAdPhotoFrames";
+import {
   FacebookAdMock,
   InstagramAdMock,
   InstagramStoryMock,
 } from "./metaAdGraphics/SocialPostMock";
 import "./ProviderAdConceptsPage.css";
+
+const SPEAKER_COPY: Record<SpeakerKey, { caption: string; ctaText: string }> = {
+  erin: {
+    caption: `Erin Jensen, PA-C runs The Treatment Skin Boutique in LA — she's going live to share how she used AI to 2× patient revenue. Free. Tuesday 7PM ET. Spots are limited. #medspa #aestheticbusiness`,
+    ctaText: "Save My Seat",
+  },
+  reddy: {
+    caption: `Dr. Reddy, founder of Wellnest MD in Atlanta, is sharing the exact AI system he used to grow patient spend. Free live webinar. Tuesday 7PM ET. #medspagrowth #wellnessmd`,
+    ctaText: "Register Free",
+  },
+  tanya: {
+    caption: `Dr. Tanya Judge, plastic surgeon and founder of JudgeMD in SF, is going live to share how AI changed her patient communication and revenue. Free. Tuesday 7PM ET. #judgemd #plasticsurgery`,
+    ctaText: "Save My Seat",
+  },
+};
 
 type FeedImageAd = {
   id: string;
@@ -267,6 +288,70 @@ export default function ProviderAdConceptsPage() {
             Three-panel preview for a carousel ad; swap headlines for your exact teaching beats.
           </p>
           <WebinarCarouselPreview />
+        </section>
+
+        <section className="provider-ad-concepts__section" aria-labelledby="sec-photo">
+          <h2 id="sec-photo" className="provider-ad-concepts__section-title">
+            Photo variants — speaker cutouts (A/B vs. no-photo above)
+          </h2>
+          <p className="provider-ad-concepts__section-lede">
+            Same layouts, real speaker photos with transparent backgrounds. Run these head-to-head
+            against the text-only versions to see which cost-per-registration wins. Each speaker
+            gets their own accent palette so you can geo-target with a matching visual feel.
+          </p>
+
+          {/* ── Square 1:1 — all 3 speakers ── */}
+          <h3 className="provider-ad-concepts__subsection-title">Feed 1:1 — three speakers</h3>
+          <div className="provider-ad-concepts__webinar-grid">
+            {(["erin", "reddy", "tanya"] as SpeakerKey[]).map((sp) => (
+              <div key={sp} className="provider-ad-concepts__webinar-item">
+                <h3 className="provider-ad-concepts__webinar-label" style={{ textTransform: "capitalize" }}>
+                  {sp} — Instagram feed
+                </h3>
+                <InstagramAdMock
+                  format="square"
+                  caption={SPEAKER_COPY[sp].caption}
+                  ctaText={SPEAKER_COPY[sp].ctaText}
+                >
+                  <WebinarAdPhotoSquare speaker={sp} />
+                </InstagramAdMock>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Portrait 4:5 — all 3 speakers ── */}
+          <h3 className="provider-ad-concepts__subsection-title" style={{ marginTop: "var(--space-2xl)" }}>Feed 4:5 — three speakers</h3>
+          <div className="provider-ad-concepts__webinar-grid">
+            {(["erin", "reddy", "tanya"] as SpeakerKey[]).map((sp) => (
+              <div key={sp} className="provider-ad-concepts__webinar-item">
+                <h3 className="provider-ad-concepts__webinar-label" style={{ textTransform: "capitalize" }}>
+                  {sp} — Instagram portrait
+                </h3>
+                <InstagramAdMock
+                  format="portrait"
+                  caption={SPEAKER_COPY[sp].caption}
+                  ctaText={SPEAKER_COPY[sp].ctaText}
+                >
+                  <WebinarAdPhotoPortrait speaker={sp} />
+                </InstagramAdMock>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Stories 9:16 — all 3 speakers ── */}
+          <h3 className="provider-ad-concepts__subsection-title" style={{ marginTop: "var(--space-2xl)" }}>Stories / Reels 9:16 — three speakers</h3>
+          <div className="provider-ad-concepts__webinar-grid">
+            {(["erin", "reddy", "tanya"] as SpeakerKey[]).map((sp) => (
+              <div key={sp} className="provider-ad-concepts__webinar-item">
+                <h3 className="provider-ad-concepts__webinar-label" style={{ textTransform: "capitalize" }}>
+                  {sp} — Instagram story
+                </h3>
+                <InstagramStoryMock progress={sp === "erin" ? 55 : sp === "reddy" ? 40 : 70}>
+                  <WebinarAdPhotoStory speaker={sp} />
+                </InstagramStoryMock>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="provider-ad-concepts__section" aria-labelledby="sec-feed">
