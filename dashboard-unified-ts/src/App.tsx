@@ -12,6 +12,7 @@ import DebugIndexPage from "./debug/DebugIndexPage";
 import DebugClientDetailPage from "./components/debug/DebugClientDetailPage";
 import SkinQuizStandalonePage from "./components/pages/SkinQuizStandalonePage";
 import PostVisitBlueprintPage from "./components/pages/PostVisitBlueprintPage";
+import ProviderAdConceptsPage from "./components/pages/ProviderAdConceptsPage";
 import { isSkinQuizStandalonePath } from "./utils/skinQuizLink";
 import { isPostVisitBlueprintPath } from "./utils/postVisitBlueprint";
 import "./styles/index.css";
@@ -36,6 +37,12 @@ function getDebugRoute():
     return "patient-issues";
   if (path === "/debug/client-detail" || q === "client-detail") return "client-detail";
   return null;
+}
+
+/** Internal marketing brainstorm — not linked from nav. */
+function isProviderAdConceptsPath(): boolean {
+  const path = window.location.pathname.replace(/\/$/, "") || "/";
+  return path === "/internal/provider-ad-concepts";
 }
 
 function AppContent() {
@@ -84,6 +91,10 @@ function AppContent() {
   // Public shared treatment plan (`/tp`, `/treatment-plan`, legacy `/post-visit-blueprint`) – no login
   if (isPostVisitBlueprintPath()) {
     return <PostVisitBlueprintPage />;
+  }
+
+  if (isProviderAdConceptsPath()) {
+    return <ProviderAdConceptsPage />;
   }
 
   // Debug pages: same components as dashboard, dummy data, no login

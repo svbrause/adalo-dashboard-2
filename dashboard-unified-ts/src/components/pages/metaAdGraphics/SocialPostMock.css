@@ -1,0 +1,562 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Shared avatar
+────────────────────────────────────────────────────────────────────────── */
+.sm-avatar {
+  border-radius: 50%;
+  background: #0d9488;
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  user-select: none;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Facebook mock
+────────────────────────────────────────────────────────────────────────── */
+.fb-mock {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 4px 20px rgba(0, 0, 0, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.fb-mock__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 8px;
+}
+
+.fb-mock__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.fb-mock__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #050505;
+  line-height: 1.2;
+}
+
+.fb-mock__sponsored {
+  font-size: 12px;
+  color: #65676b;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.4;
+}
+
+.fb-mock__globe {
+  font-size: 10px;
+}
+
+.fb-mock__more {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #65676b;
+  font-size: 20px;
+  padding: 4px 6px;
+  letter-spacing: 1px;
+  line-height: 1;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+.fb-mock__more:hover {
+  background: #f0f2f5;
+}
+
+.fb-mock__primary-text {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #050505;
+  padding: 0 16px 10px;
+  margin: 0;
+}
+
+.fb-mock__media {
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.fb-mock__media > * {
+  width: 100%;
+  display: block;
+  height: auto;
+}
+
+.fb-mock__link-row {
+  display: flex;
+  align-items: center;
+  background: #f0f2f5;
+  padding: 10px 16px;
+  gap: 12px;
+  border-bottom: 1px solid #dadde1;
+}
+
+.fb-mock__link-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fb-mock__link-domain {
+  display: block;
+  font-size: 11px;
+  color: #65676b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.fb-mock__link-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #050505;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.fb-mock__cta {
+  background: #e4e6eb;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #050505;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.fb-mock__cta:hover {
+  background: #d8dadf;
+}
+
+.fb-mock__engage {
+  padding: 6px 16px 4px;
+}
+
+.fb-mock__react-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.fb-mock__react-icons {
+  font-size: 15px;
+}
+
+.fb-mock__react-count {
+  font-size: 13px;
+  color: #65676b;
+}
+
+.fb-mock__divider {
+  height: 1px;
+  background: #dadde1;
+  margin: 0;
+}
+
+.fb-mock__action-row {
+  display: flex;
+  padding: 2px 0 6px;
+}
+
+.fb-mock__action {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #65676b;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.fb-mock__action:hover {
+  background: #f0f2f5;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Instagram mock
+────────────────────────────────────────────────────────────────────────── */
+.ig-mock {
+  background: #fff;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 4px 20px rgba(0, 0, 0, 0.06);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  max-width: 470px;
+  margin: 0 auto;
+}
+
+.ig-mock__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.ig-mock__avatar-ring {
+  padding: 2px;
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ig-mock__meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ig-mock__username {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+  line-height: 1.2;
+}
+
+.ig-mock__sponsored {
+  font-size: 12px;
+  color: #8e8e8e;
+  line-height: 1.2;
+}
+
+.ig-mock__more {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #262626;
+  font-size: 20px;
+  padding: 4px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.ig-mock__media {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.ig-mock__media--portrait {
+  aspect-ratio: 4 / 5;
+}
+
+.ig-mock__media > * {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ig-mock__cta-strip {
+  display: flex;
+  align-items: center;
+  background: #fafafa;
+  padding: 8px 12px;
+  gap: 12px;
+  border-top: 1px solid #efefef;
+  border-bottom: 1px solid #efefef;
+}
+
+.ig-mock__cta-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ig-mock__cta-domain {
+  display: block;
+  font-size: 11px;
+  color: #8e8e8e;
+  margin-bottom: 1px;
+}
+
+.ig-mock__cta-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ig-mock__cta-btn {
+  background: #0095f6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.ig-mock__cta-btn:hover {
+  background: #1877f2;
+}
+
+.ig-mock__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px 4px;
+}
+
+.ig-mock__left-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.ig-mock__icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: #262626;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+.ig-mock__icon-btn:hover {
+  opacity: 0.6;
+}
+
+.ig-mock__icon-btn svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.ig-mock__below {
+  padding: 0 12px 12px;
+}
+
+.ig-mock__likes {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 4px;
+}
+
+.ig-mock__caption {
+  font-size: 13px;
+  color: #262626;
+  line-height: 1.4;
+  margin: 0 0 4px;
+}
+
+.ig-mock__caption strong {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.ig-mock__view-comments {
+  font-size: 13px;
+  color: #8e8e8e;
+  margin: 0 0 4px;
+  cursor: pointer;
+}
+
+.ig-mock__timestamp {
+  font-size: 10px;
+  color: #c7c7c7;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Instagram Story mock
+────────────────────────────────────────────────────────────────────────── */
+.ig-story-mock {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  max-width: 300px;
+  margin: 0 auto;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+  aspect-ratio: 9 / 16;
+}
+
+/* Story SVG fills the container entirely */
+.ig-story-mock .webinar-ad-svg--story {
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+}
+
+.ig-story-mock__content {
+  position: absolute;
+  inset: 0;
+  line-height: 0;
+}
+
+.ig-story-mock__content > * {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ig-story-mock__top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 10px 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
+  z-index: 10;
+}
+
+.ig-story-mock__progress-row {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.ig-story-mock__seg {
+  flex: 1;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ig-story-mock__seg--done {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.ig-story-mock__seg-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 2px;
+}
+
+.ig-story-mock__user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.ig-story-mock__user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ig-story-mock__username {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ig-story-mock__dot {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}
+
+.ig-story-mock__sponsored {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ig-story-mock__right-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ig-story-mock__ctrl {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+.ig-story-mock__ctrl:hover {
+  opacity: 0.7;
+}
+
+.ig-story-mock__bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
+  padding: 0 10px 14px;
+  z-index: 10;
+}
+
+.ig-story-mock__swipe-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ig-story-mock__swipe-cta span {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ig-story-mock__reply-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ig-story-mock__reply-input {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 20px;
+  padding: 7px 13px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: transparent;
+}
+
+.ig-story-mock__send-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}

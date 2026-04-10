@@ -1,0 +1,27 @@
+/* SVG webinar promos — scales to card width; native resolution matches Meta export sizes */
+
+.webinar-ad-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius-md, 12px);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+.webinar-ad-svg--story {
+  max-height: min(520px, 70vh);
+  margin: 0 auto;
+}
+
+.webinar-carousel-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-md, 12px);
+  align-items: start;
+}
+
+.webinar-ad-svg--carousel {
+  border-radius: var(--radius-sm, 8px);
+}
