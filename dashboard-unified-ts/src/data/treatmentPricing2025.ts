@@ -52,7 +52,7 @@ export const TREATMENT_PRICE_LIST_2025: {
       { name: "Botox – Henderson (1–50u vial)", price: 650 },
       { name: "Dysport – Henderson (1–300u vial)", price: 995 },
       { name: "Fillers (except Voluma & Volux)", price: 750 },
-      { name: "Voluma", price: 850 },
+      { name: "Voluma", price: 850, note: "per syringe" },
       { name: "Volux", price: 950 },
       { name: "Radiesse", price: 900 },
       { name: "Radiesse – 2 Syringes", price: 1530 },
@@ -184,6 +184,7 @@ export const TREATMENT_PRICE_LIST_2025: {
     category: "Medical Spa",
     items: [
       { name: "Microneedling", price: 500, note: "CA locations only" },
+      { name: "PDGF", price: 495, note: "CA locations only" },
       { name: "Microneedling & PRFM Add-On Neck or Chest", price: 250 },
       { name: "PRFM Microneedling", price: 775, note: "CA locations only" },
       { name: "PRFM Hair Restoration", price: 750, note: "CA locations only" },
@@ -721,7 +722,12 @@ function getSkusForDashboardCategory(dashboardCategory: string): SkuWithCategory
         .forEach((i) => out.push({ ...i, category: section.category }));
     } else if (dash === "Microneedling") {
       items
-        .filter((i) => i.name.includes("Microneedling") || i.name.includes("PRFM"))
+        .filter(
+          (i) =>
+            i.name.includes("Microneedling") ||
+            i.name.includes("PRFM") ||
+            i.name.trim() === "PDGF",
+        )
         .forEach((i) => out.push({ ...i, category: section.category }));
     } else {
       items.forEach((i) => out.push({ ...i, category: section.category }));
@@ -835,6 +841,48 @@ export function matchPlanItemToSku(
     const addOnSku = skus.find((s) => s.name === "PRFM Additional Tube");
     if (prfmSku && addOnSku) {
       return { sku: prfmSku, totalPrice: prfmSku.price + addOnSku.price };
+    }
+  }
+
+  // Microneedling: PDGF with microneedling = Microneedling ($500) + PDGF ($495) = $995. Standalone PDGF type = $495.
+  if (treatment === "Microneedling" && product) {
+    const pLower = product.toLowerCase();
+    const mentionsPdgf = /\bpdgf\b/i.test(product);
+    const mentionsMn = /microneedl/i.test(pLower);
+    if (mentionsPdgf && mentionsMn) {
+      const baseSku = skus.find(
+        (s) => s.name === "Microneedling" && !s.name.includes("Henderson"),
+      );
+      const pdgfSku = skus.find((s) => s.name.trim() === "PDGF");
+      if (baseSku && pdgfSku) {
+        return {
+          sku: baseSku,
+          totalPrice: baseSku.price + pdgfSku.price,
+        };
+      }
+    }
+    if (mentionsPdgf && !mentionsMn) {
+      const pdgfSku = skus.find((s) => s.name.trim() === "PDGF");
+      if (pdgfSku) {
+        return { sku: pdgfSku, totalPrice: pdgfSku.price };
+      }
+    }
+  }
+
+  // Filler: exact type label → exact SKU so "Voluma" / "Volux" are not absorbed by
+  // "Fillers (except Voluma & Volux)" via substring matching.
+  if (treatment === "Filler" && product) {
+    const pt = product.trim();
+    const exactSku = skus.find((s) => s.name.toLowerCase() === pt.toLowerCase());
+    if (exactSku) {
+      const fillerQty = !Number.isNaN(qty) && qty > 0 ? qty : 1;
+      return {
+        sku: exactSku,
+        totalPrice: exactSku.price * fillerQty,
+        isPerUnit: true,
+        unitPrice: exactSku.price,
+        quantity: fillerQty,
+      };
     }
   }
 

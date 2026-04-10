@@ -88,6 +88,7 @@ import {
   SKINCARE_CATEGORY_OPTIONS,
   SKINCARE_USE_CASE_LABELS,
   getTreatmentOptionsForProvider,
+  getCheckoutTreatmentTypeOptionsForProvider,
   ENERGY_TREATMENT_CATEGORY,
   LEGACY_ENERGY_DEVICE_CATEGORY,
   isEnergyTreatmentCategory,
@@ -318,6 +319,17 @@ function parseWhereFromDiscussedRegion(
     if (found && !out.includes(found)) out.push(found);
   }
   return out;
+}
+
+/** Include microneedling type labels (PRP, PDGF, PRFM, etc.) so search e.g. "pdgf" finds Microneedling. */
+function extraTextForTreatmentSearch(
+  treatment: string,
+  providerCode: string | undefined,
+): string {
+  if (treatment !== "Microneedling") return "";
+  const map = getCheckoutTreatmentTypeOptionsForProvider(providerCode);
+  const opts = map.Microneedling ?? [...MICRONEEDLING_TYPE_OPTIONS];
+  return opts.join(" ");
 }
 
 function matchProductTokensToOptionList(
@@ -2455,6 +2467,7 @@ export default function TreatmentRecommenderByTreatment({
         : "";
       const haystack = [
         treatment,
+        extraTextForTreatmentSearch(treatment, provider?.code),
         wellnestOffering?.category ?? "",
         groupLabel,
         wellnestOffering?.browseGroup ?? "",
@@ -2465,7 +2478,7 @@ export default function TreatmentRecommenderByTreatment({
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [visibleTreatmentsToShow, treatmentSearchQuery]);
+  }, [visibleTreatmentsToShow, treatmentSearchQuery, provider?.code]);
 
   useEffect(() => {
     setWellnestBrowseFilter("all");

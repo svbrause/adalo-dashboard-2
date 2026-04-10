@@ -7,12 +7,13 @@ function normCode(code: string | null | undefined): string {
 /** Provider codes that may open Settings and the global Messages view. */
 const SMS_SETTINGS_PROVIDER_CODES = new Set([
   "thetreatment250",
+  "thetreatment447",
   "password", // Admin dashboard login
 ]);
 
 /**
  * Settings + global Messages in the sidebar are only for:
- * - The Treatment staff (`TheTreatment250`)
+ * - The Treatment staff (`TheTreatment250`, `TheTreatment447`)
  * - Admin (`password`)
  *
  * Wellnest and other provider codes do not get these entries.

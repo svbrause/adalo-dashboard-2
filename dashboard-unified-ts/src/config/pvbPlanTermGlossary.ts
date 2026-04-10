@@ -14,6 +14,10 @@ export type PlanGlossaryContext = {
   hasBiostimulants: boolean;
   hasSkincare: boolean;
   hasPrpFamily: boolean;
+  /** Plan explicitly includes PRFM microneedling (product/SKU), not injections-only. */
+  hasPrfmMicroneedling: boolean;
+  /** Plan explicitly includes PRFM injections (product/SKU), distinct from PRFM microneedling. */
+  hasPrfmInjections: boolean;
 };
 
 export function buildPlanGlossaryContext(items: DiscussedItem[]): PlanGlossaryContext {
@@ -35,6 +39,18 @@ export function buildPlanGlossaryContext(items: DiscussedItem[]): PlanGlossaryCo
   const prpFamily =
     /\bprp\b|\bprfm\b|\bpdgf\b|platelet|fibrin matrix/i.test(blob);
 
+  const hasPrfmMicroneedling = items.some((i) => {
+    const p = `${i.product ?? ""} ${i.notes ?? ""}`.toLowerCase();
+    return (
+      p.includes("prfm microneedling") ||
+      (/\bprfm\b/.test(p) && /microneedl/.test(p))
+    );
+  });
+  const hasPrfmInjections = items.some((i) => {
+    const p = `${i.product ?? ""} ${i.notes ?? ""}`.toLowerCase();
+    return p.includes("prfm injection") || /\bprfm\b/.test(p) && /\binjection/.test(p);
+  });
+
   return {
     hasMicroneedling: t.has("Microneedling"),
     hasChemicalPeel: t.has("Chemical Peel"),
@@ -45,6 +61,8 @@ export function buildPlanGlossaryContext(items: DiscussedItem[]): PlanGlossaryCo
     hasBiostimulants: t.has("Biostimulants"),
     hasSkincare: t.has("Skincare"),
     hasPrpFamily: prpFamily || t.has("PRP") || t.has("PDGF"),
+    hasPrfmMicroneedling,
+    hasPrfmInjections,
   };
 }
 
@@ -102,12 +120,18 @@ export const PVB_PLAN_TERM_GLOSSARY: PvbGlossaryTermDef[] = [
     chapterKeys: ["microneedling", "prp"],
     title: "PRFM (platelet-rich fibrin matrix)",
     body: "Similar family to PRP but prepared as a fibrin gel—often used to hold growth factors in place a bit longer for targeted application.",
-    relationToYou: (ctx) =>
-      ctx.hasMicroneedling
-        ? "On your plan, PRFM is a microneedling-related add-on your clinic offers when they want that fibrin matrix benefit alongside needling."
-        : ctx.hasPrpFamily
-          ? "Your plan lists PRFM where your team chose this fibrin-based platelet option for your goals."
-          : null,
+    relationToYou: (ctx) => {
+      if (ctx.hasPrfmInjections && !ctx.hasPrfmMicroneedling) {
+        return "On your plan, PRFM injections refer to platelet-rich fibrin delivered by injection for targeted support—this is separate from a PRFM microneedling session.";
+      }
+      if (ctx.hasPrfmMicroneedling) {
+        return "On your plan, PRFM is used as part of a microneedling-related protocol when your clinic wants that fibrin matrix benefit alongside needling.";
+      }
+      if (ctx.hasPrpFamily) {
+        return "Your plan lists PRFM where your team chose this fibrin-based platelet option for your goals.";
+      }
+      return null;
+    },
   },
   {
     id: "ha",

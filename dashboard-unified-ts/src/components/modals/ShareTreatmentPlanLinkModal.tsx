@@ -14,6 +14,7 @@ import type { Client, DiscussedItem } from "../../types";
 import { useDashboard } from "../../context/DashboardContext";
 import { sendSMSNotification } from "../../services/api";
 import {
+  formatProviderDisplayName,
   getPostVisitBlueprintBookingUrl,
   isPostVisitBlueprintSender,
 } from "../../utils/providerHelpers";
@@ -107,9 +108,8 @@ export default function ShareTreatmentPlanLinkModal({
   const { provider } = useDashboard();
   const firstName = client.name?.trim().split(/\s+/)[0] || "Patient";
   const clinicName = useMemo(() => {
-    const raw = (provider?.name ?? "").trim();
-    if (!raw) return "your clinic";
-    return raw.split(",")[0]?.trim() || raw;
+    const branded = formatProviderDisplayName(provider?.name);
+    return branded || "your clinic";
   }, [provider?.name]);
 
   const providerPhone = useMemo(() => {

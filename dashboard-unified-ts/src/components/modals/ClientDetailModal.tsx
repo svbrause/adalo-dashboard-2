@@ -1190,22 +1190,6 @@ export default function ClientDetailModal({
                     </span>
                   </div>
                   <div className="detail-actions-inline">
-                    {client.discussedItems &&
-                      client.discussedItems.length > 0 &&
-                      (isPostVisitBlueprintSender(provider) ||
-                        facialAnalysisFormHasData) && (
-                        <button
-                          type="button"
-                          className="btn-secondary btn-sm"
-                          onClick={() =>
-                            isPostVisitBlueprintSender(provider)
-                              ? setShowShareTreatmentPlanLink(true)
-                              : setShowShareTreatmentPlan(true)
-                          }
-                        >
-                          Share
-                        </button>
-                      )}
                     <button
                       type="button"
                       className="btn-secondary btn-sm"
@@ -1227,6 +1211,22 @@ export default function ClientDetailModal({
                     >
                       Build Plan
                     </button>
+                    {client.discussedItems &&
+                      client.discussedItems.length > 0 &&
+                      (isPostVisitBlueprintSender(provider) ||
+                        facialAnalysisFormHasData) && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={() =>
+                            isPostVisitBlueprintSender(provider)
+                              ? setShowShareTreatmentPlanLink(true)
+                              : setShowShareTreatmentPlan(true)
+                          }
+                        >
+                          Share
+                        </button>
+                      )}
                     {/* Plan Manage/Add — hidden for now (re-enable when Discussed Treatments modal flow is ready). */}
                     {false && (
                       <button

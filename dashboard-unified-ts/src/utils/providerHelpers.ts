@@ -17,6 +17,22 @@ const THE_TREATMENT_DISPLAY_NAMES = [
   "San Clemente, Henderson, and Newport Beach",
 ] as const;
 
+/** Patient- and dashboard-facing label for any multi-location Treatment org name. */
+const THE_TREATMENT_BRAND_LABEL = "The Treatment";
+
+/**
+ * True when the raw or comma-formatted provider name should show as {@link THE_TREATMENT_BRAND_LABEL}
+ * (avoids "San Clemente and Newport Beach" in SMS, headers, etc.).
+ */
+function isTheTreatmentBrandedDisplayName(name: string): boolean {
+  const t = name.trim();
+  if (!t) return false;
+  if (THE_TREATMENT_DISPLAY_NAMES.some((n) => n === t)) return true;
+  // Same source string after formatProviderDisplayName's first+last comma join
+  if (t === "San Clemente and Newport Beach") return true;
+  return false;
+}
+
 const WELLNEST_DISPLAY_NAMES = ["Wellnest MD", "Wellnest"] as const;
 
 /** Admin login codes allowed to send/view Post-Visit Blueprint links. */
@@ -185,6 +201,7 @@ export function formatProviderDisplayName(
 ): string {
   const raw = (name || "").trim();
   if (!raw) return "";
+  if (isTheTreatmentBrandedDisplayName(raw)) return THE_TREATMENT_BRAND_LABEL;
   const commaIndex = raw.indexOf(",");
   if (commaIndex === -1) return raw;
   const firstPart = raw.slice(0, commaIndex).trim();
@@ -193,7 +210,9 @@ export function formatProviderDisplayName(
   if (!firstPart && !lastPart) return raw;
   if (!firstPart) return lastPart;
   if (!lastPart) return firstPart;
-  return `${firstPart} ${lastPart}`;
+  const joined = `${firstPart} ${lastPart}`;
+  if (isTheTreatmentBrandedDisplayName(joined)) return THE_TREATMENT_BRAND_LABEL;
+  return joined;
 }
 
 export function getJotformUrl(provider: Provider | null): string {
