@@ -1287,6 +1287,12 @@ body.theme-warm .kanban-cards.drag-over {
   color: var(--theme-text-muted);
 }
 
+.discussed-treatments-plan-empty {
+  margin: 0;
+  line-height: 1.45;
+  max-width: 40rem;
+}
+
 /* Treatment plan on client detail — same shell as Facial Analysis / bordered sections */
 .detail-section-treatment-plan {
   border-top: 2px solid var(--theme-border);

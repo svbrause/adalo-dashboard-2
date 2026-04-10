@@ -237,7 +237,8 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   {
     id: "consult-request-team",
     name: "Consultation request alert",
-    trigger: "Patient submits a consultation request",
+    trigger:
+      "Team is notified with patient contact details after a consultation request is submitted",
     exampleSubject: "New Consultation Request from {Patient}",
     goesToPatient: false,
     teamRecipients: [

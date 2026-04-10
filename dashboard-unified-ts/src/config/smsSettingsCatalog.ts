@@ -59,52 +59,12 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
     ],
   },
   {
-    id: "skincare-quiz",
-    productName: "Skincare Quiz",
-    description:
-      "Skincare product recommendation flow and quiz follow-through messaging.",
-    owner: "Growth / Leads",
-    events: [
-      {
-        id: "skincare-quiz-invite",
-        eventName: "Quiz invite",
-        trigger: "Staff sends skincare quiz link to a lead or patient",
-        enabled: false,
-        channel: "sms",
-        template:
-          "Let's find the perfect products for your skin! \nTake our quiz and get expert recommendations tailored just for you:\n{{link}}",
-        recentVolume: { d7: 0, d14: 0, d30: 115 },
-      },
-      {
-        id: "skincare-quiz-results",
-        eventName: "Quiz results link",
-        trigger:
-          "Staff sends skincare quiz message for a record that already has saved quiz results",
-        enabled: false,
-        channel: "sms",
-        template:
-          "View your Skin Type Quiz results and personalized product recommendations: {{skin_quiz_link}}",
-        recentVolume: { d7: 0, d14: 1, d30: 17 },
-      },
-    ],
-  },
-  {
     id: "skin-analysis",
     productName: "AI Facial Analysis",
     description:
-      "AI facial scan and analysis lifecycle messaging (invite, processing, ready, and reminders).",
+      "Automated AI facial scan and analysis lifecycle messaging (processing, ready, reminders) and team alerts. Scan-link texts sent by staff live under Staff-Sent Messages.",
     owner: "Clinical Ops",
     events: [
-      {
-        id: "analysis-scan-invite",
-        eventName: "Scan invite",
-        trigger: "They're sent a link to take their AI facial scan",
-        enabled: false,
-        channel: "sms",
-        template:
-          "The Treatment Skin Boutique: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the quick AI facial scan prior to your next appointment: {{scan_link}}",
-        recentVolume: { d7: 0, d14: 0, d30: 506 },
-      },
       {
         id: "analysis-processing",
         eventName: "Analysis in progress",
@@ -138,7 +98,8 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
       {
         id: "analysis-final-reminder",
         eventName: "Final reminder",
-        trigger: "They still haven't opened their report after the last reminder",
+        trigger:
+          "They still haven't opened their report after the last reminder",
         enabled: false,
         channel: "sms",
         template:
@@ -149,7 +110,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
   },
   {
     id: "treatment-plan",
-    productName: "Treatment Plan / Post-Visit Blueprint",
+    productName: "Treatment Plan",
     description:
       "Personalized plan sharing after provider consultation and checkout.",
     owner: "Clinical Ops",
@@ -170,14 +131,44 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
     id: "manual-messaging",
     productName: "Staff-Sent Messages",
     description:
-      "Text messages sent manually by staff — sharing treatment plans, post-visit blueprints, and analysis results with patients.",
+      "Transactional texts: sent only when a staff member sends from the dashboard (scan link, skincare quiz, treatment plan link, analysis share). These are not toggled on or off — they fire when someone uses Share or Send.",
     owner: "Front Desk / Clinical Ops",
     events: [
       {
-        id: "plan-share-manual",
-        eventName: "Share treatment plan",
+        id: "analysis-scan-invite",
+        eventName: "Scan invite",
+        trigger: "Staff sends a link to take their AI facial scan",
+        enabled: true,
+        channel: "sms",
+        template:
+          "The Treatment Skin Boutique: We are now utilizing a new patient tool to help track treatment progress and develop customized plans. Please complete the quick AI facial scan prior to your next appointment: {{scan_link}}",
+        recentVolume: { d7: 0, d14: 0, d30: 506 },
+      },
+      {
+        id: "skincare-quiz-invite",
+        eventName: "Skincare Quiz — invite",
+        trigger: "Staff sends skincare quiz link to a lead or patient",
+        enabled: true,
+        channel: "sms",
+        template:
+          "Let's find the perfect products for your skin! \nTake our quiz and get expert recommendations tailored just for you:\n{{link}}",
+        recentVolume: { d7: 0, d14: 0, d30: 115 },
+      },
+      {
+        id: "skincare-quiz-results",
+        eventName: "Skincare Quiz — results link",
         trigger:
-          "Staff clicks Share and sends from the modal",
+          "Staff sends skincare quiz message for a record that already has saved quiz results",
+        enabled: true,
+        channel: "sms",
+        template:
+          "View your Skin Type Quiz results and personalized product recommendations: {{skin_quiz_link}}",
+        recentVolume: { d7: 0, d14: 1, d30: 17 },
+      },
+      {
+        id: "plan-share-manual",
+        eventName: "Treatment plan",
+        trigger: "Sends the treatment plan text in the message body.",
         enabled: true,
         channel: "sms",
         template:
@@ -186,19 +177,18 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
       },
       {
         id: "plan-delivered",
-        eventName: "Post-Visit Blueprint sent",
-        trigger: "Provider taps Send Post-Visit Blueprint",
+        eventName: "Post-visit plan",
+        trigger: "Sends a link to open the post-visit plan in the browser.",
         enabled: true,
         channel: "sms",
         template:
-          "Hi {{first_name}}, your custom treatment blueprint from {{clinic_name}} is ready. Review your plan here: {{blueprint_link}}",
+          "Hi {{first_name}}, your personalized treatment plan from {{clinic_name}} is ready. Review your plan here: {{blueprint_link}}",
         recentVolume: { d7: 0, d14: 0, d30: 1 },
       },
       {
         id: "analysis-share-manual",
         eventName: "Share analysis results",
-        trigger:
-          "Staff clicks Share and sends from the modal",
+        trigger: "Staff clicks Share",
         enabled: true,
         channel: "sms",
         template:

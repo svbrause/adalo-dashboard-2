@@ -11,7 +11,6 @@ import {
 } from "../../data/treatmentPricing2025";
 import { TREATMENT_BOUTIQUE_SKINCARE } from "../modals/DiscussedTreatmentsModal/treatmentBoutiqueProducts";
 import {
-  ACTIVE_EMAIL_COUNT,
   AUTOMATED_EMAILS,
   type AutomatedEmail,
 } from "../../config/emailNotificationCatalog";
@@ -27,7 +26,10 @@ import {
 import { renderTemplateVars } from "../../utils/renderTemplateVars";
 import "./SettingsView.css";
 
-type PreviewSelection = { product: SmsProductConfig; event: SmsTemplateEventConfig } | null;
+type PreviewSelection = {
+  product: SmsProductConfig;
+  event: SmsTemplateEventConfig;
+} | null;
 
 type ChangeRequestSelection = {
   product: SmsProductConfig;
@@ -45,11 +47,15 @@ type UnifiedNotifItem =
   | { type: "email"; email: AutomatedEmail };
 
 function notificationItemKey(item: UnifiedNotifItem): string {
-  return item.type === "sms" ? `sms:${item.event.id}` : `email:${item.email.id}`;
+  return item.type === "sms"
+    ? `sms:${item.event.id}`
+    : `email:${item.email.id}`;
 }
 
 /** Welcome SMS + team email first, then follow-up SMS — keeps the “same submission” pair together. */
-function orderTreatmentFinderNotifItems(items: UnifiedNotifItem[]): UnifiedNotifItem[] {
+function orderTreatmentFinderNotifItems(
+  items: UnifiedNotifItem[],
+): UnifiedNotifItem[] {
   const rank = new Map<string, number>([
     ["sms:finder-welcome", 0],
     ["email:new-lead-treatment-finder", 1],
@@ -63,18 +69,38 @@ function orderTreatmentFinderNotifItems(items: UnifiedNotifItem[]): UnifiedNotif
 }
 
 /** Interleave facial-analysis SMS + emails so paired “same moment” rows sit together. */
-function orderSkinAnalysisNotifItems(items: UnifiedNotifItem[]): UnifiedNotifItem[] {
+function orderSkinAnalysisNotifItems(
+  items: UnifiedNotifItem[],
+): UnifiedNotifItem[] {
+  const rank = new Map<string, number>([
+    ["sms:analysis-processing", 0],
+    ["email:analysis-initiated", 1],
+    ["sms:analysis-ready", 2],
+    ["email:analysis-report-ready", 3],
+    ["sms:analysis-review-reminder", 4],
+    ["sms:analysis-final-reminder", 5],
+    ["email:analysis-upload-reminder", 6],
+    ["email:analysis-awaiting-review", 7],
+    ["email:patient-opened-report", 8],
+  ]);
+  return [...items].sort(
+    (a, b) =>
+      (rank.get(notificationItemKey(a)) ?? 99) -
+      (rank.get(notificationItemKey(b)) ?? 99),
+  );
+}
+
+/** Staff-sent SMS templates (single product block, fixed order). */
+function orderStaffSentNotifItems(
+  items: UnifiedNotifItem[],
+): UnifiedNotifItem[] {
   const rank = new Map<string, number>([
     ["sms:analysis-scan-invite", 0],
-    ["sms:analysis-processing", 1],
-    ["email:analysis-initiated", 2],
-    ["sms:analysis-ready", 3],
-    ["email:analysis-report-ready", 4],
-    ["sms:analysis-review-reminder", 5],
-    ["sms:analysis-final-reminder", 6],
-    ["email:analysis-upload-reminder", 7],
-    ["email:analysis-awaiting-review", 8],
-    ["email:patient-opened-report", 9],
+    ["sms:skincare-quiz-invite", 1],
+    ["sms:skincare-quiz-results", 2],
+    ["sms:plan-share-manual", 3],
+    ["sms:plan-delivered", 4],
+    ["sms:analysis-share-manual", 5],
   ]);
   return [...items].sort(
     (a, b) =>
@@ -166,7 +192,13 @@ function skincareProductBrand(name: string): string {
   return "Other";
 }
 
-const BRAND_ORDER = ["The Treatment", "SkinCeuticals", "G.M. Collin", "Omnilux", "Plated"];
+const BRAND_ORDER = [
+  "The Treatment",
+  "SkinCeuticals",
+  "G.M. Collin",
+  "Omnilux",
+  "Plated",
+];
 
 type SkincareProductRow = {
   name: string;
@@ -180,7 +212,12 @@ type SkincareProductRow = {
 
 type SkincareBrandGroup = { brand: string; products: SkincareProductRow[] };
 
-type SkincareSortId = "brand" | "name-asc" | "name-desc" | "price-asc" | "price-desc";
+type SkincareSortId =
+  | "brand"
+  | "name-asc"
+  | "name-desc"
+  | "price-asc"
+  | "price-desc";
 
 function skincarePriceNumber(price: string | undefined): number | null {
   if (!price?.trim()) return null;
@@ -188,7 +225,9 @@ function skincarePriceNumber(price: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function buildSkincareBrandGroups(products: SkincareProductRow[]): SkincareBrandGroup[] {
+function buildSkincareBrandGroups(
+  products: SkincareProductRow[],
+): SkincareBrandGroup[] {
   const byBrand = new Map<string, SkincareProductRow[]>();
   for (const p of products) {
     const arr = byBrand.get(p.brand) ?? [];
@@ -238,7 +277,9 @@ function SettingsSkincareProductCard({
         <p className="settings-skincare-card-name" title={product.name}>
           {product.displayName}
         </p>
-        {product.price ? <p className="settings-skincare-card-price">{product.price}</p> : null}
+        {product.price ? (
+          <p className="settings-skincare-card-price">{product.price}</p>
+        ) : null}
         {product.description ? (
           <p className="settings-skincare-card-desc">{product.description}</p>
         ) : null}
@@ -279,9 +320,16 @@ type PricingSectionView = {
   }>;
 };
 
-type PricingSortId = "section" | "name-asc" | "name-desc" | "price-asc" | "price-desc";
+type PricingSortId =
+  | "section"
+  | "name-asc"
+  | "name-desc"
+  | "price-asc"
+  | "price-desc";
 
-type PricingRowWithSection = PricingSectionView["items"][number] & { category: string };
+type PricingRowWithSection = PricingSectionView["items"][number] & {
+  category: string;
+};
 
 export default function SettingsView() {
   const { provider } = useDashboard();
@@ -296,14 +344,18 @@ export default function SettingsView() {
 
   const [activePanel, setActivePanel] = useState<SettingsActivePanel>("home");
   const [preview, setPreview] = useState<PreviewSelection>(null);
-  const [changeRequest, setChangeRequest] = useState<ChangeRequestSelection>(null);
+  const [changeRequest, setChangeRequest] =
+    useState<ChangeRequestSelection>(null);
   const [pricingHelp, setPricingHelp] = useState<PricingHelpOpen | null>(null);
   const [pricingSearch, setPricingSearch] = useState("");
   const [pricingSort, setPricingSort] = useState<PricingSortId>("section");
   const [skincareSearch, setSkincareSearch] = useState("");
   const [skincareSort, setSkincareSort] = useState<SkincareSortId>("brand");
-  const [emailNotifHelp, setEmailNotifHelp] = useState<{ entry: AutomatedEmail | null } | null>(null);
-  const [emailChangeRequest, setEmailChangeRequest] = useState<EmailChangeRequestSelection>(null);
+  const [emailNotifHelp, setEmailNotifHelp] = useState<{
+    entry: AutomatedEmail | null;
+  } | null>(null);
+  const [emailChangeRequest, setEmailChangeRequest] =
+    useState<EmailChangeRequestSelection>(null);
   const settingsPanelScrollSkip = useRef(true);
 
   useEffect(() => {
@@ -374,16 +426,24 @@ export default function SettingsView() {
     }
 
     if (pricingSort === "name-asc") {
-      flat.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+      flat.sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+      );
     } else if (pricingSort === "name-desc") {
-      flat.sort((a, b) => b.name.localeCompare(a.name, undefined, { sensitivity: "base" }));
+      flat.sort((a, b) =>
+        b.name.localeCompare(a.name, undefined, { sensitivity: "base" }),
+      );
     } else if (pricingSort === "price-asc") {
       flat.sort((a, b) =>
-        a.price !== b.price ? a.price - b.price : a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+        a.price !== b.price
+          ? a.price - b.price
+          : a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
       );
     } else if (pricingSort === "price-desc") {
       flat.sort((a, b) =>
-        a.price !== b.price ? b.price - a.price : a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+        a.price !== b.price
+          ? b.price - a.price
+          : a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
       );
     }
 
@@ -403,18 +463,19 @@ export default function SettingsView() {
   const pricingFilteredSectionCount =
     pricingDisplay.mode === "sections" ? pricingDisplay.sections.length : 0;
 
-  const skincareAllProducts = useMemo<SkincareProductRow[]>(() =>
-    TREATMENT_BOUTIQUE_SKINCARE
-      .filter((p) => p.name !== "Other")
-      .map((p) => ({
-        name: p.name,
-        displayName: skincareDisplayName(p.name),
-        brand: skincareProductBrand(p.name),
-        price: p.price,
-        imageUrl: p.imageUrl,
-        productUrl: p.productUrl,
-        description: p.description,
-      })),
+  const skincareAllProducts = useMemo<SkincareProductRow[]>(
+    () =>
+      TREATMENT_BOUTIQUE_SKINCARE.filter((p) => p.name !== "Other").map(
+        (p) => ({
+          name: p.name,
+          displayName: skincareDisplayName(p.name),
+          brand: skincareProductBrand(p.name),
+          price: p.price,
+          imageUrl: p.imageUrl,
+          productUrl: p.productUrl,
+          description: p.description,
+        }),
+      ),
     [],
   );
 
@@ -422,7 +483,13 @@ export default function SettingsView() {
     const q = skincareSearch.trim().toLowerCase();
     const filtered = q
       ? skincareAllProducts.filter((p) => {
-          const hay = [p.name, p.displayName, p.brand, p.description ?? "", p.price ?? ""]
+          const hay = [
+            p.name,
+            p.displayName,
+            p.brand,
+            p.description ?? "",
+            p.price ?? "",
+          ]
             .join(" ")
             .toLowerCase();
           return hay.includes(q);
@@ -433,7 +500,9 @@ export default function SettingsView() {
       const groups = buildSkincareBrandGroups(filtered).map((g) => ({
         ...g,
         products: [...g.products].sort((a, b) =>
-          a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }),
+          a.displayName.localeCompare(b.displayName, undefined, {
+            sensitivity: "base",
+          }),
         ),
       }));
       return { mode: "groups" as const, groups };
@@ -442,35 +511,47 @@ export default function SettingsView() {
     const flat = filtered;
     if (skincareSort === "name-asc") {
       flat.sort((a, b) =>
-        a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }),
+        a.displayName.localeCompare(b.displayName, undefined, {
+          sensitivity: "base",
+        }),
       );
     } else if (skincareSort === "name-desc") {
       flat.sort((a, b) =>
-        b.displayName.localeCompare(a.displayName, undefined, { sensitivity: "base" }),
+        b.displayName.localeCompare(a.displayName, undefined, {
+          sensitivity: "base",
+        }),
       );
     } else if (skincareSort === "price-asc") {
       flat.sort((a, b) => {
         const pa = skincarePriceNumber(a.price);
         const pb = skincarePriceNumber(b.price);
         if (pa == null && pb == null) {
-          return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
+          return a.displayName.localeCompare(b.displayName, undefined, {
+            sensitivity: "base",
+          });
         }
         if (pa == null) return 1;
         if (pb == null) return -1;
         if (pa !== pb) return pa - pb;
-        return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
+        return a.displayName.localeCompare(b.displayName, undefined, {
+          sensitivity: "base",
+        });
       });
     } else if (skincareSort === "price-desc") {
       flat.sort((a, b) => {
         const pa = skincarePriceNumber(a.price);
         const pb = skincarePriceNumber(b.price);
         if (pa == null && pb == null) {
-          return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
+          return a.displayName.localeCompare(b.displayName, undefined, {
+            sensitivity: "base",
+          });
         }
         if (pa == null) return 1;
         if (pb == null) return -1;
         if (pa !== pb) return pb - pa;
-        return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
+        return a.displayName.localeCompare(b.displayName, undefined, {
+          sensitivity: "base",
+        });
       });
     }
 
@@ -504,26 +585,18 @@ export default function SettingsView() {
         emailIds: [],
       },
       {
-        id: "skincare-quiz",
-        name: "Skincare Quiz",
-        description: "Skincare product recommendation flow and quiz follow-through messaging.",
-        smsId: "skincare-quiz",
-        emailCategories: [],
-        emailIds: [],
-      },
-      {
         id: "skin-analysis",
         name: "AI Facial Analysis",
         description:
-          "AI facial scan and analysis lifecycle messaging (invite, processing, ready, reminders) and team alerts.",
+          "Automated analysis texts and emails (processing, report ready, reminders) and team alerts. Staff-sent scan links and shares are under Staff-Sent Messages.",
         smsId: "skin-analysis",
         emailCategories: ["facial-analysis"],
         emailIds: ["patient-opened-report"],
       },
       {
         id: "treatment-plan",
-        name: "Treatment Plan / Post-Visit Blueprint",
-        description: "Personalized plan sharing and alerts after provider consultation.",
+        name: "Treatment Plan",
+        description: "",
         smsId: "treatment-plan",
         emailCategories: [],
         emailIds: ["high-value-interest"],
@@ -531,7 +604,8 @@ export default function SettingsView() {
       {
         id: "scheduling",
         name: "Consultations & Scheduling",
-        description: "Operational messages and alerts tied to consults and appointments.",
+        description:
+          "Operational messages and alerts tied to consults and appointments.",
         smsId: "scheduling",
         emailCategories: ["consultations"],
         emailIds: [],
@@ -539,7 +613,8 @@ export default function SettingsView() {
       {
         id: "referrals",
         name: "Referrals",
-        description: "Inbound and outbound patient referral notices and alerts.",
+        description:
+          "Inbound and outbound patient referral notices and alerts.",
         smsId: null,
         emailCategories: ["referrals"],
         emailIds: [],
@@ -547,7 +622,8 @@ export default function SettingsView() {
       {
         id: "manual-messaging",
         name: "Staff-Sent Messages",
-        description: "Text messages sent manually by staff — sharing treatment plans, post-visit blueprints, and analysis results with patients.",
+        description:
+          "Transactional SMS only: scan link, Skincare Quiz, treatment plan, and analysis share — sent when staff uses Share or Send (not toggled on/off).",
         smsId: "manual-messaging",
         emailCategories: [],
         emailIds: [],
@@ -555,9 +631,13 @@ export default function SettingsView() {
     ];
 
     return UNIFIED_PRODUCTS_CONFIG.map((config) => {
-      const smsProduct = config.smsId ? SMS_SETTINGS_PRODUCTS.find((p) => p.id === config.smsId) : null;
+      const smsProduct = config.smsId
+        ? SMS_SETTINGS_PRODUCTS.find((p) => p.id === config.smsId)
+        : null;
       const emails = AUTOMATED_EMAILS.filter(
-        (e) => config.emailCategories.includes(e.category) || config.emailIds.includes(e.id)
+        (e) =>
+          config.emailCategories.includes(e.category) ||
+          config.emailIds.includes(e.id),
       );
 
       const items: UnifiedNotifItem[] = [];
@@ -566,7 +646,11 @@ export default function SettingsView() {
         items.push(
           ...smsProduct.events
             .filter((event) => !event.hideFromNotificationSettings)
-            .map((event) => ({ type: "sms" as const, event, product: smsProduct })),
+            .map((event) => ({
+              type: "sms" as const,
+              event,
+              product: smsProduct,
+            })),
         );
       }
       items.push(
@@ -584,7 +668,9 @@ export default function SettingsView() {
             ? orderTreatmentFinderNotifItems(items)
             : config.id === "skin-analysis"
               ? orderSkinAnalysisNotifItems(items)
-              : items,
+              : config.id === "manual-messaging"
+                ? orderStaffSentNotifItems(items)
+                : items,
       };
     }).filter((section) => section.items.length > 0);
   }, []);
@@ -601,12 +687,7 @@ export default function SettingsView() {
     >
       <header className="settings-page-header">
         {activePanel === "home" ? (
-          <>
-            <h1 className="settings-page-title">Settings</h1>
-            <p className="settings-page-subtitle">
-              Open a category below—each has its own page so you don’t scroll past long tables.
-            </p>
-          </>
+          <h1 className="settings-page-title">Settings</h1>
         ) : (
           <div className="settings-subpanel-header">
             <button
@@ -635,10 +716,7 @@ export default function SettingsView() {
                 <div className="settings-hub-card-body">
                   <h2 className="settings-hub-card-title">Notifications</h2>
                   <p className="settings-hub-card-desc">
-                    Manage automated SMS templates for patients and internal email routing.
-                  </p>
-                  <p className="settings-hub-card-meta">
-                    {SMS_SETTINGS_PRODUCTS.length} SMS topics · {ACTIVE_EMAIL_COUNT} active emails
+                    Manage automated SMS and email templates.
                   </p>
                 </div>
                 <div className="settings-hub-card-footer">
@@ -658,11 +736,7 @@ export default function SettingsView() {
                 <div className="settings-hub-card-body">
                   <h2 className="settings-hub-card-title">Treatment pricing</h2>
                   <p className="settings-hub-card-desc">
-                    2025 price list as used in quotes and checkout. Search and request changes per
-                    line.
-                  </p>
-                  <p className="settings-hub-card-meta">
-                    {pricingLineTotal} services · {pricingSections.length} sections
+                    Catalog of treatments with pricing and details.
                   </p>
                 </div>
                 <div className="settings-hub-card-footer">
@@ -682,11 +756,7 @@ export default function SettingsView() {
                 <div className="settings-hub-card-body">
                   <h2 className="settings-hub-card-title">Skincare products</h2>
                   <p className="settings-hub-card-desc">
-                    Full boutique catalog with photos, pricing, and shop links. Browse by brand and
-                    request a change if anything needs updating.
-                  </p>
-                  <p className="settings-hub-card-meta">
-                    {skincareProductTotal} products · {BRAND_ORDER.length} brands
+                    Full boutique catalog with photos, pricing, and shop links.
                   </p>
                 </div>
                 <div className="settings-hub-card-footer">
@@ -706,8 +776,9 @@ export default function SettingsView() {
           ) : (
             <div className="settings-hub-placeholder">
               <p className="settings-hub-placeholder-text">
-                Settings for your practice are being configured. Contact your Ponce AI
-                representative if you need to update notifications or pricing.
+                Settings for your practice are being configured. Contact your
+                Ponce AI representative if you need to update notifications or
+                pricing.
               </p>
             </div>
           )}
@@ -723,403 +794,509 @@ export default function SettingsView() {
             Notifications
           </h2>
           <p className="settings-card-lead">
-            These are the automated texts and emails sent to patients and your team. <strong>Status</strong> shows whether each line is on or off in our catalog; click it to ask the team to turn something on or off. Click <strong>Open</strong> in the Preview column to read the message, or use <strong>Request change</strong> from a preview to edit copy or routing.
+            Automated workflows list <strong>Status</strong> (on/off) for texts
+            and emails you can ask us to enable or disable. The{" "}
+            <strong>Staff-Sent Messages</strong> section at the bottom is
+            different: those fire only when someone uses Share or Send in the
+            app — there is no on/off toggle. Click <strong>Open</strong> in
+            Preview to read a template, or <strong>Request change</strong> from
+            a preview to edit copy or routing.
           </p>
 
           <details className="settings-howto">
-            <summary className="settings-howto-summary">How to use this</summary>
+            <summary className="settings-howto-summary">
+              How to use this
+            </summary>
             <ol className="settings-howto-list">
-              <li>Notifications are grouped by workflow (e.g. facial analysis, website leads).</li>
-              <li>You can see both <strong>SMS</strong> and <strong>EMAIL</strong> messages here, including ones that are currently off.</li>
               <li>
-                The <strong>Preview</strong> column opens the template; <strong>Sent to</strong> shows who receives it.
+                Notifications are grouped by workflow (e.g. facial analysis,
+                website leads).
               </li>
               <li>
-                Click <strong>On</strong> or <strong>Off</strong> under Status to send a prefilled request to enable or disable that notification.
+                You can see both <strong>SMS</strong> and <strong>EMAIL</strong>{" "}
+                messages here, including ones that are currently off.
+              </li>
+              <li>
+                The <strong>Preview</strong> column opens the template;{" "}
+                <strong>Sent to</strong> shows who receives it.
+              </li>
+              <li>
+                For automated messages, click <strong>On</strong> or{" "}
+                <strong>Off</strong> under Status to send a prefilled request.
+                Staff-sent transactional texts do not use Status — see the
+                Staff-Sent Messages section.
               </li>
             </ol>
           </details>
 
           <div className="settings-notif-product-sections">
-            {unifiedNotificationSections.map((section) => (
-              <section
-                key={section.id}
-                className="settings-notif-product-block"
-                aria-labelledby={`settings-notif-product-${section.id}`}
-              >
-                <h3 className="settings-notif-product-title" id={`settings-notif-product-${section.id}`}>
-                  {section.name}
-                </h3>
-                <p className="settings-notif-product-desc">{section.description}</p>
-                <div className="settings-table-scroll">
-                  <table className="settings-notifications-table settings-notifications-table--compact">
-                    <thead>
-                      <tr>
-                        <th scope="col" className="settings-col-event">
-                          Event
-                        </th>
-                        <th scope="col" className="settings-col-when">
-                          When it sends
-                        </th>
-                        <th scope="col" className="settings-col-status">
-                          Status
-                        </th>
-                        <th scope="col" className="settings-col-sent-to">
-                          Sent to
-                        </th>
-                        <th scope="col" className="settings-col-actions">
-                          Preview
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {collapseByTrigger(section.items).map((row, rowIdx) => {
-                        if (row.kind === "grouped") {
-                          const names = [...new Set(
-                            row.items.map((it) =>
-                              it.type === "sms" ? it.event.eventName : it.email.name,
-                            ),
-                          )];
-                          const span = row.items.length;
-                          return (
-                            <Fragment key={`grouped-${rowIdx}`}>
-                              {row.items.map((it, ii) => {
-                                const isContinue = ii > 0;
-                                const isGroupedHead = ii === 0 && span > 1;
-                                const rowActive = isNotificationItemActive(it);
-                                return (
-                                  <tr
-                                    key={ii}
-                                    className={[
-                                      isContinue
-                                        ? "settings-notif-row--split-continue"
-                                        : isGroupedHead
-                                          ? "settings-notif-row--grouped settings-notif-row--grouped-head"
-                                          : "settings-notif-row--grouped",
-                                      !rowActive ? "settings-notif-row--inactive" : "",
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" ")}
-                                  >
-                                    {ii === 0 ? (
-                                      <>
-                                        <td
-                                          className="settings-notif-notification-cell"
-                                          rowSpan={span}
-                                        >
-                                          {names.map((n, ni) => (
-                                            <div
-                                              key={ni}
+            {unifiedNotificationSections.map((section) => {
+              const showStatusColumn = section.id !== "manual-messaging";
+              return (
+                <section
+                  key={section.id}
+                  className="settings-notif-product-block"
+                  aria-labelledby={`settings-notif-product-${section.id}`}
+                >
+                  <h3
+                    className="settings-notif-product-title"
+                    id={`settings-notif-product-${section.id}`}
+                  >
+                    {section.name}
+                  </h3>
+                  <p className="settings-notif-product-desc">
+                    {section.description}
+                  </p>
+                  <div className="settings-table-scroll">
+                    <table
+                      className={`settings-notifications-table settings-notifications-table--compact${!showStatusColumn ? " settings-notifications-table--no-status-col" : ""}`}
+                    >
+                      <thead>
+                        <tr>
+                          <th scope="col" className="settings-col-event">
+                            Event
+                          </th>
+                          <th scope="col" className="settings-col-when">
+                            When it sends
+                          </th>
+                          {showStatusColumn ? (
+                            <th scope="col" className="settings-col-status">
+                              Status
+                            </th>
+                          ) : null}
+                          <th scope="col" className="settings-col-sent-to">
+                            Sent to
+                          </th>
+                          <th scope="col" className="settings-col-actions">
+                            Preview
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {collapseByTrigger(section.items).map((row, rowIdx) => {
+                          if (row.kind === "grouped") {
+                            const names = [
+                              ...new Set(
+                                row.items.map((it) =>
+                                  it.type === "sms"
+                                    ? it.event.eventName
+                                    : it.email.name,
+                                ),
+                              ),
+                            ];
+                            const span = row.items.length;
+                            return (
+                              <Fragment key={`grouped-${rowIdx}`}>
+                                {row.items.map((it, ii) => {
+                                  const isContinue = ii > 0;
+                                  const isGroupedHead = ii === 0 && span > 1;
+                                  const rowActive =
+                                    isNotificationItemActive(it);
+                                  return (
+                                    <tr
+                                      key={ii}
+                                      className={[
+                                        isContinue
+                                          ? "settings-notif-row--split-continue"
+                                          : isGroupedHead
+                                            ? "settings-notif-row--grouped settings-notif-row--grouped-head"
+                                            : "settings-notif-row--grouped",
+                                        !rowActive && showStatusColumn
+                                          ? "settings-notif-row--inactive"
+                                          : "",
+                                      ]
+                                        .filter(Boolean)
+                                        .join(" ")}
+                                    >
+                                      {ii === 0 ? (
+                                        <>
+                                          <td
+                                            className="settings-notif-notification-cell"
+                                            rowSpan={span}
+                                          >
+                                            {names.map((n, ni) => (
+                                              <div
+                                                key={ni}
+                                                className={
+                                                  ni === 0
+                                                    ? "settings-notif-event-name"
+                                                    : "settings-notif-event-name settings-notif-event-name--alt"
+                                                }
+                                              >
+                                                {n}
+                                              </div>
+                                            ))}
+                                          </td>
+                                          <td
+                                            className="settings-notif-when-cell"
+                                            rowSpan={span}
+                                          >
+                                            <p className="settings-notif-trigger settings-notif-trigger--no-gap">
+                                              {row.trigger}
+                                            </p>
+                                          </td>
+                                        </>
+                                      ) : null}
+                                      {showStatusColumn ? (
+                                        <td className="settings-td-status">
+                                          {it.type === "sms" ? (
+                                            <button
+                                              type="button"
                                               className={
-                                                ni === 0
-                                                  ? "settings-notif-event-name"
-                                                  : "settings-notif-event-name settings-notif-event-name--alt"
+                                                it.event.enabled
+                                                  ? "settings-notif-status-btn settings-notif-status-btn--on"
+                                                  : "settings-notif-status-btn settings-notif-status-btn--off"
+                                              }
+                                              aria-pressed={it.event.enabled}
+                                              title={
+                                                it.event.enabled
+                                                  ? "Request to turn this text off or change routing"
+                                                  : "Request to turn this text on"
+                                              }
+                                              onClick={() =>
+                                                setChangeRequest({
+                                                  product: it.product,
+                                                  event: it.event,
+                                                  initialNotes:
+                                                    prefilledSmsStatusRequestNote(
+                                                      it.event.enabled,
+                                                    ),
+                                                })
                                               }
                                             >
-                                              {n}
-                                            </div>
-                                          ))}
+                                              {it.event.enabled ? "On" : "Off"}
+                                            </button>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              className={
+                                                it.email.active
+                                                  ? "settings-notif-status-btn settings-notif-status-btn--on"
+                                                  : "settings-notif-status-btn settings-notif-status-btn--off"
+                                              }
+                                              aria-pressed={it.email.active}
+                                              title={
+                                                it.email.active
+                                                  ? "Request to turn this email off or change routing"
+                                                  : "Request to turn this email on"
+                                              }
+                                              onClick={() =>
+                                                setEmailChangeRequest({
+                                                  entry: it.email,
+                                                  initialEmailNotes:
+                                                    prefilledEmailStatusRequestNote(
+                                                      it.email.active,
+                                                    ),
+                                                })
+                                              }
+                                            >
+                                              {it.email.active ? "On" : "Off"}
+                                            </button>
+                                          )}
                                         </td>
-                                        <td className="settings-notif-when-cell" rowSpan={span}>
-                                          <p className="settings-notif-trigger settings-notif-trigger--no-gap">
-                                            {row.trigger}
-                                          </p>
-                                        </td>
-                                      </>
-                                    ) : null}
-                                    <td className="settings-td-status">
-                                      {it.type === "sms" ? (
-                                        <button
-                                          type="button"
-                                          className={
-                                            it.event.enabled
-                                              ? "settings-notif-status-btn settings-notif-status-btn--on"
-                                              : "settings-notif-status-btn settings-notif-status-btn--off"
-                                          }
-                                          aria-pressed={it.event.enabled}
-                                          title={
-                                            it.event.enabled
-                                              ? "Request to turn this text off or change routing"
-                                              : "Request to turn this text on"
-                                          }
-                                          onClick={() =>
-                                            setChangeRequest({
-                                              product: it.product,
-                                              event: it.event,
-                                              initialNotes: prefilledSmsStatusRequestNote(it.event.enabled),
-                                            })
-                                          }
-                                        >
-                                          {it.event.enabled ? "On" : "Off"}
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          className={
-                                            it.email.active
-                                              ? "settings-notif-status-btn settings-notif-status-btn--on"
-                                              : "settings-notif-status-btn settings-notif-status-btn--off"
-                                          }
-                                          aria-pressed={it.email.active}
-                                          title={
-                                            it.email.active
-                                              ? "Request to turn this email off or change routing"
-                                              : "Request to turn this email on"
-                                          }
-                                          onClick={() =>
-                                            setEmailChangeRequest({
-                                              entry: it.email,
-                                              initialEmailNotes: prefilledEmailStatusRequestNote(it.email.active),
-                                            })
-                                          }
-                                        >
-                                          {it.email.active ? "On" : "Off"}
-                                        </button>
-                                      )}
-                                    </td>
-                                    <td className="settings-td-sent-to">
-                                      {it.type === "sms" ? (
-                                        <div className="settings-notif-sent-to-row">
-                                          <span
-                                            className="settings-notif-channel-indicator settings-notif-channel-indicator--sms"
-                                            aria-hidden
-                                          >
-                                            SMS
-                                          </span>
-                                          <div className="settings-notif-recipient-pills">
-                                            <span className="settings-recipient-pill settings-recipient-pill--patient">
-                                              Patient
+                                      ) : null}
+                                      <td className="settings-td-sent-to">
+                                        {it.type === "sms" ? (
+                                          <div className="settings-notif-sent-to-row">
+                                            <span
+                                              className="settings-notif-channel-indicator settings-notif-channel-indicator--sms"
+                                              aria-hidden
+                                            >
+                                              SMS
                                             </span>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="settings-notif-sent-to-row">
-                                          <span
-                                            className="settings-notif-channel-indicator settings-notif-channel-indicator--email"
-                                            aria-hidden
-                                          >
-                                            Email
-                                          </span>
-                                          <div className="settings-notif-recipient-pills">
-                                            {it.email.goesToPatient && (
+                                            <div className="settings-notif-recipient-pills">
                                               <span className="settings-recipient-pill settings-recipient-pill--patient">
                                                 Patient
                                               </span>
-                                            )}
-                                            {it.email.teamRecipients.map((r) => (
-                                              <span
-                                                key={r.email}
-                                                className="settings-recipient-pill"
-                                                title={r.label}
-                                              >
-                                                {r.email}
-                                              </span>
-                                            ))}
-                                            {!it.email.goesToPatient &&
-                                              it.email.teamRecipients.length === 0 && (
-                                                <span className="settings-muted" style={{ fontSize: "0.75rem" }}>
-                                                  Not routed
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="settings-notif-sent-to-row">
+                                            <span
+                                              className="settings-notif-channel-indicator settings-notif-channel-indicator--email"
+                                              aria-hidden
+                                            >
+                                              Email
+                                            </span>
+                                            <div className="settings-notif-recipient-pills">
+                                              {it.email.goesToPatient && (
+                                                <span className="settings-recipient-pill settings-recipient-pill--patient">
+                                                  Patient
                                                 </span>
                                               )}
+                                              {it.email.teamRecipients.map(
+                                                (r) => (
+                                                  <span
+                                                    key={r.email}
+                                                    className="settings-recipient-pill"
+                                                    title={r.label}
+                                                  >
+                                                    {r.email}
+                                                  </span>
+                                                ),
+                                              )}
+                                              {!it.email.goesToPatient &&
+                                                it.email.teamRecipients
+                                                  .length === 0 && (
+                                                  <span
+                                                    className="settings-muted"
+                                                    style={{
+                                                      fontSize: "0.75rem",
+                                                    }}
+                                                  >
+                                                    Not routed
+                                                  </span>
+                                                )}
+                                            </div>
                                           </div>
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="settings-td-actions settings-td-actions--single">
-                                      {it.type === "sms" ? (
-                                        <button
-                                          type="button"
-                                          className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--sms"
-                                          aria-label="Preview SMS notification"
-                                          onClick={() =>
-                                            setPreview({ product: it.product, event: it.event })
-                                          }
-                                        >
-                                          Open
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--email"
-                                          aria-label="Preview email notification"
-                                          onClick={() => setEmailNotifHelp({ entry: it.email })}
-                                        >
-                                          Open
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </Fragment>
-                          );
-                        }
+                                        )}
+                                      </td>
+                                      <td className="settings-td-actions settings-td-actions--single">
+                                        {it.type === "sms" ? (
+                                          <button
+                                            type="button"
+                                            className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--sms"
+                                            aria-label="Preview SMS notification"
+                                            onClick={() =>
+                                              setPreview({
+                                                product: it.product,
+                                                event: it.event,
+                                              })
+                                            }
+                                          >
+                                            Open
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--email"
+                                            aria-label="Preview email notification"
+                                            onClick={() =>
+                                              setEmailNotifHelp({
+                                                entry: it.email,
+                                              })
+                                            }
+                                          >
+                                            Open
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </Fragment>
+                            );
+                          }
 
-                        const { item } = row;
-                        if (item.type === "sms") {
-                          const { event, product } = item;
+                          const { item } = row;
+                          if (item.type === "sms") {
+                            const { event, product } = item;
+                            return (
+                              <tr
+                                key={`sms-${event.id}`}
+                                className={
+                                  showStatusColumn && !event.enabled
+                                    ? "settings-notif-row--inactive"
+                                    : undefined
+                                }
+                              >
+                                <td className="settings-notif-notification-cell">
+                                  <div className="settings-notif-event-name">
+                                    {event.eventName}
+                                  </div>
+                                </td>
+                                <td className="settings-notif-when-cell">
+                                  <p className="settings-notif-trigger settings-notif-trigger--no-gap">
+                                    {event.trigger}
+                                  </p>
+                                </td>
+                                {showStatusColumn ? (
+                                  <td className="settings-td-status">
+                                    <button
+                                      type="button"
+                                      className={
+                                        event.enabled
+                                          ? "settings-notif-status-btn settings-notif-status-btn--on"
+                                          : "settings-notif-status-btn settings-notif-status-btn--off"
+                                      }
+                                      aria-pressed={event.enabled}
+                                      title={
+                                        event.enabled
+                                          ? "Request to turn this text off or change routing"
+                                          : "Request to turn this text on"
+                                      }
+                                      onClick={() =>
+                                        setChangeRequest({
+                                          product,
+                                          event,
+                                          initialNotes:
+                                            prefilledSmsStatusRequestNote(
+                                              event.enabled,
+                                            ),
+                                        })
+                                      }
+                                    >
+                                      {event.enabled ? "On" : "Off"}
+                                    </button>
+                                  </td>
+                                ) : null}
+                                <td className="settings-td-sent-to">
+                                  <div className="settings-notif-sent-to-row">
+                                    <span
+                                      className="settings-notif-channel-indicator settings-notif-channel-indicator--sms"
+                                      aria-hidden
+                                    >
+                                      SMS
+                                    </span>
+                                    <div className="settings-notif-recipient-pills">
+                                      <span className="settings-recipient-pill settings-recipient-pill--patient">
+                                        Patient
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="settings-td-actions settings-td-actions--single">
+                                  <button
+                                    type="button"
+                                    className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--sms"
+                                    aria-label="Preview SMS notification"
+                                    onClick={() =>
+                                      setPreview({ product, event })
+                                    }
+                                  >
+                                    Open
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          }
+                          const { email } = item;
                           return (
                             <tr
-                              key={`sms-${event.id}`}
-                              className={!event.enabled ? "settings-notif-row--inactive" : undefined}
+                              key={`email-${email.id}`}
+                              className={
+                                showStatusColumn && !email.active
+                                  ? "settings-notif-row--inactive"
+                                  : undefined
+                              }
                             >
                               <td className="settings-notif-notification-cell">
-                                <div className="settings-notif-event-name">{event.eventName}</div>
+                                <div className="settings-notif-event-name">
+                                  {email.name}
+                                </div>
                               </td>
                               <td className="settings-notif-when-cell">
-                                <p className="settings-notif-trigger settings-notif-trigger--no-gap">{event.trigger}</p>
+                                <p className="settings-notif-trigger settings-notif-trigger--no-gap">
+                                  {email.trigger}
+                                </p>
                               </td>
-                              <td className="settings-td-status">
-                                <button
-                                  type="button"
-                                  className={
-                                    event.enabled
-                                      ? "settings-notif-status-btn settings-notif-status-btn--on"
-                                      : "settings-notif-status-btn settings-notif-status-btn--off"
-                                  }
-                                  aria-pressed={event.enabled}
-                                  title={
-                                    event.enabled
-                                      ? "Request to turn this text off or change routing"
-                                      : "Request to turn this text on"
-                                  }
-                                  onClick={() =>
-                                    setChangeRequest({
-                                      product,
-                                      event,
-                                      initialNotes: prefilledSmsStatusRequestNote(event.enabled),
-                                    })
-                                  }
-                                >
-                                  {event.enabled ? "On" : "Off"}
-                                </button>
-                              </td>
+                              {showStatusColumn ? (
+                                <td className="settings-td-status">
+                                  <button
+                                    type="button"
+                                    className={
+                                      email.active
+                                        ? "settings-notif-status-btn settings-notif-status-btn--on"
+                                        : "settings-notif-status-btn settings-notif-status-btn--off"
+                                    }
+                                    aria-pressed={email.active}
+                                    title={
+                                      email.active
+                                        ? "Request to turn this email off or change routing"
+                                        : "Request to turn this email on"
+                                    }
+                                    onClick={() =>
+                                      setEmailChangeRequest({
+                                        entry: email,
+                                        initialEmailNotes:
+                                          prefilledEmailStatusRequestNote(
+                                            email.active,
+                                          ),
+                                      })
+                                    }
+                                  >
+                                    {email.active ? "On" : "Off"}
+                                  </button>
+                                </td>
+                              ) : null}
                               <td className="settings-td-sent-to">
                                 <div className="settings-notif-sent-to-row">
                                   <span
-                                    className="settings-notif-channel-indicator settings-notif-channel-indicator--sms"
+                                    className="settings-notif-channel-indicator settings-notif-channel-indicator--email"
                                     aria-hidden
                                   >
-                                    SMS
+                                    Email
                                   </span>
-                                  <div className="settings-notif-recipient-pills">
-                                    <span className="settings-recipient-pill settings-recipient-pill--patient">
-                                      Patient
-                                    </span>
+                                  <div
+                                    className="settings-notif-meta-pills"
+                                    aria-label="Recipients"
+                                  >
+                                    {email.goesToPatient && (
+                                      <span className="settings-recipient-pill settings-recipient-pill--patient">
+                                        Patient
+                                      </span>
+                                    )}
+                                    {email.teamRecipients[0] && (
+                                      <span
+                                        className="settings-recipient-pill"
+                                        title={email.teamRecipients[0].label}
+                                      >
+                                        {email.teamRecipients[0].email}
+                                      </span>
+                                    )}
+                                    {email.teamRecipients.length > 1 && (
+                                      <span
+                                        className="settings-recipient-pill settings-recipient-pill--overflow"
+                                        title={email.teamRecipients
+                                          .slice(1)
+                                          .map((r) => r.email)
+                                          .join(", ")}
+                                      >
+                                        +{email.teamRecipients.length - 1}
+                                      </span>
+                                    )}
+                                    {!email.goesToPatient &&
+                                      email.teamRecipients.length === 0 && (
+                                        <span
+                                          className="settings-muted"
+                                          style={{ fontSize: "0.75rem" }}
+                                        >
+                                          Not routed
+                                        </span>
+                                      )}
                                   </div>
                                 </div>
                               </td>
                               <td className="settings-td-actions settings-td-actions--single">
                                 <button
                                   type="button"
-                                  className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--sms"
-                                  aria-label="Preview SMS notification"
-                                  onClick={() => setPreview({ product, event })}
+                                  className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--email"
+                                  aria-label="Preview email notification"
+                                  onClick={() =>
+                                    setEmailNotifHelp({ entry: email })
+                                  }
                                 >
                                   Open
                                 </button>
                               </td>
                             </tr>
                           );
-                        }
-                        const { email } = item;
-                        return (
-                          <tr
-                            key={`email-${email.id}`}
-                            className={!email.active ? "settings-notif-row--inactive" : undefined}
-                          >
-                            <td className="settings-notif-notification-cell">
-                              <div className="settings-notif-event-name">{email.name}</div>
-                            </td>
-                            <td className="settings-notif-when-cell">
-                              <p className="settings-notif-trigger settings-notif-trigger--no-gap">{email.trigger}</p>
-                            </td>
-                            <td className="settings-td-status">
-                              <button
-                                type="button"
-                                className={
-                                  email.active
-                                    ? "settings-notif-status-btn settings-notif-status-btn--on"
-                                    : "settings-notif-status-btn settings-notif-status-btn--off"
-                                }
-                                aria-pressed={email.active}
-                                title={
-                                  email.active
-                                    ? "Request to turn this email off or change routing"
-                                    : "Request to turn this email on"
-                                }
-                                onClick={() =>
-                                  setEmailChangeRequest({
-                                    entry: email,
-                                    initialEmailNotes: prefilledEmailStatusRequestNote(email.active),
-                                  })
-                                }
-                              >
-                                {email.active ? "On" : "Off"}
-                              </button>
-                            </td>
-                            <td className="settings-td-sent-to">
-                              <div className="settings-notif-sent-to-row">
-                                <span
-                                  className="settings-notif-channel-indicator settings-notif-channel-indicator--email"
-                                  aria-hidden
-                                >
-                                  Email
-                                </span>
-                                <div className="settings-notif-meta-pills" aria-label="Recipients">
-                                  {email.goesToPatient && (
-                                    <span className="settings-recipient-pill settings-recipient-pill--patient">
-                                      Patient
-                                    </span>
-                                  )}
-                                  {email.teamRecipients[0] && (
-                                    <span
-                                      className="settings-recipient-pill"
-                                      title={email.teamRecipients[0].label}
-                                    >
-                                      {email.teamRecipients[0].email}
-                                    </span>
-                                  )}
-                                  {email.teamRecipients.length > 1 && (
-                                    <span
-                                      className="settings-recipient-pill settings-recipient-pill--overflow"
-                                      title={email.teamRecipients.slice(1).map((r) => r.email).join(", ")}
-                                    >
-                                      +{email.teamRecipients.length - 1}
-                                    </span>
-                                  )}
-                                  {!email.goesToPatient && email.teamRecipients.length === 0 && (
-                                    <span className="settings-muted" style={{ fontSize: "0.75rem" }}>
-                                      Not routed
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="settings-td-actions settings-td-actions--single">
-                              <button
-                                type="button"
-                                className="settings-secondary-btn settings-notif-view-btn settings-notif-view-btn--email"
-                                aria-label="Preview email notification"
-                                onClick={() => setEmailNotifHelp({ entry: email })}
-                              >
-                                Open
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            ))}
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </section>
       ) : null}
 
       {emailNotifHelp?.entry ? (
-        <div className="modal-overlay active" onClick={() => setEmailNotifHelp(null)}>
+        <div
+          className="modal-overlay active"
+          onClick={() => setEmailNotifHelp(null)}
+        >
           <div
             className="modal-content settings-template-preview-modal"
             onClick={(e) => e.stopPropagation()}
@@ -1132,7 +1309,9 @@ export default function SettingsView() {
                 <h2 id="settings-email-preview-title" className="modal-title">
                   {emailNotifHelp.entry.name}
                 </h2>
-                <p className="settings-template-preview-meta">Automated email</p>
+                <p className="settings-template-preview-meta">
+                  Automated Email
+                </p>
               </div>
               <button
                 type="button"
@@ -1148,38 +1327,55 @@ export default function SettingsView() {
                 <strong>When:</strong> {emailNotifHelp.entry.trigger}
               </p>
               <p className="settings-template-preview-trigger">
-                <strong>Subject:</strong> {renderTemplateVars(emailNotifHelp.entry.exampleSubject)}
+                <strong>Subject:</strong>{" "}
+                {renderTemplateVars(emailNotifHelp.entry.exampleSubject)}
               </p>
               <label className="settings-template-preview-label">Sent to</label>
-              <div className="settings-notif-meta-pills" style={{ marginTop: 6, marginBottom: 16 }}>
+              <div
+                className="settings-notif-meta-pills"
+                style={{ marginTop: 6, marginBottom: 16 }}
+              >
                 {emailNotifHelp.entry.goesToPatient && (
                   <span className="settings-recipient-pill settings-recipient-pill--patient">
                     Patient
                   </span>
                 )}
                 {emailNotifHelp.entry.teamRecipients.map((r) => (
-                  <span key={r.email} className="settings-recipient-pill" title={r.label}>
+                  <span
+                    key={r.email}
+                    className="settings-recipient-pill"
+                    title={r.label}
+                  >
                     {r.email}
                   </span>
                 ))}
-                {!emailNotifHelp.entry.goesToPatient && emailNotifHelp.entry.teamRecipients.length === 0 && (
-                  <span className="settings-muted" style={{ fontSize: "0.8rem" }}>Not routed</span>
-                )}
+                {!emailNotifHelp.entry.goesToPatient &&
+                  emailNotifHelp.entry.teamRecipients.length === 0 && (
+                    <span
+                      className="settings-muted"
+                      style={{ fontSize: "0.8rem" }}
+                    >
+                      Not routed
+                    </span>
+                  )}
               </div>
               {emailNotifHelp.entry.body && (
                 <>
-                  <label className="settings-template-preview-label">Email body</label>
-                  <div className="settings-template-preview-body">{renderTemplateVars(emailNotifHelp.entry.body)}</div>
+                  <label className="settings-template-preview-label">
+                    Email body
+                  </label>
+                  <div className="settings-template-preview-body">
+                    {renderTemplateVars(emailNotifHelp.entry.body)}
+                  </div>
                 </>
-              )}
-              {emailNotifHelp.entry.recentVolumePerMonth != null && (
-                <p className="settings-template-preview-trigger" style={{ marginTop: 14 }}>
-                  <strong>Volume:</strong> ~{emailNotifHelp.entry.recentVolumePerMonth}/month
-                </p>
               )}
             </div>
             <div className="modal-footer settings-template-preview-footer">
-              <button type="button" className="btn-secondary" onClick={() => setEmailNotifHelp(null)}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setEmailNotifHelp(null)}
+              >
                 Close
               </button>
               <button
@@ -1208,27 +1404,32 @@ export default function SettingsView() {
             Treatment pricing
           </h2>
           <p className="settings-card-lead">
-            Prices used in quotes and checkout, grouped the same way as your printed list. When it
-            applies, you will see which <strong>treatment type</strong> a line belongs to (for example
-            Voluma as a filler, Sculptra as a biostimulant). Search by section, treatment type, name,
-            or price note. To change a price or name, use <strong>Request change</strong>—our team will
-            update the list.
+            Prices used in quotes and checkout, grouped the same way as your
+            printed list. When it applies, you will see which{" "}
+            <strong>treatment type</strong> a line belongs to (for example
+            Voluma as a filler, Sculptra as a biostimulant). Search by section,
+            treatment type, name, or price note. To change a price or name, use{" "}
+            <strong>Request change</strong>—our team will update the list.
           </p>
 
           <details className="settings-howto">
-            <summary className="settings-howto-summary">How to use this</summary>
+            <summary className="settings-howto-summary">
+              How to use this
+            </summary>
             <ol className="settings-howto-list">
               <li>
-                Search by section, treatment type (for example “Filler”), service name, or price note. Use{" "}
-                <strong>Sort by</strong> to keep catalog sections or list all matching rows by name or
+                Search by section, treatment type (for example “Filler”),
+                service name, or price note. Use <strong>Sort by</strong> to
+                keep catalog sections or list all matching rows by name or
                 price.
               </li>
               <li>
-                <strong>Request change</strong> on a row starts a message with that service filled in.
+                <strong>Request change</strong> on a row starts a message with
+                that service filled in.
               </li>
               <li>
-                <strong>Request other change</strong> is for many updates at once or something not on
-                the list.
+                <strong>Request other change</strong> is for many updates at
+                once or something not on the list.
               </li>
             </ol>
           </details>
@@ -1236,7 +1437,10 @@ export default function SettingsView() {
           <div className="settings-pricing-toolbar">
             <div className="settings-skincare-toolbar-row">
               <div className="settings-skincare-field settings-skincare-field--grow">
-                <label className="settings-pricing-search-label" htmlFor="settings-pricing-search">
+                <label
+                  className="settings-pricing-search-label"
+                  htmlFor="settings-pricing-search"
+                >
                   Search pricing
                 </label>
                 <input
@@ -1250,14 +1454,19 @@ export default function SettingsView() {
                 />
               </div>
               <div className="settings-skincare-field">
-                <label className="settings-pricing-search-label" htmlFor="settings-pricing-sort">
+                <label
+                  className="settings-pricing-search-label"
+                  htmlFor="settings-pricing-sort"
+                >
                   Sort by
                 </label>
                 <select
                   id="settings-pricing-sort"
                   className="settings-pricing-sort-select"
                   value={pricingSort}
-                  onChange={(e) => setPricingSort(e.target.value as PricingSortId)}
+                  onChange={(e) =>
+                    setPricingSort(e.target.value as PricingSortId)
+                  }
                 >
                   <option value="section">Section (catalog order)</option>
                   <option value="name-asc">Service name (A–Z)</option>
@@ -1279,7 +1488,8 @@ export default function SettingsView() {
             <p className="settings-pricing-count" aria-live="polite">
               Showing {pricingLineFilteredCount} of {pricingLineTotal} services
               {pricingSearch.trim() ? " (filtered)" : ""}
-              {pricingDisplay.mode === "sections" && pricingFilteredSectionCount > 0
+              {pricingDisplay.mode === "sections" &&
+              pricingFilteredSectionCount > 0
                 ? ` in ${pricingFilteredSectionCount} section${pricingFilteredSectionCount === 1 ? "" : "s"}`
                 : pricingDisplay.mode === "flat"
                   ? " (one table, sorted)"
@@ -1290,7 +1500,8 @@ export default function SettingsView() {
 
           {pricingLineFilteredCount === 0 ? (
             <p className="settings-muted settings-pricing-empty">
-              Nothing matches your search. Clear the box to see everything again.
+              Nothing matches your search. Clear the box to see everything
+              again.
             </p>
           ) : pricingDisplay.mode === "sections" ? (
             <div className="settings-pricing-sections">
@@ -1340,10 +1551,15 @@ export default function SettingsView() {
                                 </span>
                               )}
                             </td>
-                            <td className="settings-pricing-price">{formatPrice(row.price)}</td>
+                            <td className="settings-pricing-price">
+                              {formatPrice(row.price)}
+                            </td>
                             <td>
                               {row.note ? (
-                                <span className="settings-pricing-note" title={row.note}>
+                                <span
+                                  className="settings-pricing-note"
+                                  title={row.note}
+                                >
                                   {row.note}
                                 </span>
                               ) : (
@@ -1397,7 +1613,9 @@ export default function SettingsView() {
                   <tbody>
                     {pricingDisplay.rows.map((row) => (
                       <tr key={row.rowKey}>
-                        <td className="settings-pricing-flat-section-cell">{row.category}</td>
+                        <td className="settings-pricing-flat-section-cell">
+                          {row.category}
+                        </td>
                         <td className="settings-td-workflow">{row.name}</td>
                         <td className="settings-pricing-plan-cat-cell">
                           {row.planCategories.length > 0 ? (
@@ -1416,10 +1634,15 @@ export default function SettingsView() {
                             </span>
                           )}
                         </td>
-                        <td className="settings-pricing-price">{formatPrice(row.price)}</td>
+                        <td className="settings-pricing-price">
+                          {formatPrice(row.price)}
+                        </td>
                         <td>
                           {row.note ? (
-                            <span className="settings-pricing-note" title={row.note}>
+                            <span
+                              className="settings-pricing-note"
+                              title={row.note}
+                            >
                               {row.note}
                             </span>
                           ) : (
@@ -1473,7 +1696,10 @@ export default function SettingsView() {
           <div className="settings-pricing-toolbar">
             <div className="settings-skincare-toolbar-row">
               <div className="settings-skincare-field settings-skincare-field--grow">
-                <label className="settings-pricing-search-label" htmlFor="settings-skincare-search">
+                <label
+                  className="settings-pricing-search-label"
+                  htmlFor="settings-skincare-search"
+                >
                   Search products
                 </label>
                 <input
@@ -1487,14 +1713,19 @@ export default function SettingsView() {
                 />
               </div>
               <div className="settings-skincare-field">
-                <label className="settings-pricing-search-label" htmlFor="settings-skincare-sort">
+                <label
+                  className="settings-pricing-search-label"
+                  htmlFor="settings-skincare-sort"
+                >
                   Sort by
                 </label>
                 <select
                   id="settings-skincare-sort"
                   className="settings-pricing-sort-select"
                   value={skincareSort}
-                  onChange={(e) => setSkincareSort(e.target.value as SkincareSortId)}
+                  onChange={(e) =>
+                    setSkincareSort(e.target.value as SkincareSortId)
+                  }
                 >
                   <option value="brand">Brand (grouped)</option>
                   <option value="name-asc">Product name (A–Z)</option>
@@ -1524,9 +1755,11 @@ export default function SettingsView() {
               </div>
             </div>
             <p className="settings-pricing-count" aria-live="polite">
-              Showing {skincareProductFilteredCount} of {skincareProductTotal} products
+              Showing {skincareProductFilteredCount} of {skincareProductTotal}{" "}
+              products
               {skincareSearch.trim() ? " (filtered)" : ""}
-              {skincareDisplay.mode === "groups" && skincareBrandSectionCount > 0
+              {skincareDisplay.mode === "groups" &&
+              skincareBrandSectionCount > 0
                 ? ` in ${skincareBrandSectionCount} brand${skincareBrandSectionCount === 1 ? "" : "s"}`
                 : skincareDisplay.mode === "flat"
                   ? " (all products in one list)"
@@ -1542,8 +1775,13 @@ export default function SettingsView() {
           ) : skincareDisplay.mode === "groups" ? (
             <div className="settings-skincare-brands">
               {skincareDisplay.groups.map((group) => (
-                <div key={group.brand} className="settings-skincare-brand-section">
-                  <h3 className="settings-pricing-section-title">{group.brand}</h3>
+                <div
+                  key={group.brand}
+                  className="settings-skincare-brand-section"
+                >
+                  <h3 className="settings-pricing-section-title">
+                    {group.brand}
+                  </h3>
                   <div className="settings-skincare-grid">
                     {group.products.map((product) => (
                       <SettingsSkincareProductCard
@@ -1556,7 +1794,8 @@ export default function SettingsView() {
                               category: group.brand,
                               name: product.displayName,
                               price: 0,
-                              priceDisplayOverride: product.price ?? "Not listed",
+                              priceDisplayOverride:
+                                product.price ?? "Not listed",
                               rowKind: "product",
                               productUrl: product.productUrl,
                               descriptionSnippet: product.description?.trim(),
@@ -1607,7 +1846,10 @@ export default function SettingsView() {
           >
             <div className="modal-header">
               <div className="modal-header-info">
-                <h2 id="settings-template-preview-title" className="modal-title">
+                <h2
+                  id="settings-template-preview-title"
+                  className="modal-title"
+                >
                   {preview.event.eventName}
                 </h2>
                 <p className="settings-template-preview-meta">
@@ -1627,11 +1869,19 @@ export default function SettingsView() {
               <p className="settings-template-preview-trigger">
                 <strong>When:</strong> {preview.event.trigger}
               </p>
-              <label className="settings-template-preview-label">Message text</label>
-              <div className="settings-template-preview-body">{renderTemplateVars(preview.event.template)}</div>
+              <label className="settings-template-preview-label">
+                Message text
+              </label>
+              <div className="settings-template-preview-body">
+                {renderTemplateVars(preview.event.template)}
+              </div>
             </div>
             <div className="modal-footer settings-template-preview-footer">
-              <button type="button" className="btn-secondary" onClick={() => setPreview(null)}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setPreview(null)}
+              >
                 Close
               </button>
               <button
@@ -1671,7 +1921,9 @@ export default function SettingsView() {
             emailRecipients: [
               emailChangeRequest.entry.goesToPatient ? "Patient" : "",
               ...emailChangeRequest.entry.teamRecipients.map((r) => r.email),
-            ].filter(Boolean).join(", "),
+            ]
+              .filter(Boolean)
+              .join(", "),
             emailBody: emailChangeRequest.entry.body,
             notificationIsActive: emailChangeRequest.entry.active,
           }}

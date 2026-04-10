@@ -102,8 +102,35 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: minmax(0, 340px);
   gap: 16px;
+  align-items: stretch;
+  justify-content: center;
+}
+
+@media (min-width: 480px) {
+  .settings-hub-cards {
+    grid-template-columns: repeat(2, minmax(0, 340px));
+  }
+
+  .settings-hub-card-shell:nth-child(3) {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: 100%;
+    max-width: 340px;
+  }
+}
+
+@media (min-width: 960px) {
+  .settings-hub-cards {
+    grid-template-columns: repeat(3, minmax(0, 340px));
+  }
+
+  .settings-hub-card-shell:nth-child(3) {
+    grid-column: auto;
+    justify-self: stretch;
+    max-width: none;
+  }
 }
 
 .settings-hub-placeholder {
@@ -127,6 +154,7 @@
   display: flex;
   flex-direction: column;
   margin: 0;
+  min-width: 0;
   min-height: 100%;
   border: 1px solid #e2e8f0;
   border-radius: 12px;

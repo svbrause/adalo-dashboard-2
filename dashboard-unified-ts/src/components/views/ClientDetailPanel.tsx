@@ -615,12 +615,12 @@ export default function ClientDetailPanel({
     wellnessPlanItems.length > 0;
 
   const treatmentPlanSubheading = showTreatmentRecommenderShortcut
-    ? "From the visit and your notes (not limited to facial scan)"
+    ? ""
     : hasFacialAnalysisForm
       ? "Scan patient before building a plan"
       : hasWebPopupForm
         ? "Complete intake before building a plan"
-        : "From the visit and your notes (not limited to facial scan)";
+        : "";
 
   // Import the rest of the component content from ClientDetailModal
   // This is a large component, so I'll need to copy the JSX structure
@@ -1572,9 +1572,11 @@ export default function ClientDetailPanel({
                           })()}
                         </div>
                       ) : (
-                        <span className="discussed-treatments-in-facial-summary">
-                          None
-                        </span>
+                        <p className="discussed-treatments-in-facial-summary discussed-treatments-plan-empty">
+                          No treatments or products on this plan yet. Use Build
+                          Plan to add items from your conversation and see
+                          pricing here.
+                        </p>
                       )}
                     </div>
                   </div>
