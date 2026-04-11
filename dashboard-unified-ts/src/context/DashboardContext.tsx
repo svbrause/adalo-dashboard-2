@@ -200,7 +200,7 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     skinAnalysisState: "",
     treatmentFinderState: "",
     treatmentPlanState: "",
-    leadStage: "",
+    quizState: "",
     locationName: "",
     providerName: "",
   });

@@ -6,16 +6,15 @@ import { useDashboard } from "../../context/DashboardContext";
 import ClientDetailPanel from "./ClientDetailPanel";
 import Pagination from "../common/Pagination";
 import { formatRelativeDate } from "../../utils/dateFormatting";
-import {
-  formatFacialStatusForDisplay,
-  getFacialStatusColorForDisplay,
-  hasFacialInterestedTreatments,
-} from "../../utils/statusFormatting";
 import { applyFilters, applySorting } from "../../utils/filtering";
 import { isWebsiteMarketingWebLead } from "../../utils/leadSource";
-import { updateClientStatus } from "../../services/contactHistory";
-import { showToast, showError } from "../../utils/toast";
 import { isTheTreatmentProvider } from "../../utils/providerHelpers";
+import {
+  DashboardAnalysisIcon,
+  DashboardListStatusLegend,
+  DashboardPlanIcon,
+  DashboardQuizIcon,
+} from "../common/DashboardSectionIcons";
 import "./ListView.css";
 
 export default function ListView() {
@@ -68,19 +67,6 @@ export default function ListView() {
     setSelectedClient(client);
   };
 
-  const handleStatusChange = async (clientId: string, newStatus: string) => {
-    const client = clients.find((c) => c.id === clientId);
-    if (!client) return;
-
-    try {
-      await updateClientStatus(client, newStatus as Parameters<typeof updateClientStatus>[1]);
-      showToast(`Status updated to ${newStatus}`);
-      refreshClients();
-    } catch (error: any) {
-      showError(error.message || "Failed to update status");
-    }
-  };
-
   const handleColumnSort = (field: typeof sort.field) => {
     if (sort.field === field) {
       // Toggle sort order if clicking same column
@@ -98,8 +84,7 @@ export default function ListView() {
     return sort.order === "asc" ? " ↑" : " ↓";
   };
 
-  const isLeadsView = currentView === "leads";
-  const tableColSpan = isLeadsView ? 4 : 6;
+  const tableColSpan = 6;
 
   if (loading) {
     return (
@@ -146,8 +131,9 @@ export default function ListView() {
             </button>
           </div>
         )}
+        <DashboardListStatusLegend />
         <div className="leads-table-container">
-          <table className={isLeadsView ? "leads-table leads-table--leads-compact" : "leads-table"}>
+          <table className="leads-table">
             <thead>
               <tr>
                 <th
@@ -157,24 +143,26 @@ export default function ListView() {
                 >
                   Client{getSortIndicator("name")}
                 </th>
-                {!isLeadsView && (
-                  <>
-                    <th>Interested Treatments</th>
-                    <th
-                      onClick={() => handleColumnSort("facialAnalysisStatus")}
-                      className="table-header-sortable"
-                      title="Click to sort by analysis status"
-                    >
-                      Analysis Status{getSortIndicator("facialAnalysisStatus")}
-                    </th>
-                  </>
-                )}
                 <th
-                  onClick={() => handleColumnSort("status")}
-                  className="table-header-sortable"
-                  title="Click to sort by lead stage"
+                  onClick={() => handleColumnSort("treatmentPlanBuilt")}
+                  className="table-header-sortable table-header-icon-col"
+                  title="Sort by plan"
                 >
-                  Lead Stage{getSortIndicator("status")}
+                  Plan{getSortIndicator("treatmentPlanBuilt")}
+                </th>
+                <th
+                  onClick={() => handleColumnSort("facialAnalysisStatus")}
+                  className="table-header-sortable table-header-icon-col"
+                  title="Sort by analysis status"
+                >
+                  Analysis{getSortIndicator("facialAnalysisStatus")}
+                </th>
+                <th
+                  onClick={() => handleColumnSort("quizCompleted")}
+                  className="table-header-sortable table-header-icon-col"
+                  title="Sort by quiz completed"
+                >
+                  Quiz{getSortIndicator("quizCompleted")}
                 </th>
                 <th
                   onClick={() => handleColumnSort("lastContact")}
@@ -218,65 +206,25 @@ export default function ListView() {
                       <div className="table-lead-email">
                         {client.email || ""}
                       </div>
-                    </td>
-                    {!isLeadsView && (
-                      <>
-                        <td>
-                          <div className="interest-tags-container">
-                            {Array.isArray(client.goals)
-                              ? client.goals.slice(0, 2).map((g, i) => (
-                                  <span key={i} className="interest-tag interest-tag-sm">
-                                    {g}
-                                  </span>
-                                ))
-                              : null}
-                          </div>
-                        </td>
-                        <td>
-                          <span
-                            className="status-badge status-badge-base"
-                            style={{
-                              background: getFacialStatusColorForDisplay(
-                                client.facialAnalysisStatus || null,
-                                hasFacialInterestedTreatments(client),
-                                provider?.code,
-                              ),
-                            }}
-                          >
-                            {formatFacialStatusForDisplay(
-                              client.facialAnalysisStatus || null,
-                              hasFacialInterestedTreatments(client),
-                              provider?.code,
-                            )}
+                      {client.offerClaimed && (
+                        <div className="list-view-offer-claimed">
+                          <span className="list-view-offer-claimed-text">
+                            ✓ Offer claimed
                           </span>
-                          {client.offerClaimed && (
-                            <div className="status-badge-offer">
-                              <span className="status-badge-offer-content">
-                                ✓ Offer Claimed
-                              </span>
-                            </div>
-                          )}
-                        </td>
-                      </>
-                    )}
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <select
-                        className="status-select-inline"
-                        value={client.status}
-                        onChange={(e) =>
-                          handleStatusChange(client.id, e.target.value)
-                        }
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <option value="new">New Lead</option>
-                        <option value="contacted">Contacted</option>
-                        <option value="requested-consult">
-                          Requested Consult
-                        </option>
-                        <option value="scheduled">Scheduled</option>
-                        <option value="converted">Converted</option>
-                        <option value="current-client">Current Client</option>
-                      </select>
+                        </div>
+                      )}
+                    </td>
+                    <td className="table-cell-icon-col">
+                      <DashboardPlanIcon client={client} />
+                    </td>
+                    <td className="table-cell-icon-col">
+                      <DashboardAnalysisIcon
+                        client={client}
+                        providerCode={provider?.code}
+                      />
+                    </td>
+                    <td className="table-cell-icon-col">
+                      <DashboardQuizIcon client={client} />
                     </td>
                     <td className="text-sm text-muted">
                       {formatRelativeDate(

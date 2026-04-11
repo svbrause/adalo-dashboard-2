@@ -47,56 +47,161 @@
 
 .leads-table {
   width: 100%;
-  min-width: 1000px;
+  min-width: 872px;
   border-collapse: collapse;
 }
 
-/* Leads tab: Client, Lead stage, Last activity, Actions */
-.leads-table--leads-compact {
-  min-width: 640px;
+/* Client | Plan | Analysis | Quiz | Last activity | Actions */
+.leads-table th:nth-child(1),
+.leads-table td:nth-child(1) {
+  min-width: 148px;
+  max-width: 200px;
+  width: 18%;
+}
+.leads-table th:nth-child(2),
+.leads-table td:nth-child(2),
+.leads-table th:nth-child(3),
+.leads-table td:nth-child(3),
+.leads-table th:nth-child(4),
+.leads-table td:nth-child(4) {
+  min-width: 56px;
+  width: 56px;
+}
+.leads-table th:nth-child(5),
+.leads-table td:nth-child(5) {
+  min-width: 120px;
+}
+.leads-table th:nth-child(6),
+.leads-table td:nth-child(6) {
+  min-width: 88px;
 }
 
-.leads-table--leads-compact th:nth-child(1),
-.leads-table--leads-compact td:nth-child(1) {
-  min-width: 220px;
-}
-.leads-table--leads-compact th:nth-child(2),
-.leads-table--leads-compact td:nth-child(2) {
-  min-width: 180px;
-}
-.leads-table--leads-compact th:nth-child(3),
-.leads-table--leads-compact td:nth-child(3) {
-  min-width: 130px;
-}
-.leads-table--leads-compact th:nth-child(4),
-.leads-table--leads-compact td:nth-child(4) {
-  min-width: 100px;
+.table-header-icon-col {
+  text-align: center;
 }
 
-/* Column min-widths so table doesn't scrunch on narrow screens (Clients list, 6 cols) */
-.leads-table:not(.leads-table--leads-compact) th:nth-child(1),
-.leads-table:not(.leads-table--leads-compact) td:nth-child(1) {
-  min-width: 220px;
+.table-cell-icon-col {
+  text-align: center;
+  vertical-align: middle;
 }
-.leads-table:not(.leads-table--leads-compact) th:nth-child(2),
-.leads-table:not(.leads-table--leads-compact) td:nth-child(2) {
-  min-width: 180px;
+
+.dashboard-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  color: #334155;
 }
-.leads-table:not(.leads-table--leads-compact) th:nth-child(3),
-.leads-table:not(.leads-table--leads-compact) td:nth-child(3) {
-  min-width: 180px;
+
+.dashboard-section-icon--analysis {
+  border-style: solid;
+  border-width: 1px;
 }
-.leads-table:not(.leads-table--leads-compact) th:nth-child(4),
-.leads-table:not(.leads-table--leads-compact) td:nth-child(4) {
-  min-width: 180px;
+
+.dashboard-section-icon--muted {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
 }
-.leads-table:not(.leads-table--leads-compact) th:nth-child(5),
-.leads-table:not(.leads-table--leads-compact) td:nth-child(5) {
-  min-width: 130px;
+
+.dashboard-section-icon--on.dashboard-section-icon--plan,
+.dashboard-section-icon--on.dashboard-section-icon--quiz {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
 }
-.leads-table:not(.leads-table--leads-compact) th:nth-child(6),
-.leads-table:not(.leads-table--leads-compact) td:nth-child(6) {
-  min-width: 100px;
+
+.list-view-offer-claimed {
+  margin-top: 6px;
+}
+
+.list-view-offer-claimed-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #047857;
+}
+
+.dashboard-list-status-legend {
+  flex-shrink: 0;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--theme-border);
+  background: var(--theme-bg-card);
+  box-shadow: 0 1px 2px var(--theme-shadow);
+}
+
+.dashboard-list-status-legend-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--theme-text-secondary);
+  margin-bottom: 8px;
+}
+
+.dashboard-list-status-legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-list-status-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--theme-text-primary);
+}
+
+.dashboard-list-status-legend-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.dashboard-list-status-legend-icon--muted {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+}
+
+.dashboard-list-status-legend-icon--on {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+}
+
+/* Match analysis column swatches from statusFormatting getFacialStatusColor */
+.dashboard-list-status-legend-icon--analysis-pending {
+  background: #fff3cd;
+  border: 1px solid #ffecb3;
+  color: #1e293b;
+}
+
+.dashboard-list-status-legend-icon--analysis-ready {
+  background: #d1ecf1;
+  border: 1px solid #d1ecf1;
+  color: #1e293b;
+}
+
+.dashboard-list-status-legend-icon--analysis-reviewed {
+  background: #d4edda;
+  border: 1px solid #c8e6c9;
+  color: #1e293b;
 }
 
 .leads-table thead {
@@ -133,11 +238,17 @@
   font-weight: 600;
   color: var(--theme-text-primary);
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-lead-email {
   font-size: 12px;
   color: var(--theme-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .interest-tag {
@@ -283,20 +394,15 @@
     margin-top: 1px;
   }
 
-  /* Clients list (6 cols): hide middle columns on small screens; show name + date */
-  .leads-table:not(.leads-table--leads-compact) td:nth-child(2) {
+  /* Hide plan / analysis / quiz / actions; show name + last activity */
+  .leads-table td:nth-child(2),
+  .leads-table td:nth-child(3),
+  .leads-table td:nth-child(4),
+  .leads-table td:nth-child(6) {
     display: none;
   }
 
-  .leads-table:not(.leads-table--leads-compact) td:nth-child(3) {
-    display: none;
-  }
-
-  .leads-table:not(.leads-table--leads-compact) td:nth-child(4) {
-    display: none;
-  }
-
-  .leads-table:not(.leads-table--leads-compact) td:nth-child(5) {
+  .leads-table td:nth-child(5) {
     flex: 0 1 auto;
     max-width: 36%;
     min-width: 0;
@@ -308,33 +414,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .leads-table:not(.leads-table--leads-compact) td:nth-child(6) {
-    display: none;
-  }
-
-  /* Leads list (4 cols): hide lead stage + view; show name + last activity */
-  .leads-table--leads-compact td:nth-child(2) {
-    display: none;
-  }
-
-  .leads-table--leads-compact td:nth-child(3) {
-    flex: 0 1 auto;
-    max-width: 36%;
-    min-width: 0;
-    padding: 8px 0 8px 8px;
-    font-size: 12px;
-    color: #8e8e93;
-    text-align: right;
-    align-items: flex-end;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .leads-table--leads-compact td:nth-child(4) {
-    display: none;
   }
 
   .interest-tag {

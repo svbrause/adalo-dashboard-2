@@ -1,11 +1,34 @@
 // View Controls Component (Search, Filters, Sort)
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDashboard } from "../../context/DashboardContext";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
+import {
+  FILTER_OPT,
+  getActiveFilterTags,
+} from "../../utils/activeFilterSummary";
+import { FilterSelect } from "./FilterSelect";
+import type { FilterSelectOption } from "./FilterSelect";
 import "./ViewControls.css";
+
+const SORT_FIELD_OPTIONS: FilterSelectOption[] = [
+  { value: "lastContact", label: "Last Activity" },
+  { value: "name", label: "Name" },
+  { value: "age", label: "Age" },
+  { value: "facialAnalysisStatus", label: "Analysis status" },
+  { value: "treatmentPlanBuilt", label: "Plan (complete first)" },
+  { value: "quizCompleted", label: "Quiz (complete first)" },
+  { value: "photosLiked", label: "Photos Liked" },
+  { value: "photosViewed", label: "Photos Viewed" },
+  { value: "createdAt", label: "Date Added" },
+];
+
+const SORT_ORDER_OPTIONS: FilterSelectOption[] = [
+  { value: "desc", label: "Descending" },
+  { value: "asc", label: "Ascending" },
+];
 
 export default function ViewControls() {
   const {
@@ -76,6 +99,11 @@ export default function ViewControls() {
       if (!target) return;
       if (filterSectionRef.current?.contains(target)) return;
       if (filterContentRef.current?.contains(target)) return;
+      if (
+        (target as HTMLElement).closest?.(".filter-select-custom-menu")
+      ) {
+        return;
+      }
       setShowFilters(false);
     };
 
@@ -95,6 +123,11 @@ export default function ViewControls() {
       if (!target) return;
       if (sortSectionRef.current?.contains(target)) return;
       if (sortContentRef.current?.contains(target)) return;
+      if (
+        (target as HTMLElement).closest?.(".filter-select-custom-menu")
+      ) {
+        return;
+      }
       setShowSort(false);
     };
 
@@ -135,23 +168,183 @@ export default function ViewControls() {
     currentView === "kanban" ||
     currentView === "facial-analysis";
 
+  const filtersActive = useMemo(() => {
+    const f = filters;
+    return (
+      Boolean(String(f.source ?? "").trim()) ||
+      f.ageMin !== null ||
+      f.ageMax !== null ||
+      Boolean(f.analysisStatus) ||
+      Boolean(f.skinAnalysisState) ||
+      Boolean(f.treatmentFinderState) ||
+      Boolean(f.treatmentPlanState) ||
+      Boolean(f.quizState) ||
+      Boolean(String(f.locationName ?? "").trim()) ||
+      Boolean(String(f.providerName ?? "").trim())
+    );
+  }, [filters]);
+
+  const activeFilterTags = useMemo(
+    () => getActiveFilterTags(filters),
+    [filters],
+  );
+
+  const analysisFilterOptions = useMemo((): FilterSelectOption[] => {
+    const pendingVal = wellnestAnalysisStatusPendingLabel
+      ? "Not started"
+      : "Pending";
+    return [
+      { value: "", label: "All" },
+      {
+        value: pendingVal,
+        label: wellnestAnalysisStatusPendingLabel
+          ? `${FILTER_OPT.notStarted}Not started`
+          : `${FILTER_OPT.pending}Pending`,
+        swatch: wellnestAnalysisStatusPendingLabel
+          ? "muted"
+          : "analysis-pending",
+      },
+      {
+        value: "Ready for Review",
+        label: `${FILTER_OPT.complete}Ready for review`,
+        swatch: "analysis-ready",
+      },
+      {
+        value: "Patient Reviewed",
+        label: `${FILTER_OPT.complete}Patient reviewed`,
+        swatch: "analysis-reviewed",
+      },
+    ];
+  }, [wellnestAnalysisStatusPendingLabel]);
+
+  const sourceFilterOptions = useMemo((): FilterSelectOption[] => {
+    return [
+      { value: "", label: "All Sources" },
+      ...sourceOptions.map((src) => ({
+        value: src,
+        label: src,
+      })),
+    ];
+  }, [sourceOptions]);
+
+  const locationFilterOptions = useMemo((): FilterSelectOption[] => {
+    return [
+      { value: "", label: "All Locations" },
+      ...locationOptions.map((loc) => ({
+        value: loc,
+        label: loc,
+      })),
+    ];
+  }, [locationOptions]);
+
+  const providerFilterOptions = useMemo((): FilterSelectOption[] => {
+    return [
+      { value: "", label: "All Providers" },
+      ...providerOptions.map((name) => ({
+        value: name,
+        label: name,
+      })),
+    ];
+  }, [providerOptions]);
+
+  const skinFilterOptions = useMemo(
+    (): FilterSelectOption[] => [
+      { value: "", label: "All" },
+      {
+        value: "has",
+        label: `${FILTER_OPT.complete}Has analysis data`,
+        swatch: "complete",
+      },
+      {
+        value: "blank",
+        label: `${FILTER_OPT.notStarted}Not started`,
+        swatch: "muted",
+      },
+    ],
+    [],
+  );
+
+  const finderFilterOptions = useMemo(
+    (): FilterSelectOption[] => [
+      { value: "", label: "All" },
+      {
+        value: "has",
+        label: `${FILTER_OPT.pending}Has finder activity`,
+        swatch: "pending",
+      },
+      {
+        value: "blank",
+        label: `${FILTER_OPT.notStarted}Not started`,
+        swatch: "muted",
+      },
+    ],
+    [],
+  );
+
+  const planFilterOptions = useMemo(
+    (): FilterSelectOption[] => [
+      { value: "", label: "All" },
+      {
+        value: "has",
+        label: `${FILTER_OPT.complete}Complete`,
+        swatch: "complete",
+      },
+      {
+        value: "blank",
+        label: `${FILTER_OPT.notStarted}Not started`,
+        swatch: "muted",
+      },
+    ],
+    [],
+  );
+
+  const quizFilterOptions = useMemo(
+    (): FilterSelectOption[] => [
+      { value: "", label: "All" },
+      {
+        value: "has",
+        label: `${FILTER_OPT.complete}Complete`,
+        swatch: "complete",
+      },
+      {
+        value: "blank",
+        label: `${FILTER_OPT.notStarted}Not started`,
+        swatch: "muted",
+      },
+    ],
+    [],
+  );
+
+  const clearAllFilters = useCallback(() => {
+    setFilters({
+      source: "",
+      ageMin: null,
+      ageMax: null,
+      analysisStatus: "",
+      skinAnalysisState: "",
+      treatmentFinderState: "",
+      treatmentPlanState: "",
+      quizState: "",
+      locationName: "",
+      providerName: "",
+    });
+    setSort({ field: "createdAt", order: "desc" });
+    setPagination({ currentPage: 1, itemsPerPage: 25 });
+  }, [setFilters, setSort, setPagination]);
+
   const filterContent = (
     <>
       <div className="filter-group">
         <label>Source</label>
-        <select
+        <FilterSelect
+          aria-label="Filter by source"
           value={filters.source}
-          onChange={(e) => {
-            setFilters({ ...filters, source: e.target.value });
+          onChange={(v) => {
+            setFilters({ ...filters, source: v });
             setPagination({ currentPage: 1, itemsPerPage: 25 });
           }}
-          className="filter-select"
-        >
-          <option value="">All Sources</option>
-          {sourceOptions.map((src) => (
-            <option key={src} value={src}>{src}</option>
-          ))}
-        </select>
+          options={sourceFilterOptions}
+        />
       </div>
       <div className="filter-group">
         <label>Age Range</label>
@@ -184,141 +377,108 @@ export default function ViewControls() {
         </div>
       </div>
       <div className="filter-group">
-        <label>Analysis Status</label>
-        <select
+        <label>Analysis</label>
+        <FilterSelect
+          aria-label="Filter by facial analysis status"
           value={filters.analysisStatus}
-          onChange={(e) => {
-            setFilters({ ...filters, analysisStatus: e.target.value });
+          onChange={(v) => {
+            setFilters({ ...filters, analysisStatus: v });
             setPagination({ currentPage: 1, itemsPerPage: 25 });
           }}
-          className="filter-select"
-        >
-          <option value="">All Statuses</option>
-          <option value={wellnestAnalysisStatusPendingLabel ? "Not started" : "Pending"}>
-            {wellnestAnalysisStatusPendingLabel ? "Not started" : "Pending"}
-          </option>
-          <option value="Ready for Review">Ready for Review</option>
-          <option value="Patient Reviewed">Patient Reviewed</option>
-        </select>
+          options={analysisFilterOptions}
+        />
       </div>
       <div className="filter-group">
         <label>Skin Analysis</label>
-        <select
+        <FilterSelect
+          aria-label="Filter by skin analysis"
           value={filters.skinAnalysisState}
-          onChange={(e) => {
-            setFilters({ ...filters, skinAnalysisState: e.target.value as "" | "has" | "blank" });
+          onChange={(v) => {
+            setFilters({
+              ...filters,
+              skinAnalysisState: v as "" | "has" | "blank",
+            });
             setPagination({ currentPage: 1, itemsPerPage: 25 });
           }}
-          className="filter-select"
-        >
-          <option value="">All</option>
-          <option value="has">Has Skin Analysis</option>
-          <option value="blank">Skin Analysis Blank</option>
-        </select>
+          options={skinFilterOptions}
+        />
       </div>
       <div className="filter-group">
         <label>Treatment Finder</label>
-        <select
+        <FilterSelect
+          aria-label="Filter by treatment finder activity"
           value={filters.treatmentFinderState}
-          onChange={(e) => {
-            setFilters({ ...filters, treatmentFinderState: e.target.value as "" | "has" | "blank" });
+          onChange={(v) => {
+            setFilters({
+              ...filters,
+              treatmentFinderState: v as "" | "has" | "blank",
+            });
             setPagination({ currentPage: 1, itemsPerPage: 25 });
           }}
-          className="filter-select"
-        >
-          <option value="">All</option>
-          <option value="has">Has Treatment Finder</option>
-          <option value="blank">Treatment Finder Blank</option>
-        </select>
+          options={finderFilterOptions}
+        />
       </div>
       <div className="filter-group">
-        <label>Treatment Plan</label>
-        <select
+        <label>Plan</label>
+        <FilterSelect
+          aria-label="Filter by treatment plan"
           value={filters.treatmentPlanState}
-          onChange={(e) => {
-            setFilters({ ...filters, treatmentPlanState: e.target.value as "" | "has" | "blank" });
+          onChange={(v) => {
+            setFilters({
+              ...filters,
+              treatmentPlanState: v as "" | "has" | "blank",
+            });
             setPagination({ currentPage: 1, itemsPerPage: 25 });
           }}
-          className="filter-select"
-        >
-          <option value="">All</option>
-          <option value="has">Plan Built</option>
-          <option value="blank">Plan Blank</option>
-        </select>
+          options={planFilterOptions}
+        />
       </div>
       <div className="filter-group">
-        <label>Lead Stage</label>
-        <select
-          value={filters.leadStage}
-          onChange={(e) => {
-            setFilters({ ...filters, leadStage: e.target.value });
+        <label>Quiz</label>
+        <FilterSelect
+          aria-label="Filter by quiz completion"
+          value={filters.quizState}
+          onChange={(v) => {
+            setFilters({ ...filters, quizState: v as "" | "has" | "blank" });
             setPagination({ currentPage: 1, itemsPerPage: 25 });
           }}
-          className="filter-select"
-        >
-          <option value="">All Stages</option>
-          <option value="new">New Lead</option>
-          <option value="contacted">Contacted</option>
-          <option value="requested-consult">Requested Consult</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="converted">Converted</option>
-          <option value="current-client">Current Client</option>
-        </select>
+          options={quizFilterOptions}
+        />
       </div>
       {locationOptions.length > 0 && (
         <div className="filter-group">
           <label>Location</label>
-          <select
+          <FilterSelect
+            aria-label="Filter by location"
             value={filters.locationName}
-            onChange={(e) => {
-              setFilters({ ...filters, locationName: e.target.value });
+            onChange={(v) => {
+              setFilters({ ...filters, locationName: v });
               setPagination({ currentPage: 1, itemsPerPage: 25 });
             }}
-            className="filter-select"
-          >
-            <option value="">All Locations</option>
-            {locationOptions.map((loc) => (
-              <option key={loc} value={loc}>{loc}</option>
-            ))}
-          </select>
+            options={locationFilterOptions}
+          />
         </div>
       )}
       {providerOptions.length > 0 && (
         <div className="filter-group">
           <label>Provider</label>
-          <select
+          <FilterSelect
+            aria-label="Filter by provider"
             value={filters.providerName}
-            onChange={(e) => {
-              setFilters({ ...filters, providerName: e.target.value });
+            onChange={(v) => {
+              setFilters({ ...filters, providerName: v });
               setPagination({ currentPage: 1, itemsPerPage: 25 });
             }}
-            className="filter-select"
-          >
-            <option value="">All Providers</option>
-            {providerOptions.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+            options={providerFilterOptions}
+          />
         </div>
       )}
       <button
-        className="btn-secondary btn-sm filter-clear-btn"
-        onClick={() => {
-          setFilters({
-            source: "",
-            ageMin: null,
-            ageMax: null,
-            analysisStatus: "",
-            skinAnalysisState: "",
-            treatmentFinderState: "",
-            treatmentPlanState: "",
-            leadStage: "",
-            locationName: "",
-            providerName: "",
-          });
-          setSort({ field: "createdAt", order: "desc" });
-          setPagination({ currentPage: 1, itemsPerPage: 25 });
-        }}
+        type="button"
+        className={`btn-secondary btn-sm filter-clear-btn${
+          filtersActive ? " filter-clear-btn--active" : ""
+        }`}
+        onClick={clearAllFilters}
       >
         Clear Filters
       </button>
@@ -329,41 +489,33 @@ export default function ViewControls() {
     <>
       <div className="filter-group">
         <label>Sort By</label>
-        <select
+        <FilterSelect
+          aria-label="Sort by field"
           value={sort.field}
-          onChange={(e) => {
-            setSort({ ...sort, field: e.target.value as any });
+          onChange={(v) => {
+            setSort({ ...sort, field: v as typeof sort.field });
             setPagination({ currentPage: 1, itemsPerPage: 25 });
           }}
-          className="filter-select"
-        >
-          <option value="lastContact">Last Activity</option>
-          <option value="name">Name</option>
-          <option value="age">Age</option>
-          <option value="status">Status</option>
-          <option value="photosLiked">Photos Liked</option>
-          <option value="photosViewed">Photos Viewed</option>
-          <option value="createdAt">Date Added</option>
-        </select>
+          options={SORT_FIELD_OPTIONS}
+        />
       </div>
       <div className="filter-group">
         <label>Order</label>
-        <select
+        <FilterSelect
+          aria-label="Sort order"
           value={sort.order}
-          onChange={(e) => {
-            setSort({ ...sort, order: e.target.value as "asc" | "desc" });
+          onChange={(v) => {
+            setSort({ ...sort, order: v as "asc" | "desc" });
             setPagination({ currentPage: 1, itemsPerPage: 25 });
           }}
-          className="filter-select"
-        >
-          <option value="desc">Descending</option>
-          <option value="asc">Ascending</option>
-        </select>
+          options={SORT_ORDER_OPTIONS}
+        />
       </div>
     </>
   );
 
   return (
+    <>
     <div className="view-controls-container">
       {isAllClientsView && !isMobileLayout && (
       <div className="control-section view-toggle-section">
@@ -470,9 +622,17 @@ export default function ViewControls() {
       {/* Filter Section */}
       <div className="control-section filter-section" ref={filterSectionRef}>
         <button
-          className="control-toggle-btn"
-          onClick={() => { setShowFilters(!showFilters); setShowSort(false); }}
-          aria-label="Filter"
+          type="button"
+          className={`control-toggle-btn${
+            filtersActive ? " control-toggle-btn--filters-active" : ""
+          }`}
+          onClick={() => {
+            setShowFilters(!showFilters);
+            setShowSort(false);
+          }}
+          aria-label={filtersActive ? "Filters (active)" : "Filters"}
+          title={filtersActive ? "Filters are applied — click to adjust" : "Filters"}
+          aria-expanded={showFilters}
         >
           <span>Filters</span>
           <svg
@@ -485,8 +645,13 @@ export default function ViewControls() {
             strokeLinecap="round"
             strokeLinejoin="round"
             className="control-toggle-icon"
+            aria-hidden
           >
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            <polygon
+              points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+              fill={filtersActive ? "currentColor" : "none"}
+              stroke={filtersActive ? "none" : "currentColor"}
+            />
           </svg>
         </button>
         {showFilters && !isMobileLayout && (
@@ -553,5 +718,33 @@ export default function ViewControls() {
       </>
       )}
     </div>
+
+    {isClientView && !showFilters && activeFilterTags.length > 0 && (
+      <div
+        className="filter-active-summary"
+        role="status"
+        aria-live="polite"
+        aria-label="Active filters"
+      >
+        <div className="filter-active-summary-inner">
+          <span className="filter-active-summary-heading">Filtered by</span>
+          <ul className="filter-active-summary-chips">
+            {activeFilterTags.map((tag, i) => (
+              <li key={`${i}-${tag}`} className="filter-active-summary-chip">
+                {tag}
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="btn-secondary btn-sm filter-clear-btn filter-clear-btn--active filter-active-summary-clear"
+            onClick={clearAllFilters}
+          >
+            Clear filters
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

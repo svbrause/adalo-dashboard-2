@@ -10,7 +10,7 @@ const defaultFilters: FilterState = {
   skinAnalysisState: "",
   treatmentFinderState: "",
   treatmentPlanState: "",
-  leadStage: "",
+  quizState: "",
   locationName: "",
   providerName: "",
 };
@@ -115,6 +115,33 @@ describe("applyFilters", () => {
 
     expect(hasPlan.map((c) => c.id)).toEqual(["with-plan"]);
     expect(blankPlan.map((c) => c.id)).toEqual(["without-plan"]);
+  });
+
+  it("supports quiz complete / not started filters", () => {
+    const skincareDone = makeClient({
+      id: "quiz-done",
+      skincareQuiz: {
+        version: 1,
+        completedAt: "2026-01-15T00:00:00.000Z",
+        answers: {},
+        result: "pearl",
+      },
+    });
+    const noQuiz = makeClient({ id: "quiz-none" });
+
+    const complete = applyFilters(
+      [skincareDone, noQuiz],
+      { ...defaultFilters, quizState: "has" },
+      "",
+    );
+    const notStarted = applyFilters(
+      [skincareDone, noQuiz],
+      { ...defaultFilters, quizState: "blank" },
+      "",
+    );
+
+    expect(complete.map((c) => c.id)).toEqual(["quiz-done"]);
+    expect(notStarted.map((c) => c.id)).toEqual(["quiz-none"]);
   });
 });
 

@@ -3,6 +3,7 @@
 import { Client, FilterState, SortState } from "../types";
 import { formatFacialStatus } from "./statusFormatting";
 import { formatProviderDisplayName } from "./providerHelpers";
+import { hasQuizCompleted } from "./dashboardListSectionStatus";
 
 function hasSkinAnalysis(client: Client): boolean {
   const status = String(client.facialAnalysisStatus ?? "").trim().toLowerCase();
@@ -140,10 +141,12 @@ export function applyFilters(
         : !hasTreatmentPlan(client),
     );
   }
-
-  // Apply lead stage filter
-  if (filters.leadStage) {
-    filtered = filtered.filter((client) => client.status === filters.leadStage);
+  if (filters.quizState) {
+    filtered = filtered.filter((client) =>
+      filters.quizState === "has"
+        ? hasQuizCompleted(client)
+        : !hasQuizCompleted(client),
+    );
   }
 
   // Apply location filter (Patients: locationName from Boulevard/Form)
@@ -170,17 +173,25 @@ export function applySorting(clients: Client[], sort: SortState): Client[] {
   const sorted = [...clients];
 
   sorted.sort((a, b) => {
-    let aVal: any = a[sort.field];
-    let bVal: any = b[sort.field];
+    let aVal: any;
+    let bVal: any;
 
-    // Handle null/undefined values
-    if (aVal === null || aVal === undefined) aVal = "";
-    if (bVal === null || bVal === undefined) bVal = "";
+    if (sort.field === "treatmentPlanBuilt") {
+      aVal = (a.discussedItems?.length ?? 0) > 0 ? 1 : 0;
+      bVal = (b.discussedItems?.length ?? 0) > 0 ? 1 : 0;
+    } else if (sort.field === "quizCompleted") {
+      aVal = hasQuizCompleted(a) ? 1 : 0;
+      bVal = hasQuizCompleted(b) ? 1 : 0;
+    } else {
+      aVal = a[sort.field as keyof Client];
+      bVal = b[sort.field as keyof Client];
+      if (aVal === null || aVal === undefined) aVal = "";
+      if (bVal === null || bVal === undefined) bVal = "";
+    }
 
     // Handle different data types
     if (
       sort.field === "name" ||
-      sort.field === "status" ||
       sort.field === "facialAnalysisStatus"
     ) {
       aVal = String(aVal || "").toLowerCase();

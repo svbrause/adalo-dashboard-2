@@ -225,9 +225,10 @@ export interface FilterState {
   skinAnalysisState: "" | "has" | "blank";
   /** Whether Treatment Finder data exists for this client. ""=all, "has", "blank". */
   treatmentFinderState: "" | "has" | "blank";
-  /** Whether a treatment plan exists (discussed items). ""=all, "has", "blank". */
+  /** Whether a treatment plan exists (discussed items). ""=all, "has"=complete, "blank"=not started. */
   treatmentPlanState: "" | "has" | "blank";
-  leadStage: string;
+  /** Skincare or wellness quiz completed. ""=all, "has"=complete, "blank"=not started. */
+  quizState: "" | "has" | "blank";
   /** Location name (e.g. Newport Beach) – from client.locationName (Patients). */
   locationName: string;
   /** Provider / staff name – from client.appointmentStaffName (Patients). */
@@ -239,8 +240,9 @@ export interface SortState {
     | "lastContact"
     | "name"
     | "age"
-    | "status"
     | "facialAnalysisStatus"
+    | "treatmentPlanBuilt"
+    | "quizCompleted"
     | "photosLiked"
     | "photosViewed"
     | "createdAt";
