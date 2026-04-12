@@ -108,11 +108,31 @@
   color: #94a3b8;
 }
 
+.dashboard-section-icon--pending {
+  background: #fff3cd;
+  border-color: #ffecb3;
+  color: #64748b;
+}
+
 .dashboard-section-icon--on.dashboard-section-icon--plan,
-.dashboard-section-icon--on.dashboard-section-icon--quiz {
+.dashboard-section-icon--on.dashboard-section-icon--quiz,
+.dashboard-section-icon--on.dashboard-section-icon--analysis {
   background: #ecfdf5;
   border-color: #a7f3d0;
   color: #047857;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-section-icon[title] {
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+
+  .dashboard-section-icon[title]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+  }
 }
 
 .list-view-offer-claimed {
@@ -123,85 +143,6 @@
   font-size: 11px;
   font-weight: 600;
   color: #047857;
-}
-
-.dashboard-list-status-legend {
-  flex-shrink: 0;
-  margin: 0 0 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--theme-border);
-  background: var(--theme-bg-card);
-  box-shadow: 0 1px 2px var(--theme-shadow);
-}
-
-.dashboard-list-status-legend-title {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--theme-text-secondary);
-  margin-bottom: 8px;
-}
-
-.dashboard-list-status-legend-items {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px 20px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.dashboard-list-status-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--theme-text-primary);
-}
-
-.dashboard-list-status-legend-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.dashboard-list-status-legend-icon--muted {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
-}
-
-.dashboard-list-status-legend-icon--on {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #047857;
-}
-
-/* Match analysis column swatches from statusFormatting getFacialStatusColor */
-.dashboard-list-status-legend-icon--analysis-pending {
-  background: #fff3cd;
-  border: 1px solid #ffecb3;
-  color: #1e293b;
-}
-
-.dashboard-list-status-legend-icon--analysis-ready {
-  background: #d1ecf1;
-  border: 1px solid #d1ecf1;
-  color: #1e293b;
-}
-
-.dashboard-list-status-legend-icon--analysis-reviewed {
-  background: #d4edda;
-  border: 1px solid #c8e6c9;
-  color: #1e293b;
 }
 
 .leads-table thead {

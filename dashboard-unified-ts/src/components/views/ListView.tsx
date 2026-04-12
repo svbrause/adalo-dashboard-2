@@ -11,7 +11,6 @@ import { isWebsiteMarketingWebLead } from "../../utils/leadSource";
 import { isTheTreatmentProvider } from "../../utils/providerHelpers";
 import {
   DashboardAnalysisIcon,
-  DashboardListStatusLegend,
   DashboardPlanIcon,
   DashboardQuizIcon,
 } from "../common/DashboardSectionIcons";
@@ -131,7 +130,6 @@ export default function ListView() {
             </button>
           </div>
         )}
-        <DashboardListStatusLegend />
         <div className="leads-table-container">
           <table className="leads-table">
             <thead>
@@ -146,21 +144,21 @@ export default function ListView() {
                 <th
                   onClick={() => handleColumnSort("treatmentPlanBuilt")}
                   className="table-header-sortable table-header-icon-col"
-                  title="Sort by plan"
+                  title="Plan: not started vs has items. Click to sort."
                 >
                   Plan{getSortIndicator("treatmentPlanBuilt")}
                 </th>
                 <th
                   onClick={() => handleColumnSort("facialAnalysisStatus")}
                   className="table-header-sortable table-header-icon-col"
-                  title="Sort by analysis status"
+                  title="Analysis: not started, pending, or ready/reviewed. Click to sort."
                 >
                   Analysis{getSortIndicator("facialAnalysisStatus")}
                 </th>
                 <th
                   onClick={() => handleColumnSort("quizCompleted")}
                   className="table-header-sortable table-header-icon-col"
-                  title="Sort by quiz completed"
+                  title="Quiz: not started vs completed. Click to sort."
                 >
                   Quiz{getSortIndicator("quizCompleted")}
                 </th>

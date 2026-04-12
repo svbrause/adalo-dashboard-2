@@ -1,13 +1,12 @@
 import type { Client } from "../../types";
 import {
   analysisSectionAriaLabel,
-  analysisSectionIconColors,
   getAnalysisSectionIconKind,
   hasQuizCompleted,
   hasTreatmentPlanItems,
 } from "../../utils/dashboardListSectionStatus";
 
-/** Set A · app-friendly: minus-circle, clock, check-circle (24×24 viewBox). */
+/** Minus-circle, clock, check-circle (24×24 viewBox). */
 function IconMinusCircle({ className }: { className?: string }) {
   return (
     <svg
@@ -102,7 +101,7 @@ export function DashboardPlanIcon({ client }: { client: Client }) {
       className={`dashboard-section-icon dashboard-section-icon--plan ${
         on ? "dashboard-section-icon--on" : "dashboard-section-icon--muted"
       }`}
-      title={on ? "Plan: complete (items in plan)" : "Plan: not started (empty)"}
+      title={on ? "Plan: has treatment items" : "Plan: not started"}
       aria-label={on ? "Plan: has items" : "Plan: empty"}
       role="img"
     >
@@ -119,12 +118,17 @@ export function DashboardAnalysisIcon({
   providerCode?: string | null;
 }) {
   const kind = getAnalysisSectionIconKind(client, providerCode);
-  const { fill, border } = analysisSectionIconColors(client, providerCode);
   const label = analysisSectionAriaLabel(client, providerCode);
+  const stateClass =
+    kind === "not_started"
+      ? "dashboard-section-icon--muted"
+      : kind === "pending"
+        ? "dashboard-section-icon--pending"
+        : "dashboard-section-icon--on";
+
   return (
     <span
-      className="dashboard-section-icon dashboard-section-icon--analysis"
-      style={{ background: fill, borderColor: border, color: "#1e293b" }}
+      className={`dashboard-section-icon dashboard-section-icon--analysis ${stateClass}`}
       title={label}
       aria-label={label}
       role="img"
@@ -141,56 +145,11 @@ export function DashboardQuizIcon({ client }: { client: Client }) {
       className={`dashboard-section-icon dashboard-section-icon--quiz ${
         on ? "dashboard-section-icon--on" : "dashboard-section-icon--muted"
       }`}
-      title={on ? "Quiz: complete" : "Quiz: not started"}
+      title={on ? "Quiz: completed" : "Quiz: not started"}
       aria-label={on ? "Quiz: completed" : "Quiz: not completed"}
       role="img"
     >
       <QuizGlyph on={on} />
     </span>
-  );
-}
-
-/** Explains Plan / Analysis / Quiz column icons (Set A). */
-export function DashboardListStatusLegend() {
-  return (
-    <div
-      className="dashboard-list-status-legend"
-      role="region"
-      aria-label="Status icon key"
-    >
-      <span className="dashboard-list-status-legend-title">Key</span>
-      <ul className="dashboard-list-status-legend-items">
-        <li className="dashboard-list-status-legend-item">
-          <span className="dashboard-list-status-legend-icon dashboard-list-status-legend-icon--muted">
-            <IconMinusCircle />
-          </span>
-          <span>Not started</span>
-        </li>
-        <li className="dashboard-list-status-legend-item">
-          <span className="dashboard-list-status-legend-icon dashboard-list-status-legend-icon--analysis-pending">
-            <IconClock />
-          </span>
-          <span>Pending (analysis)</span>
-        </li>
-        <li className="dashboard-list-status-legend-item">
-          <span className="dashboard-list-status-legend-icon dashboard-list-status-legend-icon--on">
-            <IconCheckCircle />
-          </span>
-          <span>Plan or quiz complete</span>
-        </li>
-        <li className="dashboard-list-status-legend-item">
-          <span className="dashboard-list-status-legend-icon dashboard-list-status-legend-icon--analysis-ready">
-            <IconCheckCircle />
-          </span>
-          <span>Analysis: ready for review</span>
-        </li>
-        <li className="dashboard-list-status-legend-item">
-          <span className="dashboard-list-status-legend-icon dashboard-list-status-legend-icon--analysis-reviewed">
-            <IconCheckCircle />
-          </span>
-          <span>Analysis: patient reviewed</span>
-        </li>
-      </ul>
-    </div>
   );
 }

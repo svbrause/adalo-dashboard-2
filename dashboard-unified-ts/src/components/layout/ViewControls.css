@@ -229,14 +229,32 @@
 }
 
 .control-toggle-btn--filters-active {
-  border-color: var(--theme-accent);
-  background: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-bg-card));
-  color: var(--theme-accent);
+  border-color: var(--theme-primary-btn);
+  background: var(--theme-primary-btn);
+  color: #fff;
 }
 
 .control-toggle-btn--filters-active:hover {
-  background: color-mix(in srgb, var(--theme-accent) 22%, var(--theme-bg-card));
-  color: var(--theme-accent);
+  border-color: color-mix(in srgb, var(--theme-primary-btn) 85%, #000);
+  background: color-mix(in srgb, var(--theme-primary-btn) 88%, #000);
+  color: #fff;
+}
+
+/* Beats index.css `.control-toggle-btn` and keeps highlight obvious when filters apply */
+.filter-section .control-toggle-btn.control-toggle-btn--filters-active {
+  border-color: var(--theme-primary-btn);
+  background: var(--theme-primary-btn);
+  color: #fff;
+  font-weight: 600;
+  box-shadow:
+    0 1px 3px color-mix(in srgb, var(--theme-primary-btn) 45%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--theme-primary-btn) 25%, transparent);
+}
+
+.filter-section .control-toggle-btn.control-toggle-btn--filters-active:hover {
+  border-color: color-mix(in srgb, var(--theme-primary-btn) 82%, #000);
+  background: color-mix(in srgb, var(--theme-primary-btn) 88%, #000);
+  color: #fff;
 }
 
 .control-content {
@@ -796,6 +814,34 @@
     color: #000;
     background: transparent !important;
     opacity: 0.55;
+  }
+
+  /* Filters applied: icon-only row must stay visibly highlighted (base rules use transparent !important) */
+  .view-controls-container
+    .filter-section
+    .control-toggle-btn.control-toggle-btn--filters-active {
+    background: var(--theme-primary-btn) !important;
+    color: #fff !important;
+    border-radius: 10px;
+    opacity: 1 !important;
+    box-shadow:
+      0 2px 10px color-mix(in srgb, var(--theme-primary-btn) 42%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--theme-primary-btn) 35%, transparent);
+  }
+
+  .view-controls-container
+    .filter-section
+    .control-toggle-btn.control-toggle-btn--filters-active:hover {
+    background: color-mix(in srgb, var(--theme-primary-btn) 88%, #000) !important;
+    color: #fff !important;
+  }
+
+  .view-controls-container
+    .filter-section
+    .control-toggle-btn.control-toggle-btn--filters-active:active {
+    background: color-mix(in srgb, var(--theme-primary-btn) 78%, #000) !important;
+    color: #fff !important;
+    opacity: 1 !important;
   }
 
   .view-controls-container .control-toggle-btn span {
