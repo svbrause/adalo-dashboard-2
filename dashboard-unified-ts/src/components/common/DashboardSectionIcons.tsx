@@ -1,4 +1,5 @@
 import type { Client } from "../../types";
+import "./DashboardSectionIcons.css";
 import {
   analysisSectionAriaLabel,
   getAnalysisSectionIconKind,
@@ -138,15 +139,58 @@ export function DashboardAnalysisIcon({
   );
 }
 
-export function DashboardQuizIcon({ client }: { client: Client }) {
-  const on = hasQuizCompleted(client);
+export type DashboardQuizIconScope = "any" | "skincare" | "wellness";
+
+function quizCompletedForScope(
+  client: Client,
+  scope: DashboardQuizIconScope,
+): boolean {
+  if (scope === "skincare") return Boolean(client.skincareQuiz?.completedAt);
+  if (scope === "wellness") return Boolean(client.wellnessQuiz?.completedAt);
+  return hasQuizCompleted(client);
+}
+
+export function DashboardQuizIcon({
+  client,
+  quizScope = "any",
+}: {
+  client: Client;
+  /** List view: combined skincare + wellness. Detail sections: one quiz type. */
+  quizScope?: DashboardQuizIconScope;
+}) {
+  const on = quizCompletedForScope(client, quizScope);
+  const title =
+    quizScope === "skincare"
+      ? on
+        ? "Skin quiz: completed"
+        : "Skin quiz: not started"
+      : quizScope === "wellness"
+        ? on
+          ? "Wellness quiz: completed"
+          : "Wellness quiz: not started"
+        : on
+          ? "Quiz: completed"
+          : "Quiz: not started";
+  const ariaLabel =
+    quizScope === "skincare"
+      ? on
+        ? "Skin quiz: completed"
+        : "Skin quiz: not completed"
+      : quizScope === "wellness"
+        ? on
+          ? "Wellness quiz: completed"
+          : "Wellness quiz: not completed"
+        : on
+          ? "Quiz: completed"
+          : "Quiz: not completed";
+
   return (
     <span
       className={`dashboard-section-icon dashboard-section-icon--quiz ${
         on ? "dashboard-section-icon--on" : "dashboard-section-icon--muted"
       }`}
-      title={on ? "Quiz: completed" : "Quiz: not started"}
-      aria-label={on ? "Quiz: completed" : "Quiz: not completed"}
+      title={title}
+      aria-label={ariaLabel}
       role="img"
     >
       <QuizGlyph on={on} />

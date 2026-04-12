@@ -1,0 +1,51 @@
+/* Shared by list view + client detail (panel/modal) */
+.dashboard-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.dashboard-section-icon--analysis {
+  border-style: solid;
+  border-width: 1px;
+}
+
+.dashboard-section-icon--muted {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+.dashboard-section-icon--pending {
+  background: #fff3cd;
+  border-color: #ffecb3;
+  color: #64748b;
+}
+
+.dashboard-section-icon--on.dashboard-section-icon--plan,
+.dashboard-section-icon--on.dashboard-section-icon--quiz,
+.dashboard-section-icon--on.dashboard-section-icon--analysis {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-section-icon[title] {
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+
+  .dashboard-section-icon[title]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+  }
+}

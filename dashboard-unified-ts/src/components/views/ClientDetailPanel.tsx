@@ -35,6 +35,11 @@ import ShareTreatmentPlanLinkModal from "../modals/ShareTreatmentPlanLinkModal";
 import PhotoViewerModal from "../modals/PhotoViewerModal";
 import NewClientSMSModal from "../modals/NewClientSMSModal";
 import SendSMSModal from "../modals/SendSMSModal";
+import {
+  DashboardAnalysisIcon,
+  DashboardPlanIcon,
+  DashboardQuizIcon,
+} from "../common/DashboardSectionIcons";
 import DiscussedTreatmentsModal from "../modals/DiscussedTreatmentsModal";
 import TreatmentPlanCheckoutModal, {
   prefetchCheckoutImages,
@@ -1320,10 +1325,13 @@ export default function ClientDetailPanel({
                   <div className="detail-section detail-section-treatment-plan">
                     <div className="detail-section-header-flex">
                       <div className="detail-section-title detail-section-title-inline detail-section-title-treatment-plan">
-                        <span>
-                          {client.name?.trim().split(/\s+/)[0] || "Patient"}
-                          &apos;s plan
-                        </span>
+                        <div className="detail-heading-title-row-with-icon">
+                          <DashboardPlanIcon client={client} />
+                          <span>
+                            {client.name?.trim().split(/\s+/)[0] || "Patient"}
+                            &apos;s plan
+                          </span>
+                        </div>
                         <span className="treatment-plan-section-subtitle">
                           {treatmentPlanSubheading}
                         </span>
@@ -1642,38 +1650,44 @@ export default function ClientDetailPanel({
                       <div className="detail-section-title detail-section-title-inline detail-section-title-facial">
                         <div className="facial-analysis-heading-row">
                           <span>Facial Analysis</span>
-                          {(() => {
-                            const raw = client.facialAnalysisStatus?.trim();
-                            let statusForDisplay =
-                              raw ||
-                              (client.tableSource === "Web Popup Leads"
-                                ? WEB_POPUP_LEAD_NO_ANALYSIS_STATUS
-                                : "not-started");
-                            if (!facialAnalysisFormHasData) {
-                              const low = (raw ?? "").toLowerCase();
-                              if (!low || low === "pending") {
-                                statusForDisplay = "not-started";
+                          <div className="facial-analysis-status-with-icon">
+                            <DashboardAnalysisIcon
+                              client={client}
+                              providerCode={provider?.code}
+                            />
+                            {(() => {
+                              const raw = client.facialAnalysisStatus?.trim();
+                              let statusForDisplay =
+                                raw ||
+                                (client.tableSource === "Web Popup Leads"
+                                  ? WEB_POPUP_LEAD_NO_ANALYSIS_STATUS
+                                  : "not-started");
+                              if (!facialAnalysisFormHasData) {
+                                const low = (raw ?? "").toLowerCase();
+                                if (!low || low === "pending") {
+                                  statusForDisplay = "not-started";
+                                }
                               }
-                            }
-                            return (
-                              <span
-                                className="status-badge detail-status-badge-dynamic"
-                                style={{
-                                  background: getFacialStatusColorForDisplay(
+                              return (
+                                <span
+                                  className="status-badge detail-status-badge-dynamic"
+                                  style={{
+                                    background: getFacialStatusColorForDisplay(
+                                      statusForDisplay,
+                                      hasFacialInterestedTreatments(client),
+                                      provider?.code,
+                                    ),
+                                  }}
+                                >
+                                  {formatFacialStatusForDisplay(
                                     statusForDisplay,
                                     hasFacialInterestedTreatments(client),
                                     provider?.code,
-                                  ),
-                                }}
-                              >
-                                {formatFacialStatusForDisplay(
-                                  statusForDisplay,
-                                  hasFacialInterestedTreatments(client),
-                                  provider?.code,
-                                )}
-                              </span>
-                            );
-                          })()}
+                                  )}
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </div>
                         {client.tableSource === "Patients" &&
                           facialAnalysisFormHasData &&
@@ -1785,7 +1799,13 @@ export default function ClientDetailPanel({
                       <div className="detail-section detail-section-skin-analysis">
                         <div className="detail-section-header-flex skin-analysis-header">
                           <div className="detail-section-title detail-section-title-inline skin-analysis-heading-block">
-                            <span>Skin Quiz</span>
+                            <div className="detail-heading-title-row-with-icon">
+                              <DashboardQuizIcon
+                                client={client}
+                                quizScope="skincare"
+                              />
+                              <span>Skin Quiz</span>
+                            </div>
                             {skincareQuiz?.completedAt && (
                               <span className="skin-analysis-result-badge detail-value-muted">
                                 · {formatDate(skincareQuiz.completedAt)}
@@ -2004,23 +2024,32 @@ export default function ClientDetailPanel({
                     <div className="detail-section detail-section-wellness-quiz">
                       <div className="detail-section-header-flex">
                         <div className="detail-section-title detail-section-title-inline">
-                          <span>Wellness Quiz</span>
-                          {client.wellnessQuiz && (
-                            <span className="detail-value-muted">
-                              {" "}
-                              ·{" "}
-                              {
-                                client.wellnessQuiz.suggestedTreatmentIds.length
-                              }{" "}
-                              suggestion
-                              {client.wellnessQuiz.suggestedTreatmentIds
-                                .length !== 1
-                                ? "s"
-                                : ""}
-                              {client.wellnessQuiz.completedAt &&
-                                ` · ${formatDate(client.wellnessQuiz.completedAt)}`}
+                          <div className="detail-wellness-quiz-heading-title">
+                            <span className="detail-heading-title-row-with-icon">
+                              <DashboardQuizIcon
+                                client={client}
+                                quizScope="wellness"
+                              />
+                              <span>Wellness Quiz</span>
                             </span>
-                          )}
+                            {client.wellnessQuiz && (
+                              <span className="detail-value-muted">
+                                {" "}
+                                ·{" "}
+                                {
+                                  client.wellnessQuiz.suggestedTreatmentIds
+                                    .length
+                                }{" "}
+                                suggestion
+                                {client.wellnessQuiz.suggestedTreatmentIds
+                                  .length !== 1
+                                  ? "s"
+                                  : ""}
+                                {client.wellnessQuiz.completedAt &&
+                                  ` · ${formatDate(client.wellnessQuiz.completedAt)}`}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="detail-section-header-actions">
                           {client.wellnessQuiz &&

@@ -1235,6 +1235,28 @@ body.theme-warm .kanban-cards.drag-over {
   gap: 10px;
 }
 
+/* Client detail: list-style status icons next to badges / section titles */
+.facial-analysis-status-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-heading-title-row-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-wellness-quiz-heading-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Treatments discussed in clinic – inside Facial Analysis section (panel + modal) */
 .discussed-treatments-in-facial-section {
   margin-top: 20px;
