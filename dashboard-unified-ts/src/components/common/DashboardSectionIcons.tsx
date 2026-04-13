@@ -1,5 +1,6 @@
 import type { Client } from "../../types";
 import "./DashboardSectionIcons.css";
+import type { AnalysisSectionIconKind } from "../../utils/dashboardListSectionStatus";
 import {
   analysisSectionAriaLabel,
   getAnalysisSectionIconKind,
@@ -73,7 +74,7 @@ function IconCheckCircle({ className }: { className?: string }) {
   );
 }
 
-function AnalysisGlyph({ kind }: { kind: ReturnType<typeof getAnalysisSectionIconKind> }) {
+function AnalysisGlyph({ kind }: { kind: AnalysisSectionIconKind }) {
   switch (kind) {
     case "not_started":
       return <IconMinusCircle />;
@@ -95,13 +96,20 @@ function QuizGlyph({ on }: { on: boolean }) {
   return on ? <IconCheckCircle /> : <IconMinusCircle />;
 }
 
-export function DashboardPlanIcon({ client }: { client: Client }) {
+export function DashboardPlanIcon({
+  client,
+  embed,
+}: {
+  client: Client;
+  /** Strip circular fill — use inside a colored status pill on client detail. */
+  embed?: boolean;
+}) {
   const on = hasTreatmentPlanItems(client);
   return (
     <span
       className={`dashboard-section-icon dashboard-section-icon--plan ${
         on ? "dashboard-section-icon--on" : "dashboard-section-icon--muted"
-      }`}
+      }${embed ? " dashboard-section-icon--embed" : ""}`}
       title={on ? "Plan: has treatment items" : "Plan: not started"}
       aria-label={on ? "Plan: has items" : "Plan: empty"}
       role="img"
@@ -111,31 +119,57 @@ export function DashboardPlanIcon({ client }: { client: Client }) {
   );
 }
 
-export function DashboardAnalysisIcon({
-  client,
-  providerCode,
-}: {
-  client: Client;
-  providerCode?: string | null;
-}) {
-  const kind = getAnalysisSectionIconKind(client, providerCode);
-  const label = analysisSectionAriaLabel(client, providerCode);
-  const stateClass =
-    kind === "not_started"
-      ? "dashboard-section-icon--muted"
-      : kind === "pending"
-        ? "dashboard-section-icon--pending"
-        : "dashboard-section-icon--on";
+function analysisIconStateClass(kind: AnalysisSectionIconKind): string {
+  if (kind === "not_started") return "dashboard-section-icon--muted";
+  if (kind === "pending") return "dashboard-section-icon--pending";
+  return "dashboard-section-icon--on";
+}
 
+/** Analysis glyph + list-view styling for a known icon kind (e.g. label-derived in detail pills). */
+export function DashboardAnalysisIconByKind({
+  kind,
+  embed,
+  title,
+  ariaLabel,
+}: {
+  kind: AnalysisSectionIconKind;
+  embed?: boolean;
+  title?: string;
+  ariaLabel?: string;
+}) {
+  const label = ariaLabel ?? title ?? "Analysis status";
   return (
     <span
-      className={`dashboard-section-icon dashboard-section-icon--analysis ${stateClass}`}
-      title={label}
+      className={`dashboard-section-icon dashboard-section-icon--analysis ${analysisIconStateClass(kind)}${
+        embed ? " dashboard-section-icon--embed" : ""
+      }`}
+      title={title ?? label}
       aria-label={label}
       role="img"
     >
       <AnalysisGlyph kind={kind} />
     </span>
+  );
+}
+
+export function DashboardAnalysisIcon({
+  client,
+  providerCode,
+  embed,
+}: {
+  client: Client;
+  providerCode?: string | null;
+  embed?: boolean;
+}) {
+  const kind = getAnalysisSectionIconKind(client, providerCode);
+  const label = analysisSectionAriaLabel(client, providerCode);
+  return (
+    <DashboardAnalysisIconByKind
+      kind={kind}
+      embed={embed}
+      title={label}
+      aria-label={label}
+    />
   );
 }
 
@@ -153,10 +187,12 @@ function quizCompletedForScope(
 export function DashboardQuizIcon({
   client,
   quizScope = "any",
+  embed,
 }: {
   client: Client;
   /** List view: combined skincare + wellness. Detail sections: one quiz type. */
   quizScope?: DashboardQuizIconScope;
+  embed?: boolean;
 }) {
   const on = quizCompletedForScope(client, quizScope);
   const title =
@@ -188,7 +224,7 @@ export function DashboardQuizIcon({
     <span
       className={`dashboard-section-icon dashboard-section-icon--quiz ${
         on ? "dashboard-section-icon--on" : "dashboard-section-icon--muted"
-      }`}
+      }${embed ? " dashboard-section-icon--embed" : ""}`}
       title={title}
       aria-label={ariaLabel}
       role="img"

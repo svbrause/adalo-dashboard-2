@@ -1,0 +1,88 @@
+/* Status chips sit beside the section title; actions stay right via margin-left: auto */
+.detail-section-header-flex {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.detail-section-header-flex > .detail-actions-inline,
+.detail-section-header-flex > .detail-section-header-actions,
+.detail-section-header-flex > .skin-analysis-quiz-actions {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.detail-section-header-title-group {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.detail-section-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  max-width: min(100%, 320px);
+}
+
+.detail-section-status-pill-label {
+  min-width: 0;
+}
+
+.detail-section-status-pill--positive {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.detail-section-status-pill--muted {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.detail-section-status-pill--facial.detail-section-status-pill--tone-muted {
+  color: #475569;
+}
+
+.detail-section-status-pill--facial.detail-section-status-pill--tone-pending {
+  color: #78350f;
+}
+
+.detail-section-status-pill--facial.detail-section-status-pill--tone-ready {
+  color: #0c5460;
+}
+
+.detail-section-status-pill--facial.detail-section-status-pill--tone-reviewed {
+  color: #14532d;
+}
+
+.detail-wellness-quiz-heading-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.detail-wellness-quiz-heading-stack > span:first-child {
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+.skin-analysis-heading-block.detail-section-header-title-group {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}

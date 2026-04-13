@@ -1195,66 +1195,14 @@ body.theme-warm .kanban-cards.drag-over {
   color: #00695c;
 }
 
-.facial-analysis-date {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--theme-text-muted);
-}
-
-/* Facial Analysis card: title + badge on one line, date below – align date with heading */
-.detail-section-facial-analysis .detail-section-title-facial {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding-left: 0;
-  margin-left: 0;
-}
-
-.detail-section-facial-analysis
-  .detail-section-title-facial
-  .facial-analysis-heading-row {
-  margin-left: 0;
-  padding-left: 0;
-}
-
-.detail-section-facial-analysis
-  .detail-section-title-facial
-  .facial-analysis-date {
-  display: block;
-  margin-left: 0;
-  margin-top: 2px;
-  padding-left: 0;
+/* Analysis date for Facial Analysis — below section header, above body (modal + panel) */
+.detail-section-facial-analysis .facial-analysis-date-meta {
+  margin: 0 0 14px;
+  padding: 0;
   font-size: 12px;
   font-weight: 400;
-  text-indent: 0;
-}
-
-.facial-analysis-heading-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Client detail: list-style status icons next to badges / section titles */
-.facial-analysis-status-with-icon {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.detail-heading-title-row-with-icon {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.detail-wellness-quiz-heading-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  line-height: 1.4;
+  color: var(--theme-text-muted);
 }
 
 /* Treatments discussed in clinic – inside Facial Analysis section (panel + modal) */

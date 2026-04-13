@@ -12,6 +12,18 @@ export type AnalysisSectionIconKind =
   | "ready"
   | "reviewed";
 
+/** Same mapping as {@link getAnalysisSectionIconKind} but from the final UI label (e.g. after form-data overrides). */
+export function getAnalysisSectionIconKindFromDisplayLabel(
+  displayLabel: string,
+): AnalysisSectionIconKind {
+  const lower = displayLabel.toLowerCase();
+  if (lower.includes("reviewed")) return "reviewed";
+  if (lower.includes("ready")) return "ready";
+  if (lower === "pending" || lower.includes("pending")) return "pending";
+  if (lower.includes("not started")) return "not_started";
+  return "pending";
+}
+
 export function getAnalysisSectionIconKind(
   client: Client,
   providerCode?: string | null,
@@ -21,12 +33,7 @@ export function getAnalysisSectionIconKind(
     hasFacialInterestedTreatments(client),
     providerCode,
   );
-  const lower = label.toLowerCase();
-  if (lower.includes("reviewed")) return "reviewed";
-  if (lower.includes("ready")) return "ready";
-  if (lower === "pending" || lower.includes("pending")) return "pending";
-  if (lower.includes("not started")) return "not_started";
-  return "pending";
+  return getAnalysisSectionIconKindFromDisplayLabel(label);
 }
 
 export function analysisSectionAriaLabel(

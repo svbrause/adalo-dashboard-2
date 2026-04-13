@@ -7,12 +7,6 @@ import {
   formatDateOfBirth,
   formatRelativeDate,
 } from "../../utils/dateFormatting";
-import {
-  formatFacialStatusForDisplay,
-  getFacialStatusColorForDisplay,
-  hasFacialInterestedTreatments,
-} from "../../utils/statusFormatting";
-import { WEB_POPUP_LEAD_NO_ANALYSIS_STATUS } from "../../utils/clientMapper";
 import { showOnlineTreatmentFinderSection } from "../../utils/leadSource";
 import {
   updateLeadRecord,
@@ -36,10 +30,10 @@ import PhotoViewerModal from "../modals/PhotoViewerModal";
 import NewClientSMSModal from "../modals/NewClientSMSModal";
 import SendSMSModal from "../modals/SendSMSModal";
 import {
-  DashboardAnalysisIcon,
-  DashboardPlanIcon,
-  DashboardQuizIcon,
-} from "../common/DashboardSectionIcons";
+  FacialAnalysisStatusPill,
+  PlanStatusPill,
+  QuizStatusPill,
+} from "../common/DetailSectionStatusPill";
 import DiscussedTreatmentsModal from "../modals/DiscussedTreatmentsModal";
 import TreatmentPlanCheckoutModal, {
   prefetchCheckoutImages,
@@ -1324,18 +1318,16 @@ export default function ClientDetailPanel({
 
                   <div className="detail-section detail-section-treatment-plan">
                     <div className="detail-section-header-flex">
-                      <div className="detail-section-title detail-section-title-inline detail-section-title-treatment-plan">
-                        <div className="detail-heading-title-row-with-icon">
-                          <DashboardPlanIcon client={client} />
-                          <span>
-                            {client.name?.trim().split(/\s+/)[0] || "Patient"}
-                            &apos;s plan
-                          </span>
-                        </div>
+                      <div className="detail-section-title detail-section-title-inline detail-section-title-treatment-plan detail-section-header-title-group">
+                        <span>
+                          {client.name?.trim().split(/\s+/)[0] || "Patient"}
+                          &apos;s plan
+                        </span>
                         <span className="treatment-plan-section-subtitle">
                           {treatmentPlanSubheading}
                         </span>
                       </div>
+                      <PlanStatusPill client={client} />
                       <div className="detail-actions-inline">
                         <button
                           type="button"
@@ -1647,55 +1639,15 @@ export default function ClientDetailPanel({
                   {/* Facial Analysis Section */}
                   <div className="detail-section detail-section-facial-analysis">
                     <div className="detail-section-header-flex">
-                      <div className="detail-section-title detail-section-title-inline detail-section-title-facial">
-                        <div className="facial-analysis-heading-row">
-                          <span>Facial Analysis</span>
-                          <div className="facial-analysis-status-with-icon">
-                            <DashboardAnalysisIcon
-                              client={client}
-                              providerCode={provider?.code}
-                            />
-                            {(() => {
-                              const raw = client.facialAnalysisStatus?.trim();
-                              let statusForDisplay =
-                                raw ||
-                                (client.tableSource === "Web Popup Leads"
-                                  ? WEB_POPUP_LEAD_NO_ANALYSIS_STATUS
-                                  : "not-started");
-                              if (!facialAnalysisFormHasData) {
-                                const low = (raw ?? "").toLowerCase();
-                                if (!low || low === "pending") {
-                                  statusForDisplay = "not-started";
-                                }
-                              }
-                              return (
-                                <span
-                                  className="status-badge detail-status-badge-dynamic"
-                                  style={{
-                                    background: getFacialStatusColorForDisplay(
-                                      statusForDisplay,
-                                      hasFacialInterestedTreatments(client),
-                                      provider?.code,
-                                    ),
-                                  }}
-                                >
-                                  {formatFacialStatusForDisplay(
-                                    statusForDisplay,
-                                    hasFacialInterestedTreatments(client),
-                                    provider?.code,
-                                  )}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                        {client.tableSource === "Patients" &&
-                          facialAnalysisFormHasData &&
-                          client.createdAt && (
-                            <span className="facial-analysis-date">
-                              Analysis date: {formatDate(client.createdAt)}
-                            </span>
+                      <div className="detail-section-title detail-section-title-inline detail-section-header-title-group">
+                        <span>Facial Analysis</span>
+                        <FacialAnalysisStatusPill
+                          client={client}
+                          providerCode={provider?.code}
+                          facialAnalysisFormHasData={Boolean(
+                            facialAnalysisFormHasData,
                           )}
+                        />
                       </div>
                       <div className="detail-actions-inline">
                         {facialAnalysisFormHasData && (
@@ -1767,6 +1719,13 @@ export default function ClientDetailPanel({
                         )}
                       </div>
                     </div>
+                    {client.tableSource === "Patients" &&
+                      facialAnalysisFormHasData &&
+                      client.createdAt && (
+                        <p className="facial-analysis-date-meta">
+                          Analysis date: {formatDate(client.createdAt)}
+                        </p>
+                      )}
                     {facialAnalysisFormHasData ? (
                       <AnalysisResultsSection
                         client={client}
@@ -1798,20 +1757,18 @@ export default function ClientDetailPanel({
                       {/* Skin Quiz Section */}
                       <div className="detail-section detail-section-skin-analysis">
                         <div className="detail-section-header-flex skin-analysis-header">
-                          <div className="detail-section-title detail-section-title-inline skin-analysis-heading-block">
-                            <div className="detail-heading-title-row-with-icon">
-                              <DashboardQuizIcon
-                                client={client}
-                                quizScope="skincare"
-                              />
-                              <span>Skin Quiz</span>
-                            </div>
+                          <div className="detail-section-title detail-section-title-inline skin-analysis-heading-block detail-section-header-title-group">
+                            <span>Skin Quiz</span>
                             {skincareQuiz?.completedAt && (
                               <span className="skin-analysis-result-badge detail-value-muted">
                                 · {formatDate(skincareQuiz.completedAt)}
                               </span>
                             )}
                           </div>
+                          <QuizStatusPill
+                            client={client}
+                            quizScope="skincare"
+                          />
                           <div className="skin-analysis-quiz-actions">
                             <button
                               type="button"
@@ -2022,19 +1979,12 @@ export default function ClientDetailPanel({
                   {/* Wellness Quiz Section (hidden when WELLNESS_QUIZ_ENABLED is false) */}
                   {WELLNESS_QUIZ_ENABLED && (
                     <div className="detail-section detail-section-wellness-quiz">
-                      <div className="detail-section-header-flex">
-                        <div className="detail-section-title detail-section-title-inline">
-                          <div className="detail-wellness-quiz-heading-title">
-                            <span className="detail-heading-title-row-with-icon">
-                              <DashboardQuizIcon
-                                client={client}
-                                quizScope="wellness"
-                              />
-                              <span>Wellness Quiz</span>
-                            </span>
+                        <div className="detail-section-header-flex">
+                        <div className="detail-section-title detail-section-title-inline detail-section-header-title-group">
+                          <div className="detail-wellness-quiz-heading-stack">
+                            <span>Wellness Quiz</span>
                             {client.wellnessQuiz && (
                               <span className="detail-value-muted">
-                                {" "}
                                 ·{" "}
                                 {
                                   client.wellnessQuiz.suggestedTreatmentIds
@@ -2051,6 +2001,10 @@ export default function ClientDetailPanel({
                             )}
                           </div>
                         </div>
+                        <QuizStatusPill
+                          client={client}
+                          quizScope="wellness"
+                        />
                         <div className="detail-section-header-actions">
                           {client.wellnessQuiz &&
                             getSuggestedWellnessTreatments(client.wellnessQuiz)

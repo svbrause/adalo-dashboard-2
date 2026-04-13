@@ -357,19 +357,6 @@
   border-left: 4px solid var(--theme-accent);
 }
 
-.detail-section-facial-analysis
-  .detail-section-title-facial
-  .facial-analysis-date {
-  display: block;
-  margin-left: 0;
-  margin-top: 2px;
-  padding-left: 0;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--theme-text-muted);
-  text-indent: 0;
-}
-
 .detail-section-skin-analysis {
   border-top: 2px solid var(--theme-border);
   padding-top: 20px;
@@ -1103,12 +1090,7 @@
   font-size: 14px;
 }
 
-.detail-section-header-flex {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
+/* .detail-section-header-flex: layout in DetailSectionStatusPill.css (shared with panel) */
 
 .detail-section-header-actions {
   display: flex;
@@ -1311,11 +1293,6 @@
   .contact-info-with-actions {
     flex-direction: column;
     gap: 20px;
-  }
-
-  .detail-section-header-flex {
-    flex-wrap: wrap;
-    gap: 10px;
   }
 
   .edit-input {
