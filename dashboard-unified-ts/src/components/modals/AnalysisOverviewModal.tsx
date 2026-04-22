@@ -40,6 +40,7 @@ import {
 import {
   getQuantityContext,
   getTreatmentsForInterest,
+  timelineOptionDisplayLabel,
 } from "./DiscussedTreatmentsModal/utils";
 import {
   REGION_OPTIONS,
@@ -632,7 +633,7 @@ function SuggestionCard({
                         className={`ao-suggestion-card__chip plan-add-chip${when === t ? " ao-suggestion-card__chip--selected plan-add-chip--selected" : ""}`}
                         onClick={() => setWhen(t)}
                       >
-                        {t}
+                        {timelineOptionDisplayLabel(t)}
                       </button>
                     ))}
                   </div>

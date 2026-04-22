@@ -6,6 +6,8 @@
 import type { Client, DiscussedItem } from "../types";
 import { updateLeadRecord } from "../services/api";
 import { AIRTABLE_FIELD } from "../components/modals/DiscussedTreatmentsModal/constants";
+import { isAddClientLead } from "./leadSource";
+import { capturePatientAcquisitionFunnelEvent } from "./patientAcquisitionAnalytics";
 
 const STORAGE_PREFIX = "wellnest-demo-plan:";
 
@@ -37,7 +39,7 @@ export function withWellnestDemoDiscussedItemsOverlay(client: Client): Client {
  * Save treatment plan to Airtable for real clients, or sessionStorage for Wellnest demos.
  */
 export async function persistClientDiscussedItems(
-  client: Pick<Client, "id" | "tableSource">,
+  client: Pick<Client, "id" | "tableSource"> & { source?: string | null },
   nextItems: DiscussedItem[],
 ): Promise<void> {
   if (isWellnestDemoSampleClient(client)) {
@@ -52,4 +54,20 @@ export async function persistClientDiscussedItems(
   await updateLeadRecord(client.id, client.tableSource, {
     [AIRTABLE_FIELD]: payload,
   });
+
+  if (nextItems.length > 0 && isAddClientLead(client)) {
+    const key = `ph_acq_plan:${client.id}`;
+    try {
+      if (typeof localStorage !== "undefined" && localStorage.getItem(key) !== "1") {
+        localStorage.setItem(key, "1");
+        capturePatientAcquisitionFunnelEvent(
+          "funnel_treatment_plan_built",
+          client.id,
+          { plan_item_count: nextItems.length },
+        );
+      }
+    } catch {
+      /* storage blocked */
+    }
+  }
 }

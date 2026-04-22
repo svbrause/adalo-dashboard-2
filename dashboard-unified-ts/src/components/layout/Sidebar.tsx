@@ -273,7 +273,11 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
         {canSmsAndSettings && (
           <a
             href="#"
-            className={`nav-item ${currentView === "settings" ? "active" : ""}`}
+            className={`nav-item ${
+              currentView === "settings" || currentView === "user-admin"
+                ? "active"
+                : ""
+            }`}
             onClick={(e) => {
               e.preventDefault();
               handleViewChange("settings");

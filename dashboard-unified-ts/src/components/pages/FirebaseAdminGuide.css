@@ -1,0 +1,176 @@
+.firebase-admin-guide {
+  margin: 0 0 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* Sidebar layout on /admin/firebase (signed in) */
+.firebase-admin-guide--sidebar-panel {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 6rem);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.firebase-admin-guide__sidebar-head {
+  flex-shrink: 0;
+  padding: 0.85rem 1rem 0.75rem;
+  background: linear-gradient(180deg, #f6faf9 0%, #fff 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.firebase-admin-guide__sidebar-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0d5c5c;
+  letter-spacing: 0.02em;
+}
+
+.firebase-admin-guide__sidebar-lead {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #5a6a6a;
+}
+
+.firebase-admin-guide__sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.firebase-admin-guide__body--sidebar {
+  grid-template-columns: 1fr;
+  gap: 0.65rem 0;
+  padding: 0.85rem 1rem 1.1rem;
+}
+
+.firebase-admin-guide__body--sidebar > section {
+  padding-top: 0.25rem;
+}
+
+.firebase-admin-guide__summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #1a3a3a;
+  list-style: none;
+  user-select: none;
+  background: #f5f8f8;
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s;
+}
+
+.firebase-admin-guide__summary::-webkit-details-marker {
+  display: none;
+}
+
+.firebase-admin-guide[open] .firebase-admin-guide__summary {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+.firebase-admin-guide__summary::before {
+  content: "ℹ";
+  font-size: 0.95rem;
+  opacity: 0.55;
+  line-height: 1;
+}
+
+.firebase-admin-guide__summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 0.65rem;
+  opacity: 0.5;
+  transition: transform 0.15s;
+}
+
+.firebase-admin-guide[open] .firebase-admin-guide__summary::after {
+  transform: rotate(-180deg);
+}
+
+.firebase-admin-guide__summary:hover {
+  background: #edf2f2;
+}
+
+.firebase-admin-guide__body {
+  padding: 0.75rem 1rem 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1.5rem;
+}
+
+@media (max-width: 720px) {
+  .firebase-admin-guide__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.firebase-admin-guide__body > section {
+  padding-top: 0.5rem;
+}
+
+.firebase-admin-guide__h {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0d5c5c;
+}
+
+.firebase-admin-guide__p {
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #444;
+}
+
+.firebase-admin-guide__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #444;
+}
+
+.firebase-admin-guide__list li {
+  margin-bottom: 0.2rem;
+}
+
+.firebase-admin-guide__list--compact li {
+  margin-bottom: 0.35rem;
+}
+
+.firebase-admin-guide__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  margin-top: 0.35rem;
+}
+
+.firebase-admin-guide__table th,
+.firebase-admin-guide__table td {
+  border: 1px solid #e0e0e0;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.firebase-admin-guide__table th {
+  background: #f5f7f8;
+  font-weight: 600;
+}
+
+.firebase-admin-guide__table code {
+  font-size: 0.75rem;
+}

@@ -1,0 +1,2545 @@
+.firebase-admin-page {
+  min-height: 100vh;
+  padding: 1.5rem 1.25rem 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--theme-bg-gradient, linear-gradient(180deg, #e8f4f4 0%, #f5f9f9 100%));
+}
+
+/* Inside dashboard layout: share scroll area with Settings, no second full-page shell */
+.firebase-admin-page--embedded {
+  min-height: 0;
+  padding: 8px clamp(12px, 3vw, 32px) 28px;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.firebase-admin-page--embedded.firebase-admin-page--center {
+  min-height: min(40vh, 320px);
+}
+
+.firebase-admin-page__embedded-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.firebase-admin-page__header--embedded {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.firebase-admin-page__back-link-btn {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
+  color: #0d6efd;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.firebase-admin-page__back-link-btn:hover {
+  color: #0a58ca;
+}
+
+.firebase-admin-page--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.firebase-admin-page__card {
+  max-width: min(520px, 100%);
+  margin: 3rem auto;
+  padding: 1.75rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.firebase-admin-page__guide-wrap-login {
+  margin: 0 0 1rem;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+}
+
+.firebase-admin-page__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.firebase-admin-page__lead {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #444;
+}
+
+.firebase-admin-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.firebase-admin-page__form label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-top: 0.35rem;
+}
+
+.firebase-admin-page__form input {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.firebase-admin-page__form .btn-primary {
+  margin-top: 0.75rem;
+}
+
+.firebase-admin-page__back {
+  margin: 1.25rem 0 0;
+  font-size: 0.9rem;
+}
+
+.firebase-admin-page__back a {
+  color: #0d6efd;
+}
+
+.firebase-admin-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.firebase-admin-page__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.firebase-admin-page__back-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.firebase-admin-page__meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.firebase-admin-page__warn {
+  color: #b06000;
+}
+
+/* Section */
+
+.firebase-admin-page__section h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.firebase-admin-page__section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.65rem;
+}
+
+.firebase-admin-page__section-kicker {
+  margin: 0.25rem 0 0;
+  max-width: 38rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.firebase-admin-page__hint {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #555;
+}
+
+/* Table */
+
+.firebase-admin-page__table-wrap {
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+
+.firebase-admin-page__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.firebase-admin-page__table th {
+  background: #f8fafc;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.firebase-admin-page__table td {
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.firebase-admin-page__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.firebase-admin-page__table tbody tr:hover td {
+  background: rgba(13, 92, 92, 0.025);
+}
+
+/* Keep these for any code still referencing them */
+.firebase-admin-page__th-stacked {
+  vertical-align: top;
+}
+
+.firebase-admin-page__th-title {
+  display: block;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.firebase-admin-page__th-sub {
+  display: none;
+}
+
+.firebase-admin-page__guide-below {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.firebase-admin-page__guide-below .firebase-admin-guide {
+  margin-bottom: 0;
+}
+
+.firebase-admin-page__mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.firebase-admin-page__pager {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.firebase-admin-page__error {
+  color: #b00020;
+  font-size: 0.875rem;
+}
+
+/* Modals */
+
+.firebase-admin-page__modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+}
+
+.firebase-admin-page__modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+.firebase-admin-page__modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.firebase-admin-page__modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  color: #0f172a;
+}
+
+.firebase-admin-page__modal-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.2rem -0.25rem 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.firebase-admin-page__modal-close:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+.firebase-admin-page__modal-close:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.firebase-admin-page__modal h2:not(.firebase-admin-page__modal-title) {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.firebase-admin-page__sub {
+  margin: 1rem 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.firebase-admin-page__practice-list {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.firebase-admin-page__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  margin: 0.35rem 0;
+  cursor: pointer;
+}
+
+.firebase-admin-page__muted {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.firebase-admin-page__modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.firebase-admin-page__modal-actions--align-end {
+  justify-content: flex-end;
+}
+
+/** Manage user modal: destructive / secondary on the left, primary save on the right */
+.firebase-admin-page__modal-actions--split-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.firebase-admin-page__modal-actions--split-footer .firebase-admin-page__modal-actions-end {
+  margin-left: auto;
+}
+
+.firebase-admin-page__modal--wide {
+  max-width: min(560px, 100vw - 2rem);
+}
+
+.firebase-admin-page__modal--invite {
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.firebase-admin-page__link-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.75rem;
+  font-family: ui-monospace, monospace;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  resize: vertical;
+  background: #f8fafc;
+}
+
+.firebase-admin-page__label-block {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.firebase-admin-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: 280px;
+}
+
+.firebase-admin-page__cell-nowrap {
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+.firebase-admin-page__signin-cell {
+  min-width: 10rem;
+}
+
+.firebase-admin-page__display-name-cell {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Toolbar */
+
+.firebase-admin-page__toolbar {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 1rem;
+  background: var(--theme-bg-card, #fff);
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 12px;
+}
+
+.firebase-admin-page__toolbar .btn-primary,
+.firebase-admin-page__toolbar .btn-secondary {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 1rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  box-shadow: none;
+  transform: none;
+}
+
+.firebase-admin-page__toolbar .btn-primary:hover,
+.firebase-admin-page__toolbar .btn-secondary:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+/* Legacy cluster wrappers — no longer rendered but kept as no-ops */
+.firebase-admin-page__toolbar-cluster {
+  display: contents;
+}
+
+.firebase-admin-page__search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 16rem;
+  min-width: 14rem;
+}
+
+.firebase-admin-page__search-wrap > svg {
+  position: absolute;
+  left: 14px;
+  color: var(--theme-text-muted, #94a3b8);
+  pointer-events: none;
+}
+
+.firebase-admin-page__toolbar-search {
+  width: 100%;
+  height: 38px;
+  min-height: 38px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 0.875rem 0 2.625rem;
+  border: 2px solid var(--theme-border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #0f172a);
+  font-size: 0.875rem;
+  font-family: inherit;
+  line-height: 38px;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.firebase-admin-page__toolbar-search--has-clear {
+  padding-right: 2.4rem;
+}
+
+.firebase-admin-page__toolbar-search:focus {
+  outline: none;
+  border-color: var(--theme-accent, #0d5c5c);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #0d5c5c) 14%, transparent);
+}
+
+.firebase-admin-page__toolbar-search::placeholder {
+  color: var(--theme-text-muted, #94a3b8);
+}
+
+.firebase-admin-page__search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--theme-bg-hover, #eef2f7);
+  color: var(--theme-text-secondary, #64748b);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.firebase-admin-page__search-clear:hover {
+  background: var(--theme-border-strong, #cbd5e1);
+  color: var(--theme-text-primary, #0f172a);
+}
+
+.firebase-admin-page__search-clear:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--theme-accent, #0d5c5c);
+}
+
+.firebase-admin-page__toolbar-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.firebase-admin-page__toolbar-inline select {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  font-family: inherit;
+  color: #0f172a;
+  max-width: 9.5rem;
+  cursor: pointer;
+}
+
+.firebase-admin-page__toolbar-export {
+  padding: 0.45rem 0.85rem !important;
+  font-size: 0.8125rem !important;
+  min-height: 0;
+  color: #475569 !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Kept for any residual references but no longer rendered */
+.firebase-admin-page__toolbar-show-disabled {
+  display: none;
+}
+
+.firebase-admin-page__practice-scope-note {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #334155;
+  background: rgba(13, 92, 92, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(13, 92, 92, 0.1);
+}
+
+.firebase-admin-page__toolbar-meta {
+  flex: 0 0 auto;
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* Legacy — no longer rendered */
+.firebase-admin-page__toolbar-meta-note {
+  display: none;
+}
+
+.firebase-admin-page__empty-filter {
+  text-align: center;
+  padding: 2rem 1rem !important;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.firebase-admin-page__add-user-btn {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.firebase-admin-page__control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 1rem;
+  border: 2px solid var(--theme-border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-secondary, #64748b);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+
+.firebase-admin-page__control-btn:hover,
+.firebase-admin-page__control-btn--open {
+  border-color: var(--theme-accent, #0d5c5c);
+  background: var(--theme-accent, rgba(13, 92, 92, 0.08));
+  color: var(--theme-text-primary, #0f172a);
+}
+
+.firebase-admin-page__control-btn--active,
+.firebase-admin-page__filters-btn--active {
+  border-color: var(--theme-primary-btn, #0f172a);
+  background: var(--theme-primary-btn, #0f172a);
+  color: #fff;
+  font-weight: 600;
+  box-shadow:
+    0 1px 3px color-mix(in srgb, var(--theme-primary-btn, #0f172a) 45%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--theme-primary-btn, #0f172a) 25%, transparent);
+}
+
+.firebase-admin-page__control-btn--active:hover,
+.firebase-admin-page__filters-btn--active:hover {
+  border-color: color-mix(in srgb, var(--theme-primary-btn, #0f172a) 82%, #000);
+  background: color-mix(in srgb, var(--theme-primary-btn, #0f172a) 88%, #000);
+  color: #fff;
+}
+
+.firebase-admin-page__control-icon {
+  flex: 0 0 auto;
+  transition: transform 0.2s ease;
+}
+
+.firebase-admin-page__control-btn[aria-expanded="true"] .firebase-admin-page__control-icon {
+  transform: rotate(180deg);
+}
+
+.firebase-admin-page__popover-row {
+  position: relative;
+  min-height: 0;
+  z-index: 20;
+}
+
+.firebase-admin-page__popover {
+  position: absolute;
+  right: 0;
+  top: 0.25rem;
+  width: min(100%, 460px);
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
+}
+
+.firebase-admin-page__popover--sort {
+  width: min(100%, 440px);
+}
+
+.firebase-admin-page__popover-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.firebase-admin-page__popover-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.firebase-admin-page__popover-header p {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+.firebase-admin-page__popover-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.firebase-admin-page__popover-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.firebase-admin-page__filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.firebase-admin-page__filter-panel-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+/* Match main dashboard filter rows: label styles come from ViewControls .filter-group */
+.firebase-admin-page__filter-panel-item.filter-group {
+  gap: 0.45rem;
+}
+
+.firebase-admin-page__filter-panel-item.filter-group .filter-select-custom {
+  width: 100%;
+}
+
+.firebase-admin-page__sort-filter-wrap.filter-group {
+  margin: 0;
+}
+
+.firebase-admin-page__popover-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #eef2f7;
+}
+
+.firebase-admin-page__filter-clear {
+  border: none;
+  background: transparent;
+  color: #0d5c5c;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.firebase-admin-page__filter-clear:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.firebase-admin-page__popover-done {
+  min-height: 2.1rem !important;
+  padding: 0.4rem 0.75rem !important;
+  border-radius: 8px !important;
+  font-size: 0.8125rem !important;
+  transform: none !important;
+}
+
+.firebase-admin-page__filter-active-summary {
+  margin: 0 0 0.85rem;
+  max-width: 100%;
+}
+
+.firebase-admin-page__table-section-label {
+  padding: 0.5rem 0.65rem;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+@media (max-width: 680px) {
+  .firebase-admin-page__section-heading {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .firebase-admin-page__toolbar-meta {
+    white-space: normal;
+  }
+
+  .firebase-admin-page__toolbar {
+    align-items: stretch;
+  }
+
+  .firebase-admin-page__search-wrap {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .firebase-admin-page__control-btn {
+    justify-content: center;
+  }
+
+  .firebase-admin-page__popover {
+    position: static;
+    width: auto;
+    margin: 0.25rem 0 0.75rem;
+  }
+
+  .firebase-admin-page__filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.firebase-admin-page__add-card {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.firebase-admin-page__add-card--invite {
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.firebase-admin-page__invite-lead {
+  margin: -0.25rem 0 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.firebase-admin-page__invite-lead code {
+  font-size: 0.78em;
+}
+
+.firebase-admin-page__invite-note {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 4rem;
+}
+
+.firebase-admin-page__add-title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.firebase-admin-page__add-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+}
+
+@media (max-width: 640px) {
+  .firebase-admin-page__add-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.firebase-admin-page__add-grid label,
+.firebase-admin-page__add-span2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.firebase-admin-page__add-span2 {
+  grid-column: 1 / -1;
+}
+
+.firebase-admin-page__add-grid input,
+.firebase-admin-page__add-grid select {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.9375rem;
+}
+
+.firebase-admin-page__practice-list--compact {
+  max-height: 160px;
+  margin-bottom: 0.75rem;
+}
+
+.firebase-admin-page__th-email-verified,
+.firebase-admin-page__td-email-verified {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.firebase-admin-page__th-email-verified {
+  font-weight: 800;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__td-email-verified {
+  font-weight: 600;
+}
+
+.firebase-admin-page__th-actions-simple {
+  text-align: right;
+  min-width: 5rem;
+}
+
+/* Legacy */
+.firebase-admin-page__th-actions {
+  text-align: right;
+  min-width: 5rem;
+}
+
+.firebase-admin-page__th-actions .firebase-admin-page__th-sub {
+  display: none;
+}
+
+.firebase-admin-page__actions-cell {
+  vertical-align: middle;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.firebase-admin-page__open-detail-btn {
+  min-width: 4.75rem;
+}
+
+/* User detail + manage: shared shell */
+
+.firebase-admin-page__modal--user-panel {
+  max-width: min(500px, 100vw - 2rem);
+  max-height: min(90vh, 900px);
+  overflow-y: auto;
+}
+
+.firebase-admin-page__overview-kicker {
+  margin: -0.35rem 0 1rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.firebase-admin-page__overview-kicker strong {
+  color: #475569;
+  font-weight: 700;
+}
+
+.firebase-admin-page__user-panel-hero {
+  margin: 0 0 0.25rem;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.firebase-admin-page__user-panel-display {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.firebase-admin-page__user-panel-email {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #475569;
+  word-break: break-word;
+}
+
+.firebase-admin-page__user-panel-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.firebase-admin-page__overview-extra {
+  padding: 1rem 0 0.25rem;
+}
+
+.firebase-admin-page__overview-meta {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, auto) 1fr;
+  gap: 0.35rem 0.85rem;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.firebase-admin-page__overview-meta dt {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.firebase-admin-page__overview-meta dd {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 650;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.firebase-admin-page__modal-back-btn {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: -0.25rem 0 0.85rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.firebase-admin-page__modal-back-btn:hover:not(:disabled) {
+  color: #0f172a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.firebase-admin-page__modal-back-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.firebase-admin-page__user-detail-email {
+  margin: -0.2rem 0 0.8rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.firebase-admin-page__detail-summary {
+  margin: 0 0 1rem;
+  padding: 0.25rem 0;
+  border-top: 1px solid #eef2f7;
+  border-bottom: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.firebase-admin-page__profile-list {
+  display: grid;
+  grid-template-columns: minmax(5.25rem, auto) 1fr;
+  gap: 0;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.firebase-admin-page__profile-list dt,
+.firebase-admin-page__profile-list dd {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.firebase-admin-page__profile-list dt:last-of-type,
+.firebase-admin-page__profile-list dd:last-of-type {
+  border-bottom: none;
+}
+
+.firebase-admin-page__profile-list dt {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.firebase-admin-page__profile-list dd {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin: 0;
+  color: #0f172a;
+  font-weight: 650;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.firebase-admin-page__profile-muted {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.firebase-admin-page__detail-dl {
+  display: grid;
+  grid-template-columns: minmax(5.6rem, auto) 1fr;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0 0.85rem;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.firebase-admin-page__detail-dl dt {
+  margin: 0;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.firebase-admin-page__detail-dl dd {
+  margin: 0;
+  color: #1e293b;
+}
+
+.firebase-admin-page__detail-section-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.firebase-admin-page__detail-tools-intro {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.firebase-admin-page__detail-tool {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.4rem;
+  background: #fff;
+}
+
+.firebase-admin-page__detail-tool-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.firebase-admin-page__detail-tool-desc {
+  margin: 0.12rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.firebase-admin-page__detail-tool .btn-primary,
+.firebase-admin-page__detail-tool .btn-secondary {
+  font-size: 0.8125rem;
+  flex: 0 0 auto;
+  min-width: 5.25rem;
+  justify-content: center;
+  padding: 0.42rem 0.75rem;
+  border-radius: 8px;
+  box-shadow: none;
+  transform: none;
+}
+
+.firebase-admin-page__detail-tool .btn-primary {
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #0f172a);
+  border: 2px solid var(--theme-border, #e2e8f0);
+}
+
+.firebase-admin-page__detail-tool .btn-primary:hover {
+  border-color: var(--theme-accent, #0d5c5c);
+  background: var(--theme-accent, rgba(13, 92, 92, 0.08));
+  color: var(--theme-text-primary, #0f172a);
+}
+
+.firebase-admin-page__detail-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.firebase-admin-page__detail-tool .btn-primary:hover,
+.firebase-admin-page__detail-tool .btn-secondary:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.firebase-admin-page__detail-tool-danger {
+  color: #9a1530 !important;
+  border-color: rgba(176, 0, 32, 0.3) !important;
+  background: #fff8f8 !important;
+}
+
+.firebase-admin-page__modal-role-field.filter-group,
+.firebase-admin-page__manage-access-role.filter-group {
+  gap: 0.45rem;
+}
+
+.firebase-admin-page__modal-role-field .filter-select-custom,
+.firebase-admin-page__manage-access-role .filter-select-custom {
+  width: 100%;
+}
+
+.firebase-admin-page__manage-section {
+  padding: 0.8rem 0;
+  border-top: 1px solid #f1f5f9;
+}
+
+.firebase-admin-page__manage-section:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+
+.firebase-admin-page__manage-section-title {
+  margin: 0 0 0.55rem;
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.firebase-admin-page__manage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.firebase-admin-page__manage-email-gated {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.firebase-admin-page__manage-email-locked-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.firebase-admin-page__manage-email-readonly {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.5rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.firebase-admin-page__manage-email-gated-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.firebase-admin-page__manage-email-editing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.firebase-admin-page__manage-email-cancel {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: none;
+  transform: none;
+}
+
+.firebase-admin-page__manage-email-cancel:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.firebase-admin-page__manage-grid label,
+.firebase-admin-page__password-row label,
+.firebase-admin-page__signin-help-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.firebase-admin-page__manage-grid input,
+.firebase-admin-page__password-row input,
+.firebase-admin-page__signin-readonly {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.firebase-admin-page__manage-grid input:focus,
+.firebase-admin-page__password-row input:focus,
+.firebase-admin-page__signin-readonly:focus {
+  outline: none;
+  border-color: rgba(13, 92, 92, 0.55);
+  box-shadow: 0 0 0 3px rgba(13, 92, 92, 0.08);
+}
+
+.firebase-admin-page__password-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.firebase-admin-page__password-row input[readonly],
+.firebase-admin-page__signin-readonly {
+  color: #64748b;
+  letter-spacing: 0.12em;
+  background: #f8fafc;
+}
+
+.firebase-admin-page__signin-help {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.firebase-admin-page__signin-help-caption {
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #64748b;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.firebase-admin-page__signin-help-actions-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.firebase-admin-page__signin-help-actions-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__signin-help-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.firebase-admin-page__signin-help-footnote {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.firebase-admin-page__verify-email-panel {
+  margin-top: 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fafbfc;
+}
+
+.firebase-admin-page__verify-email-panel-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.firebase-admin-page__verify-email-panel-body {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.firebase-admin-page__verify-email-panel .btn-secondary {
+  box-shadow: none;
+  transform: none;
+}
+
+.firebase-admin-page__verify-email-panel .btn-secondary:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.firebase-admin-page__manage-callout {
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.firebase-admin-page__manage-callout-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.firebase-admin-page__manage-callout-body {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.firebase-admin-page__access-practices {
+  margin-top: 0.85rem;
+}
+
+.firebase-admin-page__access-practices-head {
+  margin-bottom: 0.5rem;
+}
+
+.firebase-admin-page__access-practices-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__access-practices-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.firebase-admin-page__practice-picker {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.firebase-admin-page__practice-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0f172a;
+  transition: background 0.12s ease;
+}
+
+.firebase-admin-page__practice-picker-row:last-child {
+  border-bottom: none;
+}
+
+.firebase-admin-page__practice-picker-row:hover {
+  background: #f8fafc;
+}
+
+.firebase-admin-page__practice-picker-check {
+  flex-shrink: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: var(--theme-accent, #0d5c5c);
+  cursor: pointer;
+}
+
+.firebase-admin-page__practice-picker-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.firebase-admin-page__practice-picker-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.firebase-admin-page__practice-picker-lede {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.firebase-admin-page__practice-picker-empty {
+  margin: 0;
+}
+
+.firebase-admin-page__manage-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.firebase-admin-page__manage-inline-actions--left {
+  justify-content: flex-start;
+  margin-top: 0.6rem;
+}
+
+.firebase-admin-page__manage-section .btn-primary,
+.firebase-admin-page__manage-section .btn-secondary,
+.firebase-admin-page__modal-actions .btn-primary,
+.firebase-admin-page__modal-actions .btn-secondary {
+  border-radius: 8px;
+  box-shadow: none;
+  transform: none;
+}
+
+.firebase-admin-page__manage-section .btn-primary:hover,
+.firebase-admin-page__manage-section .btn-secondary:hover,
+.firebase-admin-page__modal-actions .btn-primary:hover,
+.firebase-admin-page__modal-actions .btn-secondary:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+@media (max-width: 560px) {
+  .firebase-admin-page__manage-grid,
+  .firebase-admin-page__password-row {
+    grid-template-columns: 1fr;
+  }
+
+  .firebase-admin-page__manage-inline-actions {
+    justify-content: stretch;
+  }
+
+  .firebase-admin-page__manage-inline-actions .btn-secondary,
+  .firebase-admin-page__manage-inline-actions .btn-primary {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .firebase-admin-page__signin-help-actions .btn-secondary {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .firebase-admin-page__verify-email-panel .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .firebase-admin-page__manage-email-locked-row .btn-secondary {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+/* Legacy pill */
+.firebase-admin-page__hint-pill {
+  display: inline;
+  padding: 0.1em 0.45em;
+  border-radius: 6px;
+  font-size: 0.82em;
+  font-weight: 600;
+  background: rgba(245, 158, 11, 0.18);
+  color: #92400e;
+}
+
+.firebase-admin-page__onboarding-cell {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.firebase-admin-page__pill {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+.firebase-admin-page__pill--pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #92400e;
+}
+
+.firebase-admin-page__pill--ok {
+  background: rgba(34, 197, 94, 0.12);
+  color: #166534;
+}
+
+.firebase-admin-page__pill-muted {
+  color: #cbd5e1;
+  font-size: 0.85rem;
+}
+
+.firebase-admin-page__detail-onboarding-note {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.firebase-admin-page__hint--tight {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 520px) {
+  .firebase-admin-page__profile-list {
+    grid-template-columns: 1fr;
+  }
+
+  .firebase-admin-page__profile-list dt {
+    padding-bottom: 0.05rem;
+    border-bottom: none;
+  }
+
+  .firebase-admin-page__detail-tool {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .firebase-admin-page__detail-tool-actions {
+    justify-content: stretch;
+  }
+
+  .firebase-admin-page__detail-tool .btn-primary,
+  .firebase-admin-page__detail-tool .btn-secondary {
+    width: 100%;
+  }
+}
+
+/* ── Manage user modal: calmer hierarchy, less “form clutter” ── */
+
+.firebase-admin-page__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.firebase-admin-page__modal--manage-user.firebase-admin-page__modal--user-panel {
+  max-width: min(560px, 100vw - 2rem);
+  padding: 1.25rem;
+  border-radius: 14px;
+  box-shadow:
+    0 4px 6px -1px rgba(15, 23, 42, 0.04),
+    0 24px 48px -12px rgba(15, 23, 42, 0.12);
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__modal-header {
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__modal-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #1e293b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-title-block {
+  min-width: 0;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-title-sub {
+  margin: 0.15rem 0 0;
+  max-width: 26rem;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__modal-header--manage-user {
+  align-items: flex-start;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-section--access
+  .firebase-admin-page__manage-section-title {
+  margin-bottom: 0.35rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-access-kicker {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-access-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-hero-main {
+  min-width: 0;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-hero-name {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-hero-email {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-hero-pills {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  max-width: 14rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-section {
+  border-top: none;
+  padding: 0.85rem 0 0.15rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-section--access {
+  padding-top: 0.95rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-user-footer-account {
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-footer-account-lede {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-disable-account-btn {
+  align-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-signin-lede {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-action-near-btn-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #b45309;
+  line-height: 1.2;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-signin-buttons
+  .firebase-admin-page__manage-invite-action-bundle {
+  flex: 0 1 auto;
+  align-self: flex-start;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-section-title {
+  margin: 0 0 0.7rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.85rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-grid label {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #64748b;
+  gap: 0.45rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-grid input {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  background: #fafafa;
+  padding: 0.55rem 0.65rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-grid
+  input:focus {
+  border-color: rgba(13, 92, 92, 0.35);
+  box-shadow: 0 0 0 3px rgba(13, 92, 92, 0.06);
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-email-readonly {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__signin-help-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__signin-help {
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  gap: 1.1rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__signin-help-block {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  gap: 0.35rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__signin-help-block--password {
+  gap: 0.25rem;
+}
+
+.firebase-admin-page__manage-password-row {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+}
+
+.firebase-admin-page__manage-password-mask {
+  font-size: 0.95rem;
+  letter-spacing: 0.18em;
+  color: #cbd5e1;
+  user-select: none;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__signin-help-actions-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__signin-help-actions {
+  gap: 0.5rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__signin-help-actions .btn-secondary {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 0.48rem 0.9rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #fff;
+  color: #334155;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-callout,
+.firebase-admin-page__modal--manage-user .firebase-admin-page__verify-email-panel {
+  border: none;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.98);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-callout-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-callout-body,
+.firebase-admin-page__modal--manage-user .firebase-admin-page__verify-email-panel-body {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__verify-email-panel-title {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__hint--tight {
+  margin: 0.35rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-access-role.filter-group label {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .filter-select.filter-select-custom-trigger {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  background: #fafafa;
+  font-weight: 500;
+  color: #334155;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__access-practices-label {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__access-practices {
+  margin-top: 1rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__access-practices-head {
+  margin-bottom: 0.45rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__practice-picker {
+  border: none;
+  border-radius: 12px;
+  background: rgba(250, 250, 250, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+  max-height: 200px;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__practice-picker-row {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+  padding: 0.48rem 0.65rem;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  color: #334155;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__practice-picker-row:hover {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__practice-picker-check {
+  width: 1rem;
+  height: 1rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__modal-actions {
+  margin-top: 0.35rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__modal-actions .btn-primary {
+  min-width: 7.5rem;
+  padding: 0.55rem 1.2rem;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-email-locked-row .btn-secondary {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+}
+
+/* Simplified Manage user: fewer boxes, disclosures + filter */
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-invite-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-invite-status-sub {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-status--pending {
+  background: rgba(254, 243, 199, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.14);
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-status--pending
+  .firebase-admin-page__manage-invite-status-sub {
+  color: #92400e;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-status--accepted {
+  background: rgba(236, 253, 245, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(13, 92, 92, 0.12);
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-status--accepted
+  .firebase-admin-page__manage-invite-status-sub {
+  color: #0f766e;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-status--disabled_never,
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-status--disabled_signed_in {
+  background: rgba(248, 250, 252, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-status--disabled_never
+  .firebase-admin-page__manage-invite-status-sub,
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-status--disabled_signed_in
+  .firebase-admin-page__manage-invite-status-sub {
+  color: #64748b;
+}
+
+/* Pending invite: status + Resend invite grouped */
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-action-bundle {
+  padding: 0.65rem 0.75rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(180, 83, 9, 0.22);
+  background: rgba(255, 251, 235, 0.72);
+  box-shadow: inset 3px 0 0 0 rgba(217, 119, 6, 0.5);
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-action-bundle
+  .firebase-admin-page__manage-invite-status {
+  margin-bottom: 0.35rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-invite-action-hint {
+  margin: 0 0 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #92400e;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-invite-action-bundle
+  .firebase-admin-page__manage-signin-tools {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-section--profile
+  .firebase-admin-page__manage-grid {
+  margin-bottom: 0.15rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-signin-tools {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details--signin {
+  margin-top: 0.65rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-body--signin {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-body--signin
+  .firebase-admin-page__manage-signin-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-body--signin
+  .firebase-admin-page__manage-signin-tools {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+/* Sign-in & password row: informational follow-up (not error-style amber). */
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-badge--signin-followup {
+  color: #0f766e;
+  background: rgba(240, 253, 250, 0.85);
+  border: 1px solid rgba(13, 148, 136, 0.28);
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.625rem;
+  letter-spacing: 0.02em;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-summary
+  .firebase-admin-page__manage-details-badge--signin-followup {
+  flex: 0 1 auto;
+  max-width: min(260px, 58vw);
+  text-align: right;
+  white-space: normal;
+  line-height: 1.25;
+  text-transform: none;
+  font-weight: 600;
+  font-size: 0.65rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-action-hint {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #0f172a;
+  background: rgba(254, 243, 199, 0.35);
+  border: 1px solid rgba(180, 83, 9, 0.12);
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-action-hint strong {
+  font-weight: 700;
+  color: #92400e;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-action-ref {
+  font-weight: 700;
+  color: #b45309;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-practices-note {
+  margin: 0 0 0.35rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-signin-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-signin-buttons
+  .btn-secondary {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.45rem 0.75rem;
+  border-radius: 10px;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-verify-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  margin-top: 0.55rem;
+  min-height: 1.75rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-muted-inline {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-verify-row
+  .btn-secondary {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-muted-footnote {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-muted-footnote--strong {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-details {
+  margin-top: 0.65rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-details--more {
+  margin-top: 0.85rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-details-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.58rem 0.68rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-details-summary::after {
+  content: "⌄";
+  flex: 0 0 auto;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  line-height: 1;
+  transform: rotate(-90deg);
+  transition: transform 0.14s ease;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details[open]
+  > .firebase-admin-page__manage-details-summary::after {
+  transform: rotate(0deg);
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-details-badge {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__manage-details-body {
+  padding: 0.65rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.05);
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-body--stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding-top: 0.5rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__practice-search {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.firebase-admin-page__modal--manage-user .firebase-admin-page__practice-search:focus {
+  outline: none;
+  border-color: rgba(13, 92, 92, 0.35);
+  box-shadow: 0 0 0 3px rgba(13, 92, 92, 0.06);
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details--access-bundle {
+  margin-top: 0;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-summary--access-bundle {
+  align-items: center;
+  row-gap: 0.35rem;
+  padding: 0.65rem 0.7rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-access-bundle-heading {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-summary--access-bundle
+  .firebase-admin-page__manage-details-badge {
+  margin-left: auto;
+  text-align: right;
+  max-width: 100%;
+  line-height: 1.35;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details-body--access-bundle {
+  padding-top: 0.45rem;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details--access-bundle
+  .firebase-admin-page__practice-picker {
+  max-height: 180px;
+}
+
+.firebase-admin-page__modal--manage-user
+  .firebase-admin-page__manage-details--more
+  .btn-secondary {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 620px) {
+  .firebase-admin-page__modal--manage-user .firebase-admin-page__manage-hero,
+  .firebase-admin-page__modal--manage-user .firebase-admin-page__manage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .firebase-admin-page__modal--manage-user .firebase-admin-page__manage-hero {
+    flex-direction: column;
+  }
+
+  .firebase-admin-page__modal--manage-user .firebase-admin-page__manage-hero-pills {
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .firebase-admin-page__modal--manage-user .firebase-admin-page__manage-title-sub {
+    white-space: normal;
+  }
+}

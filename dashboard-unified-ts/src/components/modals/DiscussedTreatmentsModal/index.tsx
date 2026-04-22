@@ -23,6 +23,7 @@ import {
   REGION_OPTIONS,
   TIMELINE_OPTIONS,
   PLAN_SECTIONS,
+  SCHEDULED_SECTION_LABEL,
   SKINCARE_SECTION_LABEL,
   TIMELINE_SKINCARE,
   QUANTITY_UNIT_OPTIONS,
@@ -32,6 +33,8 @@ import {
   isEnergyTreatmentCategory,
 } from "./constants";
 import { useDashboard } from "../../../context/DashboardContext";
+import { getEffectivePriceList } from "../../../data/treatmentPricing2025";
+import { isJudgeMdSurgeryPlanCategory } from "../../../data/judgeMdPricing2026";
 import {
   getRecommendedProducts,
   getFindingsForTreatment,
@@ -46,6 +49,8 @@ import {
   getDisplayAreaForItem,
   parseInterestedIssues,
   generateId,
+  expandCommaSeparatedProductsToPlanRows,
+  timelineOptionDisplayLabel,
 } from "./utils";
 import { DiscussedTreatmentsQuantityFormRow } from "./DiscussedTreatmentsQuantityFormRow";
 import DiscussedTreatmentsModalHeader from "./DiscussedTreatmentsModalHeader";
@@ -77,6 +82,14 @@ export default function DiscussedTreatmentsModal({
   initialEditingItem?: DiscussedItem | null;
 }) {
   const { provider } = useDashboard();
+  const effectivePriceList = useMemo(
+    () =>
+      getEffectivePriceList(
+        provider?.["Treatment Pricing"] as string | undefined,
+        provider?.code,
+      ),
+    [provider],
+  );
   const treatmentOptions = useMemo(
     () => getTreatmentOptionsForProvider(provider?.code),
     [provider?.code],
@@ -372,11 +385,14 @@ export default function DiscussedTreatmentsModal({
     const skincare: DiscussedItem[] = [];
     const now: DiscussedItem[] = [];
     const addNext: DiscussedItem[] = [];
+    const scheduled: DiscussedItem[] = [];
     const wishlist: DiscussedItem[] = [];
     const completed: DiscussedItem[] = [];
     for (const item of items) {
       if (item.treatment?.trim() === "Skincare") {
         skincare.push(item);
+      } else if (item.scheduledDate?.trim()) {
+        scheduled.push(item);
       } else {
         const t = item.timeline?.trim();
         if (t === "Now") now.push(item);
@@ -389,10 +405,16 @@ export default function DiscussedTreatmentsModal({
       (a.treatment || "").localeCompare(b.treatment || "");
     const byProduct = (a: DiscussedItem, b: DiscussedItem) =>
       (a.product || "").localeCompare(b.product || "");
+    const byScheduledThenTreatment = (a: DiscussedItem, b: DiscussedItem) => {
+      const da = (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? "");
+      if (da !== 0) return da;
+      return byTreatment(a, b);
+    };
     return {
       [SKINCARE_SECTION_LABEL]: skincare.sort(byProduct),
       Now: now.sort(byTreatment),
       "Add next visit": addNext.sort(byTreatment),
+      [SCHEDULED_SECTION_LABEL]: scheduled.sort(byScheduledThenTreatment),
       Wishlist: wishlist.sort(byTreatment),
       Completed: completed.sort(byTreatment),
     };
@@ -408,7 +430,10 @@ export default function DiscussedTreatmentsModal({
 
   /** Short badges on the plan list when a row is missing units/type for pricing (matches share-link warnings). */
   const planPricingBadgeByItemId = useMemo(() => {
-    const lines = getAlignedCheckoutLineItemsForDiscussedItems(items);
+    const lines = getAlignedCheckoutLineItemsForDiscussedItems(
+      items,
+      effectivePriceList,
+    );
     const m = new Map<string, string>();
     items.forEach((it, i) => {
       const mi = lines[i]?.missingInfo;
@@ -416,7 +441,7 @@ export default function DiscussedTreatmentsModal({
       if (short) m.set(it.id, short);
     });
     return m;
-  }, [items]);
+  }, [items, effectivePriceList]);
 
   /** Preview for the "New item" row when add form is visible (left column stays connected). */
   const newItemPreview = useMemo(() => {
@@ -854,6 +879,28 @@ export default function DiscussedTreatmentsModal({
     await persistClientDiscussedItems(client, nextItems);
   };
 
+  const handleShareLinkUpdateDiscussedItem = async (
+    itemId: string,
+    patch: Partial<DiscussedItem>,
+  ) => {
+    const nextItems = items.map((it) =>
+      it.id === itemId ? { ...it, ...patch } : it,
+    );
+    setItems(nextItems);
+    try {
+      await persistItems(nextItems);
+      showToast(
+        patch.timeline === "Wishlist"
+          ? "Moved to wishlist"
+          : "Moved to active plan",
+      );
+      onUpdate();
+    } catch (e: unknown) {
+      showError(e instanceof Error ? e.message : "Failed to update plan");
+      setItems(items);
+    }
+  };
+
   const handleAdd = async () => {
     const treatments: string[] =
       addMode === "treatment" && selectedTreatmentFirst
@@ -905,7 +952,7 @@ export default function DiscussedTreatmentsModal({
           ).trim() || undefined
         : sel.trim();
     };
-    /** For Skincare only: multi-select product names. Everything else: single product from productFor. */
+    /** For Skincare: multi-select. Other categories: one row per type when multiple are selected (comma list or sheet tokens). */
     const productsForTreatment = (treatment: string): string[] => {
       if (treatment === "Skincare") {
         const selected = form.selectedProductsByTreatment[treatment] ?? [];
@@ -922,7 +969,14 @@ export default function DiscussedTreatmentsModal({
           .filter(Boolean);
       }
       const single = productFor(treatment);
-      return single ? [single] : [];
+      if (!single) return [];
+      const expanded = expandCommaSeparatedProductsToPlanRows(
+        treatment,
+        single,
+        provider?.code,
+      );
+      if (expanded && expanded.length > 0) return expanded;
+      return [single];
     };
     const quantityVal = form.quantity?.trim();
     const quantityUnitVal = form.quantityUnit?.trim();
@@ -2061,7 +2115,7 @@ export default function DiscussedTreatmentsModal({
                                       }
                                       className="discussed-treatments-radio-input"
                                     />
-                                    {opt}
+                                    {timelineOptionDisplayLabel(opt)}
                                   </label>
                                 ))}
                               </div>
@@ -2133,7 +2187,7 @@ export default function DiscussedTreatmentsModal({
                               {completeItemId === sel.id ? (
                                 <div className="discussed-treatments-detail-complete-confirm-inline">
                                   <span className="discussed-treatments-detail-complete-text">
-                                    Add next visit?
+                                    Next Visit?
                                   </span>
                                   <button
                                     type="button"
@@ -5742,7 +5796,7 @@ export default function DiscussedTreatmentsModal({
                                               }
                                               className="discussed-treatments-radio-input"
                                             />
-                                            {opt}
+                                            {timelineOptionDisplayLabel(opt)}
                                           </label>
                                         ))}
                                       </div>
@@ -6035,7 +6089,7 @@ export default function DiscussedTreatmentsModal({
                                             }
                                             className="discussed-treatments-radio-input"
                                           />
-                                          {opt}
+                                          {timelineOptionDisplayLabel(opt)}
                                         </label>
                                       ))}
                                     </div>
@@ -6322,9 +6376,35 @@ export default function DiscussedTreatmentsModal({
               setItems((prev) => prev.filter((_, i) => i !== index))
             }
             onUpdateItem={(index, patch) =>
-              setItems((prev) =>
-                prev.map((it, i) => (i === index ? { ...it, ...patch } : it))
-              )
+              setItems((prev) => {
+                const cur = prev[index];
+                if (!cur) return prev;
+                const merged = { ...cur, ...patch };
+                const expanded = expandCommaSeparatedProductsToPlanRows(
+                  merged.treatment ?? "",
+                  merged.product,
+                  provider?.code,
+                );
+                if (
+                  patch.product !== undefined &&
+                  expanded &&
+                  expanded.length > 1
+                ) {
+                  const rows = expanded.map((productName, i) => ({
+                    ...merged,
+                    id: i === 0 ? cur.id : generateId(),
+                    product: productName,
+                    region:
+                      ((merged.treatment ?? "").trim() === "Other procedures" ||
+                        isJudgeMdSurgeryPlanCategory(merged.treatment ?? "")) &&
+                      productName.trim().toLowerCase() !== "prfm injections"
+                        ? undefined
+                        : merged.region,
+                  }));
+                  return [...prev.slice(0, index), ...rows, ...prev.slice(index + 1)];
+                }
+                return prev.map((it, i) => (i === index ? merged : it));
+              })
             }
             providerCode={provider?.code}
           />
@@ -6362,6 +6442,7 @@ export default function DiscussedTreatmentsModal({
                   ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
               });
             }}
+            onUpdateDiscussedItem={handleShareLinkUpdateDiscussedItem}
           />
         )}
       </div>

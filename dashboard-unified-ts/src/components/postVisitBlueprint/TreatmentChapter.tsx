@@ -39,6 +39,10 @@ import {
   WELLNEST_EXTERNAL_LINKS_DISCLAIMER,
   type WellnestExternalExampleKind,
 } from "../../data/wellnestExternalExamples";
+import {
+  getDisplayAreaForItem,
+  plannedForPatientLineFullDateFromDiscussedItem,
+} from "../modals/DiscussedTreatmentsModal/utils";
 import "./TreatmentChapter.css";
 
 /** When Vimeo CDN poster URLs 403, swap to this local asset (Wellnest Dr. Reddy clips). */
@@ -123,6 +127,11 @@ export function TreatmentChapterView({
   const photos = card?.photos ?? [];
   const len = photos.length;
   const isSkincareChapter = chapter.treatment.trim().toLowerCase() === "skincare";
+  const isNeurotoxinChapter = chapter.key === "neurotoxin";
+  const planHighlightChips =
+    chapter.planDisplayHighlights !== undefined
+      ? chapter.planDisplayHighlights
+      : card?.planHighlights ?? [];
 
   const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
   const externalExamples = wellnestOffering
@@ -284,10 +293,10 @@ export function TreatmentChapterView({
       </div>
 
       {/* Regions / plan notes — high on the card so they are not buried below photos */}
-      {card && card.planHighlights.length > 0 && !isSkincareChapter && (
+      {planHighlightChips.length > 0 && !isSkincareChapter && !isNeurotoxinChapter && (
         <div className="tc-highlights tc-highlights--top">
           <div className="pvb-chips">
-            {card.planHighlights.map((h) => (
+            {planHighlightChips.map((h) => (
               <span key={h} className="pvb-chip">
                 {h}
               </span>
@@ -295,6 +304,28 @@ export function TreatmentChapterView({
           </div>
         </div>
       )}
+
+      {isNeurotoxinChapter && chapter.planItems.length > 0 ? (
+        <div className="tc-neuro-areas">
+          <h3 className="tc-section-label">Areas</h3>
+          <ul className="tc-neuro-areas-list" role="list">
+            {chapter.planItems.map((item) => {
+              const areaLabel =
+                getDisplayAreaForItem(item)?.trim() || "Treatment area";
+              const planned =
+                plannedForPatientLineFullDateFromDiscussedItem(item);
+              return (
+                <li key={item.id} className="tc-neuro-areas-row" role="listitem">
+                  <span className="tc-neuro-areas-name">{areaLabel}</span>
+                  {planned ? (
+                    <span className="tc-neuro-areas-planned">{planned}</span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="tc-overview">
         <div className="tc-overview-head">

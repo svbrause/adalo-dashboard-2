@@ -2,6 +2,13 @@
 
 import type { Client, DiscussedItem } from "../../../types";
 import {
+  formatPlanScheduledDateLabel,
+  formatPlanScheduledDateLongLabel,
+  formatPlanScheduledDateShortNoYear,
+  isValidPlanScheduledDateIso,
+} from "../../../utils/planScheduledDate";
+import { isJudgeMdSurgeryPlanCategory } from "../../../data/judgeMdPricing2026";
+import {
   ASSESSMENT_FINDINGS_BY_AREA,
   FINDING_TO_GOAL_REGION_TREATMENTS,
   GOAL_TO_REGIONS,
@@ -15,15 +22,19 @@ import {
   TREATMENT_PRODUCT_OPTIONS,
   OTHER_PRODUCT_LABEL,
   getTreatmentOptionsForProvider,
+  getTreatmentProductOptionsForProvider,
+  isEnergyTreatmentCategory,
   QUANTITY_QUICK_OPTIONS_DEFAULT,
   QUANTITY_OPTIONS_FILLER,
   QUANTITY_OPTIONS_TOX,
   QUANTITY_OPTIONS_BIOSTIMULANTS,
   QUANTITY_OPTIONS_RADIESSE,
   QUANTITY_OPTIONS_SCULPTRA,
+  TIMELINE_SKINCARE,
 } from "./constants";
 import {
   getWellnestOfferingByTreatmentName,
+  isWellnestDeliveryFormProductLine,
   isWellnestWellnessProviderCode,
   WELLNEST_OFFERINGS,
 } from "../../../data/wellnestOfferings";
@@ -35,6 +46,78 @@ export function stripOptionalRecommenderPriceFromLabel(value: string): string {
   const v = value.trim();
   const idx = v.search(/\s·\s*\$/);
   return idx === -1 ? v : v.slice(0, idx).trim();
+}
+
+/**
+ * Match comma-separated product tokens to canonical option labels (recommender + checkout).
+ */
+export function matchProductTokensToOptionList(
+  productRaw: string,
+  options: string[],
+): { matched: string[]; residualParts: string[] } {
+  if (!productRaw.trim()) return { matched: [], residualParts: [] };
+  const parts = productRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const matched: string[] = [];
+  const residualParts: string[] = [];
+  for (const p of parts) {
+    const exact = options.find((o) => o.toLowerCase() === p.toLowerCase());
+    if (exact) {
+      if (!matched.includes(exact)) matched.push(exact);
+      continue;
+    }
+    const partial = options.find(
+      (o) =>
+        o.toLowerCase().includes(p.toLowerCase()) ||
+        p.toLowerCase().includes(o.toLowerCase()),
+    );
+    if (partial) {
+      if (!matched.includes(partial)) matched.push(partial);
+    } else {
+      residualParts.push(p);
+    }
+  }
+  return { matched, residualParts };
+}
+
+/**
+ * When one UI field lists several procedure types (comma-separated), return each as its own
+ * plan row label. Returns null when a single row is correct (one token, or unknown mix).
+ */
+export function expandCommaSeparatedProductsToPlanRows(
+  treatment: string,
+  productJoined: string | undefined,
+  providerCode: string | undefined,
+): string[] | null {
+  const t = (treatment ?? "").trim();
+  const raw = (productJoined ?? "").trim();
+  if (!raw) return null;
+  const multiTreatment =
+    t === "Other procedures" ||
+    isJudgeMdSurgeryPlanCategory(t) ||
+    isEnergyTreatmentCategory(t) ||
+    t === "Biostimulants" ||
+    t === "Microneedling" ||
+    t === "Facial Services";
+  if (!multiTreatment) return null;
+
+  const opts = getTreatmentProductOptionsForProvider(providerCode, t);
+  if (opts && opts.length > 0) {
+    const { matched, residualParts } = matchProductTokensToOptionList(
+      raw,
+      opts,
+    );
+    if (matched.length > 1) return matched;
+    if (matched.length >= 1 && residualParts.length > 0) return null;
+  }
+  const naive = raw
+    .split(",")
+    .map((s) => stripOptionalRecommenderPriceFromLabel(s.trim()))
+    .filter(Boolean);
+  if (naive.length > 1) return naive;
+  return null;
 }
 
 /** Collapse biostimulant SKUs to Radiesse / Sculptra / Skinvive (or Other / custom). */
@@ -319,6 +402,13 @@ export function getQuantityContext(
     }
     return select("Syringes / Vials", QUANTITY_OPTIONS_BIOSTIMULANTS);
   }
+  if (t === "other procedures") {
+    const p = (product ?? "").trim().toLowerCase();
+    if (p.includes("skinvive")) {
+      return select("Syringes", QUANTITY_OPTIONS_BIOSTIMULANTS);
+    }
+    return select("Sessions", QUANTITY_QUICK_OPTIONS_DEFAULT);
+  }
   if (
     t === "laser" ||
     t.includes("laser") ||
@@ -375,12 +465,13 @@ export function generateId(): string {
     : `disc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Maps region/interest/finding text to a single display area (Forehead, Eyes, Nose, Cheeks, Lips, Chin, Jawline, Neck, Skin, Full face), or null if no match. */
+/** Maps region/interest/finding text to a single display area (Forehead, Eyes, Lower face, …), or null if no match. */
 function normalizeToDisplayArea(
   text: string | null | undefined,
 ): string | null {
   if (!text || !String(text).trim()) return null;
   const lower = String(text).toLowerCase().trim();
+  if (lower.includes("lower face")) return "Lower face";
   if (lower.includes("forehead")) return "Forehead";
   if (
     lower.includes("under eye") ||
@@ -394,6 +485,7 @@ function normalizeToDisplayArea(
     lower.includes("bunny")
   )
     return "Eyes";
+  if (lower.includes("nasolabial")) return "Nasolabial folds";
   if (lower.includes("nose") || lower.includes("nasal")) return "Nose";
   if (lower.includes("cheek") || lower.includes("mid cheek")) return "Cheeks";
   if (lower.includes("lip")) return "Lips";
@@ -471,10 +563,15 @@ export function getCheckoutDisplayName(item: DiscussedItem): string {
   ) {
     return item.product!.trim();
   }
+  const treatment = (item.treatment || "").trim();
   const product = stripOptionalRecommenderPriceFromLabel(
     (item.product || "").trim(),
   );
-  if (product && product !== OTHER_PRODUCT_LABEL) {
+  if (
+    product &&
+    product !== OTHER_PRODUCT_LABEL &&
+    !isWellnestDeliveryFormProductLine(treatment, product)
+  ) {
     return product;
   }
   return getTreatmentDisplayName(item);
@@ -523,60 +620,120 @@ export function getTreatmentPlanRowPrimaryLabel(item: DiscussedItem): string {
   if (treatment === "Skincare" && product) {
     return patientFacingSkincareShortName(product);
   }
-  if (product) return product;
+  // Wellnest: delivery dropdown (e.g. "Nasal spray available") must not replace the peptide name.
+  if (product && !isWellnestDeliveryFormProductLine(treatment, product)) {
+    return product;
+  }
   return treatment || "—";
 }
 
 /**
+ * User-facing label for a stored timeline value or plan section key.
+ * Canonical stored value stays `"Add next visit"` for persistence.
+ */
+export function timelineOptionDisplayLabel(stored: string): string {
+  if (stored === "Add next visit") return "Next Visit";
+  return stored;
+}
+
+/**
+ * Short timing phrase for the plan row sub-line (with {@link getDisplayAreaForItem}).
+ * Prefer scheduled date when set; otherwise maps timeline values to compact labels.
+ * **Now** is omitted — the plan section already groups those rows under “Now”.
+ */
+export function getTreatmentPlanRowTimingLabel(
+  item: DiscussedItem,
+): string | null {
+  const scheduled = formatPlanScheduledDateLabel(item.scheduledDate);
+  if (scheduled) return scheduled;
+  const t = (item.timeline ?? "").trim();
+  if (t === "Now") return null;
+  if (t === "Add next visit") return timelineOptionDisplayLabel("Add next visit");
+  if (t === "Completed") return null;
+  if (t === "Wishlist" || !t) return "Wishlist";
+  if (t === TIMELINE_SKINCARE) return null;
+  return t;
+}
+
+/**
+ * Timeline / wishlist words for meta lines. When a **scheduled date** is set, the
+ * calendar date is omitted here so it can be shown once as “Planned for …” (see
+ * {@link plannedForPatientLineFromDiscussedItem}).
+ */
+export function getTreatmentPlanRowTimelineWordsSansScheduledDate(
+  item: DiscussedItem,
+): string | null {
+  if (isValidPlanScheduledDateIso(item.scheduledDate)) {
+    const t = (item.timeline ?? "").trim();
+    if (t === "Now") return null;
+    if (t === "Add next visit")
+      return timelineOptionDisplayLabel("Add next visit");
+    if (t === "Completed") return null;
+    if (t === "Wishlist" || !t) return "Wishlist";
+    if (t === TIMELINE_SKINCARE) return null;
+    return t;
+  }
+  return getTreatmentPlanRowTimingLabel(item);
+}
+
+/** One line: “Planned for Jan 15” (no year), or null if no scheduled day. */
+export function plannedForPatientLineFromDiscussedItem(
+  item: DiscussedItem,
+): string | null {
+  if (!isValidPlanScheduledDateIso(item.scheduledDate)) return null;
+  const short = formatPlanScheduledDateShortNoYear(item.scheduledDate);
+  if (!short) return null;
+  return `Planned for ${short}`;
+}
+
+/** Patient blueprint / summary: “Planned for July 20, 2026”, or null if no scheduled day. */
+export function plannedForPatientLineFullDateFromDiscussedItem(
+  item: DiscussedItem,
+): string | null {
+  if (!isValidPlanScheduledDateIso(item.scheduledDate)) return null;
+  const full = formatPlanScheduledDateLongLabel(item.scheduledDate);
+  if (!full) return null;
+  return `Planned for ${full}`;
+}
+
+/** Options for plan row labels when a parent heading or line already states timing. */
+export type TreatmentPlanRowLabelOpts = {
+  /**
+   * When true, the sub-line is **area only** (no timeline / wishlist wording).
+   * Use when the row sits under a timeline section title, an SMS section header,
+   * or a dedicated timing line that already shows the same timing.
+   */
+  omitTimeline?: boolean;
+};
+
+/**
  * Supporting sub-line shown directly under {@link getTreatmentPlanRowPrimaryLabel}.
  *
- * USE FOR: the secondary/meta text below the main label in plan list rows (e.g.
- * "Filler • Cheeks • 1 syringe"). Returns null when there is no meaningful
- * secondary context to show. Always pair with getTreatmentPlanRowPrimaryLabel.
+ * USE FOR: the secondary/meta text below the main label in plan list rows.
+ * Shows **where** (area) and **when** (timeline or scheduled date) only — not
+ * quantity or treatment category, so the primary line carries product/device.
  */
 export function getTreatmentPlanRowSecondaryLabel(
   item: DiscussedItem,
+  opts?: TreatmentPlanRowLabelOpts,
 ): string | null {
-  if (item.treatment === TREATMENT_GOAL_ONLY && item.interest?.trim()) {
-    const meta = formatTreatmentPlanRecordMetaLine(item);
-    return meta || null;
-  }
-  const treatment = (item.treatment || "").trim();
-  const product = stripOptionalRecommenderPriceFromLabel(
-    (item.product || "").trim(),
+  const area = getDisplayAreaForItem(item);
+  const timing = opts?.omitTimeline
+    ? null
+    : getTreatmentPlanRowTimelineWordsSansScheduledDate(item);
+  const parts = [area, timing].filter(
+    (p): p is string => typeof p === "string" && p.trim().length > 0,
   );
-  const isSkincare = treatment === "Skincare";
-  const parts: string[] = [];
-
-  if (isSkincare && product) {
-    const area = getDisplayAreaForItem(item);
-    if (area) parts.push(area);
-    if (item.quantity && String(item.quantity).trim()) {
-      const qLabel = getPlanQuantityLabelPrefix(item.treatment, undefined);
-      parts.push(`${qLabel}: ${item.quantity}`);
-    }
-    return parts.length ? parts.join(TREATMENT_PLAN_BULLET) : null;
-  }
-
-  if (product) {
-    parts.push(treatment);
-    const area = getDisplayAreaForItem(item);
-    if (area) parts.push(area);
-    if (item.quantity && String(item.quantity).trim()) {
-      const qLabel = getPlanQuantityLabelPrefix(item.treatment, product);
-      parts.push(`${qLabel}: ${item.quantity}`);
-    }
-    return parts.join(TREATMENT_PLAN_BULLET);
-  }
-
-  const meta = formatTreatmentPlanRecordMetaLine(item);
-  return meta || null;
+  return parts.length ? parts.join(TREATMENT_PLAN_BULLET) : null;
 }
 
 /** Accessible / confirm copy: primary • secondary when both exist. */
-export function formatTreatmentPlanRowFullLine(item: DiscussedItem): string {
+export function formatTreatmentPlanRowFullLine(
+  item: DiscussedItem,
+  opts?: TreatmentPlanRowLabelOpts,
+): string {
   const primary = getTreatmentPlanRowPrimaryLabel(item);
-  const secondary = getTreatmentPlanRowSecondaryLabel(item);
+  const secondary = getTreatmentPlanRowSecondaryLabel(item, opts);
   return secondary
     ? `${primary}${TREATMENT_PLAN_BULLET}${secondary}`
     : primary;

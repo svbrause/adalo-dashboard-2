@@ -3,7 +3,16 @@
  * Full-width treatment cards with feature breakdown and Add to plan.
  */
 
-import { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  Fragment,
+} from "react";
+import { createPortal } from "react-dom";
 import { useDashboard } from "../../context/DashboardContext";
 import { Client, TreatmentPhoto, DiscussedItem } from "../../types";
 import {
@@ -21,17 +30,17 @@ import { getWellnestDemoPhotoUrls } from "../../debug/wellnestDemoPhotos";
 import {
   getWellnestOfferingByTreatmentName,
   getWellnestProductOptionsForTreatment,
-  getWellnestPriceBand,
   isWellnestWellnessProviderCode,
   parseWellnestWhatItAddressesChips,
   WELLNEST_BROWSE_GROUP_LABELS,
   WELLNEST_BROWSE_GROUP_ORDER,
   WELLNEST_REGULATORY_NOTICE,
-  wellnestDeliveryHasNasal,
-  wellnestDeliveryHasOral,
-  wellnestDeliveryHasTopical,
 } from "../../data/wellnestOfferings";
-import { WELLNESS_TREATMENTS } from "../../data/wellnessQuiz";
+import {
+  getWellnessQuizMatchAnswerLabelsForTreatment,
+  getWellnessQuizMatchReasons,
+  WELLNESS_TREATMENTS,
+} from "../../data/wellnessQuiz";
 import {
   getWellnestExampleTalkingPoints,
   getWellnestRecommenderImageUrl,
@@ -57,6 +66,7 @@ import {
   filterTreatmentsByRegion,
   getFindingsFromConcerns,
   getInternalRegionForFilter,
+  treatmentRecommenderCatalogSearchMatches,
   type TreatmentRecommenderFilterState,
 } from "../../config/treatmentRecommenderConfig";
 import {
@@ -70,6 +80,9 @@ import {
   canonicalBiostimulantProductLabel,
   canonicalNeurotoxinProductLabel,
   stripOptionalRecommenderPriceFromLabel,
+  matchProductTokensToOptionList,
+  expandCommaSeparatedProductsToPlanRows,
+  timelineOptionDisplayLabel,
 } from "../modals/DiscussedTreatmentsModal/utils";
 import {
   REGION_OPTIONS,
@@ -79,6 +92,7 @@ import {
   TIMELINE_OPTIONS,
   TIMELINE_SKINCARE,
   PLAN_SECTIONS,
+  SCHEDULED_SECTION_LABEL,
   SKINCARE_SECTION_LABEL,
   getTreatmentProductOptionsForProvider,
   getSkincareCarouselItems,
@@ -92,6 +106,7 @@ import {
   ENERGY_TREATMENT_CATEGORY,
   LEGACY_ENERGY_DEVICE_CATEGORY,
   isEnergyTreatmentCategory,
+  PRFM_INJECTION_WHERE_OPTIONS,
 } from "../modals/DiscussedTreatmentsModal/constants";
 import {
   GEMSTONE_BY_SKIN_TYPE,
@@ -114,6 +129,11 @@ import { getAlignedCheckoutLineItemsForDiscussedItems } from "../modals/Discusse
 import { planPricingWarningShort } from "../../utils/planPricingWarnings";
 import { WELLNEST_CURATED_BLUEPRINT_CASES } from "../../data/wellnestCuratedBlueprintCases";
 import {
+  formatPlanScheduledDateLabel,
+  isValidPlanScheduledDateIso,
+} from "../../utils/planScheduledDate";
+import { buildPlanCalendarAgendaFromDiscussedItems } from "../../utils/pvbPlanCalendarAgenda";
+import {
   photoMatchesPlanTreatment,
   type BlueprintCasePhoto,
 } from "../../utils/postVisitBlueprintCases";
@@ -122,7 +142,10 @@ import {
   getBiostimulantTypeOptionLabels,
   getNeurotoxinTypeOptionLabels,
   getSkuOptionsForCategory,
+  getPriceListLabelsForTreatmentRecommenderSearch,
+  type ProviderPricingJson,
 } from "../../data/treatmentPricing2025";
+import { isJudgeMdSurgeryPlanCategory } from "../../data/judgeMdPricing2026";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
 import { PlanQuantityStepperInput } from "./planQuantityStepper";
 
@@ -141,6 +164,18 @@ function planOptDomIdSuffix(treatmentName: string): string {
     .replace(/\s+/g, "-")
     .replace(/[^a-zA-Z0-9_-]/g, "");
   return s.length > 0 ? s : "treatment";
+}
+
+function usesJudgeMdSurgeryStructuredPlan(treatment: string): boolean {
+  return isJudgeMdSurgeryPlanCategory(treatment);
+}
+
+function usesOtherProceduresStructuredPlan(treatment: string): boolean {
+  return treatment === "Other procedures" || usesJudgeMdSurgeryStructuredPlan(treatment);
+}
+
+function usesOtherProceduresMultiSelectProduct(treatment: string): boolean {
+  return treatment === "Other procedures" || usesJudgeMdSurgeryStructuredPlan(treatment);
 }
 
 /** Product / type string used with {@link getQuantityContext} (matches checkout labeling). */
@@ -203,7 +238,9 @@ function treatmentUsesStructuredProductSelectors(treatment: string): boolean {
     t === "Chemical Peel" ||
     t === "Facial Services" ||
     t === "Neurotoxin" ||
-    t === "Filler"
+    t === "Filler" ||
+    t === "Other procedures" ||
+    isJudgeMdSurgeryPlanCategory(t)
   );
 }
 
@@ -228,6 +265,7 @@ function initialAddToPlanRowForTreatment(
     facialServiceWhat:
       treatment === "Facial Services" ? ([] as string[]) : undefined,
     when: TIMELINE_OPTIONS[0],
+    scheduledDate: undefined as string | undefined,
     detailsExpanded: false,
     product: "",
     notes: "",
@@ -299,6 +337,7 @@ function parseWhereFromDiscussedRegion(
 ): string[] {
   const raw = region.trim();
   if (!raw) return [];
+  if (isJudgeMdSurgeryPlanCategory(treatment)) return [];
   const parts = raw
     .split(",")
     .map((s) => s.trim())
@@ -308,7 +347,9 @@ function parseWhereFromDiscussedRegion(
       ? REGION_OPTIONS_MICRONEEDLING
       : treatment === "Chemical Peel"
         ? CHEMICAL_PEEL_AREA_OPTIONS
-        : REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other");
+        : treatment === "Other procedures"
+          ? [...PRFM_INJECTION_WHERE_OPTIONS]
+          : REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other");
   const out: string[] = [];
   for (const p of parts) {
     if (opts.includes(p)) {
@@ -321,46 +362,85 @@ function parseWhereFromDiscussedRegion(
   return out;
 }
 
-/** Include microneedling type labels (PRP, PDGF, PRFM, etc.) so search e.g. "pdgf" finds Microneedling. */
+/** Map stored plan rows to split type vs Where for Other procedures (legacy compound labels). */
+function normalizeLegacyOtherProcedureProduct(
+  productRaw: string,
+  regionRaw: string,
+): { product: string; where: string[] } {
+  const p = productRaw.trim();
+  if (!p) return { product: "", where: [] };
+
+  const scalpLegacy =
+    /^PRFM injections\s*[–-]\s*scalp/i.test(p) ||
+    p === "PRFM injections – scalp (hair restoration)";
+  if (scalpLegacy) {
+    return { product: "PRFM scalp (hair restoration)", where: [] };
+  }
+  if (/^PRFM injections\s*[–-]\s*under\s*eyes?/i.test(p)) {
+    return { product: "PRFM injections", where: ["Under eyes"] };
+  }
+  if (/^PRFM injections\s*[–-]\s*nasolabial/i.test(p)) {
+    return { product: "PRFM injections", where: ["Nasolabial folds"] };
+  }
+  if (p === "PRFM injections") {
+    return {
+      product: p,
+      where: parseWhereFromDiscussedRegion(regionRaw, "Other procedures"),
+    };
+  }
+  return { product: p, where: [] };
+}
+
+/**
+ * Extra tokens merged into treatment search — category titles alone miss common queries
+ * (e.g. "Voluma" under Filler, "BBL" under Energy Treatment, "pdgf" under Microneedling).
+ */
 function extraTextForTreatmentSearch(
   treatment: string,
   providerCode: string | undefined,
+  priceList: ProviderPricingJson,
 ): string {
-  if (treatment !== "Microneedling") return "";
-  const map = getCheckoutTreatmentTypeOptionsForProvider(providerCode);
-  const opts = map.Microneedling ?? [...MICRONEEDLING_TYPE_OPTIONS];
-  return opts.join(" ");
-}
+  const chunks: string[] = [];
 
-function matchProductTokensToOptionList(
-  productRaw: string,
-  options: string[],
-): { matched: string[]; residualParts: string[] } {
-  if (!productRaw.trim()) return { matched: [], residualParts: [] };
-  const parts = productRaw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const matched: string[] = [];
-  const residualParts: string[] = [];
-  for (const p of parts) {
-    const exact = options.find((o) => o.toLowerCase() === p.toLowerCase());
-    if (exact) {
-      if (!matched.includes(exact)) matched.push(exact);
-      continue;
-    }
-    const partial = options.find(
-      (o) =>
-        o.toLowerCase().includes(p.toLowerCase()) ||
-        p.toLowerCase().includes(o.toLowerCase()),
-    );
-    if (partial) {
-      if (!matched.includes(partial)) matched.push(partial);
-    } else {
-      residualParts.push(p);
+  const productOpts = getTreatmentProductOptionsForProvider(
+    providerCode,
+    treatment,
+  );
+  if (productOpts.length) chunks.push(...productOpts);
+
+  const sheetLabels = getPriceListLabelsForTreatmentRecommenderSearch(
+    treatment,
+    priceList,
+  );
+  if (sheetLabels) chunks.push(sheetLabels);
+
+  if (treatment === "Microneedling") {
+    const map = getCheckoutTreatmentTypeOptionsForProvider(providerCode);
+    const mic = map.Microneedling ?? [...MICRONEEDLING_TYPE_OPTIONS];
+    chunks.push(...mic);
+  }
+
+  if (treatment === "Other procedures") {
+    chunks.push(...PRFM_INJECTION_WHERE_OPTIONS);
+  }
+
+  if (treatment === "Skincare") {
+    for (const row of getSkincareCarouselItems()) {
+      if (row.name?.trim()) chunks.push(row.name.trim());
     }
   }
-  return { matched, residualParts };
+
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const s of chunks) {
+    const t = s.trim();
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    deduped.push(t);
+  }
+  return deduped.join(" ");
 }
 
 /** Hydrate the inline add-to-plan form from an existing plan row (for Edit). */
@@ -487,6 +567,47 @@ function discussedItemToAddPlanFormState(
           ? residualParts.join(", ")
           : productRaw;
     productFree = canonicalNeurotoxinProductLabel(primary);
+  } else if (usesOtherProceduresStructuredPlan(treatment)) {
+    const otherOpts =
+      getTreatmentProductOptionsForProvider(providerCode, treatment) ?? [];
+    if (usesJudgeMdSurgeryStructuredPlan(treatment)) {
+      if (!productRaw.includes(",")) {
+        productFree = productRaw;
+        where = [];
+      } else {
+        const { matched, residualParts } = matchProductTokensToOptionList(
+          productRaw,
+          otherOpts,
+        );
+        productFree = [...matched, ...residualParts].filter(Boolean).join(", ");
+        where = [];
+      }
+    } else if (!productRaw.includes(",")) {
+      const norm = normalizeLegacyOtherProcedureProduct(
+        productRaw,
+        item.region ?? "",
+      );
+      productFree = norm.product;
+      if (norm.where.length > 0) {
+        where = norm.where;
+      } else if (norm.product === "PRFM injections") {
+        where = parseWhereFromDiscussedRegion(item.region ?? "", treatment);
+      } else {
+        where = [];
+      }
+    } else {
+      const { matched, residualParts } = matchProductTokensToOptionList(
+        productRaw,
+        otherOpts,
+      );
+      const hasFacialPrfm = matched.some(
+        (m) => m.trim().toLowerCase() === "prfm injections",
+      );
+      productFree = [...matched, ...residualParts].filter(Boolean).join(", ");
+      where = hasFacialPrfm
+        ? parseWhereFromDiscussedRegion(item.region ?? "", treatment)
+        : [];
+    }
   } else if (!wellnestOffering) {
     productFree = productRaw;
   }
@@ -511,9 +632,15 @@ function discussedItemToAddPlanFormState(
         getQuantityContext(treatment, treatmentProductHintForQuantity(hintRow))
           .defaultQuantity;
 
+  const scheduledRaw = (item.scheduledDate ?? "").trim();
+  const scheduledDate = isValidPlanScheduledDateIso(scheduledRaw)
+    ? scheduledRaw
+    : undefined;
+
   return {
     ...base,
     when,
+    scheduledDate,
     where,
     laserWhat,
     biostimulantWhat,
@@ -969,6 +1096,16 @@ function getUnifiedRecommenderEditSections(
       { optionType: "biostimulant_what", title: "Biostimulants — Product" },
       { optionType: "where", title: "Biostimulants — Where" },
     );
+  } else if (treatment === "Other procedures") {
+    mid.push({
+      optionType: "other_procedures_what",
+      title: "Other procedures — Type",
+    });
+  } else if (isJudgeMdSurgeryPlanCategory(treatment)) {
+    mid.push({
+      optionType: "other_procedures_what",
+      title: `${treatment} — Procedure`,
+    });
   } else {
     mid.push({ optionType: "where", title: `${treatment} — Where` });
   }
@@ -1089,6 +1226,7 @@ function discussedItemPreviewFromAddPlanForm(
     id: "__add-plan-preview__",
     treatment: row.treatment,
     timeline: row.when,
+    scheduledDate: row.scheduledDate?.trim() || undefined,
     region: region || undefined,
     product: productOut,
     quantity: row.quantity?.trim() || undefined,
@@ -1100,6 +1238,8 @@ function discussedItemPreviewFromAddPlanForm(
 /** Same missing-info rules as checkout / plan list — for inline add-to-plan hints. */
 function getMissingPricingInfoForAddPlanDraft(
   row: AddPlanFormState,
+  providerCode: string | undefined,
+  priceList: ProviderPricingJson,
 ): string | null {
   if (row.treatment === "Skincare") {
     const names = (row.skincareWhat ?? []).map((n) => n.trim()).filter(Boolean);
@@ -1107,7 +1247,31 @@ function getMissingPricingInfoForAddPlanDraft(
       const previews = names.map((name) =>
         discussedItemPreviewFromAddPlanForm(row, name),
       );
-      const lines = getAlignedCheckoutLineItemsForDiscussedItems(previews);
+      const lines = getAlignedCheckoutLineItemsForDiscussedItems(
+        previews,
+        priceList,
+      );
+      for (const line of lines) {
+        if (line.missingInfo) return line.missingInfo;
+      }
+      return null;
+    }
+  }
+  if (usesOtherProceduresStructuredPlan(row.treatment)) {
+    const otherOpts =
+      getTreatmentProductOptionsForProvider(providerCode, row.treatment) ?? [];
+    const { matched } = matchProductTokensToOptionList(
+      row.product ?? "",
+      otherOpts,
+    );
+    if (matched.length > 1) {
+      const previews = matched.map((name) =>
+        discussedItemPreviewFromAddPlanForm({ ...row, product: name }),
+      );
+      const lines = getAlignedCheckoutLineItemsForDiscussedItems(
+        previews,
+        priceList,
+      );
       for (const line of lines) {
         if (line.missingInfo) return line.missingInfo;
       }
@@ -1115,7 +1279,7 @@ function getMissingPricingInfoForAddPlanDraft(
     }
   }
   const preview = discussedItemPreviewFromAddPlanForm(row);
-  const line = getAlignedCheckoutLineItemsForDiscussedItems([preview])[0];
+  const line = getAlignedCheckoutLineItemsForDiscussedItems([preview], priceList)[0];
   return line?.missingInfo ?? null;
 }
 
@@ -1134,7 +1298,8 @@ function inferAddPlanPricingHintPlacement(
   if (
     m.includes("filler type") ||
     m.includes("botox") ||
-    m.includes("dysport")
+    m.includes("dysport") ||
+    m.includes("procedure type")
   ) {
     return "injectable_type";
   }
@@ -1167,6 +1332,14 @@ export interface TreatmentRecommenderByTreatmentProps {
     prefill: TreatmentPlanPrefill,
     options?: TreatmentPlanAddDirectOptions,
   ) => Promise<DiscussedItem | void> | void;
+  /**
+   * When adding several plan rows at once (e.g. multiple Other procedures types), use one
+   * persist so rows are not lost if `client.discussedItems` has not refetched between adds.
+   */
+  onAddMultipleToPlanDirect?: (
+    prefills: TreatmentPlanPrefill[],
+    options?: TreatmentPlanAddDirectOptions,
+  ) => Promise<DiscussedItem[] | void> | void;
   /** Open the checkout (price summary) modal. Shown when plan has items (dev only). */
   onOpenCheckout?: () => void;
   /** Remove a plan item directly (e.g. from the left column X). Called with item id. */
@@ -1190,6 +1363,7 @@ export default function TreatmentRecommenderByTreatment({
   onBack: _onBack,
   onUpdate,
   onAddToPlanDirect,
+  onAddMultipleToPlanDirect,
   onOpenCheckout,
   onRemovePlanItem,
   onUpdatePlanItem,
@@ -1204,6 +1378,7 @@ export default function TreatmentRecommenderByTreatment({
     () =>
       getEffectivePriceList(
         provider?.["Treatment Pricing"] as string | undefined,
+        provider?.code,
       ),
     [provider],
   );
@@ -1241,6 +1416,8 @@ export default function TreatmentRecommenderByTreatment({
     /** For Facial Services: multi-select service line items (e.g. Dermasweep, Signature Facial). */
     facialServiceWhat?: string[];
     when: string;
+    /** ISO YYYY-MM-DD; when set, row appears on the treatment calendar and in the Scheduled list section. */
+    scheduledDate?: string;
     detailsExpanded: boolean;
     product?: string;
     quantity?: string;
@@ -1254,6 +1431,94 @@ export default function TreatmentRecommenderByTreatment({
   const [editingPlanItemId, setEditingPlanItemId] = useState<string | null>(
     null,
   );
+  const [planViewMode, setPlanViewMode] = useState<"list" | "calendar">(
+    "list",
+  );
+  const [planCalendarMonth, setPlanCalendarMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [planCalendarSelectedIso, setPlanCalendarSelectedIso] = useState<
+    string | null
+  >(null);
+  /** Month grid vs compact agenda (Google Calendar–style schedule list). */
+  const [planCalendarSubView, setPlanCalendarSubView] = useState<
+    "month" | "schedule"
+  >("schedule");
+  const planCalendarInitRef = useRef(false);
+  const targetTreatmentDatePanelRef = useRef<HTMLSpanElement | null>(null);
+  const targetTreatmentDatePopoverRef = useRef<HTMLDivElement | null>(null);
+  const targetTreatmentDateInputRef = useRef<HTMLInputElement | null>(null);
+  const [targetTreatmentDatePopoverRect, setTargetTreatmentDatePopoverRect] =
+    useState<{ top: number; left: number; width: number } | null>(null);
+  const [targetTreatmentDatePanelOpen, setTargetTreatmentDatePanelOpen] =
+    useState(false);
+
+  useEffect(() => {
+    if (!addToPlanForTreatment) {
+      setTargetTreatmentDatePanelOpen(false);
+    }
+  }, [addToPlanForTreatment]);
+
+  useEffect(() => {
+    if (!targetTreatmentDatePanelOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTargetTreatmentDatePanelOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [targetTreatmentDatePanelOpen]);
+
+  useLayoutEffect(() => {
+    if (!targetTreatmentDatePanelOpen) {
+      setTargetTreatmentDatePopoverRect(null);
+      return;
+    }
+    const el = targetTreatmentDatePanelRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      const margin = 16;
+      const w = Math.min(280, Math.max(0, window.innerWidth - margin * 2));
+      let left = r.right - w;
+      if (left < margin) left = margin;
+      if (left + w > window.innerWidth - margin) {
+        left = window.innerWidth - margin - w;
+      }
+      setTargetTreatmentDatePopoverRect({
+        top: r.bottom + 6,
+        left,
+        width: w,
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [targetTreatmentDatePanelOpen]);
+
+  useEffect(() => {
+    if (!targetTreatmentDatePanelOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      const trigger = targetTreatmentDatePanelRef.current;
+      const shell = targetTreatmentDatePopoverRef.current;
+      if (trigger?.contains(t) || shell?.contains(t)) return;
+      setTargetTreatmentDatePanelOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [targetTreatmentDatePanelOpen]);
+
+  useEffect(() => {
+    if (!targetTreatmentDatePanelOpen) return;
+    window.setTimeout(() => {
+      targetTreatmentDateInputRef.current?.focus();
+    }, 0);
+  }, [targetTreatmentDatePanelOpen]);
 
   useEffect(() => {
     if (!initialOpenPlanItemId) return;
@@ -1385,9 +1650,6 @@ export default function TreatmentRecommenderByTreatment({
   const [showWellnestArticleShare, setShowWellnestArticleShare] =
     useState(false);
   const [wellnestBrowseFilter, setWellnestBrowseFilter] = useState("all");
-  const [wellnestDeliveryFilter, setWellnestDeliveryFilter] =
-    useState<string>("all");
-  const [wellnestPriceFilter, setWellnestPriceFilter] = useState<string>("all");
   const [treatmentSearchQuery, setTreatmentSearchQuery] = useState("");
   const [wellnestArticleSelection, setWellnestArticleSelection] = useState<
     Record<string, boolean>
@@ -1685,6 +1947,15 @@ export default function TreatmentRecommenderByTreatment({
     quizSkincareRoutineSections,
   ]);
 
+  /** Wellness quiz treatment IDs (same ids as {@link wellnestOfferings} `wellnessQuizId`). */
+  const wellnessQuizSuggestedIdSet = useMemo(() => {
+    const ids = client.wellnessQuiz?.suggestedTreatmentIds;
+    if (!Array.isArray(ids) || ids.length === 0) return new Set<string>();
+    return new Set(
+      ids.map((id) => String(id ?? "").trim()).filter((id) => id.length > 0),
+    );
+  }, [client.wellnessQuiz?.suggestedTreatmentIds]);
+
   const skincareProductPoolForBrowse = useMemo(
     () =>
       skincareCarouselItemsAllowed.length > 0
@@ -1910,6 +2181,59 @@ export default function TreatmentRecommenderByTreatment({
         "Facial Services",
       ).filter((v) => v !== OTHER_PRODUCT_LABEL),
     [provider?.code],
+  );
+
+  const otherProcedureTypeBaseTreatment = useMemo(() => {
+    const fromAdd = addToPlanForTreatment?.treatment?.trim();
+    if (fromAdd && isJudgeMdSurgeryPlanCategory(fromAdd)) return fromAdd;
+    const fromEdit = unifiedEditModalTreatment?.trim();
+    if (fromEdit && isJudgeMdSurgeryPlanCategory(fromEdit)) return fromEdit;
+    return "Other procedures";
+  }, [
+    addToPlanForTreatment?.treatment,
+    unifiedEditModalTreatment,
+  ]);
+
+  const otherProcedureTypeBaseLabels = useMemo(
+    () =>
+      (
+        getTreatmentProductOptionsForProvider(
+          provider?.code,
+          otherProcedureTypeBaseTreatment,
+        ) ?? []
+      ).filter((v) => v !== OTHER_PRODUCT_LABEL),
+    [provider?.code, otherProcedureTypeBaseTreatment],
+  );
+  const otherProceduresWhatOptionRecords = useMemo(
+    () =>
+      optionRecords.filter((o) => o.optionType === "other_procedures_what"),
+    [optionRecords],
+  );
+  const otherProcedureDisplayRecords = useMemo(() => {
+    const valueToId = new Map(
+      otherProceduresWhatOptionRecords.map((r) => [r.value, r.id]),
+    );
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    for (const v of otherProcedureTypeBaseLabels) {
+      if (seen.has(v)) continue;
+      seen.add(v);
+      ordered.push(v);
+    }
+    for (const r of otherProceduresWhatOptionRecords) {
+      if (seen.has(r.value)) continue;
+      seen.add(r.value);
+      ordered.push(r.value);
+    }
+    return ordered.map((value) => ({
+      id: valueToId.get(value) ?? "",
+      value,
+    }));
+  }, [otherProcedureTypeBaseLabels, otherProceduresWhatOptionRecords]);
+
+  const prfmInjectionWhereDisplayRecords = useMemo(
+    () => [...PRFM_INJECTION_WHERE_OPTIONS].map((value) => ({ id: "", value })),
+    [],
   );
 
   const microneedlingWhereOptionRecords = useMemo(
@@ -2183,6 +2507,8 @@ export default function TreatmentRecommenderByTreatment({
           return chemicalPeelTypeDisplayRecords;
         case "facial_service_what":
           return facialServiceWhatDisplayRecords;
+        case "other_procedures_what":
+          return otherProcedureDisplayRecords;
         case "filler_what":
           return fillerTypeDisplayRecords;
         case "neurotoxin_what":
@@ -2202,6 +2528,7 @@ export default function TreatmentRecommenderByTreatment({
       chemicalPeelWhereDisplayRecords,
       chemicalPeelTypeDisplayRecords,
       facialServiceWhatDisplayRecords,
+      otherProcedureDisplayRecords,
       fillerTypeDisplayRecords,
       neurotoxinTypeDisplayRecords,
       genericWhereDisplayRecords,
@@ -2313,10 +2640,22 @@ export default function TreatmentRecommenderByTreatment({
     const goalMatched = all.filter(
       (t) => (getWellnestGoalSignalForTreatment(t)?.score ?? 0) > 0,
     );
+    const wellnessQuizMatched = all.filter((t) => {
+      const o = getWellnestOfferingByTreatmentName(t);
+      const id = o?.wellnessQuizId?.trim();
+      return Boolean(id && wellnessQuizSuggestedIdSet.has(id));
+    });
     const chips: WellnestBrowseFilterChip[] = [
       { id: "all", label: "All peptides", count: all.length },
       { id: "goal", label: "Goal matches", count: goalMatched.length },
     ];
+    if (wellnessQuizMatched.length > 0) {
+      chips.push({
+        id: "wellness_quiz",
+        label: "Wellness quiz matches",
+        count: wellnessQuizMatched.length,
+      });
+    }
     const byGroup = new Map<string, number>();
     for (const t of all) {
       const o = getWellnestOfferingByTreatmentName(t);
@@ -2343,66 +2682,12 @@ export default function TreatmentRecommenderByTreatment({
       });
     }
     return chips;
-  }, [provider?.code, treatmentsToShow, wellnessIntakeGoals]);
-
-  const wellnestDeliveryFilterChips = useMemo<
-    WellnestBrowseFilterChip[]
-  >(() => {
-    if (!isWellnestWellnessProviderCode(provider?.code)) return [];
-    const all = treatmentsToShow;
-    let nasal = 0;
-    let oral = 0;
-    let topical = 0;
-    let multi = 0;
-    for (const t of all) {
-      const o = getWellnestOfferingByTreatmentName(t);
-      if (!o) continue;
-      if (wellnestDeliveryHasNasal(o.delivery)) nasal += 1;
-      if (wellnestDeliveryHasOral(o.delivery)) oral += 1;
-      if (wellnestDeliveryHasTopical(o.delivery)) topical += 1;
-      if (getWellnestProductOptionsForTreatment(t).length >= 2) multi += 1;
-    }
-    const chips: WellnestBrowseFilterChip[] = [
-      { id: "all", label: "Any delivery", count: all.length },
-    ];
-    if (nasal > 0)
-      chips.push({ id: "nasal", label: "Nasal option", count: nasal });
-    if (oral > 0) chips.push({ id: "oral", label: "Oral option", count: oral });
-    if (topical > 0)
-      chips.push({ id: "topical", label: "Topical / cream", count: topical });
-    if (multi > 0)
-      chips.push({ id: "multi", label: "Multiple routes", count: multi });
-    return chips;
-  }, [provider?.code, treatmentsToShow]);
-
-  const wellnestPriceFilterChips = useMemo<WellnestBrowseFilterChip[]>(() => {
-    if (!isWellnestWellnessProviderCode(provider?.code)) return [];
-    const all = treatmentsToShow;
-    let budget = 0;
-    let mid = 0;
-    let premium = 0;
-    let variable = 0;
-    for (const t of all) {
-      const o = getWellnestOfferingByTreatmentName(t);
-      if (!o) continue;
-      const b = getWellnestPriceBand(o.pricing);
-      if (b === "budget") budget += 1;
-      else if (b === "mid") mid += 1;
-      else if (b === "premium") premium += 1;
-      else variable += 1;
-    }
-    const chips: WellnestBrowseFilterChip[] = [
-      { id: "all", label: "Any price", count: all.length },
-    ];
-    if (budget > 0)
-      chips.push({ id: "budget", label: "Under ~$300", count: budget });
-    if (mid > 0) chips.push({ id: "mid", label: "$300–499", count: mid });
-    if (premium > 0)
-      chips.push({ id: "premium", label: "$500+", count: premium });
-    if (variable > 0)
-      chips.push({ id: "variable", label: "Variable / ask", count: variable });
-    return chips;
-  }, [provider?.code, treatmentsToShow]);
+  }, [
+    provider?.code,
+    treatmentsToShow,
+    wellnessIntakeGoals,
+    wellnessQuizSuggestedIdSet,
+  ]);
 
   const visibleTreatmentsToShow = useMemo(() => {
     if (!isWellnestWellnessProviderCode(provider?.code))
@@ -2414,6 +2699,12 @@ export default function TreatmentRecommenderByTreatment({
       list = list.filter(
         (t) => (getWellnestGoalSignalForTreatment(t)?.score ?? 0) > 0,
       );
+    } else if (wellnestBrowseFilter === "wellness_quiz") {
+      list = list.filter((t) => {
+        const o = getWellnestOfferingByTreatmentName(t);
+        const id = o?.wellnessQuizId?.trim();
+        return Boolean(id && wellnessQuizSuggestedIdSet.has(id));
+      });
     } else if (wellnestBrowseFilter.startsWith("group:")) {
       const gid = wellnestBrowseFilter.slice(6);
       list = list.filter((t) => {
@@ -2422,43 +2713,17 @@ export default function TreatmentRecommenderByTreatment({
       });
     }
 
-    if (wellnestDeliveryFilter !== "all") {
-      list = list.filter((t) => {
-        const o = getWellnestOfferingByTreatmentName(t);
-        if (!o) return true;
-        const d = o.delivery;
-        if (wellnestDeliveryFilter === "nasal")
-          return wellnestDeliveryHasNasal(d);
-        if (wellnestDeliveryFilter === "oral")
-          return wellnestDeliveryHasOral(d);
-        if (wellnestDeliveryFilter === "topical")
-          return wellnestDeliveryHasTopical(d);
-        if (wellnestDeliveryFilter === "multi")
-          return getWellnestProductOptionsForTreatment(t).length >= 2;
-        return true;
-      });
-    }
-
-    if (wellnestPriceFilter !== "all") {
-      list = list.filter((t) => {
-        const o = getWellnestOfferingByTreatmentName(t);
-        if (!o) return true;
-        return getWellnestPriceBand(o.pricing) === wellnestPriceFilter;
-      });
-    }
-
     return list;
   }, [
     provider?.code,
     treatmentsToShow,
     wellnestBrowseFilter,
-    wellnestDeliveryFilter,
-    wellnestPriceFilter,
     wellnessIntakeGoals,
+    wellnessQuizSuggestedIdSet,
   ]);
 
   const searchedTreatmentsToShow = useMemo(() => {
-    const q = treatmentSearchQuery.trim().toLowerCase();
+    const q = treatmentSearchQuery.trim();
     if (!q) return visibleTreatmentsToShow;
     return visibleTreatmentsToShow.filter((treatment) => {
       const wellnestOffering = getWellnestOfferingByTreatmentName(treatment);
@@ -2467,24 +2732,43 @@ export default function TreatmentRecommenderByTreatment({
         : "";
       const haystack = [
         treatment,
-        extraTextForTreatmentSearch(treatment, provider?.code),
+        extraTextForTreatmentSearch(treatment, provider?.code, effectivePriceList),
         wellnestOffering?.category ?? "",
         groupLabel,
         wellnestOffering?.browseGroup ?? "",
         wellnestOffering?.addresses ?? "",
         wellnestOffering?.demographics ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
+      ].join(" ");
+      return treatmentRecommenderCatalogSearchMatches(haystack, q);
     });
-  }, [visibleTreatmentsToShow, treatmentSearchQuery, provider?.code]);
+  }, [
+    visibleTreatmentsToShow,
+    treatmentSearchQuery,
+    provider?.code,
+    effectivePriceList,
+  ]);
 
   useEffect(() => {
     setWellnestBrowseFilter("all");
-    setWellnestDeliveryFilter("all");
-    setWellnestPriceFilter("all");
   }, [provider?.code, client.id]);
+
+  useEffect(() => {
+    if (wellnestBrowseFilter !== "wellness_quiz") return;
+    if (wellnessQuizSuggestedIdSet.size === 0) {
+      setWellnestBrowseFilter("all");
+      return;
+    }
+    const anyMatch = treatmentsToShow.some((t) => {
+      const id = getWellnestOfferingByTreatmentName(t)?.wellnessQuizId?.trim();
+      return Boolean(id && wellnessQuizSuggestedIdSet.has(id));
+    });
+    if (!anyMatch) setWellnestBrowseFilter("all");
+  }, [
+    wellnestBrowseFilter,
+    wellnessQuizSuggestedIdSet,
+    treatmentsToShow,
+    provider?.code,
+  ]);
 
   /** Opens the skincare add-to-plan form and activates the recommended filter so the user lands directly on their client's recommended products. */
   const handleOpenSkincareWithRecommendedFilter = useCallback(() => {
@@ -2543,10 +2827,16 @@ export default function TreatmentRecommenderByTreatment({
     const findingsForItem = addToPlanForTreatment.findings?.filter((f) =>
       (f ?? "").trim(),
     );
+    const scheduledTrim = addToPlanForTreatment.scheduledDate?.trim();
+    const scheduledForPrefill =
+      scheduledTrim && isValidPlanScheduledDateIso(scheduledTrim)
+        ? scheduledTrim
+        : undefined;
     const patch: Partial<DiscussedItem> = {
       region: region || undefined,
       treatment: addToPlanForTreatment.treatment,
       timeline: addToPlanForTreatment.when,
+      scheduledDate: scheduledForPrefill,
       product: treatmentProduct?.trim() || undefined,
       quantity: addToPlanForTreatment.quantity?.trim() || undefined,
       notes: notesJoined,
@@ -2564,27 +2854,84 @@ export default function TreatmentRecommenderByTreatment({
               .map((n) => n.trim())
               .filter(Boolean)
           : [];
+        const splitNonSkincareProducts = !isSkincare
+          ? expandCommaSeparatedProductsToPlanRows(
+              addToPlanForTreatment.treatment,
+              treatmentProduct?.trim(),
+              provider?.code,
+            )
+          : null;
 
-        if (skincareProductNames.length > 1) {
+        if (isSkincare && skincareProductNames.length > 1) {
+          const prefills = skincareProductNames.map((productName) => ({
+            interest: "",
+            region,
+            treatment: addToPlanForTreatment.treatment,
+            timeline: addToPlanForTreatment.when,
+            scheduledDate: scheduledForPrefill,
+            treatmentProduct: productName,
+            quantity: addToPlanForTreatment.quantity?.trim() || undefined,
+            notes: notesJoined,
+            findings: findingsForItem?.length ? findingsForItem : undefined,
+          }));
           let lastNew: DiscussedItem | undefined;
-          for (const productName of skincareProductNames) {
-            const prefill: TreatmentPlanPrefill = {
+          if (onAddMultipleToPlanDirect) {
+            const results = await onAddMultipleToPlanDirect(prefills, {
+              skipToast: true,
+            });
+            if (results?.length) lastNew = results[results.length - 1];
+          } else {
+            for (const prefill of prefills) {
+              const result = await onAddToPlanDirect!(prefill, {
+                skipToast: true,
+              });
+              if (result) lastNew = result as DiscussedItem;
+            }
+          }
+          showToast(
+            `${skincareProductNames.length} skincare products added to plan`,
+          );
+          setAddToPlanForTreatment(null);
+          if (lastNew) setLastAddedItem(lastNew);
+        } else if (
+          !isSkincare &&
+          splitNonSkincareProducts &&
+          splitNonSkincareProducts.length > 1
+        ) {
+          const prefills = splitNonSkincareProducts.map((productName) => {
+            const regionForRow =
+              usesOtherProceduresStructuredPlan(addToPlanForTreatment.treatment) &&
+              productName.trim().toLowerCase() !== "prfm injections"
+                ? ""
+                : region;
+            return {
               interest: "",
-              region,
+              region: regionForRow,
               treatment: addToPlanForTreatment.treatment,
               timeline: addToPlanForTreatment.when,
+              scheduledDate: scheduledForPrefill,
               treatmentProduct: productName,
               quantity: addToPlanForTreatment.quantity?.trim() || undefined,
               notes: notesJoined,
               findings: findingsForItem?.length ? findingsForItem : undefined,
             };
-            const result = await onAddToPlanDirect(prefill, {
+          });
+          let lastNew: DiscussedItem | undefined;
+          if (onAddMultipleToPlanDirect) {
+            const results = await onAddMultipleToPlanDirect(prefills, {
               skipToast: true,
             });
-            if (result) lastNew = result;
+            if (results?.length) lastNew = results[results.length - 1];
+          } else {
+            for (const prefill of prefills) {
+              const result = await onAddToPlanDirect!(prefill, {
+                skipToast: true,
+              });
+              if (result) lastNew = result as DiscussedItem;
+            }
           }
           showToast(
-            `${skincareProductNames.length} skincare products added to plan`,
+            `${splitNonSkincareProducts.length} ${addToPlanForTreatment.treatment} lines added to plan`,
           );
           setAddToPlanForTreatment(null);
           if (lastNew) setLastAddedItem(lastNew);
@@ -2594,6 +2941,7 @@ export default function TreatmentRecommenderByTreatment({
             region,
             treatment: addToPlanForTreatment.treatment,
             timeline: addToPlanForTreatment.when,
+            scheduledDate: scheduledForPrefill,
             treatmentProduct,
             quantity: addToPlanForTreatment.quantity?.trim() || undefined,
             notes: notesJoined,
@@ -2618,12 +2966,14 @@ export default function TreatmentRecommenderByTreatment({
     }
     const message = getMissingPricingInfoForAddPlanDraft(
       addToPlanForTreatment as AddPlanFormState,
+      provider?.code,
+      effectivePriceList,
     );
     const placement = message
       ? inferAddPlanPricingHintPlacement(message)
       : null;
     return { message, placement };
-  }, [addToPlanForTreatment]);
+  }, [addToPlanForTreatment, provider?.code, effectivePriceList]);
 
   /** Whether this treatment is already in the treatment plan (so we show "Added" and allow add-another flow). */
   const isTreatmentInPlan = (treatmentName: string): boolean => {
@@ -2771,6 +3121,10 @@ export default function TreatmentRecommenderByTreatment({
         return relevant.length > 0
           ? `Their skin quiz points to ${findingsText}. A tailored skincare regimen can complement today's visit and support longer-term results.`
           : `Skincare can target texture, tone, and hydration. A personalized regimen is a good complement to in-office treatments.`;
+      case "Other procedures":
+        return relevant.length > 0
+          ? `Given ${findingsText}, some other procedures like PRFM are recommended for this client.`
+          : `Based on this client's profile, some other procedures like PRFM are recommended for this client.`;
       default:
         return relevant.length > 0
           ? `Given ${findingsText}, ${treatment} is a recommended option for this client.`
@@ -2783,17 +3137,20 @@ export default function TreatmentRecommenderByTreatment({
   const hasFront = frontPhotoUrl != null;
   const hasSide = sidePhotoUrl != null;
 
-  /** Plan items grouped by section (Skincare first when present, then Now, Add next visit, Wishlist, Completed). */
+  /** Plan items grouped by section (Skincare first when present, then Now, Add next visit, Scheduled, Wishlist, Completed). */
   const planItemsBySection = useMemo(() => {
     const items = client.discussedItems ?? [];
     const skincare: DiscussedItem[] = [];
     const now: DiscussedItem[] = [];
     const addNext: DiscussedItem[] = [];
+    const scheduled: DiscussedItem[] = [];
     const wishlist: DiscussedItem[] = [];
     const completed: DiscussedItem[] = [];
     for (const item of items) {
       if (item.treatment?.trim() === "Skincare") {
         skincare.push(item);
+      } else if (item.scheduledDate?.trim()) {
+        scheduled.push(item);
       } else {
         const t = item.timeline?.trim();
         if (t === "Now") now.push(item);
@@ -2806,10 +3163,16 @@ export default function TreatmentRecommenderByTreatment({
       (a.treatment || "").localeCompare(b.treatment || "");
     const byProduct = (a: DiscussedItem, b: DiscussedItem) =>
       (a.product || "").localeCompare(b.product || "");
+    const byScheduledThenTreatment = (a: DiscussedItem, b: DiscussedItem) => {
+      const da = (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? "");
+      if (da !== 0) return da;
+      return byTreatment(a, b);
+    };
     return {
       [SKINCARE_SECTION_LABEL]: skincare.sort(byProduct),
       Now: now.sort(byTreatment),
       "Add next visit": addNext.sort(byTreatment),
+      [SCHEDULED_SECTION_LABEL]: scheduled.sort(byScheduledThenTreatment),
       Wishlist: wishlist.sort(byTreatment),
       Completed: completed.sort(byTreatment),
     };
@@ -2828,14 +3191,98 @@ export default function TreatmentRecommenderByTreatment({
 
   const checkoutLinesByDiscussedIndex = useMemo(
     () =>
-      getAlignedCheckoutLineItemsForDiscussedItems(client.discussedItems ?? []),
-    [client.discussedItems],
+      getAlignedCheckoutLineItemsForDiscussedItems(
+        client.discussedItems ?? [],
+        effectivePriceList,
+      ),
+    [client.discussedItems, effectivePriceList],
   );
   const discussedIndexByIdForPricing = useMemo(() => {
     const m = new Map<string, number>();
     (client.discussedItems ?? []).forEach((d, i) => m.set(d.id, i));
     return m;
   }, [client.discussedItems]);
+
+  const planItemsByScheduledDate = useMemo(() => {
+    const byDate = new Map<string, DiscussedItem[]>();
+    for (const item of client.discussedItems ?? []) {
+      const iso = item.scheduledDate?.trim();
+      if (iso && isValidPlanScheduledDateIso(iso)) {
+        const cur = byDate.get(iso) ?? [];
+        cur.push(item);
+        byDate.set(iso, cur);
+      }
+    }
+    return { byDate };
+  }, [client.discussedItems]);
+
+  const planHasScheduledItems = planItemsByScheduledDate.byDate.size > 0;
+
+  /** Dated items grouped by calendar month for schedule/agenda view. */
+  const planCalendarAgenda = useMemo(
+    () => buildPlanCalendarAgendaFromDiscussedItems(client.discussedItems ?? []),
+    [client.discussedItems],
+  );
+
+  /** Plan calendar view shortcut: Scheduled header first, then Wishlist/Skincare fallbacks. */
+  const planCalendarShortcutSection = useMemo(() => {
+    if (!planHasScheduledItems) return null;
+    const ps = planItemsBySection as Record<string, DiscussedItem[]>;
+    if ((ps[SCHEDULED_SECTION_LABEL]?.length ?? 0) > 0)
+      return SCHEDULED_SECTION_LABEL;
+    if ((ps.Wishlist?.length ?? 0) > 0) return "Wishlist";
+    if ((ps[SKINCARE_SECTION_LABEL]?.length ?? 0) > 0)
+      return SKINCARE_SECTION_LABEL;
+    return null;
+  }, [planHasScheduledItems, planItemsBySection]);
+
+  const planCalendarMonthMeta = useMemo(() => {
+    const y = planCalendarMonth.getFullYear();
+    const m = planCalendarMonth.getMonth();
+    const firstWeekday = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const monthLabel = new Intl.DateTimeFormat(undefined, {
+      month: "long",
+      year: "numeric",
+    }).format(new Date(y, m, 1));
+    const cells: Array<{
+      iso: string;
+      dayNum: number;
+    } | null> = [];
+    for (let i = 0; i < firstWeekday; i++) {
+      cells.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      cells.push({ iso, dayNum: d });
+    }
+    while (cells.length % 7 !== 0) {
+      cells.push(null);
+    }
+    return { monthLabel, cells, y, m };
+  }, [planCalendarMonth]);
+
+  useEffect(() => {
+    if (!planHasScheduledItems && planViewMode === "calendar") {
+      setPlanViewMode("list");
+    }
+  }, [planHasScheduledItems, planViewMode]);
+
+  useEffect(() => {
+    if (!planHasScheduledItems) {
+      planCalendarInitRef.current = false;
+    }
+  }, [planHasScheduledItems]);
+
+  useEffect(() => {
+    if (planViewMode !== "calendar" || !planHasScheduledItems) return;
+    if (planCalendarInitRef.current) return;
+    planCalendarInitRef.current = true;
+    const t = new Date();
+    const iso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+    setPlanCalendarMonth(new Date(t.getFullYear(), t.getMonth(), 1));
+    setPlanCalendarSelectedIso(iso);
+  }, [planViewMode, planHasScheduledItems]);
 
   return (
     <div className="treatment-recommender-by-treatment">
@@ -2904,6 +3351,34 @@ export default function TreatmentRecommenderByTreatment({
                 ({planItemCount} {planItemCount === 1 ? "item" : "items"})
               </span>
             </h3>
+            {planItemCount > 0 && planHasScheduledItems && planViewMode === "calendar" ? (
+              <button
+                type="button"
+                className="treatment-recommender-by-treatment__plan-back-to-list-btn"
+                aria-label="Back to list view"
+                title="List view"
+                onClick={() => setPlanViewMode("list")}
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <line x1="9" y1="6" x2="20" y2="6" />
+                  <line x1="9" y1="12" x2="20" y2="12" />
+                  <line x1="9" y1="18" x2="20" y2="18" />
+                  <circle cx="4.5" cy="6" r="1.5" fill="currentColor" stroke="none" />
+                  <circle cx="4.5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                  <circle cx="4.5" cy="18" r="1.5" fill="currentColor" stroke="none" />
+                </svg>
+              </button>
+            ) : null}
             {onShareTreatmentPlan ? (
               <button
                 type="button"
@@ -2919,6 +3394,212 @@ export default function TreatmentRecommenderByTreatment({
               <p className="treatment-recommender-by-treatment__plan-empty">
                 No plan items yet.
               </p>
+            ) : planViewMode === "calendar" && planHasScheduledItems ? (
+              <div className="treatment-recommender-by-treatment__plan-calendar">
+                <div
+                  className="treatment-recommender-by-treatment__plan-calendar-subview-toggle"
+                  role="tablist"
+                  aria-label="Plan calendar layout"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={planCalendarSubView === "schedule"}
+                    className={`treatment-recommender-by-treatment__plan-calendar-subview-btn${
+                      planCalendarSubView === "schedule"
+                        ? " treatment-recommender-by-treatment__plan-calendar-subview-btn--active"
+                        : ""
+                    }`}
+                    onClick={() => setPlanCalendarSubView("schedule")}
+                  >
+                    Schedule
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={planCalendarSubView === "month"}
+                    className={`treatment-recommender-by-treatment__plan-calendar-subview-btn${
+                      planCalendarSubView === "month"
+                        ? " treatment-recommender-by-treatment__plan-calendar-subview-btn--active"
+                        : ""
+                    }`}
+                    onClick={() => setPlanCalendarSubView("month")}
+                  >
+                    Month
+                  </button>
+                </div>
+                {planCalendarSubView === "schedule" ? (
+                  <div
+                    className="treatment-recommender-by-treatment__plan-calendar-schedule"
+                    aria-label="Scheduled treatments by month"
+                  >
+                    {planCalendarAgenda.length === 0 ? (
+                      <p className="treatment-recommender-by-treatment__plan-calendar-schedule-empty">
+                        No dated treatments.
+                      </p>
+                    ) : (
+                      planCalendarAgenda.map((month) => (
+                        <section
+                          key={month.monthKey}
+                          className="treatment-recommender-by-treatment__plan-calendar-schedule-month"
+                        >
+                          <h4 className="treatment-recommender-by-treatment__plan-calendar-schedule-month-title">
+                            {month.monthLabel}
+                          </h4>
+                          <div className="treatment-recommender-by-treatment__plan-calendar-schedule-days">
+                            {month.days.map((day) => (
+                              <div
+                                key={day.iso}
+                                className="treatment-recommender-by-treatment__plan-calendar-schedule-day"
+                              >
+                                <div
+                                  className="treatment-recommender-by-treatment__plan-calendar-schedule-day-date"
+                                  title={
+                                    formatPlanScheduledDateLabel(day.iso) ??
+                                    day.iso
+                                  }
+                                >
+                                  {day.dateShort}
+                                </div>
+                                <ul className="treatment-recommender-by-treatment__plan-calendar-schedule-day-items">
+                                  {day.items.map((item) => (
+                                    <li key={item.id}>
+                                      {formatTreatmentPlanRowFullLine(item)}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="treatment-recommender-by-treatment__plan-calendar-nav">
+                      <button
+                        type="button"
+                        className="treatment-recommender-by-treatment__plan-calendar-nav-btn"
+                        aria-label="Previous month"
+                        onClick={() =>
+                          setPlanCalendarMonth((prev) =>
+                            new Date(
+                              prev.getFullYear(),
+                              prev.getMonth() - 1,
+                              1,
+                            ),
+                          )
+                        }
+                      >
+                        ‹
+                      </button>
+                      <span className="treatment-recommender-by-treatment__plan-calendar-month-label">
+                        {planCalendarMonthMeta.monthLabel}
+                      </span>
+                      <button
+                        type="button"
+                        className="treatment-recommender-by-treatment__plan-calendar-nav-btn"
+                        aria-label="Next month"
+                        onClick={() =>
+                          setPlanCalendarMonth((prev) =>
+                            new Date(
+                              prev.getFullYear(),
+                              prev.getMonth() + 1,
+                              1,
+                            ),
+                          )
+                        }
+                      >
+                        ›
+                      </button>
+                    </div>
+                    <div
+                      className="treatment-recommender-by-treatment__plan-calendar-weekdays"
+                      aria-hidden
+                    >
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                        (w) => (
+                          <span key={w}>{w}</span>
+                        ),
+                      )}
+                    </div>
+                    <div
+                      className="treatment-recommender-by-treatment__plan-calendar-grid"
+                      role="grid"
+                      aria-label={`Treatments in ${planCalendarMonthMeta.monthLabel}`}
+                    >
+                      {planCalendarMonthMeta.cells.map((cell, idx) => {
+                        if (!cell) {
+                          return (
+                            <div
+                              key={`pad-${idx}`}
+                              className="treatment-recommender-by-treatment__plan-calendar-cell treatment-recommender-by-treatment__plan-calendar-cell--empty"
+                            />
+                          );
+                        }
+                        const dayItems =
+                          planItemsByScheduledDate.byDate.get(cell.iso) ?? [];
+                        const selected = planCalendarSelectedIso === cell.iso;
+                        return (
+                          <button
+                            key={cell.iso}
+                            type="button"
+                            role="gridcell"
+                            className={`treatment-recommender-by-treatment__plan-calendar-cell${
+                              selected
+                                ? " treatment-recommender-by-treatment__plan-calendar-cell--selected"
+                                : ""
+                            }${dayItems.length ? " treatment-recommender-by-treatment__plan-calendar-cell--has-items" : ""}`}
+                            onClick={() => setPlanCalendarSelectedIso(cell.iso)}
+                          >
+                            <span className="treatment-recommender-by-treatment__plan-calendar-day-num">
+                              {cell.dayNum}
+                            </span>
+                            {dayItems.length > 0 ? (
+                              <span
+                                className="treatment-recommender-by-treatment__plan-calendar-day-count"
+                                aria-label={`${dayItems.length} treatment${dayItems.length === 1 ? "" : "s"}`}
+                              >
+                                {dayItems.length}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {planCalendarSelectedIso ? (
+                      <div className="treatment-recommender-by-treatment__plan-calendar-detail">
+                        <h4 className="treatment-recommender-by-treatment__plan-calendar-detail-title">
+                          {formatPlanScheduledDateLabel(
+                            planCalendarSelectedIso,
+                          ) ?? planCalendarSelectedIso}
+                        </h4>
+                        {(planItemsByScheduledDate.byDate.get(
+                          planCalendarSelectedIso,
+                        ) ?? []
+                        ).length === 0 ? (
+                          <p className="treatment-recommender-by-treatment__plan-calendar-detail-empty">
+                            No treatments on this day.
+                          </p>
+                        ) : (
+                          <ul className="treatment-recommender-by-treatment__plan-calendar-detail-list">
+                            {(
+                              planItemsByScheduledDate.byDate.get(
+                                planCalendarSelectedIso,
+                              ) ?? []
+                            ).map((item) => (
+                              <li key={item.id}>
+                                {formatTreatmentPlanRowFullLine(item)}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
             ) : (
               <div className="treatment-recommender-by-treatment__plan-list">
                 {planSectionLabels.map((sectionLabel) => {
@@ -2932,14 +3613,64 @@ export default function TreatmentRecommenderByTreatment({
                     key={sectionLabel}
                     className="treatment-recommender-by-treatment__plan-group"
                   >
-                    <h4 className="treatment-recommender-by-treatment__plan-group-title">
-                      {sectionLabel}
+                    <h4
+                      className={`treatment-recommender-by-treatment__plan-group-title${
+                        planCalendarShortcutSection === sectionLabel &&
+                        planViewMode === "list"
+                          ? " treatment-recommender-by-treatment__plan-group-title--with-calendar"
+                          : ""
+                      }`}
+                    >
+                      <span>
+                        {sectionLabel === "Completed"
+                          ? "Completed"
+                          : timelineOptionDisplayLabel(sectionLabel)}
+                      </span>
+                      {planCalendarShortcutSection === sectionLabel &&
+                      planViewMode === "list" ? (
+                        <button
+                          type="button"
+                          className="treatment-recommender-by-treatment__plan-group-calendar-btn"
+                          aria-label="Open calendar view for scheduled treatments"
+                          title="Calendar view"
+                          onClick={() => setPlanViewMode("calendar")}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden
+                          >
+                            <rect
+                              x="3"
+                              y="4"
+                              width="18"
+                              height="18"
+                              rx="2"
+                              ry="2"
+                            />
+                            <path d="M16 2v4" />
+                            <path d="M8 2v4" />
+                            <path d="M3 10h18" />
+                          </svg>
+                        </button>
+                      ) : null}
                     </h4>
                     {sectionItems.map((item: DiscussedItem) => {
+                      const isBuilt = (item.timeline ?? "").trim() === "Completed";
                       const planPrimary = getTreatmentPlanRowPrimaryLabel(item);
-                      const planSecondary =
-                        getTreatmentPlanRowSecondaryLabel(item);
-                      const planFullLine = formatTreatmentPlanRowFullLine(item);
+                      const planSecondary = getTreatmentPlanRowSecondaryLabel(
+                        item,
+                        { omitTimeline: true },
+                      );
+                      const planFullLine = formatTreatmentPlanRowFullLine(item, {
+                        omitTimeline: true,
+                      });
                       const pricingIdx = discussedIndexByIdForPricing.get(item.id);
                     const pricingMissing =
                       pricingIdx !== undefined
@@ -2954,7 +3685,7 @@ export default function TreatmentRecommenderByTreatment({
                             editingPlanItemId === item.id
                               ? " treatment-recommender-by-treatment__plan-row-wrap--editing"
                               : ""
-                          }${pricingMissing ? " treatment-recommender-by-treatment__plan-row-wrap--pricing-incomplete" : ""}`}
+                          }${pricingMissing ? " treatment-recommender-by-treatment__plan-row-wrap--pricing-incomplete" : ""}${isBuilt ? " treatment-recommender-by-treatment__plan-row-wrap--built" : ""}`}
                         >
                           {onUpdatePlanItem && onAddToPlanDirect ? (
                             <button
@@ -2989,6 +3720,9 @@ export default function TreatmentRecommenderByTreatment({
                               <span className="treatment-recommender-by-treatment__plan-row-inner">
                                 <span className="treatment-recommender-by-treatment__plan-row-body">
                                   <span className="treatment-recommender-by-treatment__plan-row-treatment">
+                                    {isBuilt && (
+                                      <span className="plan-row-built-badge" aria-label="Built">✓ </span>
+                                    )}
                                     {planPrimary}
                                   </span>
                                   {planSecondary ? (
@@ -3015,6 +3749,9 @@ export default function TreatmentRecommenderByTreatment({
                               <span className="treatment-recommender-by-treatment__plan-row-inner">
                                 <span className="treatment-recommender-by-treatment__plan-row-body">
                                   <span className="treatment-recommender-by-treatment__plan-row-treatment">
+                                    {isBuilt && (
+                                      <span className="plan-row-built-badge" aria-label="Built">✓ </span>
+                                    )}
                                     {planPrimary}
                                   </span>
                                   {planSecondary ? (
@@ -3135,76 +3872,6 @@ export default function TreatmentRecommenderByTreatment({
                   })}
                 </div>
               </div>
-              {wellnestDeliveryFilterChips.length > 1 && (
-                <div className="treatment-recommender-wellnest-filters__row">
-                  <span
-                    className="treatment-recommender-wellnest-filters__label"
-                    id="wellnest-filter-delivery-label"
-                  >
-                    Delivery
-                  </span>
-                  <div
-                    className="treatment-recommender-by-treatment__wellnest-browse-chips"
-                    aria-labelledby="wellnest-filter-delivery-label"
-                  >
-                    {wellnestDeliveryFilterChips.map((chip) => {
-                      const selected = wellnestDeliveryFilter === chip.id;
-                      return (
-                        <button
-                          key={`del-${chip.id}`}
-                          type="button"
-                          className={`treatment-recommender-by-treatment__chip treatment-recommender-by-treatment__chip--secondary ${
-                            selected
-                              ? "treatment-recommender-by-treatment__chip--selected"
-                              : ""
-                          }`}
-                          onClick={() => setWellnestDeliveryFilter(chip.id)}
-                        >
-                          {chip.label}{" "}
-                          <span className="treatment-recommender-wellnest-filters__count">
-                            ({chip.count})
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {wellnestPriceFilterChips.length > 1 && (
-                <div className="treatment-recommender-wellnest-filters__row">
-                  <span
-                    className="treatment-recommender-wellnest-filters__label"
-                    id="wellnest-filter-price-label"
-                  >
-                    Price band
-                  </span>
-                  <div
-                    className="treatment-recommender-by-treatment__wellnest-browse-chips"
-                    aria-labelledby="wellnest-filter-price-label"
-                  >
-                    {wellnestPriceFilterChips.map((chip) => {
-                      const selected = wellnestPriceFilter === chip.id;
-                      return (
-                        <button
-                          key={`price-${chip.id}`}
-                          type="button"
-                          className={`treatment-recommender-by-treatment__chip treatment-recommender-by-treatment__chip--secondary ${
-                            selected
-                              ? "treatment-recommender-by-treatment__chip--selected"
-                              : ""
-                          }`}
-                          onClick={() => setWellnestPriceFilter(chip.id)}
-                        >
-                          {chip.label}{" "}
-                          <span className="treatment-recommender-wellnest-filters__count">
-                            ({chip.count})
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           )}
           <h2 className="treatment-recommender-by-treatment__results-heading">
@@ -3246,6 +3913,35 @@ export default function TreatmentRecommenderByTreatment({
                     ? `Matches all goals: ${wellnestGoalSignal!.matchedGoals.join(", ")}`
                     : `Matches goals: ${wellnestGoalSignal!.matchedGoals.join(", ")}`
                   : "";
+                const wellnessQuizTreatmentId =
+                  wellnestOffering?.wellnessQuizId?.trim() ?? "";
+                const showWellnessQuizTreatmentBadge = Boolean(
+                  wellnessQuizSuggestedIdSet.size > 0 &&
+                    wellnessQuizTreatmentId &&
+                    wellnessQuizSuggestedIdSet.has(wellnessQuizTreatmentId),
+                );
+                const wellnessQuizMatchReasonLines =
+                  client.wellnessQuiz?.answers &&
+                  showWellnessQuizTreatmentBadge &&
+                  wellnessQuizTreatmentId
+                    ? getWellnessQuizMatchReasons(
+                        client.wellnessQuiz.answers,
+                        wellnessQuizTreatmentId,
+                      )
+                    : [];
+                const wellnessQuizMatchAnswerLabels =
+                  client.wellnessQuiz?.answers &&
+                  showWellnessQuizTreatmentBadge &&
+                  wellnessQuizTreatmentId
+                    ? getWellnessQuizMatchAnswerLabelsForTreatment(
+                        client.wellnessQuiz.answers,
+                        wellnessQuizTreatmentId,
+                      )
+                    : [];
+                const wellnessQuizMatchDetailTitle =
+                  wellnessQuizMatchReasonLines.length > 0
+                    ? wellnessQuizMatchReasonLines.join("\n")
+                    : "Suggested by this client's completed wellness quiz";
                 const wellnestAddressChips = wellnestOffering
                   ? parseWellnestWhatItAddressesChips(
                       wellnestOffering.addresses,
@@ -3253,6 +3949,9 @@ export default function TreatmentRecommenderByTreatment({
                   : [];
                 const cardPhotos = getPhotosForTreatment(treatment);
                 const cardPhoto = cardPhotos[0];
+                /** Eye opens Treatment Photos for non-Wellnest; hide when the library has no matches. */
+                const showPhotoExamplesButton =
+                  Boolean(wellnestOffering) || cardPhotos.length > 0;
                 const wellnestHeroUrl = wellnestOffering
                   ? getWellnestRecommenderImageUrl(treatment)
                   : null;
@@ -3304,48 +4003,50 @@ export default function TreatmentRecommenderByTreatment({
                           <h2 className="treatment-recommender-by-treatment__card-title">
                             {treatment}
                           </h2>
-                          <button
-                            type="button"
-                            className="treatment-recommender-by-treatment__examples-eye-btn"
-                            onClick={() =>
-                              wellnestOffering
-                                ? setWellnestDetailTreatment(treatment)
-                                : setPhotoExplorerContext({
-                                    treatment,
-                                    region:
-                                      filterState.region.length > 0
-                                        ? getInternalRegionForFilter(
-                                            filterState.region[0],
-                                          )
-                                        : undefined,
-                                  })
-                            }
-                            title={
-                              wellnestOffering
-                                ? "Overview and examples"
-                                : "View examples"
-                            }
-                            aria-label={
-                              wellnestOffering
-                                ? "Overview and examples"
-                                : "View examples"
-                            }
-                          >
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden
+                          {showPhotoExamplesButton ? (
+                            <button
+                              type="button"
+                              className="treatment-recommender-by-treatment__examples-eye-btn"
+                              onClick={() =>
+                                wellnestOffering
+                                  ? setWellnestDetailTreatment(treatment)
+                                  : setPhotoExplorerContext({
+                                      treatment,
+                                      region:
+                                        filterState.region.length > 0
+                                          ? getInternalRegionForFilter(
+                                              filterState.region[0],
+                                            )
+                                          : undefined,
+                                    })
+                              }
+                              title={
+                                wellnestOffering
+                                  ? "Overview and examples"
+                                  : "View examples"
+                              }
+                              aria-label={
+                                wellnestOffering
+                                  ? "Overview and examples"
+                                  : "View examples"
+                              }
                             >
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                          </button>
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden
+                              >
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            </button>
+                          ) : null}
                         </div>
                         <p className="treatment-recommender-by-treatment__card-why">
                           {getWhyExplanation(treatment)}
@@ -3518,6 +4219,14 @@ export default function TreatmentRecommenderByTreatment({
                     {wellnestOffering && (
                       <div className="treatment-recommender-wellnest-card">
                         <div className="treatment-recommender-wellnest-card__chips">
+                          {showWellnessQuizTreatmentBadge ? (
+                            <span
+                              className="treatment-recommender-wellnest-card__chip treatment-recommender-wellnest-card__chip--wellness-quiz"
+                              title={wellnessQuizMatchDetailTitle}
+                            >
+                              Wellness quiz match
+                            </span>
+                          ) : null}
                           {showWellnestGoalMatchBadge ? (
                             <span
                               className={`treatment-recommender-wellnest-card__chip treatment-recommender-wellnest-card__chip--goal${
@@ -3548,6 +4257,21 @@ export default function TreatmentRecommenderByTreatment({
                             {wellnestOffering.pricing}
                           </span>
                         </div>
+                        {showWellnessQuizTreatmentBadge &&
+                        wellnessQuizMatchAnswerLabels.length > 0 ? (
+                          <p
+                            className="treatment-recommender-wellnest-card__wellness-quiz-detail"
+                            title={wellnessQuizMatchDetailTitle}
+                          >
+                            <span className="treatment-recommender-wellnest-card__wellness-quiz-detail-prefix">
+                              Their answers included
+                            </span>{" "}
+                            {wellnessQuizMatchAnswerLabels.slice(0, 5).join(", ")}
+                            {wellnessQuizMatchAnswerLabels.length > 5
+                              ? "…"
+                              : "."}
+                          </p>
+                        ) : null}
                       </div>
                     )}
 
@@ -4082,7 +4806,9 @@ export default function TreatmentRecommenderByTreatment({
                                 message={addPlanDraftPricing.message}
                               />
                             ) : null}
-                            {treatment !== "Skincare" && !wellnestOffering && (
+                            {treatment !== "Skincare" &&
+                              !wellnestOffering &&
+                              !usesOtherProceduresStructuredPlan(treatment) && (
                               <div className="treatment-recommender-by-treatment__add-row">
                                 <span className="treatment-recommender-by-treatment__add-row-label">
                                   {isEnergyTreatmentCategory(treatment)
@@ -4308,6 +5034,7 @@ export default function TreatmentRecommenderByTreatment({
                                       ))}
                                   {treatment !== "Skincare" &&
                                     !isEnergyTreatmentCategory(treatment) &&
+                                    !usesOtherProceduresStructuredPlan(treatment) &&
                                     addToPlanForTreatment.where
                                       .filter((w) =>
                                         treatment === "Microneedling"
@@ -4583,7 +5310,9 @@ export default function TreatmentRecommenderByTreatment({
                             )}
                             {(treatment === "Filler" ||
                               treatment === "Neurotoxin" ||
-                              treatment === "Chemical Peel") && (
+                              treatment === "Chemical Peel" ||
+                              treatment === "Other procedures" ||
+                              usesJudgeMdSurgeryStructuredPlan(treatment)) && (
                               <div className="treatment-recommender-by-treatment__add-row">
                                 <span className="treatment-recommender-by-treatment__add-row-label">
                                   Type:
@@ -4593,12 +5322,25 @@ export default function TreatmentRecommenderByTreatment({
                                     ? fillerTypeDisplayRecords
                                     : treatment === "Neurotoxin"
                                       ? neurotoxinTypeDisplayRecords
-                                      : chemicalPeelTypeDisplayRecords
+                                      : treatment === "Chemical Peel"
+                                        ? chemicalPeelTypeDisplayRecords
+                                        : otherProcedureDisplayRecords
                                   ).map((rec, prodIdx) => {
                                     const opt = rec.value;
+                                    const otherProcOpts =
+                                      usesOtherProceduresMultiSelectProduct(treatment)
+                                        ? otherProcedureDisplayRecords.map(
+                                            (r) => r.value,
+                                          )
+                                        : [];
                                     const selected =
-                                      (addToPlanForTreatment.product ?? "") ===
-                                      opt;
+                                      usesOtherProceduresMultiSelectProduct(treatment)
+                                        ? matchProductTokensToOptionList(
+                                            addToPlanForTreatment.product ?? "",
+                                            otherProcOpts,
+                                          ).matched.includes(opt)
+                                        : (addToPlanForTreatment.product ?? "") ===
+                                          opt;
                                     const recordId = rec.id || null;
                                     return (
                                       <button
@@ -4614,14 +5356,58 @@ export default function TreatmentRecommenderByTreatment({
                                             : ""
                                         }`}
                                         onClick={() =>
-                                          setAddToPlanForTreatment((prev) =>
-                                            prev
-                                              ? {
-                                                  ...prev,
-                                                  product: selected ? "" : opt,
-                                                }
-                                              : null,
-                                          )
+                                          setAddToPlanForTreatment((prev) => {
+                                            if (!prev) return null;
+                                            if (!usesOtherProceduresMultiSelectProduct(treatment)) {
+                                              const nextProduct = selected
+                                                ? ""
+                                                : opt;
+                                              return {
+                                                ...prev,
+                                                product: nextProduct,
+                                              };
+                                            }
+                                            const opts =
+                                              otherProcedureDisplayRecords.map(
+                                                (r) => r.value,
+                                              );
+                                            const { matched: m0 } =
+                                              matchProductTokensToOptionList(
+                                                prev.product ?? "",
+                                                opts,
+                                              );
+                                            const wasSel = m0.includes(opt);
+                                            const nextMatched = wasSel
+                                              ? m0.filter((x) => x !== opt)
+                                              : [...m0, opt];
+                                            let nextWhere = prev.where;
+                                            if (wasSel) {
+                                              const stillFacialPrfm =
+                                                nextMatched.some(
+                                                  (x) =>
+                                                    x.trim().toLowerCase() ===
+                                                    "prfm injections",
+                                                );
+                                              if (!stillFacialPrfm) nextWhere = [];
+                                            } else {
+                                              const addingFacialPrfm =
+                                                opt.trim().toLowerCase() ===
+                                                "prfm injections";
+                                              const hadFacialPrfm = m0.some(
+                                                (x) =>
+                                                  x.trim().toLowerCase() ===
+                                                  "prfm injections",
+                                              );
+                                              if (addingFacialPrfm && !hadFacialPrfm) {
+                                                nextWhere = [];
+                                              }
+                                            }
+                                            return {
+                                              ...prev,
+                                              product: nextMatched.join(", "),
+                                              where: nextWhere,
+                                            };
+                                          })
                                         }
                                         title={
                                           selected
@@ -4653,45 +5439,198 @@ export default function TreatmentRecommenderByTreatment({
                                 </div>
                               </div>
                             )}
+                            {treatment === "Other procedures" &&
+                              matchProductTokensToOptionList(
+                                addToPlanForTreatment.product ?? "",
+                                otherProcedureDisplayRecords.map((r) => r.value),
+                              ).matched.some(
+                                (m) =>
+                                  m.trim().toLowerCase() === "prfm injections",
+                              ) && (
+                                <div className="treatment-recommender-by-treatment__add-row">
+                                  <span className="treatment-recommender-by-treatment__add-row-label">
+                                    Where:
+                                  </span>
+                                  <div className="treatment-recommender-by-treatment__chips">
+                                    {prfmInjectionWhereDisplayRecords.map(
+                                      (rec, prfmWIdx) => {
+                                        const r = rec.value;
+                                        const whereSelected =
+                                          addToPlanForTreatment.where.includes(r);
+                                        return (
+                                          <button
+                                            key={`prfm-where-${prfmWIdx}-${r}`}
+                                            type="button"
+                                            className={`treatment-recommender-by-treatment__chip ${
+                                              whereSelected
+                                                ? "treatment-recommender-by-treatment__chip--selected"
+                                                : ""
+                                            }`}
+                                            onClick={() => {
+                                              setAddToPlanForTreatment((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      where: whereSelected
+                                                        ? []
+                                                        : [r],
+                                                    }
+                                                  : null,
+                                              );
+                                            }}
+                                            title={
+                                              whereSelected
+                                                ? `Remove ${r}`
+                                                : `Select ${r}`
+                                            }
+                                            aria-label={
+                                              whereSelected
+                                                ? `Remove ${r}`
+                                                : `Select ${r}`
+                                            }
+                                          >
+                                            <span className="treatment-recommender-by-treatment__chip-label">
+                                              {r}
+                                            </span>
+                                            {whereSelected && (
+                                              <span
+                                                className="treatment-recommender-by-treatment__chip-remove"
+                                                aria-hidden
+                                              >
+                                                ×
+                                              </span>
+                                            )}
+                                          </button>
+                                        );
+                                      },
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             {(treatment === "Filler" ||
                               treatment === "Neurotoxin" ||
-                              treatment === "Chemical Peel") &&
+                              treatment === "Chemical Peel" ||
+                              treatment === "Other procedures" ||
+                              usesJudgeMdSurgeryStructuredPlan(treatment)) &&
                             addPlanDraftPricing.placement === "injectable_type" &&
                             addPlanDraftPricing.message ? (
                               <AddPlanFieldPricingHint
                                 message={addPlanDraftPricing.message}
                               />
                             ) : null}
-                            <div className="treatment-recommender-by-treatment__add-row">
-                              <span>When:</span>
+                            <div className="treatment-recommender-by-treatment__add-row treatment-recommender-by-treatment__add-row--when-with-date">
+                              <span className="treatment-recommender-by-treatment__add-row-label">
+                                When:
+                              </span>
                               <div className="treatment-recommender-by-treatment__chips">
-                                {timelineDisplayRecords
-                                  .filter((rec) => rec.value !== "Completed")
-                                  .map((rec) => {
-                                    const t = rec.value;
-                                    return (
-                                      <button
-                                        key={
-                                          rec.id
-                                            ? `${rec.id}-${t}`
-                                            : `when-${t}`
-                                        }
-                                        type="button"
-                                        className={`treatment-recommender-by-treatment__chip ${
-                                          addToPlanForTreatment.when === t
-                                            ? "treatment-recommender-by-treatment__chip--selected"
-                                            : ""
-                                        }`}
-                                        onClick={() =>
-                                          setAddToPlanForTreatment((prev) =>
-                                            prev ? { ...prev, when: t } : null,
-                                          )
-                                        }
-                                      >
-                                        {t}
-                                      </button>
+                                {(() => {
+                                  const wishlistTargetDateLabel =
+                                    formatPlanScheduledDateLabel(
+                                      addToPlanForTreatment.scheduledDate,
                                     );
-                                  })}
+                                  return timelineDisplayRecords
+                                    .filter((rec) => rec.value !== "Completed")
+                                    .map((rec) => {
+                                      const t = rec.value;
+                                      const chipOn =
+                                        !addToPlanForTreatment.scheduledDate &&
+                                        addToPlanForTreatment.when === t;
+                                      const chipKey = rec.id
+                                        ? `${rec.id}-${t}`
+                                        : `when-${t}`;
+                                      return (
+                                        <Fragment key={chipKey}>
+                                          <button
+                                            type="button"
+                                            className={`treatment-recommender-by-treatment__chip ${
+                                              chipOn
+                                                ? "treatment-recommender-by-treatment__chip--selected"
+                                                : ""
+                                            }`}
+                                            onClick={() =>
+                                              setAddToPlanForTreatment((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      when: t,
+                                                      scheduledDate: undefined,
+                                                    }
+                                                  : null,
+                                              )
+                                            }
+                                          >
+                                            {timelineOptionDisplayLabel(t)}
+                                          </button>
+                                          {t === "Wishlist" ? (
+                                            <span
+                                              ref={targetTreatmentDatePanelRef}
+                                              className="treatment-recommender-by-treatment__when-cal-slot"
+                                            >
+                                              <button
+                                                type="button"
+                                                className={`treatment-recommender-by-treatment__when-cal-icon-btn${
+                                                  addToPlanForTreatment.scheduledDate
+                                                    ? " treatment-recommender-by-treatment__when-cal-icon-btn--active"
+                                                    : ""
+                                                }`}
+                                                title={
+                                                  wishlistTargetDateLabel
+                                                    ? wishlistTargetDateLabel
+                                                    : "Target treatment date"
+                                                }
+                                                aria-label={
+                                                  wishlistTargetDateLabel
+                                                    ? `Scheduled ${wishlistTargetDateLabel}. Open target date panel.`
+                                                    : "Choose target treatment date"
+                                                }
+                                                aria-expanded={
+                                                  targetTreatmentDatePanelOpen
+                                                }
+                                                aria-haspopup="dialog"
+                                                onClick={() =>
+                                                  setTargetTreatmentDatePanelOpen(
+                                                    (o) => !o,
+                                                  )
+                                                }
+                                              >
+                                                <svg
+                                                  width="16"
+                                                  height="16"
+                                                  viewBox="0 0 24 24"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  strokeWidth="2"
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  aria-hidden
+                                                >
+                                                  <rect
+                                                    x="3"
+                                                    y="4"
+                                                    width="18"
+                                                    height="18"
+                                                    rx="2"
+                                                    ry="2"
+                                                  />
+                                                  <path d="M16 2v4" />
+                                                  <path d="M8 2v4" />
+                                                  <path d="M3 10h18" />
+                                                </svg>
+                                              </button>
+                                              {wishlistTargetDateLabel ? (
+                                                <span
+                                                  className="treatment-recommender-by-treatment__when-cal-date-label"
+                                                  aria-hidden
+                                                >
+                                                  {wishlistTargetDateLabel}
+                                                </span>
+                                              ) : null}
+                                            </span>
+                                          ) : null}
+                                        </Fragment>
+                                      );
+                                    });
+                                })()}
                               </div>
                             </div>
                             {addToPlanForTreatment.treatment !== "Skincare" &&
@@ -6186,6 +7125,70 @@ export default function TreatmentRecommenderByTreatment({
           onClose={() => setShowClientPhotoModal(false)}
         />
       )}
+
+      {targetTreatmentDatePanelOpen &&
+        addToPlanForTreatment &&
+        targetTreatmentDatePopoverRect &&
+        createPortal(
+          <div
+            ref={targetTreatmentDatePopoverRef}
+            className="treatment-recommender-by-treatment__target-date-popover"
+            style={{
+              position: "fixed",
+              top: targetTreatmentDatePopoverRect.top,
+              left: targetTreatmentDatePopoverRect.left,
+              width: targetTreatmentDatePopoverRect.width,
+              boxSizing: "border-box",
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="target-treatment-date-heading"
+            aria-describedby="target-treatment-date-desc"
+          >
+            <h4
+              id="target-treatment-date-heading"
+              className="treatment-recommender-by-treatment__target-date-popover-title"
+            >
+              Target Treatment Date
+            </h4>
+            <p
+              id="target-treatment-date-desc"
+              className="treatment-recommender-by-treatment__target-date-popover-desc"
+            >
+              Use this for event-driven planning (for example, timing treatments
+              before a wedding). The date appears on the patient&apos;s shared
+              treatment plan.
+            </p>
+            <input
+              ref={targetTreatmentDateInputRef}
+              type="date"
+              className="treatment-recommender-by-treatment__target-date-popover-input"
+              aria-label="Select target treatment date"
+              value={addToPlanForTreatment.scheduledDate ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setAddToPlanForTreatment((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        scheduledDate: v || undefined,
+                      }
+                    : null,
+                );
+              }}
+            />
+            <div className="treatment-recommender-by-treatment__target-date-popover-actions">
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => setTargetTreatmentDatePanelOpen(false)}
+              >
+                Done
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

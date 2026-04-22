@@ -1,5 +1,8 @@
 import type { Client, DiscussedItem } from "../types";
-import type { CheckoutLineItemDetail } from "../data/treatmentPricing2025";
+import {
+  formatPrice,
+  type CheckoutLineItemDetail,
+} from "../data/treatmentPricing2025";
 import {
   fetchAIAssessment,
   fetchPostVisitBlueprintFromServer,
@@ -9,7 +12,13 @@ import type { BlueprintAnalysisSummary } from "./postVisitBlueprintAnalysis";
 import { buildAnalysisSummaryFromClient } from "./postVisitBlueprintAnalysis";
 import { getDetectedIssueDisplayStrings } from "./analysisOverviewClient";
 import { getAlignedCheckoutLineItemsForDiscussedItems } from "../components/modals/DiscussedTreatmentsModal/TreatmentPlanCheckout";
+import {
+  getEffectivePriceList,
+  TREATMENT_PRICE_LIST_2025,
+  type TreatmentPriceItem,
+} from "../data/treatmentPricing2025";
 import { getQuoteLineDiscussedItemIndexOrder } from "./pvbQuotePartition";
+import { isValidPlanScheduledDateIso } from "./planScheduledDate";
 
 /** Keep SMS / localStorage payload reasonable if the model returns a long essay. */
 const MAX_AI_NARRATIVE_CHARS = 10_000;
@@ -451,21 +460,42 @@ async function getSharedBlueprintHeavyPrep(
 }
 
 /**
- * Timelines omitted from the patient blueprint share picker and payload.
- * **Completed** only — items in **Now** stay eligible so recommender defaults
- * (`TIMELINE_OPTIONS[0]` = "Now") still appear when sharing the post-visit link.
- */
-const PVB_EXCLUDED_TIMELINES = new Set(["completed"]);
-
-/**
  * Whether a plan row may appear on Post Visit Blueprint: **Now**, **Add next visit**,
- * **Wishlist**, Skincare — not **Completed**. Unknown/empty timelines count as wishlist-style.
+ * **Scheduled** (calendar date or Scheduled section), **Wishlist** (or unset timeline),
+ * and **Skincare** — not **Completed** or other timelines.
  */
 export function isDiscussedItemOnPostVisitBlueprint(item: DiscussedItem): boolean {
   const treatment = (item.treatment ?? "").trim();
   if (treatment === "Skincare") return true;
   const tl = (item.timeline ?? "").trim().toLowerCase();
-  return !PVB_EXCLUDED_TIMELINES.has(tl);
+  if (tl === "completed") return false;
+  if (isValidPlanScheduledDateIso((item.scheduledDate ?? "").trim())) return true;
+  if (tl === "scheduled") return true;
+  return (
+    tl === "" ||
+    tl === "now" ||
+    tl === "add next visit" ||
+    tl === "wishlist"
+  );
+}
+
+/**
+ * Wishlist bucket for non-skincare treatments: explicit Wishlist or missing timeline.
+ */
+export function isWishlistTimelineDiscussedItem(item: DiscussedItem): boolean {
+  if ((item.treatment ?? "").trim() === "Skincare") return false;
+  if (item.scheduledDate?.trim()) return false;
+  const t = (item.timeline ?? "").trim();
+  return t === "Wishlist" || !t;
+}
+
+/**
+ * Patient link shows a dollar amount for **Now** / **Add next visit** / Skincare;
+ * **Wishlist** (and unset timeline) lines omit price on the shared page.
+ */
+export function showPriceOnSharedTreatmentPlanLink(item: DiscussedItem): boolean {
+  if ((item.treatment ?? "").trim() === "Skincare") return true;
+  return !isWishlistTimelineDiscussedItem(item);
 }
 
 /** Preserve list order; drops Completed treatments only. */
@@ -484,6 +514,7 @@ export function defaultIncludeItemInSharedTreatmentPlanLink(
 ): boolean {
   if (!isDiscussedItemOnPostVisitBlueprint(item)) return false;
   if ((item.treatment ?? "").trim() === "Skincare") return true;
+  if (item.scheduledDate?.trim()) return true;
   const t = (item.timeline ?? "").trim();
   return t === "Add next visit" || t === "Now";
 }
@@ -498,6 +529,11 @@ function sliceQuoteForPostVisitBlueprint(
     isMintMember: boolean;
   },
   includedDiscussedItemIds?: Set<string> | null,
+  /** When set, `false` for a discussed-item id hides that line’s price on the patient plan. */
+  sharePriceWithPatientByDiscussedId?: Readonly<Record<string, boolean>> | null,
+  /** When set, per discussed-item id: patient-facing dollar amount for that quote line (share price on). */
+  patientPriceOverrideByDiscussedId?: Readonly<Record<string, number>> | null,
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): {
   lineItems: CheckoutLineItemDetail[];
   total: number;
@@ -507,6 +543,7 @@ function sliceQuoteForPostVisitBlueprint(
 } {
   const aligned = getAlignedCheckoutLineItemsForDiscussedItems(
     fullDiscussedItems,
+    priceList,
   );
   const order = getQuoteLineDiscussedItemIndexOrder(
     fullDiscussedItems,
@@ -521,9 +558,36 @@ function sliceQuoteForPostVisitBlueprint(
     if (includedDiscussedItemIds && !includedDiscussedItemIds.has(d.id)) {
       continue;
     }
-    bpLineItems.push(lineItems[i]!);
+    const line = lineItems[i]!;
+    const hide =
+      sharePriceWithPatientByDiscussedId &&
+      sharePriceWithPatientByDiscussedId[d.id] === false;
+    const ovRaw = patientPriceOverrideByDiscussedId?.[d.id];
+    const override =
+      !hide &&
+      typeof ovRaw === "number" &&
+      Number.isFinite(ovRaw) &&
+      ovRaw >= 0
+        ? Math.round(ovRaw * 100) / 100
+        : undefined;
+    let next: CheckoutLineItemDetail = { ...line };
+    if (hide) {
+      next = { ...next, hidePriceFromPatient: true };
+    } else if (override !== undefined) {
+      next = {
+        ...next,
+        patientPriceOverride: override,
+        displayPrice: formatPrice(override),
+      };
+    }
+    bpLineItems.push(next);
   }
-  const bpTotal = bpLineItems.reduce((s, l) => s + (l?.price ?? 0), 0);
+  const bpTotal = bpLineItems.reduce((s, l) => {
+    if (l?.hidePriceFromPatient) return s;
+    const o = l.patientPriceOverride;
+    if (typeof o === "number" && Number.isFinite(o) && o >= 0) return s + o;
+    return s + (l?.price ?? 0);
+  }, 0);
   const origTotal = quote.total;
   const bpTotalAfterDiscount =
     origTotal > 0
@@ -578,6 +642,14 @@ export async function createAndStorePostVisitBlueprint(input: {
     hasUnknownPrices: boolean;
     isMintMember: boolean;
   };
+  /**
+   * Per discussed-item id: `false` hides that line’s price on the patient plan (omitted = show).
+   */
+  sharePriceWithPatientByDiscussedId?: Readonly<Record<string, boolean>>;
+  /**
+   * Per discussed-item id: optional patient-facing line total when sharing price (corrects wrong auto price).
+   */
+  patientPriceOverrideByDiscussedId?: Readonly<Record<string, number>>;
   cta: {
     bookingUrl?: string;
     financingUrl?: string;
@@ -594,15 +666,19 @@ export async function createAndStorePostVisitBlueprint(input: {
   }
   if (bpDiscussed.length === 0) {
     throw new Error(
-      "Choose at least one Add next visit, Wishlist, or Skincare item to include on the shared treatment plan.",
+      "Choose at least one treatment-plan, wishlist, or Skincare item to include on the shared treatment plan.",
     );
   }
+  const priceList = getEffectivePriceList(undefined, input.providerCode);
   const bpQuote = sliceQuoteForPostVisitBlueprint(
     input.discussedItems,
     input.quote,
     input.includedDiscussedItemIds?.size
       ? input.includedDiscussedItemIds
       : null,
+    input.sharePriceWithPatientByDiscussedId ?? null,
+    input.patientPriceOverrideByDiscussedId ?? null,
+    priceList,
   );
 
   const token = createBlueprintToken();

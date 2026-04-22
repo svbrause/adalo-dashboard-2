@@ -655,11 +655,6 @@
     gap: 14px;
   }
 
-  .treatment-recommender-by-suggestion__add-row > span {
-    flex-basis: 100%;
-    min-width: 0;
-  }
-
   .treatment-recommender-by-suggestion__cancel-btn {
     min-height: 44px;
     padding: 10px 16px;

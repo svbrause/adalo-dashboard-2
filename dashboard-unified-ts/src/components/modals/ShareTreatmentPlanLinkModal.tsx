@@ -12,7 +12,7 @@ import {
 } from "react";
 import type { Client, DiscussedItem } from "../../types";
 import { useDashboard } from "../../context/DashboardContext";
-import { sendSMSNotification } from "../../services/api";
+import { notifyTreatmentPlanShareSent, sendSMSNotification } from "../../services/api";
 import {
   formatProviderDisplayName,
   getPostVisitBlueprintBookingUrl,
@@ -28,12 +28,20 @@ import {
   createAndStorePostVisitBlueprint,
   defaultIncludeItemInSharedTreatmentPlanLink,
   filterDiscussedItemsForPostVisitBlueprint,
+  isWishlistTimelineDiscussedItem as isWishlistTimelineItem,
+  showPriceOnSharedTreatmentPlanLink,
   trackPostVisitBlueprintEvent,
   warmPostVisitBlueprintForSend,
 } from "../../utils/postVisitBlueprint";
-import { formatPrice } from "../../data/treatmentPricing2025";
+import { capturePatientAcquisitionFunnelEvent } from "../../utils/patientAcquisitionAnalytics";
+import { formatPrice, getEffectivePriceList } from "../../data/treatmentPricing2025";
 import { planPricingFixActionLabel } from "../../utils/planPricingWarnings";
-import { getTreatmentPlanRowPrimaryLabel } from "./DiscussedTreatmentsModal/utils";
+import { buildShareLinkTreatmentGroups } from "../../utils/shareTreatmentPlanUi";
+import {
+  getTreatmentPlanRowPrimaryLabel,
+  getTreatmentPlanRowSecondaryLabel,
+  plannedForPatientLineFromDiscussedItem,
+} from "./DiscussedTreatmentsModal/utils";
 import {
   computeQuoteSheetDataForDiscussedItems,
   getAlignedCheckoutLineItemsForDiscussedItems,
@@ -53,29 +61,37 @@ export interface ShareTreatmentPlanLinkModalProps {
    * Parent should close this modal and open the plan editor (plan builder or Discussed modal).
    */
   onNavigateToEditPlanItem?: (discussedItemId: string) => void;
+  /**
+   * When set, each shareable treatment row can move between **Wishlist** and the **treatment plan**
+   * (single toggle; timeline defaults to “Add next visit” when moving into the plan).
+   */
+  onUpdateDiscussedItem?: (
+    itemId: string,
+    patch: Partial<DiscussedItem>,
+  ) => void | Promise<void>;
 }
 
-function sectionLabelForShareRow(item: DiscussedItem): string {
-  if ((item.treatment ?? "").trim() === "Skincare") return "Skincare";
-  const t = (item.timeline ?? "").trim();
-  if (t === "Add next visit") return "Add next visit";
-  if (t === "Wishlist" || !t) return "Wishlist";
-  return t;
+function isSkincarePlanItem(item: DiscussedItem): boolean {
+  return (item.treatment ?? "").trim() === "Skincare";
 }
 
-/** Same order as the plan modal / checkout (Now before Wishlist, etc.). */
-const SHARE_LINK_TIMELINE_SECTION_ORDER = [
-  "Now",
-  "Add next visit",
-  "Wishlist",
-  "Completed",
-] as const;
-
-function shareTimelineGroupSortIndex(title: string): number {
-  const idx = (
-    SHARE_LINK_TIMELINE_SECTION_ORDER as readonly string[]
-  ).indexOf(title);
-  return idx >= 0 ? idx : 999;
+/** True when quote is fuzzy or any included plan row still lacks fields for exact pricing. */
+function shareQuoteHasPricingGaps(
+  discussedItems: DiscussedItem[],
+  includedIds: ReadonlySet<string>,
+  quoteHasUnknownPrices: boolean,
+  priceList: Parameters<typeof getAlignedCheckoutLineItemsForDiscussedItems>[1],
+): boolean {
+  if (quoteHasUnknownPrices) return true;
+  const aligned = getAlignedCheckoutLineItemsForDiscussedItems(
+    discussedItems,
+    priceList,
+  );
+  for (let i = 0; i < discussedItems.length; i++) {
+    if (!includedIds.has(discussedItems[i]!.id)) continue;
+    if (aligned[i]?.missingInfo) return true;
+  }
+  return false;
 }
 
 /** Per-line amount: show line total only (no unit math) when we have a numeric total. */
@@ -97,6 +113,95 @@ function shareRowPriceDisplay(
   return { text: formatPrice(0) };
 }
 
+/** Parsed dollar amount from share-modal override field; `null` = use automatic line price. */
+function parseSharePatientPriceOverride(raw: string | undefined): number | null {
+  const t = (raw ?? "").trim().replace(/[$,]/g, "");
+  if (!t) return null;
+  const n = parseFloat(t);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100) / 100;
+}
+
+function shareRowPriceDisplayWithOverride(
+  line: Parameters<typeof shareRowPriceDisplay>[0],
+  overrideRaw: string | undefined,
+): { text: string; warning?: string } {
+  const parsed = parseSharePatientPriceOverride(overrideRaw);
+  if (parsed !== null) {
+    const base = shareRowPriceDisplay(line);
+    return { text: formatPrice(parsed), warning: base.warning };
+  }
+  return shareRowPriceDisplay(line);
+}
+
+type ShareQuoteLine = Parameters<typeof shareRowPriceDisplay>[0];
+
+/** Row price: read-only by default; “Edit prices” toggles inline inputs per row. */
+function ShareQuoteRowPriceBlock({
+  itemId,
+  line,
+  include,
+  showPriceOnPatient,
+  patientPriceOverrideRaw,
+  setPatientPriceOverride,
+  inlinePriceEditMode,
+}: {
+  itemId: string;
+  line: ShareQuoteLine | undefined;
+  include: boolean;
+  showPriceOnPatient: boolean;
+  patientPriceOverrideRaw: string | undefined;
+  setPatientPriceOverride: (value: string) => void;
+  inlinePriceEditMode: boolean;
+}) {
+  if (include && !showPriceOnPatient) {
+    return (
+      <strong className="share-tp-link-quote-row-patient-price-off">
+        Not shown
+      </strong>
+    );
+  }
+  const automaticPriceText = shareRowPriceDisplay(line).text;
+  const p = shareRowPriceDisplayWithOverride(line, patientPriceOverrideRaw);
+  const inputId = `share-tp-patient-price-${itemId}`;
+
+  if (inlinePriceEditMode && showPriceOnPatient) {
+    return (
+      <>
+        <div className="share-tp-link-patient-price-inline-edit">
+          <input
+            id={inputId}
+            type="text"
+            inputMode="decimal"
+            className="share-tp-link-patient-price-override-input share-tp-link-patient-price-override-input--inline"
+            placeholder={automaticPriceText}
+            title={`Leave blank to use ${automaticPriceText} (line total).`}
+            autoComplete="off"
+            value={patientPriceOverrideRaw ?? ""}
+            onChange={(e) => setPatientPriceOverride(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+        </div>
+        {p.warning ? (
+          <span className="share-tp-link-quote-row-missing">⚠ {p.warning}</span>
+        ) : null}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="share-tp-link-patient-price-readonly">
+        <strong>{p.text}</strong>
+      </div>
+      {p.warning ? (
+        <span className="share-tp-link-quote-row-missing">⚠ {p.warning}</span>
+      ) : null}
+    </>
+  );
+}
+
 export default function ShareTreatmentPlanLinkModal({
   client,
   discussedItems,
@@ -104,8 +209,17 @@ export default function ShareTreatmentPlanLinkModal({
   onSuccess,
   recommenderFocusRegions,
   onNavigateToEditPlanItem,
+  onUpdateDiscussedItem,
 }: ShareTreatmentPlanLinkModalProps) {
   const { provider } = useDashboard();
+  const effectivePriceList = useMemo(
+    () =>
+      getEffectivePriceList(
+        provider?.["Treatment Pricing"] as string | undefined,
+        provider?.code,
+      ),
+    [provider],
+  );
   const firstName = client.name?.trim().split(/\s+/)[0] || "Patient";
   const clinicName = useMemo(() => {
     const branded = formatProviderDisplayName(provider?.name);
@@ -141,11 +255,14 @@ export default function ShareTreatmentPlanLinkModal({
 
   const eligibleItems = useMemo(() => {
     const filtered = filterDiscussedItemsForPostVisitBlueprint(discussedItems);
-    const rank = getDiscussedItemQuoteOrderRankById(discussedItems);
+    const rank = getDiscussedItemQuoteOrderRankById(
+      discussedItems,
+      effectivePriceList,
+    );
     return [...filtered].sort(
       (a, b) => (rank.get(a.id) ?? 9999) - (rank.get(b.id) ?? 9999),
     );
-  }, [discussedItems]);
+  }, [discussedItems, effectivePriceList]);
 
   const discussedIndexByItemId = useMemo(() => {
     const m = new Map<string, number>();
@@ -154,8 +271,12 @@ export default function ShareTreatmentPlanLinkModal({
   }, [discussedItems]);
 
   const checkoutLinesByDiscussedIndex = useMemo(
-    () => getAlignedCheckoutLineItemsForDiscussedItems(discussedItems),
-    [discussedItems],
+    () =>
+      getAlignedCheckoutLineItemsForDiscussedItems(
+        discussedItems,
+        effectivePriceList,
+      ),
+    [discussedItems, effectivePriceList],
   );
 
   const { skincareShareItems, treatmentShareItems } = useMemo(() => {
@@ -174,21 +295,10 @@ export default function ShareTreatmentPlanLinkModal({
     };
   }, [eligibleItems, discussedIndexByItemId, checkoutLinesByDiscussedIndex]);
 
-  const treatmentTimelineGroups = useMemo(() => {
-    const byTitle = new Map<string, DiscussedItem[]>();
-    for (const item of treatmentShareItems) {
-      const title = sectionLabelForShareRow(item);
-      if (!byTitle.has(title)) byTitle.set(title, []);
-      byTitle.get(title)!.push(item);
-    }
-    const titles = Array.from(byTitle.keys()).sort(
-      (a, b) => shareTimelineGroupSortIndex(a) - shareTimelineGroupSortIndex(b),
-    );
-    return titles.map((title) => ({
-      title,
-      items: byTitle.get(title)!,
-    }));
-  }, [treatmentShareItems]);
+  const treatmentTimelineGroups = useMemo(
+    () => buildShareLinkTreatmentGroups(treatmentShareItems),
+    [treatmentShareItems],
+  );
 
   const lineForItem = useCallback(
     (item: DiscussedItem) => {
@@ -207,6 +317,11 @@ export default function ShareTreatmentPlanLinkModal({
   const [inclusionById, setInclusionById] = useState<Record<string, boolean>>(
     {},
   );
+  /** Optional per-line patient dollar amount (when sharing price); empty string = use automatic price. */
+  const [patientPriceOverrideInputById, setPatientPriceOverrideInputById] =
+    useState<Record<string, string>>({});
+  const [inlinePatientPricesEditing, setInlinePatientPricesEditing] =
+    useState(false);
 
   useEffect(() => {
     const next: Record<string, boolean> = {};
@@ -216,22 +331,62 @@ export default function ShareTreatmentPlanLinkModal({
     setInclusionById(next);
   }, [eligibleIdsKey, eligibleItems]);
 
+  useEffect(() => {
+    setPatientPriceOverrideInputById((prev) => {
+      const next: Record<string, string> = {};
+      for (const item of eligibleItems) {
+        next[item.id] = prev[item.id] ?? "";
+      }
+      return next;
+    });
+  }, [eligibleIdsKey, eligibleItems]);
+
   const includedSkincareSubtotal = useMemo(() => {
     return skincareShareItems.reduce((sum, item) => {
       if (!inclusionById[item.id]) return sum;
-      return sum + (lineForItem(item)?.price ?? 0);
+      const ov = parseSharePatientPriceOverride(
+        patientPriceOverrideInputById[item.id],
+      );
+      const line = lineForItem(item);
+      return sum + (ov ?? line?.price ?? 0);
     }, 0);
-  }, [skincareShareItems, inclusionById, lineForItem]);
+  }, [skincareShareItems, inclusionById, patientPriceOverrideInputById, lineForItem]);
 
-  const includedTreatmentSubtotal = useMemo(() => {
+  /** Now / next-visit lines only (matches patient-facing dollar total by default). */
+  const includedTreatmentsExcludingWishlistSubtotal = useMemo(() => {
     return treatmentShareItems.reduce((sum, item) => {
       if (!inclusionById[item.id]) return sum;
-      return sum + (lineForItem(item)?.price ?? 0);
+      if (isWishlistTimelineItem(item)) return sum;
+      const ov = parseSharePatientPriceOverride(
+        patientPriceOverrideInputById[item.id],
+      );
+      const line = lineForItem(item);
+      return sum + (ov ?? line?.price ?? 0);
     }, 0);
-  }, [treatmentShareItems, inclusionById, lineForItem]);
+  }, [treatmentShareItems, inclusionById, patientPriceOverrideInputById, lineForItem]);
 
-  const includedSelectionTotal =
-    includedSkincareSubtotal + includedTreatmentSubtotal;
+  const includedTreatmentsWishlistSubtotal = useMemo(() => {
+    return treatmentShareItems.reduce((sum, item) => {
+      if (!inclusionById[item.id]) return sum;
+      if (!isWishlistTimelineItem(item)) return sum;
+      const ov = parseSharePatientPriceOverride(
+        patientPriceOverrideInputById[item.id],
+      );
+      const line = lineForItem(item);
+      return sum + (ov ?? line?.price ?? 0);
+    }, 0);
+  }, [treatmentShareItems, inclusionById, patientPriceOverrideInputById, lineForItem]);
+
+  const hasWishlistTreatmentRows = useMemo(
+    () => treatmentShareItems.some((item) => isWishlistTimelineItem(item)),
+    [treatmentShareItems],
+  );
+
+  const includedTotalExcludingWishlistPrices =
+    includedSkincareSubtotal + includedTreatmentsExcludingWishlistSubtotal;
+
+  /** Wishlist is never included in the footer total (toggle removed). */
+  const pickStepTotalDisplay = includedTotalExcludingWishlistPrices;
 
   const [step, setStep] = useState<"pick" | "send">("pick");
   const [preparingLink, setPreparingLink] = useState(false);
@@ -248,11 +403,19 @@ export default function ShareTreatmentPlanLinkModal({
   const [pendingBlueprintToken, setPendingBlueprintToken] = useState<
     string | null
   >(null);
+  /** When true, SMS step uses one fully editable textarea (pricing gaps / estimates on the plan). */
+  const [sharePricingImperfect, setSharePricingImperfect] = useState(false);
+  const [blueprintSmsFullDraft, setBlueprintSmsFullDraft] = useState("");
 
-  const modalSubheading =
-    step === "pick"
-      ? `Choose what appears on ${firstName}'s plan page and review pricing, then continue to send the link by SMS.`
-      : `Confirm the phone number and optional note. The greeting and link at the start of the text stay fixed until you send.`;
+  const modalSubheading = useMemo(() => {
+    if (step === "pick") {
+      return "Select only the treatments you'd like to share.";
+    }
+    if (sharePricingImperfect) {
+      return "Review the message and enter phone. Keep the plan link in the text.";
+    }
+    return "Enter phone and optional note.";
+  }, [sharePricingImperfect, step]);
 
   useEffect(() => {
     if (!isPostVisitBlueprintSender(provider)) return;
@@ -268,8 +431,50 @@ export default function ShareTreatmentPlanLinkModal({
   }, [onClose, preparingLink, sending]);
 
   const toggleInclude = useCallback((id: string) => {
-    setInclusionById((prev) => ({ ...prev, [id]: !prev[id] }));
+    setInclusionById((prev) => {
+      const nextOn = !prev[id];
+      if (!nextOn) {
+        setPatientPriceOverrideInputById((ov) => ({ ...ov, [id]: "" }));
+      }
+      return { ...prev, [id]: nextOn };
+    });
   }, []);
+
+  const renderShareRowTimelineActions = useCallback(
+    (item: DiscussedItem) => {
+      if (!onUpdateDiscussedItem || isSkincarePlanItem(item)) return null;
+      return (
+        <div className="share-tp-link-quote-row-timeline-actions">
+          {!isWishlistTimelineItem(item) ? (
+            <button
+              type="button"
+              className="share-tp-link-timeline-action-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                void onUpdateDiscussedItem(item.id, { timeline: "Wishlist" });
+              }}
+            >
+              Move to wishlist
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="share-tp-link-timeline-action-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                void onUpdateDiscussedItem(item.id, {
+                  timeline: "Add next visit",
+                });
+              }}
+            >
+              Add to plan
+            </button>
+          )}
+        </div>
+      );
+    },
+    [onUpdateDiscussedItem],
+  );
 
   const includedIdSet = useMemo(() => {
     const s = new Set<string>();
@@ -278,6 +483,21 @@ export default function ShareTreatmentPlanLinkModal({
     });
     return s;
   }, [inclusionById]);
+
+  const includedLinesWithPatientPriceOverride = useMemo(() => {
+    return eligibleItems.filter((i) => {
+      if (!inclusionById[i.id] || !showPriceOnSharedTreatmentPlanLink(i)) {
+        return false;
+      }
+      return parseSharePatientPriceOverride(patientPriceOverrideInputById[i.id]) !== null;
+    }).length;
+  }, [eligibleItems, inclusionById, patientPriceOverrideInputById]);
+
+  const bulkEditablePriceItems = useMemo(
+    () =>
+      eligibleItems.filter((i) => showPriceOnSharedTreatmentPlanLink(i)),
+    [eligibleItems],
+  );
 
   const handlePrepareLink = useCallback(async () => {
     if (!isPostVisitBlueprintSender(provider)) {
@@ -294,7 +514,10 @@ export default function ShareTreatmentPlanLinkModal({
       showError("Select at least one item to include on the shared plan.");
       return;
     }
-    const quoteData = computeQuoteSheetDataForDiscussedItems(discussedItems);
+    const quoteData = computeQuoteSheetDataForDiscussedItems(
+      discussedItems,
+      effectivePriceList,
+    );
     if (!quoteData) {
       showError("Could not build pricing context for this plan.");
       return;
@@ -303,6 +526,28 @@ export default function ShareTreatmentPlanLinkModal({
     if (!isValidPhone(formattedPhone)) {
       showError("A valid patient phone number is required.");
       return;
+    }
+
+    const sharePriceWithPatientByDiscussedId: Record<string, boolean> = {};
+    for (const item of eligibleItems) {
+      sharePriceWithPatientByDiscussedId[item.id] =
+        showPriceOnSharedTreatmentPlanLink(item);
+    }
+
+    const patientPriceOverrideByDiscussedId: Record<string, number> = {};
+    for (const id of includedIdSet) {
+      const row = eligibleItems.find((x) => x.id === id);
+      if (!row || !showPriceOnSharedTreatmentPlanLink(row)) continue;
+      const raw = patientPriceOverrideInputById[id]?.trim() ?? "";
+      if (!raw) continue;
+      const n = parseSharePatientPriceOverride(raw);
+      if (n === null) {
+        showError(
+          "Enter a valid patient price (numbers only), or clear the optional field to use the automatic price.",
+        );
+        return;
+      }
+      patientPriceOverrideByDiscussedId[id] = n;
     }
 
     setPreparingLink(true);
@@ -327,6 +572,11 @@ export default function ShareTreatmentPlanLinkModal({
           hasUnknownPrices: quoteData.hasUnknownPrices,
           isMintMember: false,
         },
+        sharePriceWithPatientByDiscussedId,
+        patientPriceOverrideByDiscussedId:
+          Object.keys(patientPriceOverrideByDiscussedId).length > 0
+            ? patientPriceOverrideByDiscussedId
+            : undefined,
         cta: {
           bookingUrl: getPostVisitBlueprintBookingUrl(provider),
           financingUrl,
@@ -336,10 +586,19 @@ export default function ShareTreatmentPlanLinkModal({
       setPendingBlueprintLink(link);
       setPendingBlueprintToken(token);
       setBlueprintRecipientPhone(formattedPhone || "");
-      setBlueprintMessageIntro(
-        `Hi ${firstName}, your custom treatment plan from ${clinicName} is ready.`,
-      );
+      const intro = `Hi ${firstName}, your custom treatment plan from ${clinicName} is ready.`;
+      setBlueprintMessageIntro(intro);
       setBlueprintMessageAfterLink("");
+      const imperfect = shareQuoteHasPricingGaps(
+        discussedItems,
+        includedIdSet,
+        quoteData.hasUnknownPrices,
+        effectivePriceList,
+      );
+      setSharePricingImperfect(imperfect);
+      setBlueprintSmsFullDraft(
+        imperfect ? `${intro} Review it here: ${link}\n\n` : "",
+      );
       setStep("send");
     } catch (e) {
       showError(
@@ -354,12 +613,15 @@ export default function ShareTreatmentPlanLinkModal({
     client,
     clinicName,
     discussedItems,
+    effectivePriceList,
     financingUrl,
     firstName,
     includedIdSet,
     provider,
     providerPhone,
+    eligibleItems,
     recommenderFocusRegions,
+    patientPriceOverrideInputById,
   ]);
 
   const handleConfirmSend = useCallback(async () => {
@@ -367,19 +629,35 @@ export default function ShareTreatmentPlanLinkModal({
       showError("Link is missing. Go back and try again.");
       return;
     }
-    const intro = blueprintMessageIntro.trim();
-    if (!intro) {
-      showError("Message is not ready. Go back and prepare the link again.");
-      return;
-    }
     if (!isValidPhone(formatPhoneDisplay(blueprintRecipientPhone))) {
       showError("Enter a valid recipient phone number.");
       return;
     }
 
-    const core = `${intro} Review it here: ${pendingBlueprintLink}`;
-    const after = blueprintMessageAfterLink.trim();
-    const smsText = after ? `${core}\n\n${after}` : core;
+    let smsText: string;
+    if (sharePricingImperfect) {
+      const body = blueprintSmsFullDraft.trim();
+      if (!body) {
+        showError("Message is empty.");
+        return;
+      }
+      if (!body.includes(pendingBlueprintLink)) {
+        showError(
+          "Keep the plan link in the message so your patient can open it.",
+        );
+        return;
+      }
+      smsText = body;
+    } else {
+      const intro = blueprintMessageIntro.trim();
+      if (!intro) {
+        showError("Message is not ready. Go back and prepare the link again.");
+        return;
+      }
+      const core = `${intro} Review it here: ${pendingBlueprintLink}`;
+      const after = blueprintMessageAfterLink.trim();
+      smsText = after ? `${core}\n\n${after}` : core;
+    }
 
     setSending(true);
     try {
@@ -394,6 +672,19 @@ export default function ShareTreatmentPlanLinkModal({
         provider_name: provider?.name ?? "",
         patient_id: client.id,
       });
+      capturePatientAcquisitionFunnelEvent("funnel_pvs_sent", client.id, {
+        token: pendingBlueprintToken,
+        clinic_name: clinicName,
+        provider_name: provider?.name ?? "",
+      });
+      notifyTreatmentPlanShareSent({
+        providerId: String(provider?.id ?? ""),
+        providerName: provider?.name,
+        providerCode: provider?.code,
+        patientId: client.id,
+        patientName: client.name,
+        blueprintToken: pendingBlueprintToken,
+      });
       showToast(`Treatment plan link sent to ${firstName}`);
       onSuccess?.();
       onClose();
@@ -406,6 +697,7 @@ export default function ShareTreatmentPlanLinkModal({
     blueprintMessageIntro,
     blueprintMessageAfterLink,
     blueprintRecipientPhone,
+    blueprintSmsFullDraft,
     client,
     clinicName,
     firstName,
@@ -413,7 +705,10 @@ export default function ShareTreatmentPlanLinkModal({
     onSuccess,
     pendingBlueprintLink,
     pendingBlueprintToken,
+    provider?.code,
+    provider?.id,
     provider?.name,
+    sharePricingImperfect,
   ]);
 
   const handlePreviewLink = useCallback(() => {
@@ -644,12 +939,27 @@ export default function ShareTreatmentPlanLinkModal({
             <div className="share-tp-link-dialog-body">
               {eligibleItems.length === 0 ? (
                 <p className="share-treatment-plan-link-empty">
-                  Only Now, Add next visit, Wishlist, and Skincare can be
-                  shared. Move items out of Completed, or add plan rows in those
-                  sections.
+                  Nothing here to share yet. Move items out of Completed or add
+                  plan lines first.
                 </p>
               ) : (
                 <div className="share-tp-link-quote">
+                  {bulkEditablePriceItems.length > 0 ? (
+                    <div className="share-tp-link-quote-toolbar">
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm share-tp-link-edit-prices-btn"
+                        onClick={() =>
+                          setInlinePatientPricesEditing((o) => !o)
+                        }
+                        aria-expanded={inlinePatientPricesEditing}
+                      >
+                        {inlinePatientPricesEditing
+                          ? "Done editing prices"
+                          : "Edit prices"}
+                      </button>
+                    </div>
+                  ) : null}
                   {skincareShareItems.length > 0 ? (
                     <div className="share-tp-link-quote-section">
                       <h4 className="share-tp-link-quote-section-title">
@@ -660,6 +970,10 @@ export default function ShareTreatmentPlanLinkModal({
                           const line = lineForItem(item);
                           const showFix =
                             Boolean(line?.missingInfo) && onNavigateToEditPlanItem;
+                          const skincareSecondary =
+                            getTreatmentPlanRowSecondaryLabel(item);
+                          const plannedLine =
+                            plannedForPatientLineFromDiscussedItem(item);
                           return (
                             <li key={item.id} className="share-tp-link-quote-row-li">
                               <label className="share-tp-link-quote-row">
@@ -672,24 +986,42 @@ export default function ShareTreatmentPlanLinkModal({
                                   <span className="share-treatment-plan-link-row-title">
                                     {getTreatmentPlanRowPrimaryLabel(item)}
                                   </span>
-                                  <span className="share-treatment-plan-link-row-meta">
-                                    {sectionLabelForShareRow(item)}
-                                  </span>
+                                  {skincareSecondary ? (
+                                    <span className="share-treatment-plan-link-row-sub">
+                                      {skincareSecondary}
+                                    </span>
+                                  ) : (
+                                    <span className="share-treatment-plan-link-row-meta">
+                                      Skincare
+                                    </span>
+                                  )}
+                                  {plannedLine ? (
+                                    <span className="share-tp-link-row-planned">
+                                      {plannedLine}
+                                    </span>
+                                  ) : null}
                                 </span>
                                 <span className="share-tp-link-quote-row-price-block">
-                                  {(() => {
-                                    const p = shareRowPriceDisplay(line);
-                                    return (
-                                      <>
-                                        <strong>{p.text}</strong>
-                                        {p.warning && (
-                                          <span className="share-tp-link-quote-row-missing">
-                                            ⚠ {p.warning}
-                                          </span>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
+                                  <ShareQuoteRowPriceBlock
+                                    itemId={item.id}
+                                    line={line}
+                                    include={Boolean(inclusionById[item.id])}
+                                    showPriceOnPatient={showPriceOnSharedTreatmentPlanLink(
+                                      item,
+                                    )}
+                                    patientPriceOverrideRaw={
+                                      patientPriceOverrideInputById[item.id]
+                                    }
+                                    setPatientPriceOverride={(value) =>
+                                      setPatientPriceOverrideInputById((prev) => ({
+                                        ...prev,
+                                        [item.id]: value,
+                                      }))
+                                    }
+                                    inlinePriceEditMode={
+                                      inlinePatientPricesEditing
+                                    }
+                                  />
                                 </span>
                               </label>
                               {showFix ? (
@@ -720,8 +1052,8 @@ export default function ShareTreatmentPlanLinkModal({
                       </h4>
                       {treatmentTimelineGroups.map((group) => (
                         <div
-                          key={group.title}
-                          className="share-tp-link-timeline-group"
+                          key={group.variant}
+                          className={`share-tp-link-timeline-group share-tp-link-timeline-group--${group.variant}`}
                         >
                           <h5 className="share-tp-link-timeline-group-title">
                             {group.title}
@@ -731,6 +1063,12 @@ export default function ShareTreatmentPlanLinkModal({
                               const line = lineForItem(item);
                               const showFix =
                                 Boolean(line?.missingInfo) && onNavigateToEditPlanItem;
+                              const treatmentSecondary =
+                                getTreatmentPlanRowSecondaryLabel(item, {
+                                  omitTimeline: group.variant === "wishlist",
+                                });
+                              const plannedLine =
+                                plannedForPatientLineFromDiscussedItem(item);
                               return (
                                 <li key={item.id} className="share-tp-link-quote-row-li">
                                   <label className="share-tp-link-quote-row">
@@ -743,23 +1081,41 @@ export default function ShareTreatmentPlanLinkModal({
                                       <span className="share-treatment-plan-link-row-title">
                                         {getTreatmentPlanRowPrimaryLabel(item)}
                                       </span>
+                                      {treatmentSecondary ? (
+                                        <span className="share-treatment-plan-link-row-sub">
+                                          {treatmentSecondary}
+                                        </span>
+                                      ) : null}
+                                      {plannedLine ? (
+                                        <span className="share-tp-link-row-planned">
+                                          {plannedLine}
+                                        </span>
+                                      ) : null}
                                     </span>
                                     <span className="share-tp-link-quote-row-price-block">
-                                      {(() => {
-                                        const p = shareRowPriceDisplay(line);
-                                        return (
-                                          <>
-                                            <strong>{p.text}</strong>
-                                            {p.warning && (
-                                              <span className="share-tp-link-quote-row-missing">
-                                                ⚠ {p.warning}
-                                              </span>
-                                            )}
-                                          </>
-                                        );
-                                      })()}
+                                      <ShareQuoteRowPriceBlock
+                                        itemId={item.id}
+                                        line={line}
+                                        include={Boolean(inclusionById[item.id])}
+                                        showPriceOnPatient={showPriceOnSharedTreatmentPlanLink(
+                                          item,
+                                        )}
+                                        patientPriceOverrideRaw={
+                                          patientPriceOverrideInputById[item.id]
+                                        }
+                                        setPatientPriceOverride={(value) =>
+                                          setPatientPriceOverrideInputById((prev) => ({
+                                            ...prev,
+                                            [item.id]: value,
+                                          }))
+                                        }
+                                        inlinePriceEditMode={
+                                          inlinePatientPricesEditing
+                                        }
+                                      />
                                     </span>
                                   </label>
+                                  {renderShareRowTimelineActions(item)}
                                   {showFix ? (
                                     <div className="share-tp-link-quote-row-fix">
                                       <button
@@ -777,19 +1133,50 @@ export default function ShareTreatmentPlanLinkModal({
                           </ul>
                         </div>
                       ))}
-                      <div className="share-tp-link-quote-subtotal">
-                        <span>Treatments subtotal</span>
-                        <strong>
-                          {formatPrice(includedTreatmentSubtotal)}
-                        </strong>
-                      </div>
+                      {hasWishlistTreatmentRows ? (
+                        <>
+                          <div className="share-tp-link-quote-subtotal">
+                            <span>Treatments (excl. wishlist)</span>
+                            <strong>
+                              {formatPrice(
+                                includedTreatmentsExcludingWishlistSubtotal,
+                              )}
+                            </strong>
+                          </div>
+                          {includedTreatmentsWishlistSubtotal > 0 ? (
+                            <div className="share-tp-link-quote-subtotal share-tp-link-quote-subtotal--muted">
+                              <span>Wishlist (later)</span>
+                              <strong>
+                                {formatPrice(
+                                  includedTreatmentsWishlistSubtotal,
+                                )}
+                              </strong>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : (
+                        <div className="share-tp-link-quote-subtotal">
+                          <span>Treatments subtotal</span>
+                          <strong>
+                            {formatPrice(
+                              includedTreatmentsExcludingWishlistSubtotal,
+                            )}
+                          </strong>
+                        </div>
+                      )}
                     </div>
                   ) : null}
                   <div className="share-tp-link-quote-footer">
                     <div className="share-tp-link-quote-total">
                       <span>Total</span>
-                      <strong>{formatPrice(includedSelectionTotal)}</strong>
+                      <strong>{formatPrice(pickStepTotalDisplay)}</strong>
                     </div>
+                    {includedLinesWithPatientPriceOverride > 0 ? (
+                      <p className="share-tp-link-quote-total-note">
+                        Custom prices are included in the totals and on their
+                        page.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -841,7 +1228,11 @@ export default function ShareTreatmentPlanLinkModal({
               <div className="share-tp-link-compose-message-section">
                 <label
                   className="treatment-plan-checkout-blueprint-compose-label treatment-plan-checkout-blueprint-compose-label--textarea"
-                  htmlFor="share-tp-link-message-after"
+                  htmlFor={
+                    sharePricingImperfect
+                      ? "share-tp-link-message-full"
+                      : "share-tp-link-message-after"
+                  }
                 >
                   Message
                 </label>
@@ -849,27 +1240,40 @@ export default function ShareTreatmentPlanLinkModal({
                   className="share-tp-link-compose-section-lede"
                   id="share-tp-link-sms-lede"
                 >
-                  One text to the patient. The greeting and link at the start
-                  can&apos;t be changed—click after the link and type only if
-                  you want to add more.
+                  {sharePricingImperfect
+                    ? "Edit if needed. Don't remove the plan link."
+                    : "Optional text goes after the link."}
                 </p>
-                <textarea
-                  ref={smsTextareaRef}
-                  id="share-tp-link-message-after"
-                  className="treatment-plan-checkout-blueprint-compose-textarea share-tp-link-sms-full-textarea"
-                  value={smsTextareaValue}
-                  onChange={handleSmsTextareaChange}
-                  onKeyDown={handleSmsTextareaKeyDown}
-                  onKeyUp={handleSmsTextareaKeyUp}
-                  onPaste={handleSmsTextareaPaste}
-                  onClick={handleSmsTextareaClickMouseUp}
-                  onMouseUp={handleSmsTextareaClickMouseUp}
-                  onFocus={handleSmsTextareaFocus}
-                  rows={8}
-                  spellCheck
-                  aria-describedby="share-tp-link-sms-lede"
-                  aria-label="SMS including fixed greeting and plan link; type after the link to add text"
-                />
+                {sharePricingImperfect ? (
+                  <textarea
+                    id="share-tp-link-message-full"
+                    className="treatment-plan-checkout-blueprint-compose-textarea share-tp-link-sms-full-textarea"
+                    value={blueprintSmsFullDraft}
+                    onChange={(e) => setBlueprintSmsFullDraft(e.target.value)}
+                    rows={10}
+                    spellCheck
+                    aria-describedby="share-tp-link-sms-lede"
+                    aria-label="Full SMS text including greeting and plan link"
+                  />
+                ) : (
+                  <textarea
+                    ref={smsTextareaRef}
+                    id="share-tp-link-message-after"
+                    className="treatment-plan-checkout-blueprint-compose-textarea share-tp-link-sms-full-textarea"
+                    value={smsTextareaValue}
+                    onChange={handleSmsTextareaChange}
+                    onKeyDown={handleSmsTextareaKeyDown}
+                    onKeyUp={handleSmsTextareaKeyUp}
+                    onPaste={handleSmsTextareaPaste}
+                    onClick={handleSmsTextareaClickMouseUp}
+                    onMouseUp={handleSmsTextareaClickMouseUp}
+                    onFocus={handleSmsTextareaFocus}
+                    rows={8}
+                    spellCheck
+                    aria-describedby="share-tp-link-sms-lede"
+                    aria-label="SMS including fixed greeting and plan link; type after the link to add text"
+                  />
+                )}
               </div>
             </div>
             <div className="share-tp-link-dialog-footer">
@@ -883,6 +1287,8 @@ export default function ShareTreatmentPlanLinkModal({
                     setPendingBlueprintToken(null);
                     setBlueprintMessageIntro("");
                     setBlueprintMessageAfterLink("");
+                    setSharePricingImperfect(false);
+                    setBlueprintSmsFullDraft("");
                   }}
                   disabled={sending}
                 >
@@ -903,8 +1309,13 @@ export default function ShareTreatmentPlanLinkModal({
                   disabled={
                     sending ||
                     !pendingBlueprintLink ||
-                    !blueprintMessageIntro.trim() ||
-                    !isValidPhone(formatPhoneDisplay(blueprintRecipientPhone))
+                    !isValidPhone(formatPhoneDisplay(blueprintRecipientPhone)) ||
+                    (sharePricingImperfect
+                      ? !blueprintSmsFullDraft.trim() ||
+                        !blueprintSmsFullDraft.includes(
+                          pendingBlueprintLink,
+                        )
+                      : !blueprintMessageIntro.trim())
                   }
                 >
                   {sending ? "Sending…" : "Send message"}

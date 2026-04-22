@@ -36,6 +36,8 @@ export interface DiscussedItem {
   brand?: string;
   region?: string;
   timeline?: string;
+  /** ISO date YYYY-MM-DD when the patient intends this treatment on a specific day (calendar view). */
+  scheduledDate?: string;
   /** Quantity (e.g. syringes, units) – quick-select in UI */
   quantity?: string;
   recurring?: string;
@@ -214,7 +216,8 @@ export type ViewType =
   | "offers"
   | "inbox"
   | "sms-history"
-  | "settings";
+  | "settings"
+  | "user-admin";
 
 export interface FilterState {
   source: string;

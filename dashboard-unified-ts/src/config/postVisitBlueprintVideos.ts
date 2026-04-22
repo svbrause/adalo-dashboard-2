@@ -159,7 +159,21 @@ export const POST_VISIT_BLUEPRINT_VIDEOS: PostVisitBlueprintVideo[] = [
     subtitle: "Common questions about dermal filler.",
     posterUrl: `${POSTERS}/filler-faq.jpg`,
     sources: [{ src: `${BASE}/filler-faq.mp4`, mimeType: "video/mp4" }],
-    matchKeywords: ["filler", "hyaluronic", "injection", "volum"],
+    /** Avoid "injection" — matches PRFM injections, cortisone injections, etc. */
+    matchAgainstPlanSpecificsOnly: true,
+    matchKeywords: [
+      "filler",
+      "hyaluronic",
+      "volum",
+      "juvederm",
+      "restylane",
+      "belotero",
+      "versa",
+      "volux",
+      "voluma",
+      "tear trough",
+      "dermal filler",
+    ],
   },
 ];
 

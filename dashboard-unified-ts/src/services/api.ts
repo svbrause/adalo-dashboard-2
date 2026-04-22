@@ -59,6 +59,16 @@ async function safeJsonParse(response: Response): Promise<any> {
   return response.json();
 }
 
+/** Normalize Airtable provider payload so `code` is always set (used by merge groups and UI). */
+export function normalizeProviderFromApi(raw: Record<string, unknown>): Provider {
+  const code =
+    (typeof raw.code === "string" && raw.code) ||
+    (typeof raw.providerCode === "string" && raw.providerCode) ||
+    (typeof raw.Code === "string" && raw.Code) ||
+    "";
+  return { ...(raw as unknown as Provider), code };
+}
+
 export async function fetchProviderByCode(
   providerCode: string
 ): Promise<Provider> {
@@ -72,7 +82,29 @@ export async function fetchProviderByCode(
   }
 
   const data = await safeJsonParse(response);
-  return data.provider;
+  return normalizeProviderFromApi(data.provider);
+}
+
+/** Load provider by Airtable record id (`rec...`) — used when staff users have `practiceIds` in claims. */
+export async function fetchProviderByRecordId(
+  providerRecordId: string,
+): Promise<Provider> {
+  const apiUrl = `${API_BASE_URL}/api/dashboard/provider/by-id?providerId=${encodeURIComponent(
+    providerRecordId.trim(),
+  )}`;
+
+  const response = await fetch(apiUrl);
+
+  if (!response.ok) {
+    const errorData = await safeJsonParse(response).catch(() => ({}));
+    throw new Error(
+      errorData.message ||
+        `Provider not found for id: ${providerRecordId}`,
+    );
+  }
+
+  const data = await safeJsonParse(response);
+  return normalizeProviderFromApi(data.provider);
 }
 
 /**
@@ -80,6 +112,34 @@ export async function fetchProviderByCode(
  * Source is "analysis.ponce.ai" to distinguish from cases.ponce.ai (different app).
  * Fire-and-forget: does not block login; failures are logged only.
  */
+/**
+ * Fire-and-forget: notify backend when a treatment plan link SMS was sent (Slack / ops).
+ * Backend should implement `POST /api/dashboard/treatment-plan-share-notification` or no-op.
+ */
+export function notifyTreatmentPlanShareSent(payload: {
+  providerId: string;
+  providerName?: string;
+  providerCode?: string;
+  patientId: string;
+  patientName?: string;
+  blueprintToken?: string;
+  source?: string;
+}): void {
+  const apiUrl = API_BASE_URL + "/api/dashboard/treatment-plan-share-notification";
+  const body = {
+    ...payload,
+    timestamp: new Date().toISOString(),
+    source: payload.source ?? "analysis.ponce.ai",
+  };
+  fetch(apiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch((err) => {
+    console.warn("Treatment plan share notification failed (non-blocking):", err);
+  });
+}
+
 export function notifyLoginToSlack(provider: Provider): void {
   const apiUrl = API_BASE_URL + "/api/dashboard/login-notification";
 
@@ -879,6 +939,7 @@ export type TreatmentRecommenderOptionType =
   | "neurotoxin_what"
   | "chemical_peel_what"
   | "facial_service_what"
+  | "other_procedures_what"
   | "timeline";
 
 export interface TreatmentRecommenderCustomOption {

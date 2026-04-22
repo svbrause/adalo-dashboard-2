@@ -1,8 +1,14 @@
 // Provider Login Screen Component
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, useCallback, FormEvent } from "react";
 import { useDashboard } from "../../context/DashboardContext";
-import { fetchProviderByCode, notifyLoginToSlack } from "../../services/api";
+import { useFirebaseAuth } from "../../context/FirebaseAuthContext";
+import {
+  fetchProviderByCode,
+  fetchProviderByRecordId,
+  notifyLoginToSlack,
+} from "../../services/api";
+import { fetchAllPracticesForAdmin } from "../../services/providersDirectory";
 import {
   saveProviderInfo,
   hasSeenWelcome,
@@ -10,14 +16,25 @@ import {
 } from "../../utils/providerStorage";
 import { Provider } from "../../types";
 import WelcomeModal from "../modals/WelcomeModal";
+import {
+  showStaffFirebaseAuthUi,
+  firebaseStaffLoginOpensDashboard,
+} from "../../firebase/config";
+import StaffFirebaseAuthPanel from "./StaffFirebaseAuthPanel";
 import "./ProviderLoginScreen.css";
 
 // Import images - Vite will process these and provide correct paths
 import bannerImage from "../../assets/images/c7b64b22c326934b039cd1c199e0440201e31414fc13b0918fe293b61feb63dc.jpg";
 import ponceLogo from "../../assets/images/ponce logo.png";
 
+/** Custom claim `admin: true` — user can pick any practice when `practiceIds` is missing. */
+function idTokenClaimsAreAdmin(claims: Record<string, unknown>): boolean {
+  return claims.admin === true || claims.admin === "true";
+}
+
 export default function ProviderLoginScreen() {
   const { setProvider } = useDashboard();
+  const { user: firebaseUser, loading: firebaseAuthLoading } = useFirebaseAuth();
   const [providerCode, setProviderCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +43,128 @@ export default function ProviderLoginScreen() {
     null,
   );
   const [showPassword, setShowPassword] = useState(false);
+
+  const [staffDashResolving, setStaffDashResolving] = useState(false);
+  const [practicePickOpen, setPracticePickOpen] = useState(false);
+  const [practicePickOptions, setPracticePickOptions] = useState<
+    { id: string; label: string }[]
+  >([]);
+  const [staffNoPracticeIds, setStaffNoPracticeIds] = useState(false);
+  const [staffFirebaseGateDone, setStaffFirebaseGateDone] = useState(false);
+
+  const finalizeStaffProviderLogin = useCallback(
+    async (providerRecordId: string) => {
+      const provider = await fetchProviderByRecordId(providerRecordId);
+      saveProviderInfo(provider);
+      setProvider(provider);
+      setLoggedInProvider(provider);
+      notifyLoginToSlack(provider);
+      if (!hasSeenWelcome(provider.id)) {
+        markWelcomeAsSeen(provider.id);
+        setTimeout(() => setShowWelcome(true), 500);
+      }
+    },
+    [setProvider],
+  );
+
+  useEffect(() => {
+    if (!firebaseStaffLoginOpensDashboard()) {
+      setStaffNoPracticeIds(false);
+      setStaffFirebaseGateDone(true);
+      return;
+    }
+
+    const user = firebaseUser;
+    if (firebaseAuthLoading || !user) {
+      setStaffNoPracticeIds(false);
+      setStaffFirebaseGateDone(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const run = async () => {
+      setStaffNoPracticeIds(false);
+      setStaffFirebaseGateDone(false);
+      setStaffDashResolving(true);
+      setError("");
+      try {
+        const { claims: tokenClaims } = await user.getIdTokenResult(true);
+        if (cancelled) return;
+        const claims = tokenClaims as Record<string, unknown>;
+
+        const idsRaw = claims.practiceIds;
+        const practiceIds = Array.isArray(idsRaw)
+          ? idsRaw.filter(
+              (x): x is string => typeof x === "string" && x.trim().length > 0,
+            )
+          : [];
+
+        const isAdmin = idTokenClaimsAreAdmin(claims);
+
+        if (practiceIds.length === 1) {
+          if (cancelled) return;
+          await finalizeStaffProviderLogin(practiceIds[0]);
+          return;
+        }
+
+        if (practiceIds.length > 1) {
+          const practices = await fetchAllPracticesForAdmin();
+          if (cancelled) return;
+          const opts = practiceIds.map((id) => {
+            const p = practices.find((x) => x.id === id);
+            const label = p
+              ? `${p.name || "Practice"} (${p.code || id})`
+              : `Provider ${id.slice(0, 8)}…`;
+            return { id, label };
+          });
+          setPracticePickOptions(opts);
+          setPracticePickOpen(true);
+          return;
+        }
+
+        // No practiceIds on token: Firebase admins can choose any practice (same list as /admin/firebase).
+        if (practiceIds.length === 0 && isAdmin) {
+          const practices = await fetchAllPracticesForAdmin();
+          if (cancelled) return;
+          if (practices.length === 0) {
+            if (!cancelled) setStaffNoPracticeIds(true);
+            return;
+          }
+          const opts = practices.map((p) => ({
+            id: p.id,
+            label: `${p.name || "Practice"} (${p.code || p.id})`,
+          }));
+          setPracticePickOptions(opts);
+          setPracticePickOpen(true);
+          return;
+        }
+
+        if (practiceIds.length === 0) {
+          if (!cancelled) setStaffNoPracticeIds(true);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : "Could not open dashboard from staff account.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setStaffDashResolving(false);
+          setStaffFirebaseGateDone(true);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [firebaseUser?.uid, firebaseAuthLoading, finalizeStaffProviderLogin]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -99,8 +238,23 @@ export default function ProviderLoginScreen() {
                 </div>
                 <p className="welcome-subtitle">
                   Please enter your provider code to access your dashboard
+                  {firebaseStaffLoginOpensDashboard() &&
+                    showStaffFirebaseAuthUi() && (
+                      <span className="login-subtitle-extra">
+                        {" "}
+                        Or sign in below with your staff email and password if your
+                        account has been assigned to a practice.
+                      </span>
+                    )}
                 </p>
               </div>
+              {(staffDashResolving || practicePickOpen) && (
+                <p className="staff-dash-status" aria-live="polite">
+                  {practicePickOpen
+                    ? "Choose which practice dashboard to open."
+                    : "Opening your dashboard…"}
+                </p>
+              )}
               <form onSubmit={handleSubmit}>
                 <div className="form-group">
                   <label htmlFor="provider-code">Provider Code</label>
@@ -174,10 +328,80 @@ export default function ProviderLoginScreen() {
                   )}
                 </button>
               </form>
+              {showStaffFirebaseAuthUi() && (
+                <StaffFirebaseAuthPanel
+                  openingDashboard={staffDashResolving}
+                  awaitingPracticeChoice={practicePickOpen}
+                  noPracticeAssignment={staffNoPracticeIds}
+                  dashboardClaimCheckDone={
+                    !firebaseStaffLoginOpensDashboard() ||
+                    !firebaseUser ||
+                    staffFirebaseGateDone
+                  }
+                />
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {practicePickOpen && (
+        <div
+          className="practice-pick-backdrop"
+          role="presentation"
+          onClick={() => setPracticePickOpen(false)}
+        >
+          <div
+            className="practice-pick-modal"
+            role="dialog"
+            aria-labelledby="practice-pick-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="practice-pick-title">Which practice?</h2>
+            <p className="practice-pick-lead">
+              Your account can access more than one. Pick one to load the
+              dashboard.
+            </p>
+            <ul className="practice-pick-list">
+              {practicePickOptions.map((o) => (
+                <li key={o.id}>
+                  <button
+                    type="button"
+                    className="practice-pick-btn"
+                    onClick={() => {
+                      void (async () => {
+                        setPracticePickOpen(false);
+                        setStaffDashResolving(true);
+                        setError("");
+                        try {
+                          await finalizeStaffProviderLogin(o.id);
+                        } catch (err) {
+                          setError(
+                            err instanceof Error
+                              ? err.message
+                              : "Could not load provider.",
+                          );
+                        } finally {
+                          setStaffDashResolving(false);
+                        }
+                      })();
+                    }}
+                  >
+                    {o.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="btn-secondary practice-pick-cancel"
+              onClick={() => setPracticePickOpen(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {showWelcome && loggedInProvider && (
         <WelcomeModal onClose={() => setShowWelcome(false)} />

@@ -89,7 +89,7 @@ export function PlanStatusPill({ client }: { client: Client }) {
     >
       <DashboardPlanIcon client={client} embed />
       <span className="detail-section-status-pill-label">
-        {complete ? "Completed" : "Not started"}
+        {complete ? "Built" : "Not started"}
       </span>
     </div>
   );

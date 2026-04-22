@@ -20,6 +20,10 @@ import {
   tierLabel,
 } from "../../config/analysisOverviewConfig";
 import { TREATMENT_META } from "../modals/DiscussedTreatmentsModal/constants";
+import {
+  resolveOtherProcedureSubChapterDowntime,
+  resolveOtherProcedureSubChapterLongevity,
+} from "../../utils/otherProcedureLongevity";
 import type { PatientSuggestionCard } from "../../services/api";
 import {
   findPatientSuggestionCardForPlanRow,
@@ -240,6 +244,21 @@ function getTreatmentMetaForPlanRow(
   row: PlanTreatmentRow,
 ): { longevity?: string; downtime?: string; priceRange?: string } {
   const dk = row.key.trim().toLowerCase();
+
+  /** Sub-chapter keys are `other procedures::<slug>` — not in {@link TREATMENT_META} keys. */
+  if (dk.startsWith("other procedures::")) {
+    const base = TREATMENT_META["Other procedures"];
+    const specific = resolveOtherProcedureSubChapterLongevity(row.displayName);
+    const longevity =
+      specific &&
+      (base.longevity === "Varies" || !base.longevity?.trim())
+        ? specific
+        : base.longevity;
+    const downtime =
+      resolveOtherProcedureSubChapterDowntime(row.displayName) ?? base.downtime;
+    return { ...base, longevity, downtime };
+  }
+
   const byKey = Object.keys(TREATMENT_META).find((k) => k.toLowerCase() === dk);
   if (byKey) return TREATMENT_META[byKey];
   const dn = row.displayName.trim();

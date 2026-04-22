@@ -171,6 +171,11 @@
   box-shadow: 0 4px 14px rgb(15 23 42 / 0.08);
 }
 
+.settings-hub-card-shell--firebase-admin {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 40%);
+}
+
 .settings-hub-card-body {
   padding: 18px 18px 8px;
   flex: 1 1 auto;

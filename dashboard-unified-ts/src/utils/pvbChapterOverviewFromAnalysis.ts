@@ -1,4 +1,6 @@
+import { ENERGY_TREATMENT_CATEGORY } from "../components/modals/DiscussedTreatmentsModal/constants";
 import type { TreatmentChapter } from "./blueprintTreatmentChapters";
+import { chapterTreatmentNormKey } from "./pvbChapterSchedule";
 import { patientFacingSkincareShortName } from "./pvbSkincareDisplay";
 import type {
   BlueprintAnalysisOverviewSnapshot,
@@ -159,6 +161,17 @@ function treatmentInsightClosing(chapter: TreatmentChapter): string {
 }
 
 function productHintSentence(chapter: TreatmentChapter): string | null {
+  const eb = chapterTreatmentNormKey(ENERGY_TREATMENT_CATEGORY);
+  if (
+    chapter.key.startsWith("other procedures::") ||
+    chapter.key.startsWith(`${eb}::`)
+  ) {
+    const single = chapter.displayName.trim();
+    if (!single) return null;
+    const area = chapter.displayArea ? ` in ${chapter.displayArea}` : "";
+    return `${single} is the main treatment your provider recommended${area}.`;
+  }
+
   const isSkincare = chapter.treatment.trim().toLowerCase() === "skincare";
   const raw = chapter.planItems
     .map((i) => (i.product ?? "").trim())

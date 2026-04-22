@@ -40,12 +40,38 @@ export function isWebsiteMarketingWebLead(client: Client): boolean {
   return false;
 }
 
-/** Show Online Treatment Finder / $50 coupon block only for marketing web-popup funnel leads. */
+/**
+ * Web Popup Leads record ids that always show the Online Treatment Finder section,
+ * overriding Source / funnel rules (e.g. legacy mis-tagged rows).
+ */
+const ONLINE_TREATMENT_FINDER_SECTION_WHITELIST = new Set<string>([
+  "recgjOnvpSpdYPbO7",
+]);
+
+function isWhitelistedForOnlineTreatmentFinderSection(client: Client): boolean {
+  if (ONLINE_TREATMENT_FINDER_SECTION_WHITELIST.has(client.id)) return true;
+  if (
+    client.linkedLeadId != null &&
+    ONLINE_TREATMENT_FINDER_SECTION_WHITELIST.has(client.linkedLeadId)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Show Online Treatment Finder / $50 coupon block only for marketing web-popup funnel leads.
+ * Includes merged Patient rows that retain `linkedLeadId` + `webPopupLeadSource` from the lead.
+ */
 export function showOnlineTreatmentFinderSection(client: Client): boolean {
-  return (
-    client.tableSource === "Web Popup Leads" &&
-    !isManualOrInClinicWebPopupLeadSource(client.source)
-  );
+  if (isWhitelistedForOnlineTreatmentFinderSection(client)) return true;
+  if (client.tableSource === "Web Popup Leads") {
+    return !isManualOrInClinicWebPopupLeadSource(client.source);
+  }
+  if (client.linkedLeadId != null && client.webPopupLeadSource != null) {
+    return !isManualOrInClinicWebPopupLeadSource(client.webPopupLeadSource);
+  }
+  return false;
 }
 
 /** Client type is from types/index.ts; we only need tableSource and source here. */

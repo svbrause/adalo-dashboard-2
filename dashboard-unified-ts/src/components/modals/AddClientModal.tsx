@@ -11,6 +11,7 @@ import {
   formatZipCodeInput,
 } from "../../utils/validation";
 import { showToast, showError } from "../../utils/toast";
+import { capturePatientAcquisitionFunnelEvent } from "../../utils/patientAcquisitionAnalytics";
 import "./AddClientModal.css";
 
 interface AddClientModalProps {
@@ -95,8 +96,15 @@ export default function AddClientModal({
         fields["Date of Birth"] = formData.dateOfBirth.trim();
       }
 
-      await createLeadRecord("Web Popup Leads", fields);
-      showToast(`Added ${formData.name} as a new lead!`);
+      const record = await createLeadRecord("Web Popup Leads", fields);
+      if (record?.id) {
+        capturePatientAcquisitionFunnelEvent(
+          "funnel_add_client_success",
+          record.id,
+          { provider_id: providerId },
+        );
+      }
+      showToast(`Added ${formData.name} as a new client!`);
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -114,7 +122,7 @@ export default function AddClientModal({
       >
         <div className="modal-header">
           <div className="modal-header-info">
-            <h2 className="modal-title">Add New Lead</h2>
+            <h2 className="modal-title">Add New Client</h2>
           </div>
           <button className="modal-close" onClick={onClose}>
             ×

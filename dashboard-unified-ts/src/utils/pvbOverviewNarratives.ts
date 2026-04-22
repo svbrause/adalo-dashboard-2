@@ -18,17 +18,66 @@ import {
   maybeAppendIntroScanBridge,
   type ChapterOverviewAnalysisInput,
 } from "./pvbChapterOverviewFromAnalysis";
-import { canonicalPlanTreatmentName } from "../components/modals/DiscussedTreatmentsModal/constants";
+import {
+  ENERGY_TREATMENT_CATEGORY,
+  LEGACY_ENERGY_DEVICE_CATEGORY,
+  canonicalPlanTreatmentName,
+} from "../components/modals/DiscussedTreatmentsModal/constants";
+import { chapterTreatmentNormKey } from "./pvbChapterSchedule";
+
+/**
+ * Meta line for blueprint “What’s included” — for Other procedures / Energy Treatment sub-chapters,
+ * omit the full multi-type `product` string; the chapter title is already the procedure name.
+ */
+function formatChapterPlanMetaLine(
+  item: DiscussedItem,
+  chapter: TreatmentChapter,
+): string {
+  const eb = chapterTreatmentNormKey(ENERGY_TREATMENT_CATEGORY);
+  const isOpSub =
+    chapter.key.startsWith("other procedures::") &&
+    (item.treatment ?? "").trim() === "Other procedures";
+  const isEnergySub =
+    chapter.key.startsWith(`${eb}::`) &&
+    ((item.treatment ?? "").trim() === ENERGY_TREATMENT_CATEGORY ||
+      (item.treatment ?? "").trim() === LEGACY_ENERGY_DEVICE_CATEGORY);
+  if (!isOpSub && !isEnergySub) return formatTreatmentPlanRecordMetaLine(item);
+  const parts: string[] = [];
+  const area = getDisplayAreaForItem(item);
+  if (area) parts.push(area);
+  const qLabel = getPlanQuantityLabelPrefix(
+    item.treatment,
+    chapter.displayName,
+  );
+  if (item.quantity && String(item.quantity).trim()) {
+    parts.push(`${qLabel}: ${item.quantity}`);
+  }
+  return parts.join(TREATMENT_PLAN_BULLET);
+}
 
 /** One plan line for chapter overview: skincare uses short names and avoids repeating product in meta. */
-function buildChapterPlanBulletLine(item: DiscussedItem): string {
+function buildChapterPlanBulletLine(
+  item: DiscussedItem,
+  chapter: TreatmentChapter,
+): string {
   const isSkincare = (item.treatment ?? "").trim().toLowerCase() === "skincare";
-  const rawLabel = getCheckoutDisplayName(item);
+  const eb = chapterTreatmentNormKey(ENERGY_TREATMENT_CATEGORY);
+  const isOpSub =
+    chapter.key.startsWith("other procedures::") &&
+    (item.treatment ?? "").trim() === "Other procedures";
+  const isEnergySub =
+    chapter.key.startsWith(`${eb}::`) &&
+    ((item.treatment ?? "").trim() === ENERGY_TREATMENT_CATEGORY ||
+      (item.treatment ?? "").trim() === LEGACY_ENERGY_DEVICE_CATEGORY);
+
+  const rawLabel = isOpSub || isEnergySub
+    ? chapter.displayName
+    : getCheckoutDisplayName(item);
   const label = isSkincare
     ? patientFacingSkincareShortName(rawLabel)
     : rawLabel;
   if (!isSkincare) {
-    const meta = formatTreatmentPlanRecordMetaLine(item);
+    const meta = formatChapterPlanMetaLine(item, chapter);
     return meta ? `${label} — ${meta}` : label;
   }
   const area = getDisplayAreaForItem(item);
@@ -81,7 +130,132 @@ const TREATMENT_CATEGORY_INTRO: Partial<Record<string, string>> = {
   Threadlift: "It provides lift and support in areas with mild sagging.",
   PRP: "It uses your body\u2019s own growth factors to support skin rejuvenation.",
   PDGF: "It supports tissue repair and skin quality in targeted areas.",
+  "Facial Services":
+    "It uses professional cleansing, exfoliation, and targeted esthetic steps to clarify, calm, or refresh the skin based on what your provider selected.",
+  /** Catch-all when the plan lists the category without a specific procedure type. */
+  "Other procedures":
+    "It covers focused add-ons and small in-office services that support your main treatments or address something specific from your visit.",
 };
+
+const OTHER_PLAN_CATEGORY = "Other procedures";
+
+/**
+ * Normalized labels for {@link getOtherProcedureTypesFromPriceList} and common variants.
+ * Keys must be lowercase single-spaced (see {@link normalizeHowItWorksLabel}).
+ */
+const OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL: Record<string, string> = {
+  "prfm injections":
+    "It uses growth-factor concentrate from your own blood—prepared in office—to support repair and skin quality where it’s injected.",
+  "prfm scalp (hair restoration)":
+    "It applies growth-factor concentrate to the scalp to support follicle health and hair restoration as part of a broader plan.",
+  "skinvive (skin booster)":
+    "It places tiny microdroplets of hyaluronic acid in the skin to boost hydration, smoothness, and glow without adding volume like a traditional filler.",
+  "pronox treatment":
+    "It uses inhaled nitrous oxide during treatment to ease anxiety and make procedures more comfortable.",
+  "vitamin b-12 shot":
+    "It delivers vitamin B12 by injection when your provider wants a reliable boost beyond what diet alone may provide.",
+  "cortisone shot":
+    "It delivers a small dose of corticosteroid into a focused spot to quickly calm inflammation from a cyst, painful breakout, or keloid.",
+  "zapping treatment (milia/sebaceous hyperplasia)":
+    "It treats tiny surface cysts or overgrown oil glands with a quick, targeted in-office procedure.",
+  "light stim add-on":
+    "It uses LED light during or after skincare to support calmness, clarity, or healing depending on the setting your team chose.",
+  "nerve block":
+    "It uses a brief, targeted numbing injection so a procedure or recovery phase is more comfortable.",
+  "spider vein treatment":
+    "It treats small surface vessels—often on the legs—with an injected medicine that helps them fade over time.",
+  "spider vein treatment package (3)":
+    "It treats small surface vessels—often on the legs—with an injected medicine that helps them fade over time, typically as a short series.",
+};
+
+function normalizeHowItWorksLabel(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * "How it works" for **Other procedures** rows: exact label from the price list, then fuzzy
+ * matches (e.g. "Skinvive II" → Skinvive copy).
+ */
+function otherProcedureHowItWorksIntro(displayName: string): string | null {
+  const n = normalizeHowItWorksLabel(displayName);
+  if (!n) return null;
+
+  const direct = OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL[n];
+  if (direct) return direct;
+
+  if (/\bskinvive\b/i.test(displayName)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["skinvive (skin booster)"]!;
+  }
+  if (/prfm/i.test(n) && /scalp|hair/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["prfm scalp (hair restoration)"]!;
+  }
+  if (/prfm/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["prfm injections"]!;
+  }
+  if (/cortisone/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["cortisone shot"]!;
+  }
+  if (/nerve\s*block/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["nerve block"]!;
+  }
+  if (/spider\s*vein/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["spider vein treatment"]!;
+  }
+  if (/pronox/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["pronox treatment"]!;
+  }
+  if (/b[-\s]?12|b12/i.test(n) && /shot|injection|inject/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["vitamin b-12 shot"]!;
+  }
+  if (/zapping|milia|sebaceous\s*hyperplasia/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL[
+      "zapping treatment (milia/sebaceous hyperplasia)"
+    ]!;
+  }
+  if (/light\s*stim/i.test(n)) {
+    return OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL["light stim add-on"]!;
+  }
+
+  return null;
+}
+
+const OTHER_PROCEDURE_UNKNOWN_INTRO =
+  "It’s an in-office service your provider matched to a specific concern or comfort need from your visit.";
+
+/**
+ * Resolves the first "How it works" sentence. Sub-chapters under **Other procedures** used to
+ * fall through to "focused on {displayName}" because `chapter.treatment` stays the category name.
+ */
+function resolveHowItWorksIntro(chapter: TreatmentChapter): string {
+  const canon = canonicalPlanTreatmentName(chapter.treatment);
+  const dn = chapter.displayName.trim();
+  const dnLower = dn.toLowerCase();
+
+  if (canon === OTHER_PLAN_CATEGORY) {
+    const baseKey = chapterTreatmentNormKey(OTHER_PLAN_CATEGORY);
+    const isCategoryOnlyRow =
+      chapter.key === baseKey &&
+      (dnLower === baseKey || dnLower === OTHER_PLAN_CATEGORY.toLowerCase());
+    if (isCategoryOnlyRow) {
+      return (
+        TREATMENT_CATEGORY_INTRO[OTHER_PLAN_CATEGORY] ??
+        OTHER_PROCEDURE_UNKNOWN_INTRO
+      );
+    }
+
+    const specific = otherProcedureHowItWorksIntro(dn);
+    if (specific) return specific;
+
+    return OTHER_PROCEDURE_UNKNOWN_INTRO;
+  }
+
+  const fromCategory =
+    TREATMENT_CATEGORY_INTRO[chapter.treatment] ??
+    TREATMENT_CATEGORY_INTRO[canon];
+  if (fromCategory) return fromCategory;
+
+  return `It's the part of your plan focused on ${dn}.`;
+}
 
 /**
  * Top-of-page copy: connects listed chapters to scan findings / focus areas / visit themes.
@@ -423,6 +597,132 @@ function planPillarPhraseForComplement(
   return "the rest of your plan";
 }
 
+/** Single-token treatment areas — avoid “goal of Forehead” (anatomy isn’t a “goal”). */
+const PRIORITY_SINGLE_TOKEN_AREA = new Set([
+  "forehead",
+  "frown",
+  "glabella",
+  "brow",
+  "brows",
+  "temple",
+  "temples",
+  "cheek",
+  "cheeks",
+  "midface",
+  "jaw",
+  "chin",
+  "neck",
+  "chest",
+  "face",
+  "nose",
+  "lip",
+  "lips",
+  "eye",
+  "eyes",
+  "perioral",
+  "hand",
+  "hands",
+  "jowl",
+  "jowls",
+  "décolleté",
+  "decollete",
+]);
+
+function areaPhraseForPriorityBridge(lower: string): string {
+  switch (lower) {
+    case "forehead":
+      return "your forehead";
+    case "frown":
+    case "glabella":
+      return "your frown lines";
+    case "brow":
+    case "brows":
+      return "your brow area";
+    case "eye":
+    case "eyes":
+      return "your eye area";
+    case "lip":
+    case "lips":
+      return "your lips";
+    case "cheek":
+    case "cheeks":
+      return "your cheeks";
+    case "hand":
+    case "hands":
+      return "your hands";
+    case "neck":
+      return "your neck";
+    case "chest":
+      return "your chest";
+    case "chin":
+      return "your chin";
+    case "jaw":
+      return "your jawline";
+    case "face":
+      return "your face";
+    case "temple":
+    case "temples":
+      return "your temples";
+    case "midface":
+      return "your mid-face";
+    case "nose":
+      return "your nose";
+    case "perioral":
+      return "the skin around your mouth";
+    case "jowl":
+    case "jowls":
+      return "your jawline and jowls";
+    case "décolleté":
+    case "decollete":
+      return "your chest and décolleté";
+    default:
+      return `your ${lower}`;
+  }
+}
+
+/**
+ * Copy for tying a chapter to `patientPriorities` (goals, findings, scan focus areas).
+ * Returns full sentences for the top complement; trailing space + sentence for the bottom.
+ */
+function patientPriorityBridgeCopy(priorityRaw: string): {
+  top: string;
+  tail: string;
+} | null {
+  const t = priorityRaw.trim();
+  if (!t) return null;
+
+  if (t.length > 160 || /[\n\r]/.test(t)) return null;
+
+  const lower = t.toLowerCase().replace(/\u2019/g, "'");
+
+  if (!/[\s,;]/.test(t) && PRIORITY_SINGLE_TOKEN_AREA.has(lower)) {
+    const phrase = areaPhraseForPriorityBridge(lower);
+    const s = `This aligns with priorities for ${phrase}.`;
+    return { top: s, tail: ` ${s}` };
+  }
+
+  if (/[\s,;]/.test(t) || t.length > 28) {
+    const s = `This aligns with what you prioritized: ${t}.`;
+    return { top: s, tail: ` ${s}` };
+  }
+
+  const s = `This aligns with your goal of ${t}.`;
+  return { top: s, tail: ` ${s}` };
+}
+
+/** When many sibling chapters exist, naming every procedure reads as redundant noise. */
+const SIBLING_NAME_LIST_CAP = 2;
+
+function formatSiblingChapterListForBridge(others: string[]): string {
+  if (others.length === 0) return "";
+  if (others.length <= SIBLING_NAME_LIST_CAP) {
+    return formatEnglishList(others);
+  }
+  const head = others.slice(0, SIBLING_NAME_LIST_CAP);
+  const rest = others.length - SIBLING_NAME_LIST_CAP;
+  return `${formatEnglishList(head)}, and ${rest} other treatment${rest === 1 ? "" : "s"}`;
+}
+
 function buildChapterClientApplicationTop(
   chapter: TreatmentChapter,
   mergedConcerns: string[],
@@ -440,17 +740,23 @@ function buildChapterClientApplicationTop(
   if (interest) {
     return `This was included based on what you discussed with your provider\u2014${interest}.`;
   }
-  const priority =
+  const priorityRaw =
     (complementCtx?.patientPriorities ?? []).find((p) => p.trim().length > 0) ??
     "";
-  if (priority) {
-    return `This ties into your goal of ${priority.trim()}.`;
+  const priorityBridge = patientPriorityBridgeCopy(priorityRaw);
+  if (priorityBridge) {
+    return priorityBridge.top;
   }
   if (complementCtx && complementCtx.totalChapters > 1) {
     const others = complementCtx.allChapterDisplayNames.filter(
       (_, i) => i !== complementCtx.chapterIndex,
     );
-    return `${self} is part of your overall plan, working alongside ${formatEnglishList(others)}.`;
+    if (others.length >= 3) {
+      return `${self} is part of your coordinated in-office plan alongside your other treatment chapters.`;
+    }
+    if (others.length > 0) {
+      return `${self} is part of your overall plan, working alongside ${formatEnglishList(others)}.`;
+    }
   }
   if (area) {
     return `Your provider recommended ${self.toLowerCase()} for ${area.toLowerCase()} based on your visit.`;
@@ -464,19 +770,23 @@ function buildChapterComplementBottom(
 ): string {
   const self = chapter.displayName.trim();
   const pillars = planPillarPhraseForComplement(ctx.planShape);
-  const priority =
+  const priorityRaw =
     (ctx.patientPriorities ?? []).find((p) => p.trim().length > 0) ?? "";
-  const priorityTail = priority
-    ? ` This connects back to your goal of ${priority}.`
-    : "";
+  const priorityTail = patientPriorityBridgeCopy(priorityRaw)?.tail ?? "";
   if (ctx.totalChapters <= 1) {
     return `Staying consistent with ${self} is what keeps your results building over time.${priorityTail}`;
   }
   const others = ctx.allChapterDisplayNames.filter(
     (_, i) => i !== ctx.chapterIndex,
   );
-  const othersList = formatEnglishList(others);
-  return `${self} works hand-in-hand with ${othersList}\u2014together, ${pillars} all reinforce the same goals.${priorityTail}`;
+  if (others.length >= 3) {
+    return `This chapter is one piece of a coordinated plan\u2014each in-office step is meant to work with the others, and together ${pillars} reinforce the same goals.${priorityTail}`;
+  }
+  if (others.length === 1) {
+    return `${self} works hand-in-hand with ${others[0]}\u2014together, ${pillars} reinforce the same goals.${priorityTail}`;
+  }
+  const othersList = formatSiblingChapterListForBridge(others);
+  return `${self} works hand-in-hand with ${othersList}\u2014together, ${pillars} reinforce the same goals.${priorityTail}`;
 }
 
 /**
@@ -488,10 +798,7 @@ export function buildChapterOverviewContent(
   options?: ChapterOverviewBuildOptions | null,
   complementContext?: ChapterComplementSandwichContext | null,
 ): ChapterOverviewParts {
-  const introBase =
-    TREATMENT_CATEGORY_INTRO[chapter.treatment] ??
-    TREATMENT_CATEGORY_INTRO[canonicalPlanTreatmentName(chapter.treatment)] ??
-    `It's the part of your plan focused on ${chapter.displayName}.`;
+  const introBase = resolveHowItWorksIntro(chapter);
 
   const ctx: ChapterOverviewAnalysisInput | undefined =
     options != null
@@ -521,7 +828,7 @@ export function buildChapterOverviewContent(
   }
 
   const planBullets = dedupeText(
-    chapter.planItems.map((item) => buildChapterPlanBulletLine(item)),
+    chapter.planItems.map((item) => buildChapterPlanBulletLine(item, chapter)),
   );
 
   const analysis = buildChapterAnalysisParagraph(chapter, mergedConcerns, {

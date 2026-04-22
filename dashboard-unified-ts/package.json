@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.21",
+    "firebase": "^11.10.0",
     "posthog-js": "^1.335.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

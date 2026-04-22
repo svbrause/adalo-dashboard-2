@@ -1,6 +1,6 @@
 // Share Treatment Plan Modal – share the treatment plan with patient via SMS
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type ChangeEvent } from "react";
 import { Client, DiscussedItem } from "../../types";
 import { useDashboard } from "../../context/DashboardContext";
 import { sendSMSNotification } from "../../services/api";
@@ -12,7 +12,10 @@ import {
   formatPhoneDisplay,
 } from "../../utils/validation";
 import { showToast, showError } from "../../utils/toast";
-import { getTreatmentDisplayName } from "./DiscussedTreatmentsModal/utils";
+import {
+  formatTreatmentPlanRowFullLine,
+  timelineOptionDisplayLabel,
+} from "./DiscussedTreatmentsModal/utils";
 import "./ShareTreatmentPlanModal.css";
 
 interface ShareTreatmentPlanModalProps {
@@ -24,7 +27,25 @@ interface ShareTreatmentPlanModalProps {
 }
 
 const SKINCARE_SECTION_LABEL = "Skincare";
-const TIMELINE_SECTIONS = ["Now", "Add next visit", "Wishlist", "Completed"] as const;
+const TIMELINE_SECTIONS = [
+  "Now",
+  "Add next visit",
+  "Scheduled",
+  "Wishlist",
+  "Completed",
+] as const;
+
+function filterOutCompletedTimelineItems(
+  items: DiscussedItem[],
+): DiscussedItem[] {
+  return items.filter(
+    (i) => (i.timeline ?? "").trim() !== "Completed",
+  );
+}
+
+function planHasCompletedTimelineItem(items: DiscussedItem[]): boolean {
+  return items.some((i) => (i.timeline ?? "").trim() === "Completed");
+}
 
 /** Build pre-filled message body that includes the actual plan items. Skincare in one section; others by timeline. */
 function buildTreatmentPlanMessageBody(
@@ -50,19 +71,20 @@ function buildTreatmentPlanMessageBody(
         : items.filter((item) => {
             if (item.treatment?.trim() === "Skincare") return false;
             const t = (item.timeline ?? "").trim();
-            if (section === "Now") return t === "Now";
-            if (section === "Add next visit") return t === "Add next visit";
-            if (section === "Completed") return t === "Completed";
-            return t === "Wishlist" || !t;
+            const hasSched = Boolean(item.scheduledDate?.trim());
+            if (section === "Now") return !hasSched && t === "Now";
+            if (section === "Add next visit")
+              return !hasSched && t === "Add next visit";
+            if (section === "Scheduled") return hasSched;
+            if (section === "Completed") return !hasSched && t === "Completed";
+            return !hasSched && (t === "Wishlist" || !t);
           });
     if (inSection.length === 0) continue;
-    lines.push(`${section}:`);
+    lines.push(`${timelineOptionDisplayLabel(section)}:`);
     for (const item of inSection) {
-      const treatment = getTreatmentDisplayName(item);
-      const parts: string[] = [treatment];
-      if (item.region) parts.push(`(${item.region})`);
-      if (item.product) parts.push(`— ${item.product}`);
-      lines.push(`• ${parts.join(" ")}`);
+      lines.push(
+        `• ${formatTreatmentPlanRowFullLine(item, { omitTimeline: true })}`,
+      );
     }
     lines.push("");
   }
@@ -77,18 +99,35 @@ export default function ShareTreatmentPlanModal({
 }: ShareTreatmentPlanModalProps) {
   const { provider } = useDashboard();
   const planItems = discussedItems ?? client.discussedItems ?? [];
-  const defaultMessageBody = useMemo(
+  const providerName = formatProviderDisplayName(provider?.name) || "We";
+  const messageBodyExcludingCompleted = useMemo(
     () =>
       buildTreatmentPlanMessageBody(
-        formatProviderDisplayName(provider?.name) || "We",
-        planItems
+        providerName,
+        filterOutCompletedTimelineItems(planItems),
       ),
-    [provider?.name, planItems]
+    [providerName, planItems],
   );
+  const messageBodyWithAll = useMemo(
+    () => buildTreatmentPlanMessageBody(providerName, planItems),
+    [providerName, planItems],
+  );
+  const hasCompletedInPlan = useMemo(
+    () => planHasCompletedTimelineItem(planItems),
+    [planItems],
+  );
+  const completedTimelineCount = useMemo(
+    () =>
+      planItems.filter((i) => (i.timeline ?? "").trim() === "Completed")
+        .length,
+    [planItems],
+  );
+  const [includeCompletedInMessage, setIncludeCompletedInMessage] =
+    useState(false);
   const [formData, setFormData] = useState({
     name: client.name || "",
     phone: client.phone ? formatPhoneDisplay(client.phone) : "",
-    message: defaultMessageBody,
+    message: messageBodyExcludingCompleted,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
@@ -109,6 +148,19 @@ export default function ShareTreatmentPlanModal({
       phone: client.phone ? formatPhoneDisplay(client.phone) : prev.phone,
     }));
   }, [client.name, client.phone]);
+
+  useEffect(() => {
+    if (!hasCompletedInPlan) setIncludeCompletedInMessage(false);
+  }, [hasCompletedInPlan]);
+
+  const onIncludeCompletedChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setIncludeCompletedInMessage(checked);
+    setFormData((prev) => ({
+      ...prev,
+      message: checked ? messageBodyWithAll : messageBodyExcludingCompleted,
+    }));
+  };
 
   const handleSend = async () => {
     setErrors({});
@@ -214,6 +266,33 @@ export default function ShareTreatmentPlanModal({
                 <span className="field-error">{errors.phone}</span>
               )}
             </div>
+
+            {hasCompletedInPlan && (
+              <div
+                className="share-tp-sms-completed-hint"
+                role="status"
+                aria-live="polite"
+              >
+                <label className="share-tp-sms-completed-hint__label">
+                  <input
+                    type="checkbox"
+                    className="share-tp-sms-completed-hint__checkbox"
+                    checked={includeCompletedInMessage}
+                    onChange={onIncludeCompletedChange}
+                  />
+                  <span>
+                    {completedTimelineCount === 1
+                      ? "Add completed treatment to the message"
+                      : "Add completed treatments to the message"}
+                  </span>
+                </label>
+                <p className="share-tp-sms-completed-hint__note">
+                  For most patients, the text should focus on what is planned or
+                  next—not on services already done. Turn this on only if you
+                  want the history in the SMS.
+                </p>
+              </div>
+            )}
 
             <div className="form-group form-group-spacing-lg">
               <label

@@ -32,3 +32,5 @@ dist-ssr
 # Google Cloud service account JSON (private keys — use CI / host secrets, never commit)
 service-account.json
 *-service-account.json
+# Firebase console "authentication test" / similar key downloads
+authentication-test-*.json

@@ -288,6 +288,27 @@ export const AUTOMATED_EMAILS: AutomatedEmail[] = [
   },
 ];
 
+const THE_TREATMENT_EMAIL_DOMAIN = "getthetreatment.com";
+
+/**
+ * True if this catalog row references The Treatment’s `@getthetreatment.com` domain (team
+ * inboxes, patient body copy, etc.). Used to omit Treatment-specific examples from other
+ * practices’ Settings → Notifications (e.g. Wellnest, JudgeMD).
+ */
+export function automatedEmailReferencesTheTreatmentDomain(
+  email: AutomatedEmail,
+): boolean {
+  const parts: string[] = [
+    email.exampleSubject,
+    email.description,
+    email.body ?? "",
+    email.name,
+    email.trigger,
+    ...email.teamRecipients.map((r) => r.email),
+  ];
+  return parts.join("\n").toLowerCase().includes(THE_TREATMENT_EMAIL_DOMAIN);
+}
+
 /** All unique team recipients across active emails. */
 export function getActiveTeamRecipients(): EmailRecipient[] {
   const seen = new Set<string>();

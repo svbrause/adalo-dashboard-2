@@ -8,6 +8,7 @@ import {
   useEffect,
   useRef,
   ReactNode,
+  MutableRefObject,
 } from "react";
 import {
   Client,
@@ -138,6 +139,32 @@ function isTheTreatmentMergeProvider(p: Provider | null): boolean {
   return codeMatch || nameMatch;
 }
 
+function applyPendingTimelineOverrides(
+  client: Client,
+  pendingTimelineOverrides: MutableRefObject<Map<string, Map<string, string>>>,
+): Client {
+  const clientOverrides = pendingTimelineOverrides.current.get(client.id);
+  if (!clientOverrides || clientOverrides.size === 0) return client;
+  if (!client.discussedItems || client.discussedItems.length === 0) {
+    return client;
+  }
+
+  let changed = false;
+  const discussedItems = client.discussedItems.map((item) => {
+    const pendingTimeline = clientOverrides.get(item.id);
+    if (pendingTimeline === undefined) return item;
+
+    if ((item.timeline ?? "").trim() === pendingTimeline.trim()) {
+      return item;
+    }
+
+    changed = true;
+    return { ...item, timeline: pendingTimeline };
+  });
+
+  return changed ? { ...client, discussedItems } : client;
+}
+
 interface DashboardContextType {
   provider: Provider | null;
   setProvider: (provider: Provider | null) => void;
@@ -166,6 +193,16 @@ interface DashboardContextType {
   setError: (error: string | null) => void;
   /** Refetch clients. Pass true to skip global loading (e.g. after modal save) to avoid white flash. */
   refreshClients: (skipLoading?: boolean) => Promise<void>;
+  cacheClientDiscussedItemTimeline: (
+    clientId: string,
+    itemId: string,
+    timeline: string,
+  ) => void;
+  clearClientDiscussedItemTimelineCache: (
+    clientId: string,
+    itemId?: string,
+    expectedTimeline?: string,
+  ) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(
@@ -217,6 +254,59 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
 
   // Cache merged IDs for TheTreatment250/TheTreatment447 so we only fetch the other provider once per session
   const merged250447IdsRef = useRef<[string, string] | null>(null);
+  const pendingPlanTimelineOverridesRef = useRef<
+    Map<string, Map<string, string>>
+  >(new Map());
+
+  const cacheClientDiscussedItemTimeline = useCallback(
+    (clientId: string, itemId: string, timeline: string) => {
+      const clientOverrides =
+        pendingPlanTimelineOverridesRef.current.get(clientId) ?? new Map();
+      clientOverrides.set(itemId, timeline);
+      pendingPlanTimelineOverridesRef.current.set(clientId, clientOverrides);
+
+      setClients((prevClients) =>
+        prevClients.map((client) => {
+          if (client.id !== clientId || !client.discussedItems) return client;
+          return {
+            ...client,
+            discussedItems: client.discussedItems.map((item) =>
+              item.id === itemId ? { ...item, timeline } : item,
+            ),
+          };
+        }),
+      );
+    },
+    [],
+  );
+
+  const clearClientDiscussedItemTimelineCache = useCallback(
+    (clientId: string, itemId?: string, expectedTimeline?: string) => {
+      const clientOverrides =
+        pendingPlanTimelineOverridesRef.current.get(clientId);
+      if (!clientOverrides) return;
+
+      if (!itemId) {
+        pendingPlanTimelineOverridesRef.current.delete(clientId);
+        return;
+      }
+
+      if (
+        expectedTimeline !== undefined &&
+        clientOverrides.get(itemId) !== expectedTimeline
+      ) {
+        return;
+      }
+
+      clientOverrides.delete(itemId);
+      if (clientOverrides.size === 0) {
+        pendingPlanTimelineOverridesRef.current.delete(clientId);
+      } else {
+        pendingPlanTimelineOverridesRef.current.set(clientId, clientOverrides);
+      }
+    },
+    [],
+  );
 
   const refreshClients = useCallback(
     async (skipLoading = false) => {
@@ -334,6 +424,13 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           allClients = [...allClients, ...extras];
         }
 
+        allClients = allClients.map((client) =>
+          applyPendingTimelineOverrides(
+            client,
+            pendingPlanTimelineOverridesRef,
+          ),
+        );
+
         setClients(allClients);
       } catch (err: any) {
         console.error("Failed to fetch clients:", err);
@@ -393,6 +490,8 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         error,
         setError,
         refreshClients,
+        cacheClientDiscussedItemTimeline,
+        clearClientDiscussedItemTimelineCache,
       }}
     >
       {children}

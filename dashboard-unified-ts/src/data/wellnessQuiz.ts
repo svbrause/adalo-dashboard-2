@@ -1,10 +1,23 @@
 /**
  * Wellness Quiz – peptide/treatment recommendations from Dr Reddy Treatment Offerings.
  * Questions map to criteria (age, goals, conditions); scoring suggests one or more treatments.
+ * Kept in sync with skin-type-react `wellnessQuiz.ts` treatment list and question flow.
  */
 
-/** Set to true to show the Wellness Quiz section and modal in the client detail UI. */
+import { isWellnestWellnessProviderCode } from "./wellnestOfferings";
+
+/** Set to true to show the Wellness Quiz section and modal in the client detail UI (all non-Wellnest providers). */
 export const WELLNESS_QUIZ_ENABLED = false;
+
+/**
+ * Client detail / modal: show Wellness Quiz when {@link WELLNESS_QUIZ_ENABLED} is true,
+ * or when the signed-in provider is Wellnest (peptide UI — replaces Skin Quiz for that org).
+ */
+export function isWellnessQuizShownForDashboardProvider(
+  providerCode: string | undefined,
+): boolean {
+  return WELLNESS_QUIZ_ENABLED || isWellnestWellnessProviderCode(providerCode);
+}
 
 /** Single treatment offering from the spreadsheet. */
 export interface WellnessTreatment {
@@ -55,7 +68,7 @@ export const WELLNESS_TREATMENTS: WellnessTreatment[] = [
     summary:
       "A peptide that supports soft tissue and tendon/ligament repair, reduces inflammation, and helps with gut lining and chronic GI issues. Often used after injury or intense training.",
     idealDemographics:
-      "Anyone aged 30+ with significant contact sports, extreme workouts, or physically active after 40 (male and female)",
+      "Anyone aged 30+ with significant contact sports, extreme workouts, or physically active after 40\n(male and female)",
     deliveryMethod: "SC injection (best), oral and nasal spray available",
     pricing: "$250",
     notes: "5 weeks supply, prepared under strict aseptic precautions",
@@ -573,6 +586,49 @@ export function getWellnessQuizMatchReasons(
     if (labels.length > 0) reasons.push(`${q.title}: ${labels.join(", ")}`);
   }
   return reasons;
+}
+
+/**
+ * Answer option labels that contributed points to this treatment (deduped, quiz question order).
+ * Compact for plan-builder chips; use {@link getWellnessQuizMatchReasons} for full "Question: answers" lines.
+ *
+ * By default skips **age range** when any other question also contributed (age scores many peptides);
+ * if age is the only scoring driver, age labels are still returned.
+ */
+export function getWellnessQuizMatchAnswerLabelsForTreatment(
+  answers: Record<string, number | number[]>,
+  treatmentId: string,
+  opts?: { skipQuestionIds?: readonly string[] },
+): string[] {
+  const collect = (skipQuestionIds: Set<string>): string[] => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const q of WELLNESS_QUIZ.questions) {
+      if (skipQuestionIds.has(q.id)) continue;
+      const raw = answers[q.id];
+      const indices = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+      for (const idx of indices) {
+        if (typeof idx !== "number" || idx < 0 || idx >= q.answers.length) {
+          continue;
+        }
+        const answer = q.answers[idx];
+        const score = answer.scores[treatmentId];
+        if (score != null && score > 0) {
+          const lab = answer.label.trim();
+          if (lab && !seen.has(lab)) {
+            seen.add(lab);
+            out.push(lab);
+          }
+        }
+      }
+    }
+    return out;
+  };
+
+  const skip = new Set(opts?.skipQuestionIds ?? ["age"]);
+  const withoutSkipped = collect(skip);
+  if (withoutSkipped.length > 0) return withoutSkipped;
+  return collect(new Set());
 }
 
 /**

@@ -46,6 +46,34 @@ interface ImportMetaEnv {
   readonly VITE_WELLNEST_DEMO_HEADSHOT_ALEX?: string;
   readonly VITE_WELLNEST_DEMO_HEADSHOT_JORDAN?: string;
   readonly VITE_WELLNEST_DEMO_HEADSHOT_TAYLOR?: string;
+
+  /** Firebase Web SDK (public client config). Copy from Firebase Console → Project settings. */
+  readonly VITE_FIREBASE_API_KEY?: string;
+  readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
+  readonly VITE_FIREBASE_PROJECT_ID?: string;
+  readonly VITE_FIREBASE_STORAGE_BUCKET?: string;
+  readonly VITE_FIREBASE_MESSAGING_SENDER_ID?: string;
+  readonly VITE_FIREBASE_APP_ID?: string;
+  /** Optional; omit for HIPAA-sensitive builds — Analytics is not initialized in code regardless. */
+  readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
+  /**
+   * `true`: show the Firebase email/password block on the provider login page.
+   * `false`: hide it. If omitted: shown in Vite dev when Firebase is configured; hidden in production builds unless `true`.
+   */
+  readonly VITE_FIREBASE_SHOW_STAFF_AUTH?: string;
+  /** `true`: show “Create account” on staff panel (use with care until admin-only provisioning exists). */
+  readonly VITE_FIREBASE_ALLOW_SELF_SIGNUP?: string;
+  /**
+   * `true`: after Firebase sign-in on the login page, open the dashboard when `practiceIds`
+   * claims are set (backend must expose `GET /api/dashboard/provider/by-id`).
+   */
+  readonly VITE_FIREBASE_STAFF_LOGIN_TO_DASHBOARD?: string;
+  /**
+   * `true`: `/forgot-password` calls `POST {VITE_BACKEND_API_URL}/api/auth/forgot-password`
+   * so reset mail uses your Resend/Brevo HTML (same as invite). Requires backend support.
+   * Omit or `false`: use Firebase client `sendPasswordResetEmail` (Firebase templates).
+   */
+  readonly VITE_PASSWORD_RESET_VIA_BACKEND?: string;
 }
 
 interface ImportMeta {

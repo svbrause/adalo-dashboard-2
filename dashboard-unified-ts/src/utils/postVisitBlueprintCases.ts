@@ -70,6 +70,7 @@ const PLAN_TREATMENT_TO_PHOTO_KEYWORDS: Record<string, string[]> = {
   filler: ["filler", "hyaluronic", "juvederm", "restylane", "versa", "belotero", "tear trough", "ha "],
   neurotoxin: ["neurotoxin", "botox", "dysport", "xeomin", "jeuveau", "daxxify", "tox"],
   biostimulants: ["biostim", "sculptra", "radiesse", "prf"],
+  "other procedures": ["skinvive", "prfm injection", "hair restoration", "skin booster"],
   kybella: ["kybella", "deoxycholic"],
   "facial services": ["facial", "dermasweep", "dermaplaning", "exfoliat"],
   skincare: ["skincare", "peel", "facial"], // broad; many skincare cases won't tag — cards may have 0 photos

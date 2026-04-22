@@ -644,9 +644,6 @@ h3,
   height: 16px;
 }
 
-.search-section {
-  /* Search is always visible, no toggle needed */
-}
 
 /* Search box styles moved to ViewControls.css to avoid conflicts */
 
@@ -1270,7 +1267,6 @@ body.theme-warm .kanban-cards.drag-over {
   background: #fafafa;
   padding: 20px;
   border-radius: 8px;
-  border-left: 4px solid var(--theme-accent);
 }
 
 .detail-section-title.detail-section-title-inline.detail-section-title-treatment-plan {
@@ -1354,6 +1350,27 @@ body.theme-warm .kanban-cards.drag-over {
   line-height: 1.35;
 }
 
+/* Timeline (e.g. planned date) + area/meta on one row when both are shown */
+.discussed-treatments-record-timing-area-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0;
+  row-gap: 4px;
+}
+
+.discussed-treatments-record-timing-line-outer {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  flex-shrink: 0;
+}
+
+.discussed-treatments-record-timing-hint {
+  font-weight: 500;
+  color: var(--theme-text-muted, #64748b);
+}
+
 .discussed-treatments-record-row-heading-meta
   .discussed-treatments-record-meta-line-outer {
   font-size: 0.8125rem;
@@ -1362,6 +1379,17 @@ body.theme-warm .kanban-cards.drag-over {
   line-height: 1.45;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.discussed-treatments-record-timing-area-row
+  .discussed-treatments-record-timing-line-outer
+  + .discussed-treatments-record-meta-line-outer::before {
+  content: ".";
+  margin: 0 0.55em;
+  font-weight: 600;
+  color: var(--theme-text-muted, #94a3b8);
 }
 
 .discussed-treatments-record-row-heading-meta.discussed-treatments-record-row-with-price {
@@ -1394,6 +1422,61 @@ body.theme-warm .kanban-cards.drag-over {
   max-width: 42%;
 }
 
+/* Built badge — used in treatment recommender plan section */
+.plan-row-built-badge {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.treatment-recommender-by-treatment__plan-row-wrap--built {
+  opacity: 0.6;
+}
+
+.treatment-recommender-by-treatment__plan-row-wrap--built
+  .treatment-recommender-by-treatment__plan-row-treatment {
+  text-decoration: line-through;
+}
+
+/* Plan row — treatment check-off checkboxes (always visible) */
+.plan-row--done {
+  opacity: 0.65;
+}
+
+.plan-row--done .discussed-treatments-record-treatment-heading-outer {
+  text-decoration: line-through;
+  color: var(--theme-text-muted, #94a3b8);
+}
+
+.plan-row-checkbox {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--theme-border, #cbd5e1);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  padding: 0;
+  line-height: 1;
+  align-self: center;
+}
+
+.plan-row-checkbox:hover {
+  border-color: var(--theme-accent);
+}
+
+.plan-row-checkbox--checked {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
 /* Short label e.g. NEEDS UNITS — matches treatment recommender left column */
 .plan-pricing-warning-pill {
   display: inline-block;
@@ -1415,17 +1498,14 @@ body.theme-warm .kanban-cards.drag-over {
 /* Sentence-case line e.g. ⚠ Add units… on client detail */
 .plan-pricing-warning-callout {
   display: inline-block;
-  margin-top: 2px;
+  margin-top: 1px;
   max-width: 100%;
   box-sizing: border-box;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.35;
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.3;
   color: var(--plan-pricing-warning-fg);
-  background: var(--plan-pricing-warning-bg);
-  border: 1px solid var(--plan-pricing-warning-border);
-  padding: 6px 10px;
-  border-radius: 8px;
+  opacity: 0.7;
   white-space: normal;
   text-align: right;
 }
@@ -1433,28 +1513,29 @@ body.theme-warm .kanban-cards.drag-over {
 /* Share link modal + client detail “Fix in plan” — one CTA style */
 .plan-pricing-fix-action-btn {
   appearance: none;
-  margin-top: 2px;
-  border: 1px solid var(--plan-pricing-fix-border);
-  background: var(--plan-pricing-fix-bg);
+  margin-top: 1px;
+  border: none;
+  background: transparent;
   color: var(--plan-pricing-fix-fg);
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 400;
+  padding: 0;
+  border-radius: 0;
   cursor: pointer;
   white-space: normal;
   text-align: center;
-  line-height: 1.25;
+  line-height: 1.3;
   max-width: 100%;
+  text-decoration: underline;
+  opacity: 0.65;
 }
 
 .plan-pricing-fix-action-btn:hover:not(:disabled) {
-  background: var(--plan-pricing-fix-bg-hover);
-  border-color: #0f766e;
+  opacity: 1;
 }
 
 .plan-pricing-fix-action-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -1514,6 +1595,13 @@ body.theme-warm .kanban-cards.drag-over {
   border-radius: 8px;
   box-shadow: 0 0 0 1px var(--theme-border, #e5e5e5);
   border-left: 4px solid #0d9488;
+}
+
+/* Merged wellness: quiz block after goals/plan in the same section */
+.detail-wellness-quiz-subsection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--theme-border, #e8e8e8);
 }
 
 /* Treatments discussed – one row per item (panel + modal) */

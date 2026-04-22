@@ -61,7 +61,9 @@ export default function WellnessQuizResultsCards({
               </div>
             )}
             <div className="wellness-quiz-treatment-meta">
-              <span>Ideal: {t.idealDemographics}</span>
+              <span className="wellness-quiz-treatment-meta-ideal">
+                Ideal: {t.idealDemographics}
+              </span>
               <span>Delivery: {t.deliveryMethod}</span>
               <span>Pricing: {t.pricing}</span>
               <span>Duration: {t.duration}</span>

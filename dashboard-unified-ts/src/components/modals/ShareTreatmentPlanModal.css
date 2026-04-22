@@ -27,3 +27,38 @@
 .share-treatment-plan-modal-content .modal-subtitle {
   margin-top: 0;
 }
+
+.share-tp-sms-completed-hint {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e3e5);
+  background: var(--color-surface-subtle, #f6f6f7);
+}
+
+.share-tp-sms-completed-hint__label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  cursor: pointer;
+  color: var(--color-text, #1a1a1a);
+}
+
+.share-tp-sms-completed-hint__checkbox {
+  margin-top: 2px;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.share-tp-sms-completed-hint__note {
+  margin: 8px 0 0 0;
+  padding-left: 26px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--color-text-muted, #5c5c5c);
+}

@@ -198,6 +198,378 @@
   white-space: nowrap;
 }
 
+.treatment-recommender-by-treatment__plan-back-to-list-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--plan-quote-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--plan-quote-surface-bg, #fff);
+  color: var(--theme-text-secondary, #64748b);
+  cursor: pointer;
+}
+
+.treatment-recommender-by-treatment__plan-back-to-list-btn:hover {
+  background: var(--theme-bg-hover, #f8fafc);
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.treatment-recommender-by-treatment__plan-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-subview-toggle {
+  display: flex;
+  align-self: flex-start;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  border: 1px solid var(--plan-quote-border, #e2e8f0);
+  background: var(--theme-bg-hover, #f1f5f9);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-subview-btn {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--theme-text-secondary, #64748b);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-subview-btn:hover {
+  color: var(--theme-text-primary, #1e293b);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-subview-btn--active {
+  background: var(--plan-quote-surface-bg, #fff);
+  color: var(--theme-text-primary, #0f172a);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(55vh, 420px);
+  overflow-y: auto;
+  padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted, #94a3b8);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-month {
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-month-title {
+  margin: 0 0 8px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--plan-quote-section-title-color, #64748b);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-days {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--plan-quote-border, #e2e8f0);
+  border-radius: var(--plan-quote-radius, 12px);
+  background: var(--plan-quote-surface-bg, #fff);
+  overflow: hidden;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-day {
+  display: grid;
+  grid-template-columns: minmax(88px, 32%) 1fr;
+  gap: 8px 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--plan-quote-border, #e8e8e8);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-day:last-child {
+  border-bottom: none;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-day-date {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #0f766e;
+  line-height: 1.35;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-day-items {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary, #334155);
+  line-height: 1.4;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-day-items li {
+  margin-bottom: 4px;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-schedule-day-items li:last-child {
+  margin-bottom: 0;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-nav-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.125rem;
+  line-height: 1;
+  border: 1px solid var(--plan-quote-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--plan-quote-surface-bg, #fff);
+  cursor: pointer;
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-nav-btn:hover {
+  background: var(--theme-bg-hover, #f8fafc);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-month-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-muted, #94a3b8);
+  text-align: center;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-cell {
+  position: relative;
+  min-height: 40px;
+  padding: 4px 2px 6px;
+  border: 1px solid var(--plan-quote-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--plan-quote-surface-bg, #fff);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font: inherit;
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-cell--empty {
+  border: none;
+  background: transparent;
+  cursor: default;
+  min-height: 0;
+  padding: 0;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-cell--selected {
+  border-color: var(--theme-nav-active-border, #94a3b8);
+  background: var(--theme-nav-active-bg, rgba(0, 0, 0, 0.04));
+  outline: 2px solid rgba(100, 116, 139, 0.25);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-cell--has-items
+  .treatment-recommender-by-treatment__plan-calendar-day-num {
+  font-weight: 700;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-day-num {
+  font-size: 0.75rem;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-day-count {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.12);
+  border-radius: 999px;
+  padding: 1px 5px;
+  line-height: 1.2;
+}
+
+.treatment-recommender-by-treatment__plan-calendar-detail {
+  padding: 12px;
+  border: 1px solid var(--plan-quote-border, #e2e8f0);
+  border-radius: var(--plan-quote-radius, 12px);
+  background: var(--plan-quote-surface-bg, #fff);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-detail-title {
+  margin: 0 0 8px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--plan-quote-section-title-color, #64748b);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-detail-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-muted, #94a3b8);
+}
+
+.treatment-recommender-by-treatment__plan-calendar-detail-list {
+  margin: 0;
+  padding-left: 1.125rem;
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary, #334155);
+  line-height: 1.45;
+}
+
+/* When: chips + calendar icon after Wishlist (wraps on narrow widths) */
+.treatment-recommender-by-treatment__add-row--when-with-date {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.treatment-recommender-by-treatment__add-row--when-with-date
+  .treatment-recommender-by-treatment__chips {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__when-cal-slot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.treatment-recommender-by-treatment__when-cal-date-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0f766e;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 9.5rem;
+}
+
+.treatment-recommender-by-treatment__target-date-popover {
+  /* position/top/left/width set inline when portaled (fixed) to avoid ancestor overflow clipping */
+  z-index: 400;
+  padding: 12px 14px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--plan-quote-border, #e2e8f0);
+  background: var(--plan-quote-surface-bg, #fff);
+  box-shadow:
+    0 10px 40px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(15, 23, 42, 0.04);
+}
+
+.treatment-recommender-by-treatment__target-date-popover-title {
+  margin: 0 0 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--theme-text-primary, #1e293b);
+  line-height: 1.25;
+}
+
+.treatment-recommender-by-treatment__target-date-popover-desc {
+  margin: 0 0 12px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--theme-text-muted, #64748b);
+}
+
+.treatment-recommender-by-treatment__target-date-popover-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 0.875rem;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.treatment-recommender-by-treatment__target-date-popover-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.treatment-recommender-by-treatment__when-cal-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 6px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-secondary, #616161);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.treatment-recommender-by-treatment__when-cal-icon-btn:hover {
+  background: var(--theme-bg-hover, #f5f5f5);
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__when-cal-icon-btn--active {
+  border-color: rgba(13, 148, 136, 0.55);
+  color: #0f766e;
+  background: rgba(13, 148, 136, 0.08);
+}
+
 .treatment-recommender-by-treatment__plan-empty {
   margin: 0;
   padding: 14px 16px;
@@ -237,6 +609,32 @@
   color: var(--plan-quote-section-title-color, #64748b);
   background: var(--plan-quote-section-header-bg, #fafbfb);
   border-bottom: 1px solid var(--plan-quote-row-divider, #f1f5f9);
+}
+
+.treatment-recommender-by-treatment__plan-group-title--with-calendar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.treatment-recommender-by-treatment__plan-group-calendar-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin: -4px -6px -4px 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--plan-quote-section-title-color, #64748b);
+  cursor: pointer;
+}
+
+.treatment-recommender-by-treatment__plan-group-calendar-btn:hover {
+  color: var(--theme-text-primary, #1e293b);
+  background: rgba(15, 23, 42, 0.06);
 }
 
 .treatment-recommender-by-treatment__plan-row-wrap {
@@ -3021,6 +3419,29 @@
   border-color: rgba(100, 116, 139, 0.3);
 }
 
+/* Same accent family as skin-quiz recommended product chips (quiz-driven match). */
+.treatment-recommender-wellnest-card__chip--wellness-quiz {
+  background: rgba(25, 118, 210, 0.12);
+  border: 1px solid rgba(25, 118, 210, 0.45);
+  color: #0d47a1;
+  white-space: nowrap;
+}
+
+.treatment-recommender-wellnest-card__wellness-quiz-detail {
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: #0f172a;
+  max-width: 100%;
+}
+
+.treatment-recommender-wellnest-card__wellness-quiz-detail-prefix {
+  font-weight: 600;
+  color: #0d47a1;
+}
+
 .treatment-recommender-wellnest-card__chip--addresses {
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(13, 148, 136, 0.2);
@@ -3703,11 +4124,6 @@
 
   .treatment-recommender-by-treatment__add-row {
     gap: 8px;
-  }
-
-  .treatment-recommender-by-treatment__add-row > span {
-    flex-basis: 100%;
-    min-width: 0;
   }
 
   .treatment-recommender-by-treatment__custom-input {

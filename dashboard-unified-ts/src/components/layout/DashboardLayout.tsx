@@ -15,6 +15,11 @@ import OffersView from "../views/OffersView";
 import InboxView from "../views/InboxView";
 import SmsHistoryView from "../views/SmsHistoryView";
 import SettingsView from "../views/SettingsView";
+import FirebaseAdminPage from "../pages/FirebaseAdminPage";
+import ReleaseNotesModal, {
+  shouldShowReleaseNotes,
+  dismissReleaseNotes,
+} from "../modals/ReleaseNotesModal";
 import "./DashboardLayout.css";
 
 interface DashboardLayoutProps {
@@ -22,7 +27,7 @@ interface DashboardLayoutProps {
 }
 
 function DashboardViews() {
-  const { currentView } = useDashboard();
+  const { currentView, setCurrentView } = useDashboard();
 
   switch (currentView) {
     case "kanban":
@@ -39,6 +44,13 @@ function DashboardViews() {
       return <SmsHistoryView />;
     case "settings":
       return <SettingsView />;
+    case "user-admin":
+      return (
+        <FirebaseAdminPage
+          embedded
+          onLeaveEmbedded={() => setCurrentView("list")}
+        />
+      );
     case "facial-analysis":
     case "cards":
       return <FacialAnalysisView />;
@@ -60,15 +72,32 @@ const VIEWS_WITH_CONTROLS = [
 export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
   const { currentView, setCurrentView, provider } = useDashboard();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const showViewControls = VIEWS_WITH_CONTROLS.includes(currentView);
 
   useEffect(() => {
     if (!providerHasSmsAndSettingsAccess(provider)) {
-      if (currentView === "settings" || currentView === "sms-history") {
+      if (
+        currentView === "settings" ||
+        currentView === "sms-history" ||
+        currentView === "user-admin"
+      ) {
         setCurrentView("list");
       }
     }
   }, [provider, currentView, setCurrentView]);
+
+  // Show release notes once per session, within the 1-week window, for logged-in users.
+  useEffect(() => {
+    if (provider && shouldShowReleaseNotes()) {
+      setShowReleaseNotes(true);
+    }
+  }, [provider]);
+
+  const handleCloseReleaseNotes = () => {
+    dismissReleaseNotes();
+    setShowReleaseNotes(false);
+  };
 
   return (
     <div
@@ -86,6 +115,9 @@ export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
           <DashboardViews />
         </div>
       </main>
+      {showReleaseNotes && (
+        <ReleaseNotesModal onClose={handleCloseReleaseNotes} />
+      )}
     </div>
   );
 }

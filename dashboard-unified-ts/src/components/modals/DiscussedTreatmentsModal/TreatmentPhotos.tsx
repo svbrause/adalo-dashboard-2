@@ -11,6 +11,7 @@ import { issueToSuggestionMap, getIssueArea } from "../../../utils/issueMapping"
 import { getTreatmentsForInterest } from "./utils";
 import { generateId } from "./utils";
 import { REGION_OPTIONS, TIMELINE_OPTIONS, SKINCARE_QUICK_ADD_WHAT_OPTIONS } from "./constants";
+import { timelineOptionDisplayLabel } from "./utils";
 import { persistClientDiscussedItems } from "../../../utils/wellnestDemoPlanPersistence";
 import {
   getTreatmentPhotoAreaDisplayList,
@@ -98,10 +99,31 @@ export interface TreatmentPlanPrefill {
   /** Issue/finding when opened from an issue */
   findings?: string[];
   timeline?: string;
+  /** ISO YYYY-MM-DD when scheduling on the treatment calendar */
+  scheduledDate?: string;
   /** Optional quantity (e.g. "2" or "2 Syringes") – prefilled from recommender optional details */
   quantity?: string;
   /** Optional notes – prefilled from recommender optional details */
   notes?: string;
+}
+
+/** Single persisted plan row from recommender / photo prefill (shared by client detail + modal). */
+export function buildDiscussedItemFromTreatmentPlanPrefill(
+  prefill: TreatmentPlanPrefill,
+): DiscussedItem {
+  return {
+    id: generateId(),
+    addedAt: new Date().toISOString(),
+    interest: prefill.interest?.trim() || undefined,
+    findings: prefill.findings?.length ? prefill.findings : undefined,
+    treatment: prefill.treatment?.trim() || "",
+    product: prefill.treatmentProduct?.trim() || undefined,
+    region: prefill.region?.trim() || undefined,
+    timeline: (prefill.timeline?.trim() || "Wishlist") as string,
+    scheduledDate: prefill.scheduledDate?.trim() || undefined,
+    quantity: prefill.quantity?.trim() || undefined,
+    notes: prefill.notes?.trim() || undefined,
+  };
 }
 
 /** Map Airtable record to TreatmentPhoto type */
@@ -1503,7 +1525,7 @@ export default function TreatmentPhotos({
                                 setAddToPlanForm((prev) => (prev ? { ...prev, when: t } : null))
                               }
                             >
-                              {t}
+                              {timelineOptionDisplayLabel(t)}
                             </button>
                           ))}
                         </div>

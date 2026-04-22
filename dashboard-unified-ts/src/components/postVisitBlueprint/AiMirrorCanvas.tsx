@@ -77,6 +77,18 @@ function normalizeTerm(value: string): string {
   return value.trim().toLowerCase();
 }
 
+/**
+ * Stable primitive for effect deps — parents often pass a fresh `highlightTerms` array each
+ * render; MediaPipe should not re-run unless the actual strings changed.
+ */
+function highlightTermsFingerprint(terms: readonly string[] | undefined): string {
+  return [...(terms ?? [])]
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+    .join("\u0001");
+}
+
 function getHighlightedRegionIds(highlightTerms: string[]): Set<string> {
   if (DEBUG_HIGHLIGHT_ALL_AREAS) {
     return new Set(AI_MIRROR_REGIONS.map((r) => r.id));
@@ -404,6 +416,7 @@ export function AiMirrorCanvas({
   const [status, setStatus] = useState<MirrorStatus>("loading");
   const [fallbackImageUrl, setFallbackImageUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const highlightFingerprint = highlightTermsFingerprint(highlightTerms);
 
   useEffect(() => {
     let cancelled = false;
@@ -478,7 +491,9 @@ export function AiMirrorCanvas({
     return () => {
       cancelled = true;
     };
-  }, [imageUrl, highlightTerms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- highlightTerms omitted on purpose:
+    // compare via highlightFingerprint so new array refs from parents do not re-run MediaPipe.
+  }, [imageUrl, highlightFingerprint]);
 
   return (
     <div

@@ -187,6 +187,42 @@ function normalizeForMatch(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/** e.g. `b12` → `b 12` so token search matches "Vitamin B-12 Shot". */
+function splitAlphaNumericBoundaries(s: string): string {
+  return s
+    .replace(/([A-Za-z])(\d)/g, "$1 $2")
+    .replace(/(\d)([A-Za-z])/g, "$1 $2");
+}
+
+function normalizeCatalogSearchText(s: string): string {
+  return splitAlphaNumericBoundaries(s)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[''`]/g, "")
+    .replace(/[-–—./,+()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Match user text against a recommender catalog haystack (treatment name + product + price-list labels).
+ * Uses full-string substring first, then requires every whitespace token (length ≥ 2) to appear — so
+ * "cosmelan md peel" matches cards whose haystack contains those fragments even when not contiguous.
+ */
+export function treatmentRecommenderCatalogSearchMatches(
+  haystack: string,
+  query: string,
+): boolean {
+  const h = normalizeCatalogSearchText(haystack);
+  const q = normalizeCatalogSearchText(query);
+  if (!q) return true;
+  if (h.includes(q)) return true;
+  const tokens = q.split(" ").filter((t) => t.length >= 2);
+  if (tokens.length === 0) return h.includes(q);
+  return tokens.every((t) => h.includes(t));
+}
+
 /**
  * Filter suggestions by selected findings (and findings derived from general concerns).
  * Keeps suggestions that have at least one issue matching any of the selected finding names.

@@ -15,12 +15,61 @@ export type PvbResolvedPlanGlossaryTerm = {
   relationToYou: string | null;
 };
 
+const ENERGY_SUB_CHAPTER_PREFIX = "energy treatment::";
+
+/**
+ * BBL vs Moxi glossary cards both list `energy treatment`; for split chapters
+ * (`energy treatment::bbl-…` / `energy treatment::moxi`) only show the modality
+ * that matches the section slug (keep both for `moxi-bbl`).
+ */
+function filterEnergySubChapterGlossaryTerms(
+  terms: PvbResolvedPlanGlossaryTerm[],
+  chapterKeyLower: string,
+): PvbResolvedPlanGlossaryTerm[] {
+  if (!chapterKeyLower.startsWith(ENERGY_SUB_CHAPTER_PREFIX)) return terms;
+  const slug = chapterKeyLower.slice(ENERGY_SUB_CHAPTER_PREFIX.length);
+  const hasMoxi = slug.includes("moxi");
+  const hasBbl = slug.includes("bbl");
+
+  return terms.filter((t) => {
+    if (t.id === "moxi") {
+      if (hasBbl && !hasMoxi) return false;
+      if (!hasMoxi && !hasBbl) return false;
+      return true;
+    }
+    if (t.id === "bbl") {
+      if (hasMoxi && !hasBbl) return false;
+      if (!hasMoxi && !hasBbl) return false;
+      return true;
+    }
+    return true;
+  });
+}
+
 export function filterGlossaryTermsForChapter(
   terms: PvbResolvedPlanGlossaryTerm[],
   chapterKey: string,
 ): PvbResolvedPlanGlossaryTerm[] {
   const k = chapterKey.trim().toLowerCase();
-  return terms.filter((t) => t.chapterKeys.includes(k));
+  const direct = terms.filter((t) => t.chapterKeys.includes(k));
+  if (direct.length > 0) return direct;
+  if (k.startsWith("other procedures::")) {
+    const fallback = terms.filter((t) =>
+      t.chapterKeys.includes("other procedures"),
+    );
+    if (fallback.length > 0) return fallback;
+  }
+  if (k.startsWith(ENERGY_SUB_CHAPTER_PREFIX)) {
+    const fallback = terms.filter(
+      (t) =>
+        t.chapterKeys.includes("energy treatment") ||
+        t.chapterKeys.includes("energy device"),
+    );
+    if (fallback.length > 0) {
+      return filterEnergySubChapterGlossaryTerms(fallback, k);
+    }
+  }
+  return [];
 }
 
 function collectPlanCorpus(

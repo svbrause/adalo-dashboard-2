@@ -9,14 +9,16 @@ const SMS_SETTINGS_PROVIDER_CODES = new Set([
   "thetreatment250",
   "thetreatment447",
   "password", // Admin dashboard login
+  "wellnest1300",
+  "judgemd",
+  "12345", // JudgeMD demo / dev (same Settings + pricing as JudgeMD)
 ]);
 
 /**
- * Settings + global Messages in the sidebar are only for:
+ * Settings + global Messages in the sidebar for:
  * - The Treatment staff (`TheTreatment250`, `TheTreatment447`)
  * - Admin (`password`)
- *
- * Wellnest and other provider codes do not get these entries.
+ * - Wellnest MD (`Wellnest1300`) and JudgeMD (`JudgeMD` / demo `12345`) — practice settings + pricing catalog
  */
 export function providerHasSmsAndSettingsAccess(
   provider: Provider | null | undefined,

@@ -5,6 +5,7 @@ import {
   formatTreatmentPlanRowFullLine,
   getTreatmentPlanRowPrimaryLabel,
   getTreatmentPlanRowSecondaryLabel,
+  timelineOptionDisplayLabel,
 } from "./utils";
 
 export interface NewItemPreview {
@@ -149,22 +150,24 @@ export default function PlanListColumn({
                 className={`discussed-treatments-plan-section ${
                   dragOverSection === sectionLabel ? "drag-over" : ""
                 }`}
-                aria-label={`${sectionLabel} (${sectionItems.length} items)`}
+                aria-label={`${timelineOptionDisplayLabel(sectionLabel)} (${sectionItems.length} items)`}
                 onDragOver={(e) => onDragOver(e, sectionLabel)}
                 onDragLeave={onDragLeave}
                 onDrop={(e) => onDrop(e, sectionLabel)}
               >
                 <h4 className="discussed-treatments-plan-section-title">
-                  {sectionLabel}
+                  {timelineOptionDisplayLabel(sectionLabel)}
                 </h4>
                 <div
                   className="discussed-treatments-master-records-list"
                   role="list"
-                  aria-label={`${sectionLabel} items`}
+                  aria-label={`${timelineOptionDisplayLabel(sectionLabel)} items`}
                 >
                   {sectionItems.map((item) => {
-                    const planSecondary =
-                      getTreatmentPlanRowSecondaryLabel(item);
+                    const planSecondary = getTreatmentPlanRowSecondaryLabel(
+                      item,
+                      { omitTimeline: true },
+                    );
                     const pricingBadge = planPricingBadgeByItemId?.get(item.id);
                     return (
                       <div
@@ -191,7 +194,7 @@ export default function PlanListColumn({
                             onSelectItem(item.id);
                           }
                         }}
-                        aria-label={`Select ${formatTreatmentPlanRowFullLine(item)}`}
+                        aria-label={`Select ${formatTreatmentPlanRowFullLine(item, { omitTimeline: true })}`}
                         aria-selected={
                           selectedPlanItemId === item.id || editingId === item.id
                         }

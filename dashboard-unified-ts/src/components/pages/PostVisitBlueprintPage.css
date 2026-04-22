@@ -237,6 +237,92 @@
   letter-spacing: 0.02em;
 }
 
+/* ── Scheduled treatments (plan builder Schedule agenda, patient /tp page) ── */
+.pvb-plan-schedule {
+  scroll-margin-top: 24px;
+  margin: 22px 12px 0;
+  padding: 24px 20px 22px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+}
+
+.pvb-plan-schedule-title {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.pvb-plan-schedule-lead {
+  margin: 0 0 18px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.pvb-plan-schedule-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pvb-plan-schedule-month-title {
+  margin: 0 0 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.pvb-plan-schedule-days {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.pvb-plan-schedule-day {
+  display: grid;
+  grid-template-columns: minmax(88px, 30%) 1fr;
+  gap: 8px 12px;
+  align-items: start;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.pvb-plan-schedule-day:last-child {
+  border-bottom: none;
+}
+
+.pvb-plan-schedule-day-date {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f766e;
+  line-height: 1.35;
+}
+
+.pvb-plan-schedule-day-items {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.875rem;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.pvb-plan-schedule-day-items li {
+  margin-bottom: 4px;
+}
+
+.pvb-plan-schedule-day-items li:last-child {
+  margin-bottom: 0;
+}
+
 /* ── FACIAL ANALYSIS (mirrors dashboard Analysis Overview modal) ── */
 .pvb-analysis {
   scroll-margin-top: 24px;
@@ -1919,6 +2005,15 @@
   line-height: 1.25;
 }
 
+.pvb-toc-item-areas-subheading {
+  display: block;
+  width: 100%;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #64748b;
+}
+
 .pvb-toc-item-area-pills {
   display: flex;
   flex-wrap: wrap;
@@ -2264,11 +2359,27 @@
   accent-color: #9dd6cb;
   cursor: pointer;
 }
-.pvb-quote-row span {
+.pvb-quote-row-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pvb-quote-row-title {
   color: #334155;
   font-size: 0.92rem;
   font-weight: 500;
 }
+
+.pvb-quote-row-sched {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #0f766e;
+  line-height: 1.25;
+}
+
 .pvb-quote-row strong {
   color: #3a3c3e;
   font-size: 0.92rem;

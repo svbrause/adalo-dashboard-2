@@ -37,6 +37,7 @@ import {
   getTreatmentsForInterest,
   getQuantityContext,
   shouldShowProminentPlanQuantity,
+  timelineOptionDisplayLabel,
 } from "../modals/DiscussedTreatmentsModal/utils";
 import {
   REGION_OPTIONS,
@@ -862,7 +863,7 @@ export default function TreatmentRecommenderBySuggestion({
                                         )
                                       }
                                     >
-                                      {t}
+                                      {timelineOptionDisplayLabel(t)}
                                     </button>
                                   ))}
                                 </div>

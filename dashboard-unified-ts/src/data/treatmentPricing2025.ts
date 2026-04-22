@@ -6,8 +6,20 @@
 import {
   getWellnestOfferingByTreatmentName,
   getWellnestPeptideMeta,
+  isWellnestWellnessProviderCode,
   parseWellnestPriceMin,
+  WELLNEST_OFFERINGS,
 } from "./wellnestOfferings";
+import {
+  getJudgeMdFacialPlanSubcategoryForItemName,
+  getJudgeMdProductOptionsForSurgeryCategory,
+  isJudgeMdFacialPlanSubcategory,
+  isJudgeMdProviderCode,
+  isJudgeMdSurgeryPlanCategory,
+  JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES,
+  JUDGEMD_PRICE_LIST_2026_27,
+  JUDGEMD_SURGERY_SECTION_CATEGORIES,
+} from "./judgeMdPricing2026";
 export interface TreatmentPriceItem {
   name: string;
   price: number;
@@ -24,6 +36,19 @@ export type DashboardTreatmentCategory =
   | "Filler"
   | "Neurotoxin"
   | "Biostimulants"
+  | "Other procedures"
+  /** JudgeMD embedded list — one plan category per surgery section (facial split into subs on plan builder). */
+  | "Breast Surgery"
+  | "Facial Surgery"
+  | "Facial Surgery — Lifting & threads"
+  | "Facial Surgery — Eyes & brows"
+  | "Facial Surgery — Rhinoplasty"
+  | "Facial Surgery — Lips, chin & jaw"
+  | "Facial Surgery — Fat transfer"
+  | "Facial Surgery — Ears"
+  | "Facial Surgery — Forehead, hairline & skin"
+  | "Body Sculpting"
+  | "Vaginal Rejuvenation"
   | "Kybella"
   | "Threadlift";
 
@@ -229,45 +254,127 @@ function getMinMax(items: TreatmentPriceItem[]): { min: number; max: number } {
   return { min: Math.min(...prices), max: Math.max(...prices) };
 }
 
+/**
+ * Price-list labels merged into the by-treatment recommender search haystack so queries like
+ * "Skinvive II", "Cortisone", "Pronox", or "Cosmelan" surface the right category card even when
+ * those strings are not in {@link TREATMENT_PRODUCT_OPTIONS} (e.g. Skinvive II vs "Skinvive (skin booster)").
+ */
+export function getPriceListLabelsForTreatmentRecommenderSearch(
+  treatment: string,
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
+): string {
+  const dash = normalizePlanTreatmentCategoryForPricing(treatment.trim());
+  if (!dash || !(dash in DASHBOARD_TO_PRICE_SECTIONS)) return "";
+
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  const add = (raw: string) => {
+    const t = raw.trim();
+    if (!t) return;
+    const k = t.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    parts.push(t);
+  };
+
+  const items = getItemsForDashboardCategory(dash as DashboardTreatmentCategory, priceList);
+  for (const i of items) add(i.name);
+
+  if (dash === "Chemical Peel") {
+    add("Cosmelan");
+    add("Cosmelan MD");
+  }
+
+  if (dash === "Other procedures") {
+    const otherTreat = priceList.find((s) => s.category === "Other Treatments");
+    if (otherTreat) {
+      for (const i of otherTreat.items) add(i.name);
+    }
+    const inj = priceList.find((s) => s.category === "Injectables");
+    if (inj) {
+      for (const i of inj.items) {
+        if (/spider\s*vein/i.test(i.name)) add(i.name);
+      }
+    }
+  }
+
+  return parts.join(" ");
+}
+
+const JUDGEMD_SURGERY_CAT_SET = new Set<string>(JUDGEMD_SURGERY_SECTION_CATEGORIES);
+
+/** Injectables row → Neurotoxin plan category (2025 sheet + JudgeMD-style names). */
+function injectableMatchesNeurotoxinSku(i: TreatmentPriceItem): boolean {
+  const n = i.name;
+  return (
+    n.includes("Botox") ||
+    n.includes("Dysport") ||
+    n.includes("Sweating") ||
+    /masseter|trapezius|lip flip|baby tox|gummy smile|browlift to neuro/i.test(n)
+  );
+}
+
+/** Injectables row → Filler plan category. */
+function injectableMatchesFillerSku(i: TreatmentPriceItem): boolean {
+  const n = i.name;
+  return (
+    n.includes("Filler") ||
+    n.includes("Voluma") ||
+    n.includes("Volux") ||
+    n.includes("Dissolver") ||
+    /juvederm|restylane|revance|liquid rhinoplasty|skinvive|redensity|rha\d|rha\s/i.test(n)
+  );
+}
+
+/** Injectables row → Biostimulants plan category. Skinvive (intradermal) maps as filler only. */
+function injectableMatchesBiostimulantSku(i: TreatmentPriceItem): boolean {
+  const n = i.name;
+  if (/intradermal/i.test(n) && /skinvive/i.test(n)) return false;
+  return (
+    n.includes("Radiesse") ||
+    n.includes("Sculptra") ||
+    n.includes("Renuva") ||
+    n.includes("Skinvive")
+  );
+}
+
 /** All items that map to a dashboard category (for price range). */
 function getItemsForDashboardCategory(
-  category: DashboardTreatmentCategory
+  category: DashboardTreatmentCategory,
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): TreatmentPriceItem[] {
   const flat: TreatmentPriceItem[] = [];
-  for (const section of TREATMENT_PRICE_LIST_2025) {
+  for (const section of priceList) {
     if (
       section.category === "Injectables" &&
       (category === "Filler" || category === "Neurotoxin" || category === "Biostimulants")
     ) {
       const injectables = section.items;
       if (category === "Neurotoxin") {
-        flat.push(
-          ...injectables.filter(
-            (i) =>
-              i.name.includes("Botox") ||
-              i.name.includes("Dysport") ||
-              i.name.includes("Sweating")
-          )
-        );
+        flat.push(...injectables.filter(injectableMatchesNeurotoxinSku));
       } else if (category === "Filler") {
-        flat.push(
-          ...injectables.filter(
-            (i) =>
-              i.name.includes("Filler") ||
-              i.name.includes("Voluma") ||
-              i.name.includes("Volux") ||
-              i.name.includes("Dissolver")
-          )
-        );
+        flat.push(...injectables.filter(injectableMatchesFillerSku));
       } else if (category === "Biostimulants") {
-        flat.push(
-          ...injectables.filter(
-            (i) =>
-              i.name.includes("Radiesse") ||
-              i.name.includes("Sculptra") ||
-              i.name.includes("Skinvive")
-          )
-        );
+        flat.push(...injectables.filter(injectableMatchesBiostimulantSku));
+      }
+    } else if (section.category === "Facial Surgery") {
+      if (isJudgeMdFacialPlanSubcategory(category)) {
+        const allowed = new Set(getJudgeMdProductOptionsForSurgeryCategory(category));
+        flat.push(...section.items.filter((i) => allowed.has(i.name)));
+      } else if (category === "Facial Surgery") {
+        flat.push(...section.items);
+      } else if (category === "Other procedures") {
+        flat.push(...section.items);
+      }
+    } else if (
+      section.category === "Breast Surgery" ||
+      section.category === "Body Sculpting" ||
+      section.category === "Vaginal Rejuvenation"
+    ) {
+      if (category === section.category) {
+        flat.push(...section.items);
+      } else if (category === "Other procedures") {
+        flat.push(...section.items);
       }
     } else if (
       section.category === "Chemical Peel" &&
@@ -285,10 +392,39 @@ function getItemsForDashboardCategory(
       category === "Microneedling"
     ) {
       flat.push(
+        ...section.items.filter((i) => {
+          const n = i.name;
+          if (/PRFM\s*Injections/i.test(n) || /PRFM\s*Hair\s*Restoration/i.test(n)) {
+            return false;
+          }
+          return n.includes("Microneedling") || n.includes("PRFM") || n.trim() === "PDGF";
+        }),
+      );
+    } else if (
+      section.category === "Medical Spa" &&
+      category === "Other procedures"
+    ) {
+      flat.push(
         ...section.items.filter(
           (i) =>
-            i.name.includes("Microneedling") || i.name.includes("PRFM")
-        )
+            /PRFM\s*Injections/i.test(i.name) || /PRFM\s*Hair\s*Restoration/i.test(i.name),
+        ),
+      );
+    } else if (
+      section.category === "Injectables" &&
+      category === "Other procedures"
+    ) {
+      flat.push(
+        ...section.items.filter(
+          (i) => i.name.includes("Skinvive") || /spider\s*vein/i.test(i.name),
+        ),
+      );
+    } else if (
+      section.category === "Other Treatments" &&
+      category === "Other procedures"
+    ) {
+      flat.push(
+        ...section.items.filter((i) => !/dissolver/i.test(i.name)),
       );
     }
   }
@@ -312,7 +448,7 @@ export function getPriceRange2025(
 /**
  * Which unified dashboard treatment category (treatment recommender / plan) a price-list row
  * belongs to. Mirrors {@link getSkusForDashboardCategory} classification. Empty when the line
- * is reference-only (e.g. consultations, spider veins) or not mapped to a plan category.
+ * is reference-only (e.g. consultations) or not mapped to a plan category.
  */
 export function getDashboardCategoriesForPriceListItem(
   sheetSectionCategory: string,
@@ -328,7 +464,12 @@ export function getDashboardCategoriesForPriceListItem(
     return ["Energy Treatment"];
   }
   if (sec === "Medical Spa") {
-    if (n.includes("Microneedling") || n.includes("PRFM")) return ["Microneedling"];
+    if (/PRFM\s*Injections/i.test(n) || /PRFM\s*Hair\s*Restoration/i.test(n)) {
+      return ["Other procedures"];
+    }
+    if (n.includes("Microneedling") || n.includes("PRFM") || n.trim() === "PDGF") {
+      return ["Microneedling"];
+    }
     return [];
   }
   if (sec === "Injectables") {
@@ -343,13 +484,24 @@ export function getDashboardCategoriesForPriceListItem(
     ) {
       return ["Filler"];
     }
-    if (n.includes("Radiesse") || n.includes("Sculptra") || n.includes("Skinvive")) {
+    if (n.includes("Skinvive")) return ["Other procedures"];
+    if (/spider\s*vein/i.test(n)) return ["Other procedures"];
+    if (n.includes("Radiesse") || n.includes("Sculptra")) {
       return ["Biostimulants"];
     }
     return [];
   }
-  if (sec === "Other Treatments" && n.includes("Dissolver")) {
-    return ["Filler"];
+  if (sec === "Other Treatments") {
+    if (n.includes("Dissolver")) return ["Filler"];
+    return ["Other procedures"];
+  }
+  if (sec === "Facial Surgery") {
+    const sub = getJudgeMdFacialPlanSubcategoryForItemName(n);
+    if (sub) return [sub as DashboardTreatmentCategory];
+    return ["Facial Surgery"];
+  }
+  if (sec === "Breast Surgery" || sec === "Body Sculpting" || sec === "Vaginal Rejuvenation") {
+    return [sec as DashboardTreatmentCategory];
   }
   return [];
 }
@@ -378,9 +530,10 @@ export function getAllPrices2025(): (TreatmentPriceItem & { category: string })[
   return out;
 }
 
-/** Numeric min/max for a dashboard category (for checkout totals). Kybella/Threadlift use fixed ranges; others from 2025 list. */
+/** Numeric min/max for a dashboard category (for checkout totals). Kybella/Threadlift use fixed ranges; others from the given price list (defaults to 2025). */
 export function getPriceRangeNumeric2025(
-  category: string
+  category: string,
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): { min: number; max: number } | undefined {
   const c = normalizePlanTreatmentCategoryForPricing((category ?? "").trim());
   if (!c) return undefined;
@@ -391,7 +544,7 @@ export function getPriceRangeNumeric2025(
   };
   if (fallbacks[c]) return fallbacks[c];
   const dash = c as DashboardTreatmentCategory;
-  const items = getItemsForDashboardCategory(dash);
+  const items = getItemsForDashboardCategory(dash, priceList);
   if (items.length === 0) return undefined;
   return getMinMax(items);
 }
@@ -441,6 +594,14 @@ const DASHBOARD_TO_PRICE_SECTIONS: Record<string, string[]> = {
   Filler: ["Injectables"],
   Neurotoxin: ["Injectables"],
   Biostimulants: ["Injectables"],
+  "Other procedures": ["Medical Spa", "Injectables", "Other Treatments"],
+  "Breast Surgery": ["Breast Surgery"],
+  "Facial Surgery": ["Facial Surgery"],
+  ...Object.fromEntries(
+    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.map((c) => [c, ["Facial Surgery"]]),
+  ),
+  "Body Sculpting": ["Body Sculpting"],
+  "Vaginal Rejuvenation": ["Vaginal Rejuvenation"],
   Kybella: [],
   Threadlift: [],
 };
@@ -466,6 +627,7 @@ export function normalizePlanTreatmentCategoryForPricing(treatment: string): str
   const caseMatch = keys.find((k) => k.toLowerCase() === lower);
   if (caseMatch) return caseMatch;
   if (lower === "laser" || lower === "energy device") return "Energy Treatment";
+  if (lower === "other procedures" || lower === "other procedure") return "Other procedures";
   /** Legacy top-level rows; 2025 sheet lists PRFM under Medical Spa / microneedling family. */
   if (lower === "prp" || lower === "pdgf") return "Microneedling";
   return t;
@@ -567,31 +729,26 @@ export function getChemicalPeelAreasFromPriceList(): string[] {
   return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
 }
 
-/** Keep CA/general options only: exclude Henderson rows and single-location-only rows (e.g. Claremont only, Newport only). */
-function isCaGeneralOption(item: TreatmentPriceItem): boolean {
-  const name = item.name ?? "";
-  const note = item.note ?? "";
-  if (name.includes("Henderson")) return false;
-  if (/only/i.test(note) && !/CA locations only|CA/i.test(note)) return false;
-  return true;
-}
-
-/** Microneedling/PRFM type names from the 2025 price list (Medical Spa section). Used as Type options for Microneedling so selection matches pricing. */
+/** Microneedling/PRFM type names from the 2025 price list (Medical Spa section). Used as Type options for Microneedling so selection matches pricing. Includes all location-specific SKUs (e.g. CA vs Henderson). {@link preferClaremontCaSkus} still prefers CA/clinic-default rows when fuzzy-matching a plan line to a SKU. */
 export function getMicroneedlingTypesFromPriceList(): string[] {
   const section = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Medical Spa");
   if (!section) return [];
   const names = section.items
-    .filter(
-      (i) =>
-        isCaGeneralOption(i) &&
-        (i.name.includes("Microneedling") || i.name.includes("PRFM")) &&
-        // Exclude standalone "PRFM Additional Tube" — it's an add-on, not a standalone type.
-        // The compound option "PRFM Microneedling + Additional Tube" is injected below instead.
-        i.name !== "PRFM Additional Tube"
-    )
+    .filter((i) => {
+      const n = i.name;
+      if (/PRFM\s*Injections/i.test(n) || /PRFM\s*Hair\s*Restoration/i.test(n)) {
+        return false;
+      }
+      if (n === "PRFM Additional Tube") return false;
+      return (
+        n.includes("Microneedling") ||
+        n.includes("PRFM") ||
+        n.trim() === "PDGF"
+      );
+    })
     .map((i) => i.name);
 
-  // Insert the compound option immediately after "PRFM Microneedling".
+  // Insert the compound option immediately after "PRFM Microneedling" (CA sheet row).
   const prfmIdx = names.indexOf("PRFM Microneedling");
   if (prfmIdx !== -1) {
     names.splice(prfmIdx + 1, 0, "PRFM Microneedling + Additional Tube");
@@ -607,10 +764,9 @@ export function getNeurotoxinTypesFromPriceList(): string[] {
   const normalized = section.items
     .filter(
       (i) =>
-        isCaGeneralOption(i) &&
-        (i.name.includes("Botox") ||
-          i.name.includes("Dysport") ||
-          i.name.includes("Sweating"))
+        i.name.includes("Botox") ||
+        i.name.includes("Dysport") ||
+        i.name.includes("Sweating"),
     )
     .map((i) => {
       if (i.name.includes("Botox 1-Unit")) return "Botox";
@@ -628,10 +784,9 @@ export function getFillerTypesFromPriceList(): string[] {
       section.items
         .filter(
           (i) =>
-            isCaGeneralOption(i) &&
-            (i.name.includes("Filler") ||
-              i.name.includes("Voluma") ||
-              i.name.includes("Volux"))
+            i.name.includes("Filler") ||
+            i.name.includes("Voluma") ||
+            i.name.includes("Volux"),
         )
         .forEach((i) => out.push(i.name));
     } else if (section.category === "Other Treatments") {
@@ -649,17 +804,62 @@ export function getBiostimulantsTypesFromPriceList(): string[] {
   if (!section) return [];
   const normalized: string[] = [];
   for (const i of section.items) {
-    if (!isCaGeneralOption(i)) continue;
     if (i.name.includes("Radiesse")) {
       normalized.push("Radiesse");
     } else if (i.name.includes("Sculptra")) {
       normalized.push("Sculptra");
-    } else if (i.name.includes("Skinvive")) {
-      // Expose one clean type in selectors; pricing logic chooses II + add-on syringe SKU(s).
-      normalized.push("Skinvive");
     }
   }
   return Array.from(new Set(normalized));
+}
+
+/**
+ * Type / product chips for the "Other procedures" plan category (2025 list): PRFM + Skinvive
+ * flows first, then Medical Spa add-ons from "Other Treatments", then spider-vein injectables.
+ * Facial PRFM site still uses Where (`PRFM_INJECTION_WHERE_OPTIONS`); other lines are one-click SKUs.
+ */
+export function getOtherProcedureTypesFromPriceList(): string[] {
+  const CORE: readonly string[] = [
+    "PRFM injections",
+    "PRFM scalp (hair restoration)",
+    "Skinvive (skin booster)",
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const add = (raw: string) => {
+    const t = raw.trim();
+    if (!t) return;
+    const k = t.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push(t);
+  };
+  for (const c of CORE) add(c);
+
+  const otherTreat = TREATMENT_PRICE_LIST_2025.find(
+    (s) => s.category === "Other Treatments",
+  );
+  if (otherTreat) {
+    const extras = otherTreat.items
+      .filter((i) => !/dissolver/i.test(i.name))
+      .map((i) => i.name.trim())
+      .sort((a, b) => a.localeCompare(b));
+    for (const n of extras) add(n);
+  }
+
+  const inj = TREATMENT_PRICE_LIST_2025.find((s) => s.category === "Injectables");
+  if (inj) {
+    const fromInj = inj.items
+      .filter(
+        (i) =>
+          /spider\s*vein/i.test(i.name) || i.name.includes("Skinvive"),
+      )
+      .map((i) => i.name.trim())
+      .sort((a, b) => a.localeCompare(b));
+    for (const n of fromInj) add(n);
+  }
+
+  return out;
 }
 
 /** Category meta for checkout display (longevity, recovery, sessions). */
@@ -671,6 +871,17 @@ export const CHECKOUT_CATEGORY_META: Record<string, CategoryMeta> = {
   Filler: { longevity: "6–18 months", downtime: "1–2 days", sessions: "1–2" },
   Neurotoxin: { longevity: "3–4 months", downtime: "None", sessions: "1" },
   Biostimulants: { longevity: "18–24+ months", downtime: "1–3 days", sessions: "1–3" },
+  "Other procedures": { longevity: "Varies", downtime: "1–7 days", sessions: "1–3" },
+  "Breast Surgery": { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
+  "Facial Surgery": { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
+  ...Object.fromEntries(
+    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.map((c) => [
+      c,
+      { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
+    ]),
+  ),
+  "Body Sculpting": { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
+  "Vaginal Rejuvenation": { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
   Kybella: { longevity: "Permanent", downtime: "3–7 days", sessions: "1–2" },
   Threadlift: { longevity: "12–18 months", downtime: "3–7 days", sessions: "1" },
 };
@@ -684,53 +895,81 @@ export function getCategoryMeta(category: string): CategoryMeta | undefined {
 type SkuWithCategory = TreatmentPriceItem & { category: string };
 
 /** Get SKUs that belong to the given dashboard treatment category. */
-function getSkusForDashboardCategory(dashboardCategory: string): SkuWithCategory[] {
+function getSkusForDashboardCategory(
+  dashboardCategory: string,
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
+): SkuWithCategory[] {
   const dash = normalizePlanTreatmentCategoryForPricing(
     dashboardCategory?.trim() ?? "",
   );
   const sections = DASHBOARD_TO_PRICE_SECTIONS[dash];
   if (!sections?.length) return [];
   const out: SkuWithCategory[] = [];
-  for (const section of TREATMENT_PRICE_LIST_2025) {
+  for (const section of priceList) {
     if (!sections.includes(section.category)) continue;
     const items = section.items;
     if (dash === "Neurotoxin") {
       items
-        .filter(
-          (i) =>
-            i.name.includes("Botox") || i.name.includes("Dysport") || i.name.includes("Sweating")
-        )
+        .filter(injectableMatchesNeurotoxinSku)
         .forEach((i) => out.push({ ...i, category: section.category }));
     } else if (dash === "Filler") {
       items
-        .filter(
-          (i) =>
-            i.name.includes("Filler") ||
-            i.name.includes("Voluma") ||
-            i.name.includes("Volux") ||
-            i.name.includes("Dissolver")
-        )
+        .filter(injectableMatchesFillerSku)
         .forEach((i) => out.push({ ...i, category: section.category }));
     } else if (dash === "Biostimulants") {
       items
-        .filter(
-          (i) =>
-            i.name.includes("Radiesse") ||
-            i.name.includes("Sculptra") ||
-            i.name.includes("Skinvive")
-        )
+        .filter(injectableMatchesBiostimulantSku)
         .forEach((i) => out.push({ ...i, category: section.category }));
+    } else if (dash === "Other procedures") {
+      if (section.category === "Medical Spa") {
+        items
+          .filter((i) => {
+            const n = i.name;
+            return (
+              /PRFM\s*Injections/i.test(n) || /PRFM\s*Hair\s*Restoration/i.test(n)
+            );
+          })
+          .forEach((i) => out.push({ ...i, category: section.category }));
+      } else if (section.category === "Injectables") {
+        items
+          .filter(
+            (i) =>
+              (i.name.includes("Skinvive") && !/intradermal/i.test(i.name)) ||
+              /spider\s*vein/i.test(i.name),
+          )
+          .forEach((i) => out.push({ ...i, category: section.category }));
+      } else if (section.category === "Other Treatments") {
+        items
+          .filter((i) => !/dissolver/i.test(i.name))
+          .forEach((i) => out.push({ ...i, category: section.category }));
+      }
     } else if (dash === "Microneedling") {
       items
-        .filter(
-          (i) =>
+        .filter((i) => {
+          const n = i.name;
+          if (/PRFM\s*Injections/i.test(n) || /PRFM\s*Hair\s*Restoration/i.test(n)) {
+            return false;
+          }
+          return (
             i.name.includes("Microneedling") ||
             i.name.includes("PRFM") ||
-            i.name.trim() === "PDGF",
-        )
+            i.name.trim() === "PDGF"
+          );
+        })
         .forEach((i) => out.push({ ...i, category: section.category }));
     } else {
-      items.forEach((i) => out.push({ ...i, category: section.category }));
+      let rowItems = items;
+      if (isJudgeMdFacialPlanSubcategory(dash) && section.category === "Facial Surgery") {
+        const allow = new Set(getJudgeMdProductOptionsForSurgeryCategory(dash));
+        rowItems = items.filter((i) => allow.has(i.name));
+      }
+      rowItems.forEach((i) => out.push({ ...i, category: section.category }));
+    }
+  }
+  if (dash === "Other procedures") {
+    for (const section of priceList) {
+      if (!JUDGEMD_SURGERY_CAT_SET.has(section.category)) continue;
+      section.items.forEach((i) => out.push({ ...i, category: section.category }));
     }
   }
   return out;
@@ -780,7 +1019,8 @@ function preferClaremontCaSkus<T extends { name: string }>(skus: T[]): T[] {
 
 /** Match a plan item to a specific SKU and return price (total or per-unit × quantity). */
 export function matchPlanItemToSku(
-  item: PlanItemForPricing
+  item: PlanItemForPricing,
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): {
   sku: SkuWithCategory;
   totalPrice: number;
@@ -794,11 +1034,16 @@ export function matchPlanItemToSku(
   if (!treatment) return null;
   // Skincare with a specific product (e.g. Retinol, Vitamin C) uses boutique pricing, not the 2025 facial price list.
   if (treatment === "Skincare" && (item.product ?? "").trim()) return null;
-  let skus = getSkusForDashboardCategory(treatment);
+  let skus = getSkusForDashboardCategory(treatment, priceList);
   skus = preferClaremontCaSkus(skus);
   if (skus.length === 0) return null;
 
   const product = (item.product ?? "").trim();
+  if (treatment === "Biostimulants" && product && /skinvive/i.test(product)) {
+    skus = preferClaremontCaSkus(
+      getSkusForDashboardCategory("Other procedures", priceList).filter((s) => /Skinvive/i.test(s.name)),
+    );
+  }
   const region = (item.region ?? "").trim();
   const quantityStr = (item.quantity ?? "").trim();
   const qty = quantityStr ? parseInt(quantityStr, 10) : NaN;
@@ -844,7 +1089,7 @@ export function matchPlanItemToSku(
     }
   }
 
-  // Microneedling: PDGF with microneedling = Microneedling ($500) + PDGF ($495) = $995. Standalone PDGF type = $495.
+  // Microneedling: PDGF with microneedling = Microneedling ($500) + PDGF ($495) = $995. (PDGF is not sold standalone.)
   if (treatment === "Microneedling" && product) {
     const pLower = product.toLowerCase();
     const mentionsPdgf = /\bpdgf\b/i.test(product);
@@ -861,11 +1106,71 @@ export function matchPlanItemToSku(
         };
       }
     }
-    if (mentionsPdgf && !mentionsMn) {
-      const pdgfSku = skus.find((s) => s.name.trim() === "PDGF");
-      if (pdgfSku) {
-        return { sku: pdgfSku, totalPrice: pdgfSku.price };
+  }
+
+  if (treatment === "Other procedures" && product) {
+    const pTrim = product.trim();
+    const pLow = pTrim.toLowerCase();
+    /** One-off add-ons (Nerve Block, Cortisone Shot, …) match sheet row name exactly. */
+    const exactOtherSku = skus.find((s) => norm(s.name) === norm(pTrim));
+    if (exactOtherSku) return { sku: exactOtherSku, totalPrice: exactOtherSku.price };
+    /** 2025 sheet: Nerve Block $25 — map word variants (spacing, "NB" alone is not matched). */
+    if (/nerve\s*block/i.test(pTrim)) {
+      const nerveSku = skus.find((s) => norm(s.name) === norm("Nerve Block"));
+      if (nerveSku) return { sku: nerveSku, totalPrice: nerveSku.price };
+    }
+    /** 2025 sheet: Cortisone Shot $50 — map common variants ("Cortisone", "Cortisone injection"). */
+    if (/cortisone/i.test(pTrim)) {
+      const cortisoneSku = skus.find(
+        (s) => norm(s.name) === norm("Cortisone Shot"),
+      );
+      if (cortisoneSku)
+        return { sku: cortisoneSku, totalPrice: cortisoneSku.price };
+    }
+    const rLow = (region ?? "").toLowerCase();
+    const bioQty = !Number.isNaN(qty) && qty > 0 ? qty : 1;
+    if (/skinvive/i.test(pLow)) {
+      const skinviveBase =
+        skus.find((s) => /Skinvive\s*II/i.test(s.name)) ||
+        skus.find((s) => /Skinvive/i.test(s.name));
+      if (!skinviveBase) return null;
+      const skinviveAddon = skus.find((s) => /Skinvive\s*III\s*Add-On\s*Syringe/i.test(s.name));
+      if (bioQty <= 1 || !skinviveAddon) {
+        return {
+          sku: skinviveBase,
+          totalPrice: skinviveBase.price,
+          isPerUnit: true,
+          unitPrice: skinviveBase.price,
+          quantity: 1,
+        };
       }
+      const totalPrice = skinviveBase.price + (bioQty - 1) * skinviveAddon.price;
+      return {
+        sku: skinviveBase,
+        totalPrice,
+        isPerUnit: true,
+        unitPrice: skinviveAddon.price,
+        quantity: bioQty,
+      };
+    }
+    if (
+      /prfm\s*scalp|scalp|hair\s*restoration/i.test(pLow) ||
+      /prfm injections\s*[–-]\s*scalp/i.test(pLow)
+    ) {
+      const hair = skus.find(
+        (s) => /PRFM\s*Hair\s*Restoration/i.test(s.name) && !s.name.includes("Henderson"),
+      );
+      if (hair) return { sku: hair, totalPrice: hair.price };
+    }
+    if (
+      /prfm injections/i.test(pLow) ||
+      /nasolabial|under\s*eye/i.test(pLow) ||
+      /nasolabial|under\s*eye/i.test(rLow)
+    ) {
+      const inj = skus.find(
+        (s) => s.name === "PRFM Injections" && !s.name.includes("Henderson"),
+      );
+      if (inj) return { sku: inj, totalPrice: inj.price };
     }
   }
 
@@ -919,6 +1224,10 @@ export function matchPlanItemToSku(
         const one = sculptraSkus.find((s) => /Sculptra\s*[–-]\s*1\s*Vial/i.test(s.name));
         if (one) return { sku: one, totalPrice: one.price };
       }
+    }
+    if (/renuva/i.test(product)) {
+      const ren = skus.find((s) => /Renuva/i.test(s.name));
+      if (ren) return { sku: ren, totalPrice: ren.price };
     }
     if (/skinvive/i.test(product)) {
       const skinviveBase =
@@ -983,6 +1292,11 @@ export function matchPlanItemToSku(
       (treatment === "Neurotoxin" ||
         treatment === "Filler" ||
         treatment === "Biostimulants")
+    ) {
+      matched = null;
+    } else if (
+      (treatment === "Other procedures" || isJudgeMdSurgeryPlanCategory(treatment)) &&
+      (product ?? "").trim().length > 0
     ) {
       matched = null;
     } else {
@@ -1115,6 +1429,17 @@ export interface CheckoutLineItemDetail {
   missingInfo?: string;
   /** Quote UI grouping: `skincare` = Skin Boutique retail product line only; `treatment` = everything else (including facials under Skincare category) */
   quoteLineKind?: "skincare" | "treatment";
+  /**
+   * When true (set when sending the shared plan link), the patient-facing quote hides this
+   * line’s dollar amount; `price` is still stored for staff/analytics. Omitted = show price.
+   */
+  hidePriceFromPatient?: boolean;
+  /**
+   * When sending the shared plan, staff may set a patient-facing amount that differs from
+   * {@link price} (e.g. corrected quote). Patient UI uses this for display and totals when
+   * present and {@link hidePriceFromPatient} is false. Omitted = use `price`.
+   */
+  patientPriceOverride?: number;
 }
 
 /** Skincare boutique product info for checkout (from getSkincareCarouselItems / TREATMENT_BOUTIQUE_SKINCARE). */
@@ -1131,11 +1456,13 @@ export interface SkincareProductInfo {
  * Build checkout summary with SKU-level prices and category meta (longevity, downtime, sessions).
  * Uses specific SKU when product/region/quantity match; otherwise falls back to category range.
  * For Skincare + product, pass getSkincareProductInfo to use boutique product name, price, and image (not the 2025 facial list).
+ * @param priceList Effective provider sheet (defaults to 2025); use {@link getEffectivePriceList} for JudgeMD vs default.
  */
 export function getCheckoutSummaryWithSkus(
   items: (PlanItemForPricing & { id?: string })[],
   getLabel: (item: PlanItemForPricing & { id?: string }) => string,
   getSkincareProductInfo?: (productName: string) => SkincareProductInfo | null,
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): {
   lineItems: CheckoutLineItemDetail[];
   total: number;
@@ -1178,7 +1505,7 @@ export function getCheckoutSummaryWithSkus(
       }
     }
 
-    const match = matchPlanItemToSku(item);
+    const match = matchPlanItemToSku(item, priceList);
 
     if (match) {
       const displayPrice = formatSkuMatchDisplayPrice(match);
@@ -1247,7 +1574,11 @@ export function getCheckoutSummaryWithSkus(
         continue;
       }
       const injectableNeedsProductForQuote =
-        (cat === "Neurotoxin" || cat === "Filler" || cat === "Biostimulants") &&
+        (cat === "Neurotoxin" ||
+          cat === "Filler" ||
+          cat === "Biostimulants" ||
+          cat === "Other procedures" ||
+          isJudgeMdSurgeryPlanCategory(cat)) &&
         !productName;
       if (injectableNeedsProductForQuote) {
         const m = meta(cat);
@@ -1256,7 +1587,9 @@ export function getCheckoutSummaryWithSkus(
             ? "Select a type (e.g. Botox, Dysport) to get a price"
             : cat === "Filler"
               ? "Select a filler type to get a price"
-              : "Select a type (e.g. Radiesse, Sculptra) to get a price";
+              : cat === "Other procedures" || isJudgeMdSurgeryPlanCategory(cat)
+                ? "Select a procedure type to get a price"
+                : "Select a type (e.g. Radiesse, Sculptra) to get a price";
         lineItems.push({
           label,
           price: 0,
@@ -1271,7 +1604,7 @@ export function getCheckoutSummaryWithSkus(
         hasUnknownPrices = true;
         continue;
       }
-      const range = getPriceRangeNumeric2025(cat);
+      const range = getPriceRangeNumeric2025(cat, priceList);
       const categoryMetaFallback = meta(cat);
       if (range && (range.min > 0 || range.max > 0)) {
         const displayPrice =
@@ -1342,19 +1675,20 @@ export function parseProviderPricingJson(
 }
 
 /**
- * Merge provider pricing overrides on top of the hardcoded 2025 defaults.
- * Provider categories entirely replace matching default categories (by name);
- * categories only in defaults are kept as-is; categories only from the provider are appended.
+ * Merge provider pricing overrides on top of a base sheet (2025 default or e.g. JudgeMD embedded list).
+ * Provider categories entirely replace matching base categories (by name);
+ * categories only in base are kept as-is; categories only from the provider are appended.
  */
-export function mergeProviderPricing(
+export function mergeProviderPricingOntoBase(
   providerPricing: ProviderPricingJson | null | undefined,
+  base: ProviderPricingJson,
 ): ProviderPricingJson {
-  if (!providerPricing?.length) return TREATMENT_PRICE_LIST_2025;
+  if (!providerPricing?.length) return base;
   const merged: ProviderPricingJson = [];
   const providerByCategory = new Map(
     providerPricing.map((s) => [s.category, s]),
   );
-  for (const defaultSection of TREATMENT_PRICE_LIST_2025) {
+  for (const defaultSection of base) {
     const override = providerByCategory.get(defaultSection.category);
     merged.push(override ?? defaultSection);
     providerByCategory.delete(defaultSection.category);
@@ -1366,27 +1700,80 @@ export function mergeProviderPricing(
 }
 
 /**
+ * Merge provider pricing overrides on top of the hardcoded 2025 defaults.
+ * Provider categories entirely replace matching default categories (by name);
+ * categories only in defaults are kept as-is; categories only from the provider are appended.
+ */
+export function mergeProviderPricing(
+  providerPricing: ProviderPricingJson | null | undefined,
+): ProviderPricingJson {
+  return mergeProviderPricingOntoBase(providerPricing, TREATMENT_PRICE_LIST_2025);
+}
+
+/**
+ * Wellnest peptide / wellness rows from {@link WELLNEST_OFFERINGS} — used as the merge base when
+ * {@link isWellnestWellnessProviderCode} matches (same pattern as JudgeMD’s embedded list).
+ */
+export function getWellnestEmbeddedPriceListBase(): ProviderPricingJson {
+  const categoryOrder: string[] = [];
+  const byCat = new Map<string, TreatmentPriceItem[]>();
+  for (const o of WELLNEST_OFFERINGS) {
+    if (!byCat.has(o.category)) {
+      categoryOrder.push(o.category);
+      byCat.set(o.category, []);
+    }
+    const priceNum = parseWellnestPriceMin(o.pricing);
+    const noteRaw = o.pricing.trim();
+    byCat.get(o.category)!.push({
+      name: o.treatmentName,
+      price: priceNum,
+      note: noteRaw || undefined,
+    });
+  }
+  return categoryOrder.map((category) => ({
+    category,
+    items: byCat.get(category) ?? [],
+  }));
+}
+
+function getEmbeddedPriceListBaseForProvider(
+  providerCode?: string | null,
+): ProviderPricingJson {
+  if (isJudgeMdProviderCode(providerCode ?? undefined)) {
+    return JUDGEMD_PRICE_LIST_2026_27;
+  }
+  if (isWellnestWellnessProviderCode(providerCode ?? undefined)) {
+    return getWellnestEmbeddedPriceListBase();
+  }
+  return TREATMENT_PRICE_LIST_2025;
+}
+
+/**
  * Build the effective price list for a provider: parse their override, merge with defaults.
  * Handles both the old bare-array format and the new ProviderPricingDocument format.
- * Callers pass `provider["Treatment Pricing"]`.
+ * Callers pass `provider["Treatment Pricing"]` and, when available, `provider.code` so JudgeMD / Wellnest
+ * use their embedded sheet as the merge base.
  */
 export function getEffectivePriceList(
   providerTreatmentPricingRaw: string | null | undefined,
+  providerCode?: string | null,
 ): ProviderPricingJson {
-  if (!providerTreatmentPricingRaw?.trim()) return TREATMENT_PRICE_LIST_2025;
+  const base = getEmbeddedPriceListBaseForProvider(providerCode);
+  if (!providerTreatmentPricingRaw?.trim()) return base;
   try {
     const parsed = JSON.parse(providerTreatmentPricingRaw);
     // New document format: { pricing?, recommenderOptions? }
     if (parsed && !Array.isArray(parsed) && typeof parsed === "object") {
-      return mergeProviderPricing(
+      return mergeProviderPricingOntoBase(
         Array.isArray(parsed.pricing) ? (parsed.pricing as ProviderPricingJson) : null,
+        base,
       );
     }
     // Old format: bare array
-    if (Array.isArray(parsed)) return mergeProviderPricing(parsed as ProviderPricingJson);
-    return TREATMENT_PRICE_LIST_2025;
+    if (Array.isArray(parsed)) return mergeProviderPricingOntoBase(parsed as ProviderPricingJson, base);
+    return base;
   } catch {
-    return TREATMENT_PRICE_LIST_2025;
+    return base;
   }
 }
 
@@ -1455,12 +1842,14 @@ export function getPricingFromDocument(
 
 /**
  * Build the effective price list from the document format.
- * Callers pass `provider["Treatment Pricing"]`.
+ * Callers pass `provider["Treatment Pricing"]` and, when available, `provider.code`.
  */
 export function getEffectivePriceListFromDocument(
   raw: string | null | undefined,
+  providerCode?: string | null,
 ): ProviderPricingJson {
-  return mergeProviderPricing(getPricingFromDocument(raw));
+  const base = getEmbeddedPriceListBaseForProvider(providerCode);
+  return mergeProviderPricingOntoBase(getPricingFromDocument(raw), base);
 }
 
 /**
@@ -1604,9 +1993,12 @@ export function getSkuOptionsForCategory(
   for (const section of effectiveList) {
     if (!sections.includes(section.category)) continue;
     const items = section.items;
-    const filtered = filterSkusForDashboardCategory(dashboardCategory, items);
+    const filtered = filterSkusForDashboardCategory(
+      dashboardCategory,
+      items,
+      section.category,
+    );
     for (const item of filtered) {
-      if (!isCaGeneralOption(item)) continue;
       out.push({
         label: item.name,
         skuName: item.name,
@@ -1632,9 +2024,8 @@ export function getBiostimulantTypeOptionLabels(
     const n = s.label;
     if (n.includes("Radiesse")) types.add("Radiesse");
     else if (n.includes("Sculptra")) types.add("Sculptra");
-    else if (n.includes("Skinvive")) types.add("Skinvive");
   }
-  const order = ["Radiesse", "Sculptra", "Skinvive"];
+  const order = ["Radiesse", "Sculptra"];
   return order.filter((t) => types.has(t));
 }
 
@@ -1667,6 +2058,7 @@ export function getNeurotoxinTypeOptionLabels(
 function filterSkusForDashboardCategory(
   dash: DashboardTreatmentCategory,
   items: TreatmentPriceItem[],
+  sheetSection: string,
 ): TreatmentPriceItem[] {
   switch (dash) {
     case "Neurotoxin":
@@ -1679,12 +2071,32 @@ function filterSkusForDashboardCategory(
       );
     case "Biostimulants":
       return items.filter(
-        (i) => i.name.includes("Radiesse") || i.name.includes("Sculptra") || i.name.includes("Skinvive"),
+        (i) => i.name.includes("Radiesse") || i.name.includes("Sculptra"),
       );
+    case "Other procedures": {
+      if (sheetSection === "Medical Spa") {
+        return items.filter(
+          (i) =>
+            /PRFM\s*Injections/i.test(i.name) ||
+            /PRFM\s*Hair\s*Restoration/i.test(i.name),
+        );
+      }
+      if (sheetSection === "Injectables") {
+        return items.filter(
+          (i) => i.name.includes("Skinvive") || /spider\s*vein/i.test(i.name),
+        );
+      }
+      if (sheetSection === "Other Treatments") {
+        return items.filter((i) => !/dissolver/i.test(i.name));
+      }
+      return [];
+    }
     case "Microneedling":
-      return items.filter(
-        (i) => i.name.includes("Microneedling") || i.name.includes("PRFM"),
-      );
+      return items.filter((i) => {
+        const n = i.name;
+        if (/PRFM\s*Injections/i.test(n) || /PRFM\s*Hair\s*Restoration/i.test(n)) return false;
+        return i.name.includes("Microneedling") || i.name.includes("PRFM");
+      });
     default:
       return items;
   }

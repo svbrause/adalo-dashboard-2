@@ -1,15 +1,22 @@
 import type { DiscussedItem } from "../types";
 import type { CheckoutLineItemDetail } from "../data/treatmentPricing2025";
 import { isBoutiqueSkincareProductName } from "../components/modals/DiscussedTreatmentsModal/treatmentBoutiqueProducts";
+import { isValidPlanScheduledDateIso } from "./planScheduledDate";
 
 /** Matches {@link isDiscussedItemOnPostVisitBlueprint} — kept local to avoid import cycles. */
-const PVB_QUOTE_ORDER_EXCLUDED_TIMELINES = new Set(["completed"]);
-
 function isDiscussedItemInBlueprintQuoteOrder(item: DiscussedItem): boolean {
   const treatment = (item.treatment ?? "").trim();
   if (treatment === "Skincare") return true;
   const tl = (item.timeline ?? "").trim().toLowerCase();
-  return !PVB_QUOTE_ORDER_EXCLUDED_TIMELINES.has(tl);
+  if (tl === "completed") return false;
+  if (isValidPlanScheduledDateIso((item.scheduledDate ?? "").trim())) return true;
+  if (tl === "scheduled") return true;
+  return (
+    tl === "" ||
+    tl === "now" ||
+    tl === "add next visit" ||
+    tl === "wishlist"
+  );
 }
 
 /**

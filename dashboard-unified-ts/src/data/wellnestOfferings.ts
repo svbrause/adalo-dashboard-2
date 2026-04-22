@@ -369,6 +369,26 @@ export function getWellnestProductOptionsForTreatment(
   return [...base, "Other"];
 }
 
+/**
+ * True when `product` is only a delivery-form line from the Wellnest offering sheet
+ * (the second dropdown: e.g. "Nasal spray available", "SC injection", "Other") — not a
+ * distinct product name. Plan and checkout labels should lead with the peptide
+ * {@link treatmentName} instead of replacing the title with this string.
+ */
+export function isWellnestDeliveryFormProductLine(
+  treatment: string | undefined,
+  product: string | undefined,
+): boolean {
+  const t = treatment?.trim();
+  const p = product?.trim();
+  if (!t || !p) return false;
+  if (!getWellnestOfferingByTreatmentName(t)) return false;
+  const pLower = p.toLowerCase();
+  return getWellnestProductOptionsForTreatment(t).some(
+    (opt) => opt.trim().toLowerCase() === pLower,
+  );
+}
+
 /** Meta for blueprint chapters + checkout fallbacks */
 export function getWellnestPeptideMeta(treatment: string): {
   longevity?: string;

@@ -10,7 +10,7 @@ import {
   type AirtableRecord,
   type PatientSuggestionCard,
 } from "../../services/api";
-import { formatPrice } from "../../data/treatmentPricing2025";
+import { formatPrice, type CheckoutLineItemDetail } from "../../data/treatmentPricing2025";
 import {
   getPostVisitBlueprintFromUrlData,
   getStoredPostVisitBlueprint,
@@ -19,8 +19,10 @@ import {
   parsePostVisitBlueprintTokenFromUrl,
   resolveHeroPhotoDisplayUrl,
   trackPostVisitBlueprintEvent,
+  filterDiscussedItemsForPostVisitBlueprint,
   type PostVisitBlueprintPayload,
 } from "../../utils/postVisitBlueprint";
+import { capturePatientAcquisitionFunnelEvent } from "../../utils/patientAcquisitionAnalytics";
 import {
   buildTreatmentResultsCards,
   type BlueprintCasePhoto,
@@ -78,7 +80,14 @@ import {
 } from "../postVisitBlueprint/PvbAnalysisSubpages";
 import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
 import { MintMembershipInfoTrigger } from "../shared/MintMembershipInfoTrigger";
-import { partitionQuoteLineIndices } from "../../utils/pvbQuotePartition";
+import {
+  getQuoteLineDiscussedItemIndexOrder,
+  partitionQuoteLineIndices,
+} from "../../utils/pvbQuotePartition";
+import { buildPlanCalendarAgendaFromDiscussedItems } from "../../utils/pvbPlanCalendarAgenda";
+import { formatPlanScheduledDateLabel } from "../../utils/planScheduledDate";
+import { formatTreatmentPlanRowFullLine } from "../modals/DiscussedTreatmentsModal/utils";
+import type { DiscussedItem } from "../../types";
 import { patientFacingSkincareShortName } from "../../utils/pvbSkincareDisplay";
 import "../postVisitBlueprint/PvbNarrative.css";
 import "./PostVisitBlueprintPage.css";
@@ -234,6 +243,14 @@ function mapPhotoRecord(record: AirtableRecord): BlueprintCasePhoto | null {
   };
 }
 
+/** Subline under quote rows when the plan row has a calendar date. */
+function pvbQuoteRowScheduledNote(item: DiscussedItem | null): string | null {
+  if (!item) return null;
+  const lab = formatPlanScheduledDateLabel(item.scheduledDate);
+  if (!lab) return null;
+  return `Scheduled for ${lab}`;
+}
+
 /* ── Page component ── */
 
 export default function PostVisitBlueprintPage() {
@@ -370,6 +387,27 @@ export default function PostVisitBlueprintPage() {
       provider_name: blueprint.providerName,
       patient_id: blueprint.patient.id,
     });
+    capturePatientAcquisitionFunnelEvent("funnel_pvs_opened", blueprint.patient.id, {
+      token: blueprint.token,
+      clinic_name: blueprint.clinicName,
+      provider_name: blueprint.providerName,
+    });
+  }, [blueprint, blueprintAllowed]);
+
+  useEffect(() => {
+    if (!blueprint || !blueprintAllowed) return;
+    const dedupeKey = `ph_acq_pvs_2m:${blueprint.token}`;
+    if (sessionStorage.getItem(dedupeKey) === "1") return;
+    const t = window.setTimeout(() => {
+      if (sessionStorage.getItem(dedupeKey) === "1") return;
+      sessionStorage.setItem(dedupeKey, "1");
+      capturePatientAcquisitionFunnelEvent(
+        "funnel_pvs_engaged_2min",
+        blueprint.patient.id,
+        { token: blueprint.token },
+      );
+    }, 120_000);
+    return () => window.clearTimeout(t);
   }, [blueprint, blueprintAllowed]);
 
   useEffect(() => {
@@ -463,6 +501,7 @@ export default function PostVisitBlueprintPage() {
       treatmentResultCards,
       blueprintVideoCatalog,
       blueprint.quote.lineItems,
+      blueprint.providerCode,
     );
   }, [
     blueprint,
@@ -632,6 +671,34 @@ export default function PostVisitBlueprintPage() {
       blueprint.discussedItems,
     );
   }, [blueprint, blueprintAllowed]);
+
+  /** Same month/day grouping as the plan builder Schedule (agenda) view. */
+  const postVisitScheduleAgenda = useMemo(() => {
+    if (!blueprint || !blueprintAllowed) return [];
+    return buildPlanCalendarAgendaFromDiscussedItems(
+      filterDiscussedItemsForPostVisitBlueprint(blueprint.discussedItems),
+    );
+  }, [blueprint, blueprintAllowed]);
+
+  const quoteDiscussedIndexOrder = useMemo(() => {
+    if (!blueprint || !blueprintAllowed) return [] as number[];
+    const items = blueprint.discussedItems;
+    const lines = blueprint.quote.lineItems;
+    return getQuoteLineDiscussedItemIndexOrder(
+      items,
+      lines.length === items.length ? lines : undefined,
+    );
+  }, [blueprint, blueprintAllowed]);
+
+  const discussedItemForQuoteLineIndex = useCallback(
+    (quoteIdx: number): DiscussedItem | null => {
+      if (!blueprint) return null;
+      const di = quoteDiscussedIndexOrder[quoteIdx];
+      if (di === undefined) return null;
+      return blueprint.discussedItems[di] ?? null;
+    },
+    [blueprint, quoteDiscussedIndexOrder],
+  );
 
   const [overviewSectionRef, overviewSectionInView] =
     useInViewOnce<HTMLElement>("0px 0px -5% 0px", 0.05);
@@ -965,26 +1032,32 @@ export default function PostVisitBlueprintPage() {
     (blueprint.providerName ?? "").split(",")[0]?.trim() ||
     blueprint.providerName;
 
-  const discussedHotspotLabels = dedupeBlueprintDisplayStrings(
-    blueprint.discussedItems.flatMap((item) => {
-      const out: string[] = [];
-      if (item.region?.trim()) out.push(item.region.trim());
-      if (item.findings?.length)
-        out.push(...item.findings.map((f) => f.trim()).filter(Boolean));
-      return out;
-    }),
-    8,
+  const discussedHotspotLabels = useMemo(
+    () =>
+      dedupeBlueprintDisplayStrings(
+        blueprint.discussedItems.flatMap((item) => {
+          const out: string[] = [];
+          if (item.region?.trim()) out.push(item.region.trim());
+          if (item.findings?.length)
+            out.push(...item.findings.map((f) => f.trim()).filter(Boolean));
+          return out;
+        }),
+        8,
+      ),
+    [blueprint.discussedItems],
   );
 
-  const mirrorTermsFromRecommender =
-    blueprint.recommenderFocusRegions &&
-    blueprint.recommenderFocusRegions.length > 0
-      ? mapRecommenderRegionsToMirrorTerms(blueprint.recommenderFocusRegions)
-      : [];
-  const mirrorHighlightTerms =
-    mirrorTermsFromRecommender.length > 0
-      ? mirrorTermsFromRecommender
-      : discussedHotspotLabels;
+  const mirrorHighlightTerms = useMemo(() => {
+    if (
+      blueprint.recommenderFocusRegions &&
+      blueprint.recommenderFocusRegions.length > 0
+    ) {
+      return mapRecommenderRegionsToMirrorTerms(
+        blueprint.recommenderFocusRegions,
+      );
+    }
+    return discussedHotspotLabels;
+  }, [blueprint.recommenderFocusRegions, discussedHotspotLabels]);
 
   const visibleHotspots =
     blueprint.recommenderFocusRegions &&
@@ -998,13 +1071,31 @@ export default function PostVisitBlueprintPage() {
   const { skincare: skincareQuoteIdxs, treatment: treatmentQuoteIdxs } =
     quotePartition;
 
+  const blueprintPatientLineAmount = (line: CheckoutLineItemDetail) => {
+    if (line.hidePriceFromPatient) return 0;
+    const o = line.patientPriceOverride;
+    if (typeof o === "number" && Number.isFinite(o) && o >= 0) return o;
+    return line.price ?? 0;
+  };
+
+  const blueprintPatientLineDisplay = (line: CheckoutLineItemDetail) => {
+    if (line.hidePriceFromPatient) return "—";
+    const o = line.patientPriceOverride;
+    if (typeof o === "number" && Number.isFinite(o) && o >= 0) {
+      return formatPrice(o);
+    }
+    return formatPrice(line.price ?? 0);
+  };
+
   const toggledSkincareSub = skincareQuoteIdxs.reduce((sum, idx) => {
     if (!selectedRows[idx]) return sum;
-    return sum + (lineItems[idx].price ?? 0);
+    const line = lineItems[idx];
+    return sum + blueprintPatientLineAmount(line);
   }, 0);
   const toggledTreatmentsSub = treatmentQuoteIdxs.reduce((sum, idx) => {
     if (!selectedRows[idx]) return sum;
-    return sum + (lineItems[idx].price ?? 0);
+    const line = lineItems[idx];
+    return sum + blueprintPatientLineAmount(line);
   }, 0);
   const toggledTotal = toggledSkincareSub + toggledTreatmentsSub;
   const allowMintMembership = !isWellnestWellnessProviderCode(
@@ -1074,6 +1165,57 @@ export default function PostVisitBlueprintPage() {
             </div>
           )}
         </section>
+
+        {postVisitScheduleAgenda.length > 0 ? (
+          <section
+            className="pvb-plan-schedule"
+            aria-labelledby="pvb-plan-schedule-heading"
+          >
+            <h2 id="pvb-plan-schedule-heading" className="pvb-plan-schedule-title">
+              Your treatment schedule
+            </h2>
+            <p className="pvb-plan-schedule-lead">
+              Calendar dates for your plan (same schedule view as in your
+              provider&apos;s plan builder).
+            </p>
+            <div
+              className="pvb-plan-schedule-agenda"
+              aria-label="Scheduled treatments by month"
+            >
+              {postVisitScheduleAgenda.map((month) => (
+                <section
+                  key={month.monthKey}
+                  className="pvb-plan-schedule-month"
+                >
+                  <h3 className="pvb-plan-schedule-month-title">
+                    {month.monthLabel}
+                  </h3>
+                  <div className="pvb-plan-schedule-days">
+                    {month.days.map((day) => (
+                      <div key={day.iso} className="pvb-plan-schedule-day">
+                        <div
+                          className="pvb-plan-schedule-day-date"
+                          title={
+                            formatPlanScheduledDateLabel(day.iso) ?? day.iso
+                          }
+                        >
+                          {day.dateShort}
+                        </div>
+                        <ul className="pvb-plan-schedule-day-items">
+                          {day.items.map((item) => (
+                            <li key={item.id}>
+                              {formatTreatmentPlanRowFullLine(item)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* ═══ 2. OVERVIEW (assessment narrative + plan bridge) ═══ */}
         {analysisDisplay && (
@@ -1232,19 +1374,10 @@ export default function PostVisitBlueprintPage() {
                       <span className="pvb-toc-item-name">{c.displayName}</span>
                       {areaPills.length > 0 ? (
                         <span
-                          className="pvb-toc-item-area-pills"
-                          role="list"
+                          className="pvb-toc-item-areas-subheading"
                           aria-label="Treatment areas"
                         >
-                          {areaPills.map((a, i) => (
-                            <span
-                              key={`${a}-${i}`}
-                              className="pvb-toc-area-pill"
-                              role="listitem"
-                            >
-                              {a}
-                            </span>
-                          ))}
+                          {areaPills.join(" · ")}
                         </span>
                       ) : null}
                     </a>
@@ -1438,6 +1571,9 @@ export default function PostVisitBlueprintPage() {
                       </h3>
                       {skincareQuoteIdxs.map((idx) => {
                         const line = lineItems[idx];
+                        const schedNote = pvbQuoteRowScheduledNote(
+                          discussedItemForQuoteLineIndex(idx),
+                        );
                         return (
                           <label
                             key={`${line.skuName ?? line.label}-${idx}`}
@@ -1468,12 +1604,19 @@ export default function PostVisitBlueprintPage() {
                                 );
                               }}
                             />
-                            <span>
-                              {patientFacingSkincareShortName(
-                                line.skuName ?? line.label,
-                              )}
+                            <span className="pvb-quote-row-text">
+                              <span className="pvb-quote-row-title">
+                                {patientFacingSkincareShortName(
+                                  line.skuName ?? line.label,
+                                )}
+                              </span>
+                              {schedNote ? (
+                                <span className="pvb-quote-row-sched">
+                                  {schedNote}
+                                </span>
+                              ) : null}
                             </span>
-                            <strong>{formatPrice(line.price ?? 0)}</strong>
+                            <strong>{blueprintPatientLineDisplay(line)}</strong>
                           </label>
                         );
                       })}
@@ -1489,6 +1632,9 @@ export default function PostVisitBlueprintPage() {
                       <h3 className="pvb-quote-section-title">Treatments</h3>
                       {treatmentQuoteIdxs.map((idx) => {
                         const line = lineItems[idx];
+                        const schedNote = pvbQuoteRowScheduledNote(
+                          discussedItemForQuoteLineIndex(idx),
+                        );
                         return (
                           <label
                             key={`${line.skuName ?? line.label}-${idx}`}
@@ -1519,8 +1665,17 @@ export default function PostVisitBlueprintPage() {
                                 );
                               }}
                             />
-                            <span>{line.skuName ?? line.label}</span>
-                            <strong>{formatPrice(line.price ?? 0)}</strong>
+                            <span className="pvb-quote-row-text">
+                              <span className="pvb-quote-row-title">
+                                {line.skuName ?? line.label}
+                              </span>
+                              {schedNote ? (
+                                <span className="pvb-quote-row-sched">
+                                  {schedNote}
+                                </span>
+                              ) : null}
+                            </span>
+                            <strong>{blueprintPatientLineDisplay(line)}</strong>
                           </label>
                         );
                       })}
@@ -1728,6 +1883,11 @@ export default function PostVisitBlueprintPage() {
                           token: blueprint.token,
                           patient_id: blueprint.patient.id,
                         });
+                        capturePatientAcquisitionFunnelEvent(
+                          "funnel_pvs_checkout_cta",
+                          blueprint.patient.id,
+                          { token: blueprint.token },
+                        );
                         setQuoteBookStep("booking_sent");
                       })();
                     }}

@@ -62,16 +62,19 @@ interface HeaderProps {
 }
 
 export default function Header({ onLogout }: HeaderProps) {
-  const { provider, refreshClients } = useDashboard();
+  const { provider, refreshClients, currentView } = useDashboard();
   const [showAddClient, setShowAddClient] = useState(false);
   const [showScanDropdown, setShowScanDropdown] = useState(false);
   const [showNewClientSMS, setShowNewClientSMS] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const pageTitle = provider
-    ? isTheTreatmentProvider(provider)
-      ? "The Treatment Provider Dashboard"
-      : `${formatProviderDisplayName(provider.name)} Provider Dashboard`
-    : "Clients";
+  const pageTitle =
+    currentView === "user-admin"
+      ? "Users and Roles"
+      : provider
+        ? isTheTreatmentProvider(provider)
+          ? "The Treatment Provider Dashboard"
+          : `${formatProviderDisplayName(provider.name)} Provider Dashboard`
+        : "Clients";
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -122,41 +125,45 @@ export default function Header({ onLogout }: HeaderProps) {
           <h2 className="page-title">{pageTitle}</h2>
         </div>
         <div className="header-right">
-          <div className="scan-client-dropdown" ref={dropdownRef}>
-            <button
-              className="btn-secondary scan-client-btn"
-              onClick={() => setShowScanDropdown(!showScanDropdown)}
-            >
-              New Scan
-            </button>
-            {showScanDropdown && (
-              <div className="scan-client-dropdown-menu">
+          {currentView !== "user-admin" && (
+            <>
+              <div className="scan-client-dropdown" ref={dropdownRef}>
                 <button
-                  className="scan-client-option"
-                  onClick={handleScanInClinic}
+                  className="btn-secondary scan-client-btn"
+                  onClick={() => setShowScanDropdown(!showScanDropdown)}
                 >
-                  Scan In-Clinic
+                  New Scan
                 </button>
-                {!isUniqueAestheticsProvider(provider) && (
-                  <button
-                    className="scan-client-option"
-                    onClick={() => {
-                      setShowScanDropdown(false);
-                      setShowNewClientSMS(true);
-                    }}
-                  >
-                    Scan At Home
-                  </button>
+                {showScanDropdown && (
+                  <div className="scan-client-dropdown-menu">
+                    <button
+                      className="scan-client-option"
+                      onClick={handleScanInClinic}
+                    >
+                      Scan In-Clinic
+                    </button>
+                    {!isUniqueAestheticsProvider(provider) && (
+                      <button
+                        className="scan-client-option"
+                        onClick={() => {
+                          setShowScanDropdown(false);
+                          setShowNewClientSMS(true);
+                        }}
+                      >
+                        Scan At Home
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-          <button
-            className="btn-secondary"
-            onClick={() => setShowAddClient(true)}
-          >
-            Add Client
-          </button>
+              <button
+                className="btn-secondary"
+                onClick={() => setShowAddClient(true)}
+              >
+                Add Client
+              </button>
+            </>
+          )}
           {onLogout && (
             <button
               type="button"

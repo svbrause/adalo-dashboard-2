@@ -9,7 +9,10 @@ import {
   normalizeIssue,
   scoreTier,
 } from "../config/analysisOverviewConfig";
-import { getTreatmentDisplayName } from "../components/modals/DiscussedTreatmentsModal/utils";
+import {
+  buildBlueprintChapterSchedule,
+  planItemsForBlueprintChapterSlot,
+} from "./pvbChapterSchedule";
 import {
   getDetectedIssueDisplayStrings,
   getDetectedIssuesFromClient,
@@ -366,21 +369,17 @@ export type PlanTreatmentRow = {
   findings: string[];
 };
 
-export function buildPlanTreatmentRows(discussedItems: DiscussedItem[]): PlanTreatmentRow[] {
-  const seen = new Set<string>();
-  const order: string[] = [];
-  for (const item of discussedItems) {
-    const key = item.treatment?.trim().toLowerCase() ?? "";
-    if (!key) continue;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    order.push(key);
-  }
-
+export function buildPlanTreatmentRows(
+  discussedItems: DiscussedItem[],
+  providerCode?: string,
+): PlanTreatmentRow[] {
+  const slots = buildBlueprintChapterSchedule(discussedItems, providerCode);
   const rows: PlanTreatmentRow[] = [];
-  for (const key of order) {
-    const planItems = discussedItems.filter(
-      (i) => (i.treatment?.trim().toLowerCase() ?? "") === key,
+  for (const slot of slots) {
+    const planItems = planItemsForBlueprintChapterSlot(
+      slot,
+      discussedItems,
+      providerCode,
     );
     if (planItems.length === 0) continue;
 
@@ -396,9 +395,9 @@ export function buildPlanTreatmentRows(discussedItems: DiscussedItem[]): PlanTre
     }
 
     rows.push({
-      key,
-      displayName: getTreatmentDisplayName(planItems[0]),
-      anchorId: treatmentChapterAnchorId(key),
+      key: slot.key,
+      displayName: slot.displayName,
+      anchorId: treatmentChapterAnchorId(slot.key),
       interest: interests.size ? Array.from(interests).join(" · ") : undefined,
       findings: Array.from(findings),
     });
@@ -589,7 +588,10 @@ export function getBlueprintAnalysisDisplay(
 
   const clinicalSnapshotLines = buildConsolidatedClinicalSnapshotLines(a);
 
-  const planByTreatment = buildPlanTreatmentRows(blueprint.discussedItems);
+  const planByTreatment = buildPlanTreatmentRows(
+    blueprint.discussedItems,
+    blueprint.providerCode,
+  );
   const derived = derivePlanInterestsFromDiscussedItems(blueprint.discussedItems);
 
   const hasPerTreatmentContent = planByTreatment.some(

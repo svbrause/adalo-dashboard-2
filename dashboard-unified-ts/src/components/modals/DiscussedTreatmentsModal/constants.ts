@@ -13,6 +13,7 @@ import {
   getNeurotoxinTypesFromPriceList,
   getFillerTypesFromPriceList,
   getBiostimulantsTypesFromPriceList,
+  getOtherProcedureTypesFromPriceList,
 } from "../../../data/treatmentPricing2025";
 import {
   getWellnestOfferingByTreatmentName,
@@ -20,6 +21,18 @@ import {
   getWellnestTreatmentOptionNames,
   isWellnestWellnessProviderCode,
 } from "../../../data/wellnestOfferings";
+import {
+  getJudgeMdBiostimulantProductOptions,
+  getJudgeMdFillerProductOptions,
+  getJudgeMdNeurotoxinProductOptions,
+  getJudgeMdProductOptionsForSurgeryCategory,
+  getJudgeMdSurgeryProductOptions,
+  isJudgeMdProviderCode,
+  isJudgeMdSurgeryPlanCategory,
+  JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES,
+  JUDGEMD_PLAN_BUILDER_TREATMENTS,
+  JUDGEMD_PLAN_SURGERY_CATEGORIES,
+} from "../../../data/judgeMdPricing2026";
 
 /** Canonical dashboard category for laser / BBL / Sofwave / Ultherapy modalities. */
 export const ENERGY_TREATMENT_CATEGORY = "Energy Treatment" as const;
@@ -191,8 +204,6 @@ export const MICRONEEDLING_PLATELET_GROWTH_FACTOR_TYPES = [
   "PRP",
   "PRP with microneedling",
   "PRP (platelet-rich plasma)",
-  "PDGF",
-  "PDGF (platelet-derived growth factor)",
   "PDGF with microneedling",
 ] as const;
 
@@ -487,6 +498,7 @@ export const TREATMENT_PRODUCT_OPTIONS: Record<string, string[]> = {
     OTHER_PRODUCT_LABEL,
   ],
   Biostimulants: [...getBiostimulantsTypesFromPriceList(), OTHER_PRODUCT_LABEL],
+  "Other procedures": [...getOtherProcedureTypesFromPriceList(), OTHER_PRODUCT_LABEL],
   Kybella: [
     "Kybella (deoxycholic acid)",
     "Other injectable",
@@ -697,31 +709,38 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["under eye hollow", "eyelid bag", "tear trough"],
     goal: "Rejuvenate Lower Eyelids",
     region: "Under eyes",
-    treatments: ["Filler", "Biostimulants"],
+    treatments: ["Filler", "Biostimulants", "Other procedures", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["under eye wrinkle"],
     goal: "Smoothen Fine Lines",
     region: "Under eyes",
-    treatments: ["Neurotoxin", "Filler", "Microneedling", ENERGY_TREATMENT_CATEGORY],
+    treatments: [
+      "Neurotoxin",
+      "Filler",
+      "Microneedling",
+      ENERGY_TREATMENT_CATEGORY,
+      "Other procedures",
+      ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES,
+    ],
   },
   {
     keywords: ["excess upper eyelid", "excess skin"],
     goal: "Rejuvenate Upper Eyelids",
     region: "Other",
-    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel"],
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["forehead wrinkle", "bunny line", "crow's feet"],
     goal: "Smoothen Fine Lines",
     region: "Forehead",
-    treatments: ["Neurotoxin", "Filler", ENERGY_TREATMENT_CATEGORY],
+    treatments: ["Neurotoxin", "Filler", ENERGY_TREATMENT_CATEGORY, ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["mid cheek", "cheek flatten", "cheekbone"],
     goal: "Improve Cheek Definition",
     region: "Cheeks",
-    treatments: ["Filler", "Biostimulants"],
+    treatments: ["Filler", "Biostimulants", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["nasolabial", "marionette", "smile line"],
@@ -733,31 +752,33 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
       ENERGY_TREATMENT_CATEGORY,
       "Chemical Peel",
       "Microneedling",
+      "Other procedures",
+      ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES,
     ],
   },
   {
     keywords: ["prejowl", "retruded chin", "chin"],
     goal: "Balance Jawline",
     region: "Jawline",
-    treatments: ["Filler", "Biostimulants"],
+    treatments: ["Filler", "Biostimulants", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["jowl", "ill-defined jaw", "submental", "over-project"],
     goal: "Contour Jawline",
     region: "Jawline",
-    treatments: ["Filler", "Biostimulants", "Kybella"],
+    treatments: ["Filler", "Biostimulants", "Kybella", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["temporal hollow"],
     goal: "Balance Forehead",
     region: "Forehead",
-    treatments: ["Filler", "Biostimulants"],
+    treatments: ["Filler", "Biostimulants", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["platysmal", "loose neck", "neck"],
     goal: "Contour Neck",
     region: "Jawline",
-    treatments: ["Neurotoxin", "Kybella", "Biostimulants"],
+    treatments: ["Neurotoxin", "Kybella", "Biostimulants", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["dark spot", "red spot"],
@@ -769,13 +790,13 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["gummy smile"],
     goal: "Balance Lips",
     region: "Lips",
-    treatments: ["Neurotoxin"],
+    treatments: ["Neurotoxin", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["dorsal hump", "crooked nose", "droopy tip"],
     goal: "Balance Nose",
     region: "Other",
-    treatments: ["Filler"],
+    treatments: ["Filler", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
   {
     keywords: ["scar", "fine line"],
@@ -789,6 +810,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
       "Filler",
       "Neurotoxin",
       "Biostimulants",
+      ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES,
     ],
   },
   {
@@ -801,7 +823,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["sagging", "laxity"],
     goal: "Tighten Skin Laxity",
     region: "Other",
-    treatments: [ENERGY_TREATMENT_CATEGORY, "Biostimulants"],
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Biostimulants", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
 ];
 
@@ -847,6 +869,7 @@ const ALL_TREATMENTS_RAW = [
   "Filler",
   "Neurotoxin",
   "Biostimulants",
+  "Other procedures",
   "Kybella",
   "Threadlift",
 ];
@@ -865,6 +888,9 @@ export function getTreatmentOptionsForProvider(providerCode: string | undefined)
   if (isWellnestWellnessProviderCode(providerCode)) {
     return Array.from(new Set([...getWellnestTreatmentOptionNames(), ...ALL_TREATMENTS]));
   }
+  if (isJudgeMdProviderCode(providerCode)) {
+    return [...JUDGEMD_PLAN_BUILDER_TREATMENTS];
+  }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...ALL_TREATMENTS];
   return ALL_TREATMENTS.filter((t) =>
     t === "Skincare" || (TREATMENT_CATEGORIES_IN_PRICE_LIST as readonly string[]).includes(t),
@@ -881,6 +907,28 @@ export function getTreatmentProductOptionsForProvider(
     if (wellnest.length > 0) return wellnest;
   }
   const canon = canonicalPlanTreatmentName(treatment);
+  if (isJudgeMdProviderCode(providerCode)) {
+    if (canon === "Neurotoxin") {
+      const o = getJudgeMdNeurotoxinProductOptions();
+      return o.length > 0 ? [...o, OTHER_PRODUCT_LABEL] : [OTHER_PRODUCT_LABEL];
+    }
+    if (canon === "Filler") {
+      const o = getJudgeMdFillerProductOptions();
+      return o.length > 0 ? [...o, OTHER_PRODUCT_LABEL] : [OTHER_PRODUCT_LABEL];
+    }
+    if (canon === "Biostimulants") {
+      const o = getJudgeMdBiostimulantProductOptions();
+      return o.length > 0 ? [...o, OTHER_PRODUCT_LABEL] : [OTHER_PRODUCT_LABEL];
+    }
+    if (isJudgeMdSurgeryPlanCategory(canon)) {
+      const o = getJudgeMdProductOptionsForSurgeryCategory(canon);
+      return o.length > 0 ? [...o, OTHER_PRODUCT_LABEL] : [OTHER_PRODUCT_LABEL];
+    }
+    if (canon === "Other procedures") {
+      const o = getJudgeMdSurgeryProductOptions();
+      return o.length > 0 ? [...o, OTHER_PRODUCT_LABEL] : [OTHER_PRODUCT_LABEL];
+    }
+  }
   const base = TREATMENT_PRODUCT_OPTIONS[canon];
   if (!base) return [];
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...base];
@@ -937,6 +985,41 @@ export const TREATMENT_META: Record<
     longevity: "18–24+ months",
     downtime: "1–3 days",
     priceRange: _priceRange("Biostimulants") ?? "$800–$5,200",
+  },
+  "Other procedures": {
+    longevity: "Varies",
+    downtime: "1–7 days",
+    priceRange: _priceRange("Other procedures") ?? "$375–$750",
+  },
+  "Breast Surgery": {
+    longevity: "Varies",
+    downtime: "1–2 weeks+",
+    priceRange: _priceRange("Breast Surgery") ?? "Varies",
+  },
+  "Facial Surgery": {
+    longevity: "Varies",
+    downtime: "1–2 weeks+",
+    priceRange: _priceRange("Facial Surgery") ?? "Varies",
+  },
+  ...Object.fromEntries(
+    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.map((c) => [
+      c,
+      {
+        longevity: "Varies",
+        downtime: "1–2 weeks+",
+        priceRange: _priceRange(c as DashboardTreatmentCategory) ?? "Varies",
+      },
+    ]),
+  ),
+  "Body Sculpting": {
+    longevity: "Varies",
+    downtime: "1–2 weeks+",
+    priceRange: _priceRange("Body Sculpting") ?? "Varies",
+  },
+  "Vaginal Rejuvenation": {
+    longevity: "Varies",
+    downtime: "1–2 weeks+",
+    priceRange: _priceRange("Vaginal Rejuvenation") ?? "Varies",
   },
   Kybella: {
     longevity: "Permanent",
@@ -1001,7 +1084,7 @@ export const INTEREST_TO_TREATMENTS: {
   },
   {
     keywords: ["shadow", "tear trough", "under eye"],
-    treatments: ["Skincare", "Filler", "Biostimulants"],
+    treatments: ["Skincare", "Filler", "Biostimulants", "Other procedures"],
   },
   {
     keywords: ["scar", "fade", "line", "fine line", "smoothen"],
@@ -1046,6 +1129,12 @@ export const REGION_OPTIONS = [
   "Other",
 ];
 
+/** Facial PRFM injection sites (Other procedures) — paired with type "PRFM injections". */
+export const PRFM_INJECTION_WHERE_OPTIONS = [
+  "Under eyes",
+  "Nasolabial folds",
+] as const;
+
 /** Where options for Microneedling on the treatment recommender (Face / Neck / Chest only). */
 export const REGION_OPTIONS_MICRONEEDLING = ["Face", "Neck", "Chest"] as const;
 
@@ -1078,6 +1167,7 @@ export const CHECKOUT_TREATMENT_TYPE_OPTIONS: Record<string, string[]> = {
   Filler: [...getFillerTypesFromPriceList()],
   Neurotoxin: [...getNeurotoxinTypesFromPriceList()],
   Biostimulants: [...getBiostimulantsTypesFromPriceList()],
+  "Other procedures": [...getOtherProcedureTypesFromPriceList(), OTHER_PRODUCT_LABEL],
   "Chemical Peel": [...(TREATMENT_PRODUCT_OPTIONS["Chemical Peel"] ?? [])],
   "Facial Services": [...(TREATMENT_PRODUCT_OPTIONS["Facial Services"] ?? [])],
 };
@@ -1090,6 +1180,19 @@ export function getCheckoutTreatmentTypeOptionsForProvider(
   if (isWellnestWellnessProviderCode(providerCode)) {
     for (const name of getWellnestTreatmentOptionNames()) {
       base[name] = getWellnestProductOptionsForTreatment(name);
+    }
+    return base;
+  }
+  if (isJudgeMdProviderCode(providerCode)) {
+    base.Neurotoxin = [...getJudgeMdNeurotoxinProductOptions(), OTHER_PRODUCT_LABEL];
+    base.Filler = [...getJudgeMdFillerProductOptions(), OTHER_PRODUCT_LABEL];
+    base.Biostimulants = [...getJudgeMdBiostimulantProductOptions(), OTHER_PRODUCT_LABEL];
+    base["Other procedures"] = [...getJudgeMdSurgeryProductOptions(), OTHER_PRODUCT_LABEL];
+    for (const cat of JUDGEMD_PLAN_SURGERY_CATEGORIES) {
+      base[cat] = [
+        ...getJudgeMdProductOptionsForSurgeryCategory(cat),
+        OTHER_PRODUCT_LABEL,
+      ];
     }
     return base;
   }
@@ -1113,9 +1216,12 @@ export const TIMELINE_SKINCARE = "Skincare";
 export const PLAN_SECTIONS = [
   "Now",
   "Add next visit",
+  "Scheduled",
   "Wishlist",
   "Completed",
 ] as const;
+/** Rows with a specific calendar date ({@link DiscussedItem.scheduledDate}). */
+export const SCHEDULED_SECTION_LABEL = "Scheduled";
 /** Section label for the dedicated skincare products block (all skincare items in one list). */
 export const SKINCARE_SECTION_LABEL = "Skincare";
 

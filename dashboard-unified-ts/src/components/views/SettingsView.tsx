@@ -7,11 +7,14 @@ import {
 import {
   formatPrice,
   getDashboardCategoriesForPriceListItem,
-  TREATMENT_PRICE_LIST_2025,
+  getEffectivePriceList,
 } from "../../data/treatmentPricing2025";
+import { isJudgeMdProviderCode } from "../../data/judgeMdPricing2026";
+import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { TREATMENT_BOUTIQUE_SKINCARE } from "../modals/DiscussedTreatmentsModal/treatmentBoutiqueProducts";
 import {
   AUTOMATED_EMAILS,
+  automatedEmailReferencesTheTreatmentDomain,
   type AutomatedEmail,
 } from "../../config/emailNotificationCatalog";
 import PricingChangeRequestModal, {
@@ -19,10 +22,13 @@ import PricingChangeRequestModal, {
 } from "../modals/PricingChangeRequestModal";
 import SmsConfigChangeRequestModal from "../modals/SmsConfigChangeRequestModal";
 import { useDashboard } from "../../context/DashboardContext";
+import { useFirebaseAuth } from "../../context/FirebaseAuthContext";
+import { showStaffFirebaseAuthUi } from "../../firebase/config";
 import {
   isTheTreatmentProvider,
   isAdminBlueprintProvider,
 } from "../../utils/providerHelpers";
+import { providerHasSmsAndSettingsAccess } from "../../utils/providerPrivileges";
 import { renderTemplateVars } from "../../utils/renderTemplateVars";
 import "./SettingsView.css";
 
@@ -332,15 +338,30 @@ type PricingRowWithSection = PricingSectionView["items"][number] & {
 };
 
 export default function SettingsView() {
-  const { provider } = useDashboard();
+  const { provider, setCurrentView } = useDashboard();
+  const { isConfigured: firebaseConfigured } = useFirebaseAuth();
   /**
-   * Treatment-specific settings (email notifications with @getthetreatment.com addresses,
-   * The Treatment 2025 price list, and the boutique skincare catalog) should only be visible
-   * when the logged-in account is The Treatment or the admin login.
-   * New providers get a placeholder until their own config is set up.
+   * The Treatment / Admin: full catalog (notifications reference @getthetreatment.com examples,
+   * 2025 price list, boutique skincare). Wellnest / JudgeMD: same notifications + treatment
+   * pricing hub using their embedded price bases; skincare catalog omitted.
    */
   const isTreatmentContext =
     isTheTreatmentProvider(provider) || isAdminBlueprintProvider(provider);
+  const isPracticeSettingsProvider =
+    isTreatmentContext ||
+    isWellnestWellnessProviderCode(provider?.code) ||
+    isJudgeMdProviderCode(provider?.code);
+  /**
+   * Same access as Settings in the sidebar; do not require an existing Firebase session —
+   * provider-code logins use Airtable session only, while Users and Roles (embedded admin)
+   * has its own email/password sign-in.
+   */
+  const staffRolesSettingsHubVisible =
+    Boolean(firebaseConfigured) &&
+    showStaffFirebaseAuthUi() &&
+    providerHasSmsAndSettingsAccess(provider);
+  const settingsHubHasCards =
+    staffRolesSettingsHubVisible || isPracticeSettingsProvider;
 
   const [activePanel, setActivePanel] = useState<SettingsActivePanel>("home");
   const [preview, setPreview] = useState<PreviewSelection>(null);
@@ -366,17 +387,19 @@ export default function SettingsView() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activePanel]);
 
-  // If a non-Treatment provider lands on a Treatment-specific sub-panel (e.g. via
-  // browser history), send them back to the home hub so they don't see Treatment data.
+  // If a provider without practice settings lands on a sub-panel, return to hub.
   useEffect(() => {
-    if (!isTreatmentContext && activePanel !== "home") {
+    if (!isPracticeSettingsProvider && activePanel !== "home") {
       setActivePanel("home");
     }
-  }, [isTreatmentContext, activePanel]);
+  }, [isPracticeSettingsProvider, activePanel]);
 
   const pricingSections: PricingSectionView[] = useMemo(
     () =>
-      TREATMENT_PRICE_LIST_2025.map((section, sectionIndex) => ({
+      getEffectivePriceList(
+        provider?.["Treatment Pricing"] as string | undefined,
+        provider?.code,
+      ).map((section, sectionIndex) => ({
         category: section.category,
         sectionIndex,
         items: section.items.map((item, itemIndex) => ({
@@ -390,7 +413,7 @@ export default function SettingsView() {
           ),
         })),
       })),
-    [],
+    [provider?.["Treatment Pricing"], provider?.code],
   );
 
   const pricingDisplay = useMemo(() => {
@@ -566,6 +589,10 @@ export default function SettingsView() {
   const skincareBrandSectionCount =
     skincareDisplay.mode === "groups" ? skincareDisplay.groups.length : 0;
 
+  const omitTreatmentDomainEmails =
+    isWellnestWellnessProviderCode(provider?.code) ||
+    isJudgeMdProviderCode(provider?.code);
+
   const unifiedNotificationSections = useMemo(() => {
     const UNIFIED_PRODUCTS_CONFIG: Array<{
       id: string;
@@ -638,6 +665,10 @@ export default function SettingsView() {
         (e) =>
           config.emailCategories.includes(e.category) ||
           config.emailIds.includes(e.id),
+      ).filter(
+        (e) =>
+          !omitTreatmentDomainEmails ||
+          !automatedEmailReferencesTheTreatmentDomain(e),
       );
 
       const items: UnifiedNotifItem[] = [];
@@ -673,7 +704,7 @@ export default function SettingsView() {
                 : items,
       };
     }).filter((section) => section.items.length > 0);
-  }, []);
+  }, [omitTreatmentDomainEmails]);
 
   return (
     <div
@@ -710,82 +741,119 @@ export default function SettingsView() {
 
       {activePanel === "home" ? (
         <div className="settings-hub" aria-label="Settings categories">
-          {isTreatmentContext ? (
-            <ul className="settings-hub-cards">
-              <li className="settings-hub-card-shell">
+          {settingsHubHasCards ? (
+          <ul className="settings-hub-cards">
+            {staffRolesSettingsHubVisible ? (
+              <li className="settings-hub-card-shell settings-hub-card-shell--firebase-admin">
                 <div className="settings-hub-card-body">
-                  <h2 className="settings-hub-card-title">Notifications</h2>
+                  <h2 className="settings-hub-card-title">Users and Roles</h2>
                   <p className="settings-hub-card-desc">
-                    Manage automated SMS and email templates.
+                    Staff roles, practice access, invites, and password tools.
                   </p>
                 </div>
                 <div className="settings-hub-card-footer">
                   <button
                     type="button"
                     className="btn-primary settings-hub-card-cta"
-                    onClick={() => setActivePanel("notifications")}
+                    aria-label="Open Users and Roles"
+                    onClick={() => setCurrentView("user-admin")}
                   >
-                    Open notifications
+                    Open
                     <span className="settings-hub-card-cta-icon" aria-hidden>
                       →
                     </span>
                   </button>
                 </div>
               </li>
-              <li className="settings-hub-card-shell">
-                <div className="settings-hub-card-body">
-                  <h2 className="settings-hub-card-title">Treatment pricing</h2>
-                  <p className="settings-hub-card-desc">
-                    Catalog of treatments with pricing and details.
-                  </p>
-                </div>
-                <div className="settings-hub-card-footer">
-                  <button
-                    type="button"
-                    className="btn-primary settings-hub-card-cta"
-                    onClick={() => setActivePanel("pricing")}
-                  >
-                    Open treatment pricing
-                    <span className="settings-hub-card-cta-icon" aria-hidden>
-                      →
-                    </span>
-                  </button>
-                </div>
-              </li>
-              <li className="settings-hub-card-shell">
-                <div className="settings-hub-card-body">
-                  <h2 className="settings-hub-card-title">Skincare products</h2>
-                  <p className="settings-hub-card-desc">
-                    Full boutique catalog with photos, pricing, and shop links.
-                  </p>
-                </div>
-                <div className="settings-hub-card-footer">
-                  <button
-                    type="button"
-                    className="btn-primary settings-hub-card-cta"
-                    onClick={() => setActivePanel("skincare-products")}
-                  >
-                    Open skincare products
-                    <span className="settings-hub-card-cta-icon" aria-hidden>
-                      →
-                    </span>
-                  </button>
-                </div>
-              </li>
-            </ul>
-          ) : (
+            ) : null}
+            {isPracticeSettingsProvider ? (
+              <>
+                <li className="settings-hub-card-shell">
+                  <div className="settings-hub-card-body">
+                    <h2 className="settings-hub-card-title">Notifications</h2>
+                    <p className="settings-hub-card-desc">
+                      Manage automated SMS and email templates.
+                    </p>
+                  </div>
+                  <div className="settings-hub-card-footer">
+                    <button
+                      type="button"
+                      className="btn-primary settings-hub-card-cta"
+                      aria-label="Open Notifications"
+                      onClick={() => setActivePanel("notifications")}
+                    >
+                      Open
+                      <span className="settings-hub-card-cta-icon" aria-hidden>
+                        →
+                      </span>
+                    </button>
+                  </div>
+                </li>
+                <li className="settings-hub-card-shell">
+                  <div className="settings-hub-card-body">
+                    <h2 className="settings-hub-card-title">Treatment pricing</h2>
+                    <p className="settings-hub-card-desc">
+                      {isTreatmentContext
+                        ? "Catalog of treatments with pricing and details."
+                        : "Treatments and pricing aligned with your practice offerings."}
+                    </p>
+                  </div>
+                  <div className="settings-hub-card-footer">
+                    <button
+                      type="button"
+                      className="btn-primary settings-hub-card-cta"
+                      aria-label="Open Treatment pricing"
+                      onClick={() => setActivePanel("pricing")}
+                    >
+                      Open
+                      <span className="settings-hub-card-cta-icon" aria-hidden>
+                        →
+                      </span>
+                    </button>
+                  </div>
+                </li>
+                {isTreatmentContext ? (
+                  <li className="settings-hub-card-shell">
+                    <div className="settings-hub-card-body">
+                      <h2 className="settings-hub-card-title">Skincare products</h2>
+                      <p className="settings-hub-card-desc">
+                        Full boutique catalog with photos, pricing, and shop links.
+                      </p>
+                    </div>
+                    <div className="settings-hub-card-footer">
+                      <button
+                        type="button"
+                        className="btn-primary settings-hub-card-cta"
+                        aria-label="Open Skincare products"
+                        onClick={() => setActivePanel("skincare-products")}
+                      >
+                        Open
+                        <span className="settings-hub-card-cta-icon" aria-hidden>
+                          →
+                        </span>
+                      </button>
+                    </div>
+                  </li>
+                ) : null}
+              </>
+            ) : null}
+          </ul>
+          ) : null}
+          {!settingsHubHasCards ? (
             <div className="settings-hub-placeholder">
               <p className="settings-hub-placeholder-text">
-                Settings for your practice are being configured. Contact your
-                Ponce AI representative if you need to update notifications or
-                pricing.
+                {providerHasSmsAndSettingsAccess(provider) &&
+                firebaseConfigured &&
+                !showStaffFirebaseAuthUi()
+                  ? "Users and Roles is not available in this build (Firebase staff auth UI is off or misconfigured)."
+                  : "Settings for your practice are being configured. Contact your Ponce AI representative if you need to update notifications or pricing."}
               </p>
             </div>
-          )}
+          ) : null}
         </div>
       ) : null}
 
-      {activePanel === "notifications" && isTreatmentContext ? (
+      {activePanel === "notifications" && isPracticeSettingsProvider ? (
         <section
           className="settings-card settings-subpanel-card"
           aria-labelledby="settings-notifications-heading"
@@ -1395,7 +1463,7 @@ export default function SettingsView() {
         </div>
       ) : null}
 
-      {activePanel === "pricing" && isTreatmentContext ? (
+      {activePanel === "pricing" && isPracticeSettingsProvider ? (
         <section
           className="settings-card settings-subpanel-card"
           aria-labelledby="settings-pricing-heading"
@@ -1404,12 +1472,23 @@ export default function SettingsView() {
             Treatment pricing
           </h2>
           <p className="settings-card-lead">
-            Prices used in quotes and checkout, grouped the same way as your
-            printed list. When it applies, you will see which{" "}
-            <strong>treatment type</strong> a line belongs to (for example
-            Voluma as a filler, Sculptra as a biostimulant). Search by section,
-            treatment type, name, or price note. To change a price or name, use{" "}
-            <strong>Request change</strong>—our team will update the list.
+            {isTreatmentContext ? (
+              <>
+                Prices used in quotes and checkout, grouped the same way as your
+                printed list. When it applies, you will see which{" "}
+                <strong>treatment type</strong> a line belongs to (for example
+                Voluma as a filler, Sculptra as a biostimulant). Search by
+                section, treatment type, name, or price note. To change a price
+                or name, use <strong>Request change</strong>—our team will update
+                the list.
+              </>
+            ) : (
+              <>
+                Prices used in the plan builder and quotes for your practice’s
+                offerings. Search by section or name. To change a line, use{" "}
+                <strong>Request change</strong>—our team will update the list.
+              </>
+            )}
           </p>
 
           <details className="settings-howto">

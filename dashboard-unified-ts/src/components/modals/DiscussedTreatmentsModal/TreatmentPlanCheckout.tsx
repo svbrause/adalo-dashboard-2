@@ -4,11 +4,20 @@ import { useMemo, useEffect, useState, useRef } from "react";
 import type { DiscussedItem } from "../../../types";
 import {
   getCheckoutSummaryWithSkus,
+  getEffectivePriceList,
   formatPrice,
+  TREATMENT_PRICE_LIST_2025,
   type CheckoutLineItemDetail,
   type SkincareProductInfo,
+  type TreatmentPriceItem,
 } from "../../../data/treatmentPricing2025";
-import { getCheckoutDisplayName, getQuantityContext } from "./utils";
+import { useDashboard } from "../../../context/DashboardContext";
+import {
+  getCheckoutDisplayName,
+  getQuantityContext,
+  matchProductTokensToOptionList,
+  timelineOptionDisplayLabel,
+} from "./utils";
 import {
   getSkincareCarouselItems,
   getCheckoutTreatmentTypeOptionsForProvider,
@@ -17,14 +26,21 @@ import {
   TREATMENTS_WITH_BROAD_REGION,
   TREATMENTS_WITH_NO_REGION,
   isEnergyTreatmentCategory,
+  REGION_OPTIONS,
+  TIMELINE_OPTIONS,
+  PRFM_INJECTION_WHERE_OPTIONS,
 } from "./constants";
-import { REGION_OPTIONS, TIMELINE_OPTIONS } from "./constants";
 import {
   getWellnestOfferingByTreatmentName,
   isWellnestWellnessProviderCode,
 } from "../../../data/wellnestOfferings";
+import {
+  isJudgeMdProviderCode,
+  isJudgeMdSurgeryPlanCategory,
+} from "../../../data/judgeMdPricing2026";
 import { RECOMMENDED_PRODUCT_REASONS } from "../../../data/skinTypeQuiz";
 import { getQuoteLineDiscussedItemIndexOrder } from "../../../utils/pvbQuotePartition";
+import { isWishlistTimelineDiscussedItem } from "../../../utils/postVisitBlueprint";
 import { MintMembershipInfoTrigger } from "../../shared/MintMembershipInfoTrigger";
 
 export interface TreatmentPlanCheckoutProps {
@@ -41,7 +57,7 @@ export interface TreatmentPlanCheckoutProps {
   }) => void;
   /** When provided, each row shows a remove button; called with the item and its index. */
   onRemoveItem?: (item: DiscussedItem, index: number) => void;
-  /** When provided, move-to-wishlist / move-to-now links are shown; called with index and partial item. */
+  /** When provided, wishlist ↔ plan move links are shown; called with index and partial item. */
   onUpdateItem?: (index: number, patch: Partial<DiscussedItem>) => void;
   /** When true, order summary shows Mint member 10% off and discounted total. */
   isMintMember?: boolean;
@@ -87,14 +103,38 @@ function getQuantityOptionsForCheckout(
   return { label: result.unitLabel, options: result.options };
 }
 
+function isJudgeMdSurgeryCheckoutTreatment(
+  treatment: string,
+  providerCode?: string,
+): boolean {
+  return (
+    isJudgeMdProviderCode(providerCode) && isJudgeMdSurgeryPlanCategory(treatment)
+  );
+}
+
 /** Options for Where dropdown: broad (Face/Neck/Chest) or specific (Forehead, etc.). Empty for treatments with no region (e.g. Chemical Peel = full face only). */
-function getRegionOptionsForTreatment(treatment: string): readonly string[] {
+function getRegionOptionsForTreatment(
+  treatment: string,
+  product?: string,
+  providerCode?: string,
+): readonly string[] {
   const t = (treatment ?? "").trim();
   if (getWellnestOfferingByTreatmentName(t)) return [];
+  if (isJudgeMdSurgeryCheckoutTreatment(t, providerCode)) return [];
   if (TREATMENTS_WITH_NO_REGION.includes(t as (typeof TREATMENTS_WITH_NO_REGION)[number])) {
     return [];
   }
   if (t === "Chemical Peel") return CHEMICAL_PEEL_AREA_OPTIONS;
+  if (t === "Other procedures") {
+    const raw = (product ?? "").trim().toLowerCase();
+    if (
+      raw === "prfm injections" ||
+      /\bprfm injections\b/.test(raw)
+    ) {
+      return [...PRFM_INJECTION_WHERE_OPTIONS];
+    }
+    return [];
+  }
   return isEnergyTreatmentCategory(t) ||
     (TREATMENTS_WITH_BROAD_REGION as readonly string[]).includes(t)
     ? CHECKOUT_REGION_OPTIONS_BROAD
@@ -183,6 +223,15 @@ export default function TreatmentPlanCheckout({
   onMintMemberChange,
   providerCode,
 }: TreatmentPlanCheckoutProps) {
+  const { provider } = useDashboard();
+  const effectivePriceList = useMemo(
+    () =>
+      getEffectivePriceList(
+        provider?.["Treatment Pricing"] as string | undefined,
+        providerCode ?? provider?.code,
+      ),
+    [provider, providerCode],
+  );
   const checkoutTypeOptions = useMemo(
     () => getCheckoutTreatmentTypeOptionsForProvider(providerCode),
     [providerCode],
@@ -269,8 +318,9 @@ export default function TreatmentPlanCheckout({
         effectiveItems,
         (item) => getCheckoutDisplayName(item as DiscussedItem),
         getSkincareProductInfo,
+        effectivePriceList,
       ).lineItems,
-    [effectiveItems, getSkincareProductInfo],
+    [effectiveItems, getSkincareProductInfo, effectivePriceList],
   );
 
   /** Same ordering as blueprint / share quote lines (skincare first, then treatments by plan order). */
@@ -550,6 +600,7 @@ export default function TreatmentPlanCheckout({
               line={editingLine}
               item={editingItem}
               itemKey={editingKey}
+              providerCode={providerCode}
               quantityValue={
                 overrides[editingKey] ?? editingItem.quantity ?? ""
               }
@@ -728,6 +779,7 @@ function CheckoutDetailPanel({
   line,
   item,
   itemKey,
+  providerCode,
   quantityValue,
   quantityOptions,
   onQuantityChange,
@@ -746,6 +798,7 @@ function CheckoutDetailPanel({
   line: CheckoutLineItemDetail;
   item: DiscussedItem;
   itemKey: string;
+  providerCode?: string;
   quantityValue: string;
   quantityOptions: { label: string; options: string[] } | null;
   onQuantityChange: (value: string) => void;
@@ -762,13 +815,22 @@ function CheckoutDetailPanel({
   checkoutTypeOptions: Record<string, string[]>;
 }) {
   const isSkincare = (item.treatment ?? "").trim() === "Skincare";
+  const rowInWishlist = isWishlistTimelineDiscussedItem(item);
   const recommendedFor = isSkincare
     ? getRecommendedForSkincare(item?.product ?? line.label ?? "")
     : null;
   const treatmentKey = (item.treatment ?? "").trim();
   const typeOptions = checkoutTypeOptions[treatmentKey];
   const showTypeSelect = !isSkincare && typeOptions && typeOptions.length > 0;
-  const regionOptions = getRegionOptionsForTreatment(item.treatment ?? "");
+  const isJudgeMdSurgeryRow = isJudgeMdSurgeryCheckoutTreatment(
+    treatmentKey,
+    providerCode,
+  );
+  const regionOptions = getRegionOptionsForTreatment(
+    item.treatment ?? "",
+    item.product ?? "",
+    providerCode,
+  );
 
   const isAddForm = variant === "add-form";
 
@@ -965,11 +1027,103 @@ function CheckoutDetailPanel({
             </div>
           </>
         )}
+        {/* Other procedures (and JudgeMD surgery cards): Type first; PRFM Where only for Other procedures. */}
+        {(treatmentKey === "Other procedures" || isJudgeMdSurgeryRow) &&
+          !isSkincare && (
+          <>
+            {showTypeSelect && (
+              <div className="treatment-recommender-by-treatment__add-row">
+                <span className="treatment-recommender-by-treatment__add-row-label">
+                  Type:
+                </span>
+                <div className="treatment-recommender-by-treatment__chips">
+                  {typeOptions.map((opt) => {
+                    const matchedTypes = matchProductTokensToOptionList(
+                      item.product ?? "",
+                      typeOptions,
+                    ).matched;
+                    const selected = matchedTypes.includes(opt);
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                        onClick={() => {
+                          const { matched: m0 } = matchProductTokensToOptionList(
+                            item.product ?? "",
+                            typeOptions,
+                          );
+                          const wasSel = m0.includes(opt);
+                          const next = wasSel
+                            ? m0.filter((x) => x !== opt)
+                            : [...m0, opt];
+                          onProductChange(next.join(", "));
+                        }}
+                        title={selected ? `Selected: ${opt}` : `Select ${opt}`}
+                        aria-label={selected ? `Selected: ${opt}` : `Select ${opt}`}
+                      >
+                        <span className="treatment-recommender-by-treatment__chip-label">
+                          {opt}
+                        </span>
+                        {selected && (
+                          <span
+                            className="treatment-recommender-by-treatment__chip-remove"
+                            aria-hidden
+                          >
+                            ×
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {regionOptions.length > 0 && (
+              <div className="treatment-recommender-by-treatment__add-row">
+                <span className="treatment-recommender-by-treatment__add-row-label">
+                  Where:
+                </span>
+                <div className="treatment-recommender-by-treatment__chips">
+                  {regionOptions.map((r) => {
+                    const currentWhere =
+                      getDisplayRegionForCheckout(item.region, regionOptions) || "";
+                    const selected = currentWhere === r;
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                        onClick={() => onRegionChange(r)}
+                        title={selected ? `Selected: ${r}` : `Select ${r}`}
+                        aria-label={selected ? `Selected: ${r}` : `Select ${r}`}
+                      >
+                        <span className="treatment-recommender-by-treatment__chip-label">
+                          {r}
+                        </span>
+                        {selected && (
+                          <span
+                            className="treatment-recommender-by-treatment__chip-remove"
+                            aria-hidden
+                          >
+                            ×
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
         {/* Other treatments: "Where" (region) chips when options exist; optional "What" (type) if type options exist */}
         {!isSkincare &&
           !isEnergyTreatmentCategory(treatmentKey) &&
           treatmentKey !== "Biostimulants" &&
-          treatmentKey !== "Microneedling" && (
+          treatmentKey !== "Microneedling" &&
+          treatmentKey !== "Other procedures" &&
+          !isJudgeMdSurgeryRow && (
             <>
               {regionOptions.length > 0 && (
               <div className="treatment-recommender-by-treatment__add-row">
@@ -1172,6 +1326,51 @@ function CheckoutDetailPanel({
       <div className="treatment-plan-checkout-detail-section">
         <span className="treatment-plan-checkout-detail-label">What</span>
         {showTypeSelect ? (
+          treatmentKey === "Other procedures" || isJudgeMdSurgeryRow ? (
+            <div
+              className="treatment-recommender-by-treatment__chips treatment-plan-checkout-detail-type-chips"
+              role="group"
+              aria-label="Procedure types"
+            >
+              {typeOptions.map((opt) => {
+                const matchedTypes = matchProductTokensToOptionList(
+                  item.product ?? "",
+                  typeOptions,
+                ).matched;
+                const selected = matchedTypes.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                    onClick={() => {
+                      const { matched: m0 } = matchProductTokensToOptionList(
+                        item.product ?? "",
+                        typeOptions,
+                      );
+                      const wasSel = m0.includes(opt);
+                      const next = wasSel
+                        ? m0.filter((x) => x !== opt)
+                        : [...m0, opt];
+                      onProductChange(next.join(", "));
+                    }}
+                  >
+                    <span className="treatment-recommender-by-treatment__chip-label">
+                      {opt}
+                    </span>
+                    {selected ? (
+                      <span
+                        className="treatment-recommender-by-treatment__chip-remove"
+                        aria-hidden
+                      >
+                        ×
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
           <select
             id={`checkout-type-${itemKey}`}
             className="treatment-plan-checkout-detail-select"
@@ -1187,6 +1386,7 @@ function CheckoutDetailPanel({
               </option>
             ))}
           </select>
+          )
         ) : (
           <p className="treatment-plan-checkout-detail-value">
             {getCheckoutDisplayName(item as DiscussedItem)}
@@ -1226,20 +1426,23 @@ function CheckoutDetailPanel({
           <span className="treatment-plan-checkout-detail-label">When</span>
           {whenOneClick && onMoveToWishlist && onMoveToNow ? (
             <div className="treatment-plan-checkout-when-one-click">
-              <button
-                type="button"
-                className="treatment-plan-checkout-when-btn"
-                onClick={onMoveToWishlist}
-              >
-                Move to wishlist
-              </button>
-              <button
-                type="button"
-                className="treatment-plan-checkout-when-btn"
-                onClick={onMoveToNow}
-              >
-                Add to plan
-              </button>
+              {rowInWishlist ? (
+                <button
+                  type="button"
+                  className="treatment-plan-checkout-when-btn"
+                  onClick={onMoveToNow}
+                >
+                  Add to plan
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="treatment-plan-checkout-when-btn"
+                  onClick={onMoveToWishlist}
+                >
+                  Move to wishlist
+                </button>
+              )}
             </div>
           ) : (
             <select
@@ -1251,7 +1454,7 @@ function CheckoutDetailPanel({
               <option value="">—</option>
               {TIMELINE_OPTIONS.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {timelineOptionDisplayLabel(t)}
                 </option>
               ))}
             </select>
@@ -1419,6 +1622,7 @@ function matchSkincareProductForQuote(
  */
 export function getAlignedCheckoutLineItemsForDiscussedItems(
   items: DiscussedItem[],
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): CheckoutLineItemDetail[] {
   if (items.length === 0) return [];
   const carouselItems = getSkincareCarouselItems();
@@ -1447,6 +1651,7 @@ export function getAlignedCheckoutLineItemsForDiscussedItems(
     items,
     (item) => getCheckoutDisplayName(item as DiscussedItem),
     getSkincareProductInfo,
+    priceList,
   );
   return lineItems;
 }
@@ -1457,10 +1662,11 @@ export function getAlignedCheckoutLineItemsForDiscussedItems(
  */
 export function getDiscussedItemQuoteOrderRankById(
   items: DiscussedItem[],
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): Map<string, number> {
   const map = new Map<string, number>();
   if (items.length === 0) return map;
-  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items);
+  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items, priceList);
   const order = getQuoteLineDiscussedItemIndexOrder(items, lineItems);
   order.forEach((discussedIdx, pos) => {
     const id = String(items[discussedIdx]?.id ?? "").trim();
@@ -1475,10 +1681,11 @@ export function getDiscussedItemQuoteOrderRankById(
  */
 export function getDiscussedPlanItemPriceLabels(
   items: DiscussedItem[],
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): ReadonlyMap<string, { label: string; missingInfo?: string }> {
   const map = new Map<string, { label: string; missingInfo?: string }>();
   if (items.length === 0) return map;
-  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items);
+  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items, priceList);
   items.forEach((item, idx) => {
     const id = String(item.id ?? "").trim();
     if (!id) return;
@@ -1498,6 +1705,7 @@ export function getDiscussedPlanItemPriceLabels(
  */
 export function getDiscussedPlanCheckoutSubtotals(
   items: DiscussedItem[],
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): {
   skincareSubtotal: number;
   treatmentsSubtotal: number;
@@ -1506,7 +1714,7 @@ export function getDiscussedPlanCheckoutSubtotals(
   treatmentLineCount: number;
 } | null {
   if (items.length === 0) return null;
-  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items);
+  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items, priceList);
   let skincareSubtotal = 0;
   let treatmentsSubtotal = 0;
   let skincareLineCount = 0;
@@ -1538,13 +1746,14 @@ export function getDiscussedPlanCheckoutSubtotals(
  */
 export function computeQuoteSheetDataForDiscussedItems(
   items: DiscussedItem[],
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): {
   lineItems: CheckoutLineItemDetail[];
   total: number;
   hasUnknownPrices: boolean;
 } | null {
   if (items.length === 0) return null;
-  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items);
+  const lineItems = getAlignedCheckoutLineItemsForDiscussedItems(items, priceList);
   const order = getQuoteLineDiscussedItemIndexOrder(items, lineItems);
   const quoteLineItems = order.map((idx) => lineItems[idx]!);
   const quoteTotal = quoteLineItems.reduce(

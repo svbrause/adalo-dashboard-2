@@ -1,0 +1,113 @@
+.staff-firebase-auth {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.staff-firebase-auth--loading {
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+}
+
+.staff-firebase-auth__title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--theme-text, #1a1a1a);
+}
+
+.staff-firebase-auth__note,
+.staff-firebase-auth__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--theme-text-muted, #5c5c5c);
+}
+
+.staff-firebase-auth__hint--emphasis {
+  font-weight: 500;
+  color: var(--theme-text, #1a1a1a);
+}
+
+.staff-firebase-auth__signed-in {
+  margin: 0 0 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.staff-firebase-auth__code {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.staff-firebase-auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.staff-firebase-auth__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-top: 0.35rem;
+}
+
+.staff-firebase-auth__input {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  font-size: 0.9375rem;
+}
+
+.staff-firebase-auth__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.staff-firebase-auth__btn {
+  font-size: 0.875rem;
+}
+
+.staff-firebase-auth__link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  cursor: pointer;
+  color: var(--theme-accent, #0d6efd);
+}
+
+.staff-firebase-auth__link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+a.staff-firebase-auth__forgot-link {
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  color: var(--theme-accent, #0d6efd);
+  align-self: center;
+}
+
+a.staff-firebase-auth__forgot-link:hover {
+  color: var(--theme-accent-hover, #0a58ca);
+}
+
+.staff-firebase-auth__success {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: #0d6e3c;
+}
+
+.staff-firebase-auth__error {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: #b00020;
+}
