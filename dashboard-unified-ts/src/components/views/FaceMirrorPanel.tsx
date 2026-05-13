@@ -58,6 +58,87 @@ function simplifyToFrontSideSlots(slots: ClientPhotoSlot[]): ClientPhotoSlot[] {
   ];
 }
 
+function FaceMirrorPhotoStage({
+  activePhotoUrl,
+  patientName,
+  highlightTerms,
+  showPatientPhotoGallery,
+  onOpenPatientPhotos,
+  openPatientPhotosSafe,
+  photoModalInitialTab,
+  simplifiedSlots,
+  angleIdx,
+  setAngleIdx,
+  showAnglePicker,
+  wrapClassName,
+}: {
+  activePhotoUrl: string;
+  patientName: string;
+  highlightTerms: string[];
+  showPatientPhotoGallery: boolean;
+  onOpenPatientPhotos?: (initialTab: "front" | "side") => void;
+  openPatientPhotosSafe: (initialTab: "front" | "side") => void;
+  photoModalInitialTab: "front" | "side";
+  simplifiedSlots: ClientPhotoSlot[];
+  angleIdx: number;
+  setAngleIdx: (i: number) => void;
+  showAnglePicker: boolean;
+  wrapClassName?: string;
+}) {
+  return (
+    <div
+      className={
+        wrapClassName ? `fmp-photo-stage ${wrapClassName}` : "fmp-photo-stage"
+      }
+    >
+      <AiMirrorCanvas
+        imageUrl={activePhotoUrl}
+        alt={`${patientName} facial analysis`}
+        highlightTerms={highlightTerms}
+        showAnnotations={true}
+      />
+      {showPatientPhotoGallery && onOpenPatientPhotos && (
+        <button
+          type="button"
+          className="fmp-gallery-expand"
+          onClick={() => openPatientPhotosSafe(photoModalInitialTab)}
+          aria-label="Open all photos and originals"
+          title="All photos and originals"
+        >
+          <img
+            className="fmp-gallery-expand-icon"
+            src={`${import.meta.env.BASE_URL}expand.png`}
+            alt=""
+            width={18}
+            height={18}
+            draggable={false}
+          />
+        </button>
+      )}
+      {showAnglePicker && (
+        <div
+          className="fmp-angle-bar fmp-angle-bar--under-photo"
+          role="tablist"
+          aria-label="Photo angle"
+        >
+          {simplifiedSlots.map((slot, i) => (
+            <button
+              key={`${slot.url}-${i}`}
+              type="button"
+              role="tab"
+              aria-selected={i === angleIdx}
+              className={`fmp-angle-tab${i === angleIdx ? " fmp-angle-tab--active" : ""}`}
+              onClick={() => setAngleIdx(i)}
+            >
+              {slot.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface FaceMirrorPanelProps {
   photoUrl: string | null;
   /** Extra angles (front / side / intake); merged with photoUrl when empty. */
@@ -125,6 +206,9 @@ export default function FaceMirrorPanel({
     viewportExpanded && analysisOverviewClient,
   );
 
+  const overviewSoloSpan =
+    showFsAnalysisOverview && !videoUrl && !hasPhoto;
+
   const openPatientPhotosSafe = useCallback(
     (initialTab: "front" | "side") => {
       setViewportExpanded(false);
@@ -165,55 +249,53 @@ export default function FaceMirrorPanel({
       {has3D && (
         <div className="fmp-toolbar">
           <div className="fmp-toolbar-start">
-            {!showFsAnalysisOverview && (
-              <div className="fmp-mode-tabs" role="tablist" aria-label="View mode">
-                <button
-                  role="tab"
-                  aria-selected={mode === "photo"}
-                  className={`fmp-tab${mode === "photo" ? " fmp-tab--active" : ""}`}
-                  onClick={() => setMode("photo")}
+            <div className="fmp-mode-tabs" role="tablist" aria-label="View mode">
+              <button
+                role="tab"
+                aria-selected={mode === "photo"}
+                className={`fmp-tab${mode === "photo" ? " fmp-tab--active" : ""}`}
+                onClick={() => setMode("photo")}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <polyline points="21 15 16 10 5 21" />
-                  </svg>
-                  Photo
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={mode === "3d"}
-                  className={`fmp-tab${mode === "3d" ? " fmp-tab--active" : ""}`}
-                  onClick={() => setMode("3d")}
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                Photo
+              </button>
+              <button
+                role="tab"
+                aria-selected={mode === "3d"}
+                className={`fmp-tab${mode === "3d" ? " fmp-tab--active" : ""}`}
+                onClick={() => setMode("3d")}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                  </svg>
-                  3D
-                </button>
-              </div>
-            )}
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                  <path d="M2 17l10 5 10-5" />
+                  <path d="M2 12l10 5 10-5" />
+                </svg>
+                3D
+              </button>
+            </div>
           </div>
           <div className="fmp-toolbar-end">
-            {!showFsAnalysisOverview && mode === "3d" && (
+            {mode === "3d" && (
               <label className="fmp-auto-rotate">
                 <input
                   type="checkbox"
@@ -232,7 +314,7 @@ export default function FaceMirrorPanel({
                 analysisOverviewClient
                   ? viewportExpanded
                     ? "Exit expanded view (Esc)"
-                    : "Expand to fill window — 3D + analysis overview"
+                    : "Expand to fill window — toggle Photo / 3D beside analysis"
                   : viewportExpanded
                     ? "Exit expanded view (Esc)"
                     : "Expand to fill window"
@@ -286,23 +368,54 @@ export default function FaceMirrorPanel({
       <div className="fmp-body">
         {showFsAnalysisOverview && analysisOverviewClient ? (
           <div className="fmp-fullscreen-split">
-            {videoUrl ? (
+            {mode === "photo" && hasPhoto && activePhotoUrl ? (
+              <div className="fmp-fullscreen-split-photo">
+                <div className="fmp-fullscreen-split-photo-inner fmp-canvas-area">
+                  <FaceMirrorPhotoStage
+                    activePhotoUrl={activePhotoUrl}
+                    patientName={patientName}
+                    highlightTerms={highlightTerms}
+                    showPatientPhotoGallery={showPatientPhotoGallery}
+                    onOpenPatientPhotos={onOpenPatientPhotos}
+                    openPatientPhotosSafe={openPatientPhotosSafe}
+                    photoModalInitialTab={photoModalInitialTab}
+                    simplifiedSlots={simplifiedSlots}
+                    angleIdx={angleIdx}
+                    setAngleIdx={setAngleIdx}
+                    showAnglePicker={showAnglePicker}
+                    wrapClassName="fmp-photo-stage--in-expanded-split"
+                  />
+                </div>
+              </div>
+            ) : mode === "3d" && videoUrl ? (
               <div className="fmp-fullscreen-split-3d">
                 <div className="fmp-fullscreen-split-3d-inner fmp-canvas-area fmp-canvas-area--3d">
-                  <label className="fmp-auto-rotate fmp-auto-rotate--by-3d">
-                    <input
-                      type="checkbox"
-                      checked={autoRotate3d}
-                      onChange={(e) => setAutoRotate3d(e.target.checked)}
-                    />
-                    <span>Auto-rotate</span>
-                  </label>
                   <Face3DViewer videoUrl={videoUrl} autoRotate={autoRotate3d} />
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="fmp-fullscreen-split-placeholder fmp-canvas-area">
+                <div className="fmp-placeholder">
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#999"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <p>
+                    {mode === "photo" ? "No photo available" : "No 3D preview"}
+                  </p>
+                </div>
+              </div>
+            )}
             <div
-              className={`fmp-fullscreen-split-overview${videoUrl ? "" : " fmp-fullscreen-split-overview--solo"}`}
+              className={`fmp-fullscreen-split-overview${overviewSoloSpan ? " fmp-fullscreen-split-overview--solo" : ""}`}
             >
               <AnalysisOverviewModal
                 embedded
@@ -318,55 +431,20 @@ export default function FaceMirrorPanel({
               className={`fmp-canvas-area${mode === "3d" && has3D ? " fmp-canvas-area--3d" : ""}`}
             >
               {mode === "photo" &&
-                (hasPhoto ? (
-                  <div className="fmp-photo-stage">
-                    <AiMirrorCanvas
-                      imageUrl={activePhotoUrl!}
-                      alt={`${patientName} facial analysis`}
-                      highlightTerms={highlightTerms}
-                      showAnnotations={true}
-                    />
-                    {showPatientPhotoGallery && onOpenPatientPhotos && (
-                      <button
-                        type="button"
-                        className="fmp-gallery-expand"
-                        onClick={() =>
-                          openPatientPhotosSafe(photoModalInitialTab)
-                        }
-                        aria-label="Open all photos and originals"
-                        title="All photos and originals"
-                      >
-                        <img
-                          className="fmp-gallery-expand-icon"
-                          src={`${import.meta.env.BASE_URL}expand.png`}
-                          alt=""
-                          width={18}
-                          height={18}
-                          draggable={false}
-                        />
-                      </button>
-                    )}
-                    {showAnglePicker && (
-                      <div
-                        className="fmp-angle-bar fmp-angle-bar--under-photo"
-                        role="tablist"
-                        aria-label="Photo angle"
-                      >
-                        {simplifiedSlots.map((slot, i) => (
-                          <button
-                            key={`${slot.url}-${i}`}
-                            type="button"
-                            role="tab"
-                            aria-selected={i === angleIdx}
-                            className={`fmp-angle-tab${i === angleIdx ? " fmp-angle-tab--active" : ""}`}
-                            onClick={() => setAngleIdx(i)}
-                          >
-                            {slot.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                (hasPhoto && activePhotoUrl ? (
+                  <FaceMirrorPhotoStage
+                    activePhotoUrl={activePhotoUrl}
+                    patientName={patientName}
+                    highlightTerms={highlightTerms}
+                    showPatientPhotoGallery={showPatientPhotoGallery}
+                    onOpenPatientPhotos={onOpenPatientPhotos}
+                    openPatientPhotosSafe={openPatientPhotosSafe}
+                    photoModalInitialTab={photoModalInitialTab}
+                    simplifiedSlots={simplifiedSlots}
+                    angleIdx={angleIdx}
+                    setAngleIdx={setAngleIdx}
+                    showAnglePicker={showAnglePicker}
+                  />
                 ) : (
                   <div className="fmp-placeholder">
                     <svg
