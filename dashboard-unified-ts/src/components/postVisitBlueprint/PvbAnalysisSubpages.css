@@ -852,6 +852,14 @@
   line-height: 1.2;
 }
 
+.pvb-suggestion-page__planned {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #64748b;
+}
+
 .pvb-suggestion-page__area {
   margin: 0;
   font-size: 0.9375rem;

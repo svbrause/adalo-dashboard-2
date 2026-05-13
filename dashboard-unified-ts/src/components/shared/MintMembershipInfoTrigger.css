@@ -2,15 +2,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
   /* Override global mobile `button { min-height: 44px }` */
-  min-height: 22px;
-  aspect-ratio: 1;
+  min-height: 22px !important;
+  max-width: 22px;
+  max-height: 22px;
+  inline-size: 22px;
+  block-size: 22px;
+  aspect-ratio: 1 / 1;
   flex-shrink: 0;
+  flex: 0 0 22px !important;
+  align-self: center;
   margin: 0;
-  padding: 0;
+  padding: 0 !important;
   border: 1px solid #94a3b8;
   border-radius: 50%;
   box-sizing: border-box;
@@ -23,6 +29,8 @@
   line-height: 1;
   cursor: pointer;
   vertical-align: middle;
+  overflow: hidden;
+  white-space: nowrap;
   transition:
     border-color 0.15s ease,
     color 0.15s ease,

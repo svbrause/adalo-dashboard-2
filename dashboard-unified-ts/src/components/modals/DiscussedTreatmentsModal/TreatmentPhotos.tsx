@@ -7,6 +7,11 @@ import type { Client } from "../../../types";
 import { fetchTreatmentPhotos, AirtableRecord } from "../../../services/api";
 import { fetchTableRecords } from "../../../services/api";
 import { TREATMENT_META, SURGICAL_TREATMENTS } from "./constants";
+import {
+  getEffectivePriceList,
+  getPriceRange2025,
+  type DashboardTreatmentCategory,
+} from "../../../data/treatmentPricing2025";
 import { issueToSuggestionMap, getIssueArea } from "../../../utils/issueMapping";
 import { getTreatmentsForInterest } from "./utils";
 import { generateId } from "./utils";
@@ -16,6 +21,7 @@ import { persistClientDiscussedItems } from "../../../utils/wellnestDemoPlanPers
 import {
   getTreatmentPhotoAreaDisplayList,
   getTreatmentPhotoDisplayTitle,
+  getTreatmentPhotoExplorerGridLabel,
   getTreatmentPhotoSearchHaystack,
 } from "../../../utils/treatmentPhotoTitle";
 import { SUGGESTION_TO_AREA, ALL_TREATMENT_INTERESTS } from "./suggestionsMapping";
@@ -80,6 +86,8 @@ interface TreatmentPhotosProps {
   planItems?: DiscussedItem[];
   /** When provided, use these photos instead of fetching (e.g. for /debug/treatment-examples) */
   demoPhotos?: TreatmentPhoto[] | null;
+  /** Practice gallery page — “open full gallery” in header (e.g. Judge MD) */
+  galleryAttributionUrl?: string;
 }
 
 /** Optional flags when adding directly to the plan (e.g. batch skincare rows). */
@@ -96,6 +104,8 @@ export interface TreatmentPlanPrefill {
   treatment: string;
   /** Specific product/device name if available (e.g. "Heat/Energy") */
   treatmentProduct?: string;
+  /** For skincare rows added as treatment support, the treatment they were added on for */
+  skincareAddOnForTreatment?: string;
   /** Issue/finding when opened from an issue */
   findings?: string[];
   timeline?: string;
@@ -103,6 +113,10 @@ export interface TreatmentPlanPrefill {
   scheduledDate?: string;
   /** Optional quantity (e.g. "2" or "2 Syringes") – prefilled from recommender optional details */
   quantity?: string;
+  /** Biostimulants (Sculptra / EZ Gel): planned treatment visits when applicable */
+  bioTreatmentSessions?: string;
+  /** Multi-session treatment spacing when applicable (e.g. Sculptra every 4–6 weeks) */
+  treatmentInterval?: string;
   /** Optional notes – prefilled from recommender optional details */
   notes?: string;
 }
@@ -118,10 +132,14 @@ export function buildDiscussedItemFromTreatmentPlanPrefill(
     findings: prefill.findings?.length ? prefill.findings : undefined,
     treatment: prefill.treatment?.trim() || "",
     product: prefill.treatmentProduct?.trim() || undefined,
+    skincareAddOnForTreatment:
+      prefill.skincareAddOnForTreatment?.trim() || undefined,
     region: prefill.region?.trim() || undefined,
     timeline: (prefill.timeline?.trim() || "Wishlist") as string,
     scheduledDate: prefill.scheduledDate?.trim() || undefined,
     quantity: prefill.quantity?.trim() || undefined,
+    bioTreatmentSessions: prefill.bioTreatmentSessions?.trim() || undefined,
+    treatmentInterval: prefill.treatmentInterval?.trim() || undefined,
     notes: prefill.notes?.trim() || undefined,
   };
 }
@@ -196,6 +214,16 @@ function mapRecordToPhoto(record: AirtableRecord): TreatmentPhoto {
   };
 }
 
+/** Demo / Judgemd rows first, then Airtable (dedup by id) so users can change filters to browse the full practice library. */
+function mergeDemoPhotosWithFetched(
+  demo: TreatmentPhoto[],
+  fromAirtable: TreatmentPhoto[],
+): TreatmentPhoto[] {
+  const seen = new Set(demo.map((p) => p.id));
+  const rest = fromAirtable.filter((p) => !seen.has(p.id));
+  return [...demo, ...rest];
+}
+
 /** True if photo's areaNames match the selected region (e.g. "Skin All" matches "Skin"). */
 function photoMatchesRegion(areaNames: string[], filterRegion: string): boolean {
   if (!filterRegion) return true;
@@ -255,18 +283,26 @@ function getTreatmentOptionsFromPhotos(photos: TreatmentPhoto[]): string[] {
       if (normalized) set.add(normalized);
     }
   }
-  // Preferred order: Skincare, Energy Treatment, then alphabetical for the rest
-  const order = [
-    "Skincare",
-    "Energy Treatment",
-    "Filler",
-    "Neurotoxin",
-    "Microneedling",
-    "Chemical Peel",
-  ];
-  return Array.from(set).sort((a, b) => {
-    const ai = order.indexOf(a);
-    const bi = order.indexOf(b);
+  return sortTreatmentChipsList(Array.from(set));
+}
+
+const TREATMENT_CHIP_PREFERRED_ORDER = [
+  "Skincare",
+  "Energy Treatment",
+  "Filler",
+  "Neurotoxin",
+  "Microneedling",
+  "Chemical Peel",
+] as const;
+
+function sortTreatmentChipsList(list: string[]): string[] {
+  return [...list].sort((a, b) => {
+    const ai = TREATMENT_CHIP_PREFERRED_ORDER.indexOf(
+      a as (typeof TREATMENT_CHIP_PREFERRED_ORDER)[number],
+    );
+    const bi = TREATMENT_CHIP_PREFERRED_ORDER.indexOf(
+      b as (typeof TREATMENT_CHIP_PREFERRED_ORDER)[number],
+    );
     if (ai >= 0 && bi >= 0) return ai - bi;
     if (ai >= 0) return -1;
     if (bi >= 0) return 1;
@@ -293,6 +329,7 @@ export default function TreatmentPhotos({
   onAddToPlanDirect,
   planItems = [],
   demoPhotos,
+  galleryAttributionUrl,
 }: TreatmentPhotosProps) {
   const { provider } = useDashboard();
   const effectiveRegion = region || (issue ? getIssueArea(issue) : "");
@@ -341,14 +378,53 @@ export default function TreatmentPhotos({
   const sideSourceMenuModalRef = useRef<HTMLDivElement>(null);
 
   const useDemo = Array.isArray(demoPhotos) && demoPhotos.length > 0;
+  const didInitJudgeDemoGalleryFiltersRef = useRef(false);
 
-  // Fetch all photos once (no server filter), unless demo data provided
+  /**
+   * Plan-builder Judgemd gallery: once, preselect plan category and clear interest, issue, and
+   * region so the initial grid isn’t empty (demo cards have no regions). After that, user can
+   * change filters freely and browse the merged Airtable library.
+   */
+  useEffect(() => {
+    if (!useDemo || !galleryAttributionUrl || !selectedTreatment?.trim()) {
+      return;
+    }
+    if (didInitJudgeDemoGalleryFiltersRef.current) {
+      return;
+    }
+    didInitJudgeDemoGalleryFiltersRef.current = true;
+    setFilterTreatment(selectedTreatment.trim());
+    setFilterInterest("");
+    setFilterIssue(null);
+    setFilterRegion("");
+  }, [useDemo, galleryAttributionUrl, selectedTreatment]);
+
+  // Load photos: Airtable library; with embedded demo, show demo first then merge Airtable so filters can show other cases
   useEffect(() => {
     if (useDemo) {
-      setAllPhotos(demoPhotos!);
-      setLoading(false);
+      const demo = demoPhotos!;
       setError(null);
-      return;
+      setLoading(false);
+      setAllPhotos(demo);
+      let cancelled = false;
+      (async () => {
+        try {
+          const records = await fetchTreatmentPhotos({ limit: 2000 });
+          if (cancelled) {
+            return;
+          }
+          const mapped = records
+            .map(mapRecordToPhoto)
+            .filter((p) => p.photoUrl)
+            .filter((p) => p.surgical !== "Surgical");
+          setAllPhotos(mergeDemoPhotosWithFetched(demo, mapped));
+        } catch (err) {
+          console.error("Error fetching treatment photos to merge with examples:", err);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
     const load = async () => {
       setLoading(true);
@@ -625,22 +701,73 @@ export default function TreatmentPhotos({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showSideSourceMenuModal]);
 
-  const treatmentMeta = filterTreatment
-    ? TREATMENT_META[filterTreatment]
-    : undefined;
+  const explorerEffectivePriceList = useMemo(
+    () =>
+      getEffectivePriceList(
+        provider?.["Treatment Pricing"] as string | undefined,
+        provider?.code,
+      ),
+    [provider?.["Treatment Pricing"], provider?.code],
+  );
+
+  /** Price range reflects the signed-in practice’s sheet (e.g. JudgeMD embedded list), not only the 2025 default. */
+  const treatmentMeta = useMemo(() => {
+    if (!filterTreatment) return undefined;
+    const base = TREATMENT_META[filterTreatment as keyof typeof TREATMENT_META];
+    if (!base) return undefined;
+    const dynamicRange = getPriceRange2025(
+      filterTreatment as DashboardTreatmentCategory,
+      explorerEffectivePriceList,
+    );
+    if (dynamicRange) {
+      return { ...base, priceRange: dynamicRange };
+    }
+    return base;
+  }, [filterTreatment, explorerEffectivePriceList]);
 
   /** Treatment options: only treatments that have at least one photo in the current interest/issue/region filter; when a Treatment Interest is selected, further restrict to treatments applicable to that interest */
   const treatmentOptions = useMemo(() => {
-    const fromPhotos = getTreatmentOptionsFromPhotos(photosAfterInterestAndIssue);
+    let fromPhotos = getTreatmentOptionsFromPhotos(photosAfterInterestAndIssue);
+    if (
+      useDemo &&
+      galleryAttributionUrl &&
+      selectedTreatment?.trim() &&
+      !fromPhotos.some(
+        (t) =>
+          t.toLowerCase() === selectedTreatment.trim().toLowerCase(),
+      )
+    ) {
+      fromPhotos = sortTreatmentChipsList([
+        ...fromPhotos,
+        selectedTreatment.trim(),
+      ]);
+    }
     if (!filterInterest) return fromPhotos;
     const forInterest = new Set(
       getTreatmentsForInterest(filterInterest, provider?.code).map((t) => t.toLowerCase())
     );
     return fromPhotos.filter((t) => forInterest.has(t.toLowerCase()));
-  }, [photosAfterInterestAndIssue, filterInterest, provider?.code]);
+  }, [
+    photosAfterInterestAndIssue,
+    filterInterest,
+    provider?.code,
+    useDemo,
+    galleryAttributionUrl,
+    selectedTreatment,
+  ]);
   const regionOptions = useMemo(
     () => getRegionOptionsFromPhotos(allPhotos),
     [allPhotos]
+  );
+
+  /** Thumbnail line under the image: hide when it only repeats the treatment chip / open context */
+  const getExplorerGridLabel = useCallback(
+    (photo: TreatmentPhoto) =>
+      getTreatmentPhotoExplorerGridLabel(photo, {
+        filterTreatment,
+        openFromTreatment: selectedTreatment ?? "",
+      }),
+    [filterTreatment, selectedTreatment],
   );
 
   /** Open the inline Where/When form for adding this photo to plan */
@@ -805,7 +932,21 @@ export default function TreatmentPhotos({
   return (
     <div className="treatment-photos-browser">
       <div className="treatment-photos-header">
-        <h3 className="treatment-photos-title">Treatment Explorer</h3>
+        <div className="treatment-photos-header-text">
+          <h3 className="treatment-photos-title">Treatment Explorer</h3>
+          {galleryAttributionUrl ? (
+            <a
+              className="treatment-photos-gallery-source-link"
+              href={galleryAttributionUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {galleryAttributionUrl.includes("/gallery/blepharoplasty")
+                ? "Open full blepharoplasty before & after gallery"
+                : "Open full before & after gallery"}
+            </a>
+          ) : null}
+        </div>
         {onClose && (
           <button
             type="button"
@@ -1103,6 +1244,14 @@ export default function TreatmentPhotos({
 
           {!loading && !error && (
             <div className="treatment-photos-gallery-sections">
+              {sortedPhotos.length > 0 && (
+                <p
+                  className="treatment-photos-ba-disclaimer"
+                  role="note"
+                >
+                  <em>Individual results may vary and are not guaranteed.</em>
+                </p>
+              )}
               {sortedPhotos.length === 0 ? (
                 <div className="treatment-photos-empty">
                   No photos found for the selected filters.
@@ -1124,6 +1273,7 @@ export default function TreatmentPhotos({
                         {exactMatches.map((photo) => {
                           const relevance = getRelevanceMatches(photo);
                           const matchType = getMatchType(photo);
+                          const gridLabel = getExplorerGridLabel(photo);
                           return (
                             <button
                               key={photo.id}
@@ -1132,6 +1282,10 @@ export default function TreatmentPhotos({
                                 relevance.length > 0
                                   ? " treatment-photo-card-relevant"
                                   : ""
+                              }${
+                                gridLabel
+                                  ? ""
+                                  : " treatment-photo-card--no-subtitle"
                               }`}
                               onClick={() => setSelectedPhoto(photo)}
                             >
@@ -1163,9 +1317,11 @@ export default function TreatmentPhotos({
                                   </div>
                                 )}
                               </div>
-                              <div className="treatment-photo-card-label">
-                                {getTreatmentPhotoDisplayTitle(photo)}
-                              </div>
+                              {gridLabel ? (
+                                <div className="treatment-photo-card-label">
+                                  {gridLabel}
+                                </div>
+                              ) : null}
                             </button>
                           );
                         })}
@@ -1184,6 +1340,7 @@ export default function TreatmentPhotos({
                         {closeMatches.map((photo) => {
                           const relevance = getRelevanceMatches(photo);
                           const matchType = getMatchType(photo);
+                          const gridLabel = getExplorerGridLabel(photo);
                           return (
                             <button
                               key={photo.id}
@@ -1192,6 +1349,10 @@ export default function TreatmentPhotos({
                                 relevance.length > 0
                                   ? " treatment-photo-card-relevant"
                                   : ""
+                              }${
+                                gridLabel
+                                  ? ""
+                                  : " treatment-photo-card--no-subtitle"
                               }`}
                               onClick={() => setSelectedPhoto(photo)}
                             >
@@ -1223,9 +1384,11 @@ export default function TreatmentPhotos({
                                   </div>
                                 )}
                               </div>
-                              <div className="treatment-photo-card-label">
-                                {getTreatmentPhotoDisplayTitle(photo)}
-                              </div>
+                              {gridLabel ? (
+                                <div className="treatment-photo-card-label">
+                                  {gridLabel}
+                                </div>
+                              ) : null}
                             </button>
                           );
                         })}
@@ -1237,6 +1400,7 @@ export default function TreatmentPhotos({
                 <div className="treatment-photos-grid treatment-photos-grid-square">
                   {sortedPhotos.map((photo) => {
                     const relevance = getRelevanceMatches(photo);
+                    const gridLabel = getExplorerGridLabel(photo);
                     return (
                       <button
                         key={photo.id}
@@ -1245,6 +1409,8 @@ export default function TreatmentPhotos({
                           relevance.length > 0
                             ? " treatment-photo-card-relevant"
                             : ""
+                        }${
+                          gridLabel ? "" : " treatment-photo-card--no-subtitle"
                         }`}
                         onClick={() => setSelectedPhoto(photo)}
                       >
@@ -1266,9 +1432,11 @@ export default function TreatmentPhotos({
                             </div>
                           )}
                         </div>
-                        <div className="treatment-photo-card-label">
-                          {getTreatmentPhotoDisplayTitle(photo)}
-                        </div>
+                        {gridLabel ? (
+                          <div className="treatment-photo-card-label">
+                            {gridLabel}
+                          </div>
+                        ) : null}
                       </button>
                     );
                   })}

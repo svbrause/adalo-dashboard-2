@@ -1,0 +1,14 @@
+/* Match Analysis Overview gauge wrapper; compact inner number for mini sizes */
+.ao-severity-norm-ring svg {
+  display: block;
+}
+
+.ao-severity-norm-ring__inner {
+  padding: 2px !important;
+}
+
+.ao-severity-norm-ring__value {
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  color: var(--theme-text-primary, #212121) !important;
+}

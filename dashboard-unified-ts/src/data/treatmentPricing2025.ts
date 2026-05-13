@@ -40,6 +40,7 @@ export type DashboardTreatmentCategory =
   /** JudgeMD embedded list — one plan category per surgery section (facial split into subs on plan builder). */
   | "Breast Surgery"
   | "Facial Surgery"
+  | "Rhinoplasty"
   | "Facial Surgery — Lifting & threads"
   | "Facial Surgery — Eyes & brows"
   | "Facial Surgery — Rhinoplasty"
@@ -91,8 +92,12 @@ export const TREATMENT_PRICE_LIST_2025: {
       { name: "Sculptra – 5 Vials", price: 3500 },
       { name: "Sculptra – 6 Vials", price: 4000 },
       { name: "Sculptra – 8 Vials", price: 5200 },
-      { name: "Skinvive II", price: 750 },
-      { name: "Skinvive III Add-On Syringe", price: 375 },
+      { name: "Skinvive", price: 750, note: "2 syringes" },
+      {
+        name: "Skinvive Add-On Syringe",
+        price: 375,
+        note: "per syringe (3rd and beyond)",
+      },
       { name: "Spider Vein Treatment", price: 750 },
       { name: "Spider Vein Treatment Package (3)", price: 2025 },
     ],
@@ -256,8 +261,8 @@ function getMinMax(items: TreatmentPriceItem[]): { min: number; max: number } {
 
 /**
  * Price-list labels merged into the by-treatment recommender search haystack so queries like
- * "Skinvive II", "Cortisone", "Pronox", or "Cosmelan" surface the right category card even when
- * those strings are not in {@link TREATMENT_PRODUCT_OPTIONS} (e.g. Skinvive II vs "Skinvive (skin booster)").
+ * Legacy labels like "Skinvive II", "Cortisone", "Pronox", or "Cosmelan" surface the right category card even when
+ * those strings are not in {@link TREATMENT_PRODUCT_OPTIONS} (e.g. old sheet names vs "Skinvive (skin booster)").
  */
 export function getPriceListLabelsForTreatmentRecommenderSearch(
   treatment: string,
@@ -309,6 +314,7 @@ function injectableMatchesNeurotoxinSku(i: TreatmentPriceItem): boolean {
   return (
     n.includes("Botox") ||
     n.includes("Dysport") ||
+    /daxxify|doxify/i.test(n) ||
     n.includes("Sweating") ||
     /masseter|trapezius|lip flip|baby tox|gummy smile|browlift to neuro/i.test(n)
   );
@@ -322,19 +328,22 @@ function injectableMatchesFillerSku(i: TreatmentPriceItem): boolean {
     n.includes("Voluma") ||
     n.includes("Volux") ||
     n.includes("Dissolver") ||
-    /juvederm|restylane|revance|liquid rhinoplasty|skinvive|redensity|rha\d|rha\s/i.test(n)
+    /juvederm|restylane|revance|liquid rhinoplasty|skinvive|redensity|rha\d|rha\s|renuva/i.test(
+      n,
+    )
   );
 }
 
 /** Injectables row → Biostimulants plan category. Skinvive (intradermal) maps as filler only. */
 function injectableMatchesBiostimulantSku(i: TreatmentPriceItem): boolean {
   const n = i.name;
-  if (/intradermal/i.test(n) && /skinvive/i.test(n)) return false;
+  if (/skinvive/i.test(n)) return false;
+  /** JudgeMD sheet: Renuva (3 cc) is under the Filler plan card, not Biostimulants. */
+  if (/renuva/i.test(n) && /\(3\s*cc\)/i.test(n)) return false;
   return (
     n.includes("Radiesse") ||
     n.includes("Sculptra") ||
-    n.includes("Renuva") ||
-    n.includes("Skinvive")
+    /ez\s*gel/i.test(n)
   );
 }
 
@@ -432,13 +441,15 @@ function getItemsForDashboardCategory(
 }
 
 /**
- * Price range string for dashboard treatment category (from 2025 list).
- * Use in TREATMENT_META.priceRange. Returns undefined if no 2025 prices map to that category.
+ * Price range string for a dashboard treatment category from the given price list
+ * (defaults to the 2025 sheet). Use with {@link getEffectivePriceList} for JudgeMD / custom sheets.
+ * Returns undefined if no items map to that category.
  */
 export function getPriceRange2025(
-  category: DashboardTreatmentCategory
+  category: DashboardTreatmentCategory,
+  priceList: { category: string; items: TreatmentPriceItem[] }[] = TREATMENT_PRICE_LIST_2025,
 ): string | undefined {
-  const items = getItemsForDashboardCategory(category);
+  const items = getItemsForDashboardCategory(category, priceList);
   if (items.length === 0) return undefined;
   const { min, max } = getMinMax(items);
   if (min === max) return formatPrice(min);
@@ -473,22 +484,18 @@ export function getDashboardCategoriesForPriceListItem(
     return [];
   }
   if (sec === "Injectables") {
-    if (n.includes("Botox") || n.includes("Dysport") || n.includes("Sweating")) {
+    const sku = { name: n, price: 0 };
+    if (injectableMatchesNeurotoxinSku(sku)) {
       return ["Neurotoxin"];
     }
-    if (
-      n.includes("Filler") ||
-      n.includes("Voluma") ||
-      n.includes("Volux") ||
-      n.includes("Dissolver")
-    ) {
+    if (injectableMatchesFillerSku(sku)) {
       return ["Filler"];
+    }
+    if (injectableMatchesBiostimulantSku(sku)) {
+      return ["Biostimulants"];
     }
     if (n.includes("Skinvive")) return ["Other procedures"];
     if (/spider\s*vein/i.test(n)) return ["Other procedures"];
-    if (n.includes("Radiesse") || n.includes("Sculptra")) {
-      return ["Biostimulants"];
-    }
     return [];
   }
   if (sec === "Other Treatments") {
@@ -572,6 +579,27 @@ export interface PlanItemForPricing {
   product?: string;
   region?: string;
   quantity?: string;
+  /** See DiscussedItem: visits × vials-per-visit for Sculptra when set with quantity. */
+  bioTreatmentSessions?: string;
+}
+
+/** Total Sculptra vials for SKU lookup (legacy: quantity alone = total vials when sessions unset). */
+export function getSculptraVialCountForPlanPricing(item: PlanItemForPricing): number {
+  const sessionsRaw = (item.bioTreatmentSessions ?? "").trim();
+  const perVisitRaw = (item.quantity ?? "").trim();
+  const sessions = sessionsRaw ? parseInt(sessionsRaw, 10) : NaN;
+  const perVisit = perVisitRaw ? parseInt(perVisitRaw, 10) : NaN;
+  if (
+    !Number.isNaN(sessions) &&
+    !Number.isNaN(perVisit) &&
+    sessions > 0 &&
+    perVisit > 0
+  ) {
+    return sessions * perVisit;
+  }
+  const legacy = perVisitRaw ? parseInt(perVisitRaw, 10) : NaN;
+  if (!Number.isNaN(legacy) && legacy > 0) return legacy;
+  return 1;
 }
 
 /** Category-level meta for checkout (longevity, recovery, sessions). Mirrors TREATMENT_META where used. */
@@ -598,7 +626,9 @@ const DASHBOARD_TO_PRICE_SECTIONS: Record<string, string[]> = {
   "Breast Surgery": ["Breast Surgery"],
   "Facial Surgery": ["Facial Surgery"],
   ...Object.fromEntries(
-    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.map((c) => [c, ["Facial Surgery"]]),
+    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.filter((c) => c !== "Facial Surgery").map(
+      (c) => [c, ["Facial Surgery"]],
+    ),
   ),
   "Body Sculpting": ["Body Sculpting"],
   "Vaginal Rejuvenation": ["Vaginal Rejuvenation"],
@@ -662,6 +692,36 @@ export function getEnergyDeviceTypesFromPriceList(): string[] {
     }
   }
   return [...new Set(devices)];
+}
+
+/** Energy treatment area names from the Laser / Sofwave / Ultherapy price list. */
+export function getEnergyTreatmentAreasFromPriceList(): string[] {
+  const areas: string[] = [];
+  const pushArea = (area: string | null | undefined) => {
+    const normalized = (area ?? "")
+      .replace(/\s+\d+\s*PK$/i, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (normalized && !areas.includes(normalized)) areas.push(normalized);
+  };
+
+  for (const section of TREATMENT_PRICE_LIST_2025) {
+    if (section.category === "Laser") {
+      for (const item of section.items) {
+        const area = item.name
+          .replace(/^(BBL\s*\+\s*Moxi|Moxi|BBL)\s+/i, "")
+          .trim();
+        pushArea(area);
+      }
+    } else if (section.category === "Sofwave" || section.category === "Ultherapy") {
+      for (const item of section.items) {
+        const parts = item.name.split("–");
+        pushArea(parts.length > 1 ? parts.slice(1).join("–") : null);
+      }
+    }
+  }
+
+  return areas;
 }
 
 function splitChemicalPeelTypeAndArea(name: string): { type: string; area: string | null } {
@@ -782,16 +842,13 @@ export function getFillerTypesFromPriceList(): string[] {
   for (const section of TREATMENT_PRICE_LIST_2025) {
     if (section.category === "Injectables") {
       section.items
-        .filter(
-          (i) =>
-            i.name.includes("Filler") ||
-            i.name.includes("Voluma") ||
-            i.name.includes("Volux"),
+        .filter((i) =>
+          /filler|voluma|volux|vollux|vollure|volbella|dissolver|hyaluronidase|juvederm|restylane|revance|rha\d|skinvive|liquid rhinoplasty/i.test(i.name),
         )
         .forEach((i) => out.push(i.name));
     } else if (section.category === "Other Treatments") {
       section.items
-        .filter((i) => i.name.includes("Dissolver"))
+        .filter((i) => /dissolver|hyaluronidase/i.test(i.name))
         .forEach((i) => out.push(i.name));
     }
   }
@@ -810,7 +867,9 @@ export function getBiostimulantsTypesFromPriceList(): string[] {
       normalized.push("Sculptra");
     }
   }
-  return Array.from(new Set(normalized));
+  const out = Array.from(new Set(normalized));
+  if (!out.includes("EZ Gel PRF")) out.push("EZ Gel PRF");
+  return out;
 }
 
 /**
@@ -822,7 +881,7 @@ export function getOtherProcedureTypesFromPriceList(): string[] {
   const CORE: readonly string[] = [
     "PRFM injections",
     "PRFM scalp (hair restoration)",
-    "Skinvive (skin booster)",
+    "Skinvive",
   ];
   const seen = new Set<string>();
   const out: string[] = [];
@@ -852,7 +911,8 @@ export function getOtherProcedureTypesFromPriceList(): string[] {
     const fromInj = inj.items
       .filter(
         (i) =>
-          /spider\s*vein/i.test(i.name) || i.name.includes("Skinvive"),
+          /spider\s*vein/i.test(i.name) ||
+          (i.name.trim() === "Skinvive" && !/intradermal/i.test(i.name)),
       )
       .map((i) => i.name.trim())
       .sort((a, b) => a.localeCompare(b));
@@ -875,10 +935,9 @@ export const CHECKOUT_CATEGORY_META: Record<string, CategoryMeta> = {
   "Breast Surgery": { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
   "Facial Surgery": { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
   ...Object.fromEntries(
-    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.map((c) => [
-      c,
-      { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
-    ]),
+    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.filter((c) => c !== "Facial Surgery").map(
+      (c) => [c, { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" }],
+    ),
   ),
   "Body Sculpting": { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
   "Vaginal Rejuvenation": { longevity: "Varies", downtime: "1–2 weeks+", sessions: "1" },
@@ -983,11 +1042,36 @@ function norm(s: string): string {
     .trim();
 }
 
+function getBlepharoplastyVariant(value: string): "upper" | "lower" | "quad" | "generic" | null {
+  const n = norm(value);
+  if (!n.includes("blepharoplasty") && !n.includes("eyelid surgery")) return null;
+  if (
+    n.includes("quad") ||
+    n.includes("upper & lower") ||
+    n.includes("upper and lower") ||
+    (n.includes("upper") && n.includes("lower"))
+  ) {
+    return "quad";
+  }
+  if (n.includes("upper")) return "upper";
+  if (n.includes("lower")) return "lower";
+  return "generic";
+}
+
 /** Check if plan product/region text matches SKU name (contains or is contained). */
 function skuNameMatches(skuName: string, productOrRegion: string): boolean {
   if (!productOrRegion?.trim()) return false;
   const a = norm(skuName);
   const b = norm(productOrRegion);
+  const skuBleph = getBlepharoplastyVariant(skuName);
+  const queryBleph = getBlepharoplastyVariant(productOrRegion);
+  if (skuBleph && queryBleph) {
+    if (skuBleph === "generic" || queryBleph === "generic") return true;
+    return skuBleph === queryBleph;
+  }
+  if (/(?:lipo|liposuction).*subment/i.test(b) && /liposuction.*subment/i.test(a)) {
+    return true;
+  }
   if (a.includes(b) || b.includes(a)) return true;
   if (b.includes("face") && (a.includes("full face") || a.includes("face"))) return true;
   if (b.includes("neck") && a.includes("neck")) return true;
@@ -996,12 +1080,17 @@ function skuNameMatches(skuName: string, productOrRegion: string): boolean {
   if (b.includes("bbl") && a.includes("bbl")) return true;
   if (b.includes("botox") && a.includes("botox")) return true;
   if (b.includes("dysport") && a.includes("dysport")) return true;
+  if ((b.includes("daxxify") || b.includes("doxify")) && /daxxify|doxify/i.test(a)) return true;
   if (b.includes("filler") && (a.includes("filler") || a.includes("Voluma") || a.includes("Volux"))) return true;
   if (b.includes("radiasse") && a.includes("Radiesse")) return true;
   if (b.includes("sculptra") && a.includes("Sculptra")) return true;
   if (b.includes("microneedling") && a.includes("Microneedling")) return true;
   if (b.includes("peel") && a.includes("Peel")) return true;
   if (b.includes("facial") && a.includes("Facial")) return true;
+  if (/fat transfers? to (the )?face/i.test(b) && /fat transfer to face/i.test(a))
+    return true;
+  if (/fat transfers? (to )?(the )?face/i.test(b) && /fat transfer to face/i.test(a))
+    return true;
   return false;
 }
 
@@ -1015,6 +1104,97 @@ function preferClaremontCaSkus<T extends { name: string }>(skus: T[]): T[] {
     const bH = b.name.includes("Henderson") ? 1 : 0;
     return aH - bH;
   });
+}
+
+/** Skin-booster Skinvive base row (not intradermal filler, not add-on syringe line). */
+function findSkinviveSkinBoosterBaseSku<T extends { name: string }>(skus: T[]): T | undefined {
+  const exact = skus.find((s) => s.name.trim() === "Skinvive");
+  if (exact && !/intradermal/i.test(exact.name)) return exact;
+  return skus.find(
+    (s) =>
+      /skinvive/i.test(s.name) &&
+      !/intradermal/i.test(s.name) &&
+      !/add-on/i.test(s.name),
+  );
+}
+
+function findSkinviveAddonSyringeSku<T extends { name: string }>(skus: T[]): T | undefined {
+  return skus.find((s) => /Skinvive\s*Add-On\s*Syringe/i.test(s.name));
+}
+
+/**
+ * Skinvive skin booster: **no 1-syringe option**. Unset quantity → **2 syringes / $750** (base SKU).
+ * **3 syringes** = $750 + $375 add-on = $1,125; each syringe beyond 2 uses add-on SKU (+$375).
+ */
+function matchSkinviveSkinBoosterBySyringeCount<T extends { name: string; price: number }>(
+  skus: T[],
+  quantityStr: string,
+): {
+  sku: T;
+  totalPrice: number;
+  isPerUnit?: boolean;
+  unitPrice?: number;
+  quantity: number;
+} | null {
+  const skinviveBase = findSkinviveSkinBoosterBaseSku(skus);
+  const skinviveAddon = findSkinviveAddonSyringeSku(skus);
+  if (!skinviveBase) return null;
+  const trimmed = quantityStr.trim();
+  const parsed = trimmed ? parseInt(trimmed, 10) : NaN;
+  const hasExplicit = !Number.isNaN(parsed) && parsed > 0;
+  let n: number;
+  if (!hasExplicit) {
+    n = 2;
+  } else if (parsed === 1) {
+    return null;
+  } else {
+    n = parsed;
+  }
+  if (n > 2 && !skinviveAddon) return null;
+  const totalPrice =
+    skinviveBase.price + Math.max(0, n - 2) * (skinviveAddon?.price ?? 0);
+  if (n > 2) {
+    return {
+      sku: skinviveBase,
+      totalPrice,
+      isPerUnit: true,
+      unitPrice: skinviveAddon!.price,
+      quantity: n,
+    };
+  }
+  return {
+    sku: skinviveBase,
+    totalPrice,
+    quantity: n,
+  };
+}
+
+function neurotoxinProductRequiresUnits(product: string): boolean {
+  const p = (product ?? "").trim().toLowerCase();
+  if (!p) return false;
+  return /botox|dysport|daxxify|doxify|baby\s*tox/.test(p);
+}
+
+function matchJudgeMdFixedNeurotoxinSku(
+  product: string,
+  skus: SkuWithCategory[],
+): SkuWithCategory | null {
+  const p = (product ?? "").trim().toLowerCase();
+  if (!p) return null;
+  if (/lip\s*flip|gummy\s*smile|brow\s*lift|browlift/.test(p)) {
+    return (
+      skus.find((s) =>
+        /lip\s*flip.*gummy\s*smile.*browlift/i.test(s.name),
+      ) ?? null
+    );
+  }
+  if (/masseter/.test(p)) {
+    return skus.find((s) => /masseter/i.test(s.name)) ?? null;
+  }
+  if (/trapezius|trap/.test(p)) {
+    return skus.find((s) => /trapezius/i.test(s.name)) ?? null;
+  }
+  return null;
 }
 
 /** Match a plan item to a specific SKU and return price (total or per-unit × quantity). */
@@ -1048,13 +1228,35 @@ export function matchPlanItemToSku(
   const quantityStr = (item.quantity ?? "").trim();
   const qty = quantityStr ? parseInt(quantityStr, 10) : NaN;
 
+  if (treatment === "Neurotoxin" && product) {
+    const fixedJudgeMdSku = matchJudgeMdFixedNeurotoxinSku(product, skus);
+    if (fixedJudgeMdSku) {
+      return { sku: fixedJudgeMdSku, totalPrice: fixedJudgeMdSku.price };
+    }
+    if (/baby\s*tox/i.test(product)) {
+      const babyToxSku = skus.find((s) => /baby\s*tox/i.test(s.name));
+      const babyToxQty = !Number.isNaN(qty) && qty > 0 ? qty : 0;
+      if (babyToxSku && babyToxQty > 0) {
+        return {
+          sku: babyToxSku,
+          totalPrice: babyToxSku.price * babyToxQty,
+          isPerUnit: true,
+          unitPrice: babyToxSku.price,
+          quantity: babyToxQty,
+        };
+      }
+      if (babyToxSku) return null;
+    }
+  }
+
   // Per-unit SKUs (Botox, Dysport) – use CA 1-Unit pricing only, not Henderson vials
   const perUnitSkus = skus.filter(
     (s) =>
       !s.name.includes("Henderson") &&
       (s.name.includes("1-Unit") ||
         (s.name.includes("Botox") && s.name.includes("Unit")) ||
-        (s.name.includes("Dysport") && s.name.includes("Unit")))
+        (s.name.includes("Dysport") && s.name.includes("Unit")) ||
+        (/daxxify|doxify/i.test(s.name) && s.name.includes("Unit"))),
   );
   // No quantity fallback for neurotoxin — blank units means price is unknown (shown as "Price varies").
   const effectiveQty = !Number.isNaN(qty) && qty > 0 ? qty : 0;
@@ -1063,11 +1265,15 @@ export function matchPlanItemToSku(
     if (treatment === "Neurotoxin" && !product) {
       /* fall through to generic matching / null */
     } else {
-      const preferBotox = /botox|tox/i.test(product) && !/dysport/i.test(product);
+      const preferBotox =
+        /botox|tox/i.test(product) && !/dysport|daxxify|doxify/i.test(product);
       const preferDysport = /dysport/i.test(product);
+      const preferDaxxify = /daxxify|doxify/i.test(product);
       let chosen = perUnitSkus[0];
       if (preferBotox) chosen = perUnitSkus.find((s) => s.name.includes("Botox")) ?? chosen;
       if (preferDysport) chosen = perUnitSkus.find((s) => s.name.includes("Dysport")) ?? chosen;
+      if (preferDaxxify)
+        chosen = perUnitSkus.find((s) => /daxxify|doxify/i.test(s.name)) ?? chosen;
       const totalPrice = chosen.price * effectiveQty;
       return {
         sku: chosen,
@@ -1128,30 +1334,8 @@ export function matchPlanItemToSku(
         return { sku: cortisoneSku, totalPrice: cortisoneSku.price };
     }
     const rLow = (region ?? "").toLowerCase();
-    const bioQty = !Number.isNaN(qty) && qty > 0 ? qty : 1;
     if (/skinvive/i.test(pLow)) {
-      const skinviveBase =
-        skus.find((s) => /Skinvive\s*II/i.test(s.name)) ||
-        skus.find((s) => /Skinvive/i.test(s.name));
-      if (!skinviveBase) return null;
-      const skinviveAddon = skus.find((s) => /Skinvive\s*III\s*Add-On\s*Syringe/i.test(s.name));
-      if (bioQty <= 1 || !skinviveAddon) {
-        return {
-          sku: skinviveBase,
-          totalPrice: skinviveBase.price,
-          isPerUnit: true,
-          unitPrice: skinviveBase.price,
-          quantity: 1,
-        };
-      }
-      const totalPrice = skinviveBase.price + (bioQty - 1) * skinviveAddon.price;
-      return {
-        sku: skinviveBase,
-        totalPrice,
-        isPerUnit: true,
-        unitPrice: skinviveAddon.price,
-        quantity: bioQty,
-      };
+      return matchSkinviveSkinBoosterBySyringeCount(skus, quantityStr);
     }
     if (
       /prfm\s*scalp|scalp|hair\s*restoration/i.test(pLow) ||
@@ -1213,16 +1397,33 @@ export function matchPlanItemToSku(
             });
       if (exact) return { sku: exact, totalPrice: exact.price };
     }
+    if (/ez\s*gel/i.test(product)) {
+      const ez = skus.find((s) => /ez\s*gel/i.test(s.name));
+      if (ez) return { sku: ez, totalPrice: ez.price };
+    }
     if (/sculptra/i.test(product)) {
-      const sculptraSkus = skus.filter((s) => s.name.includes("Sculptra"));
+      const vialTotal = getSculptraVialCountForPlanPricing(item);
+      const sculptraQty =
+        !Number.isNaN(vialTotal) && vialTotal > 0 ? vialTotal : 1;
+      const sculptraSkus = skus.filter((s) => {
+        if (!s.name.includes("Sculptra")) return false;
+        if (/buttock/i.test(s.name)) return /buttock/i.test(product);
+        return !/buttock/i.test(product);
+      });
       const exact = sculptraSkus.find((s) => {
-        const m = s.name.match(/Sculptra\s*[–-]\s*(\d+)\s*Vial/i);
-        return m && parseInt(m[1], 10) === bioQty;
+        const m = s.name.match(/Sculptra\s*[–-]\s*(\d+)\s*Vials?/i);
+        return m && parseInt(m[1], 10) === sculptraQty;
       });
       if (exact) return { sku: exact, totalPrice: exact.price };
-      if (bioQty === 1) {
-        const one = sculptraSkus.find((s) => /Sculptra\s*[–-]\s*1\s*Vial/i.test(s.name));
-        if (one) return { sku: one, totalPrice: one.price };
+      const oneVial = sculptraSkus.find((s) => /Sculptra\s*[–-]\s*1\s*Vial/i.test(s.name));
+      if (oneVial) {
+        return {
+          sku: oneVial,
+          totalPrice: oneVial.price * sculptraQty,
+          isPerUnit: true,
+          unitPrice: oneVial.price,
+          quantity: sculptraQty,
+        };
       }
     }
     if (/renuva/i.test(product)) {
@@ -1230,29 +1431,7 @@ export function matchPlanItemToSku(
       if (ren) return { sku: ren, totalPrice: ren.price };
     }
     if (/skinvive/i.test(product)) {
-      const skinviveBase =
-        skus.find((s) => /Skinvive\s*II/i.test(s.name)) ||
-        skus.find((s) => /Skinvive/i.test(s.name));
-      if (!skinviveBase) return null;
-      const skinviveAddon = skus.find((s) => /Skinvive\s*III\s*Add-On\s*Syringe/i.test(s.name));
-      if (bioQty <= 1 || !skinviveAddon) {
-        return {
-          sku: skinviveBase,
-          totalPrice: skinviveBase.price,
-          isPerUnit: true,
-          unitPrice: skinviveBase.price,
-          quantity: 1,
-        };
-      }
-      // Skinvive pricing model: first syringe at Skinvive II, additional syringes at add-on rate.
-      const totalPrice = skinviveBase.price + (bioQty - 1) * skinviveAddon.price;
-      return {
-        sku: skinviveBase,
-        totalPrice,
-        isPerUnit: true,
-        unitPrice: skinviveAddon.price,
-        quantity: bioQty,
-      };
+      return matchSkinviveSkinBoosterBySyringeCount(skus, quantityStr);
     }
   }
 
@@ -1311,7 +1490,8 @@ export function matchPlanItemToSku(
       !matched.name.includes("Henderson") &&
       (matched.name.includes("1-Unit") ||
         (matched.name.includes("Botox") && matched.name.includes("Unit")) ||
-        (matched.name.includes("Dysport") && matched.name.includes("Unit")));
+        (matched.name.includes("Dysport") && matched.name.includes("Unit")) ||
+        (/daxxify|doxify/i.test(matched.name) && matched.name.includes("Unit")));
     const hasUnits = !Number.isNaN(qty) && qty > 0;
     if (isPerUnitNeuroSku && !hasUnits) return null;
   }
@@ -1557,7 +1737,12 @@ export function getCheckoutSummaryWithSkus(
       // Neurotoxin: type selected (product set) but units left blank → can't calculate price.
       const quantityStr = (item.quantity ?? "").trim();
       const hasNoUnits = !quantityStr || isNaN(Number(quantityStr)) || Number(quantityStr) <= 0;
-      if (cat === "Neurotoxin" && productName && hasNoUnits) {
+      if (
+        cat === "Neurotoxin" &&
+        productName &&
+        neurotoxinProductRequiresUnits(productName) &&
+        hasNoUnits
+      ) {
         const m = meta(cat);
         lineItems.push({
           label,
@@ -1804,6 +1989,8 @@ export interface ProviderPricingDocument {
   recommenderOptions?: Record<string, string[]>;
   /** Default option values the provider has removed, keyed by TreatmentRecommenderOptionType. */
   recommenderRemovedDefaults?: Record<string, string[]>;
+  /** Explicit display order for built-in + custom recommender options. */
+  recommenderOptionOrder?: Record<string, string[]>;
 }
 
 /**
@@ -1881,6 +2068,14 @@ export function getRemovedDefaultRecommenderOptions(
   return doc.recommenderRemovedDefaults?.[optionType] ?? [];
 }
 
+/** Return the saved display order for a recommender option type. */
+export function getRecommenderOptionOrder(
+  doc: ProviderPricingDocument,
+  optionType: string,
+): string[] {
+  return doc.recommenderOptionOrder?.[optionType] ?? [];
+}
+
 /**
  * Return a new document with `value` added to the custom options for `optionType`.
  * Deduplicates by value (case-sensitive).
@@ -1905,6 +2100,24 @@ export function addCustomRecommenderOption(
     recommenderRemovedDefaults: {
       ...(doc.recommenderRemovedDefaults ?? {}),
       [optionType]: removed,
+    },
+  };
+}
+
+/** Return a new document with explicit ordering for all visible values in an option section. */
+export function setRecommenderOptionOrder(
+  doc: ProviderPricingDocument,
+  optionType: string,
+  orderedValues: string[],
+): ProviderPricingDocument {
+  const deduped = Array.from(
+    new Set(orderedValues.map((v) => v.trim()).filter(Boolean)),
+  );
+  return {
+    ...doc,
+    recommenderOptionOrder: {
+      ...(doc.recommenderOptionOrder ?? {}),
+      [optionType]: deduped,
     },
   };
 }
@@ -2024,8 +2237,9 @@ export function getBiostimulantTypeOptionLabels(
     const n = s.label;
     if (n.includes("Radiesse")) types.add("Radiesse");
     else if (n.includes("Sculptra")) types.add("Sculptra");
+    else if (/ez\s*gel/i.test(n)) types.add("EZ Gel PRF");
   }
-  const order = ["Radiesse", "Sculptra"];
+  const order = ["Radiesse", "Sculptra", "EZ Gel PRF"];
   return order.filter((t) => types.has(t));
 }
 
@@ -2046,9 +2260,26 @@ export function getNeurotoxinTypeOptionLabels(
       (n.includes("Dysport") && n.includes("Unit"))
     )
       labels.add("Dysport");
+    else if (/daxxify|doxify/i.test(n)) labels.add("Daxxify");
+    else if (/baby\s*tox/i.test(n)) labels.add("Baby Tox");
+    else if (/lip\s*flip/i.test(n)) labels.add("Lip Flip");
+    else if (/gummy\s*smile/i.test(n)) labels.add("Gummy Smile");
+    else if (/brow\s*lift|browlift/i.test(n)) labels.add("Browlift");
+    else if (/masseter/i.test(n)) labels.add("Masseters");
+    else if (/trapezius/i.test(n)) labels.add("Trapezius");
     else labels.add(n);
   }
-  const priority = ["Botox", "Dysport"];
+  const priority = [
+    "Botox",
+    "Dysport",
+    "Daxxify",
+    "Baby Tox",
+    "Lip Flip",
+    "Gummy Smile",
+    "Browlift",
+    "Masseters",
+    "Trapezius",
+  ];
   const rest = [...labels].filter((x) => !priority.includes(x));
   rest.sort((a, b) => a.localeCompare(b));
   return [...priority.filter((p) => labels.has(p)), ...rest];
@@ -2062,17 +2293,11 @@ function filterSkusForDashboardCategory(
 ): TreatmentPriceItem[] {
   switch (dash) {
     case "Neurotoxin":
-      return items.filter(
-        (i) => i.name.includes("Botox") || i.name.includes("Dysport") || i.name.includes("Sweating"),
-      );
+      return items.filter(injectableMatchesNeurotoxinSku);
     case "Filler":
-      return items.filter(
-        (i) => i.name.includes("Filler") || i.name.includes("Voluma") || i.name.includes("Volux") || i.name.includes("Dissolver"),
-      );
+      return items.filter(injectableMatchesFillerSku);
     case "Biostimulants":
-      return items.filter(
-        (i) => i.name.includes("Radiesse") || i.name.includes("Sculptra"),
-      );
+      return items.filter(injectableMatchesBiostimulantSku);
     case "Other procedures": {
       if (sheetSection === "Medical Spa") {
         return items.filter(
@@ -2083,7 +2308,9 @@ function filterSkusForDashboardCategory(
       }
       if (sheetSection === "Injectables") {
         return items.filter(
-          (i) => i.name.includes("Skinvive") || /spider\s*vein/i.test(i.name),
+          (i) =>
+            (i.name.trim() === "Skinvive" && !/intradermal/i.test(i.name)) ||
+            /spider\s*vein/i.test(i.name),
         );
       }
       if (sheetSection === "Other Treatments") {

@@ -14,18 +14,25 @@ const FACE_LANDMARKER_MODEL =
 
 type MirrorStatus = "loading" | "ready" | "error";
 type RegionTone = "highlight" | "base";
+type MirrorRegion = { id: string; indices: number[] };
 // Temporary QA: set true to highlight every mapped region for shape QA.
 const DEBUG_HIGHLIGHT_ALL_AREAS = false;
 
 const REGION_KEYWORDS: Record<string, string[]> = {
   rForehead: ["forehead", "brow", "frown", "glabella", "wrinkle"],
-  rLeftEye: ["eye", "under eye", "eyelid", "crow", "tear trough"],
-  rRightEye: ["eye", "under eye", "eyelid", "crow", "tear trough"],
+  rLeftEye: ["eye", "eyelid", "crow"],
+  rRightEye: ["eye", "eyelid", "crow"],
   rNose: ["nose", "nasal", "bridge", "tip", "nostril"],
-  rLeftCheek: ["cheek", "midface", "nasolabial", "smile line", "malar"],
-  rRightCheek: ["cheek", "midface", "nasolabial", "smile line", "malar"],
-  rLips: ["lip", "mouth", "marionette", "perioral", "gummy"],
+  rLeftCheek: ["cheek", "midface", "malar"],
+  rRightCheek: ["cheek", "midface", "malar"],
+  rLips: ["lip", "mouth", "perioral", "gummy"],
   rChin: ["chin", "jaw", "jawline", "submental", "jowl", "neck"],
+  rLeftUnderEye: ["under eye", "undereye", "tear trough", "lower eyelid"],
+  rRightUnderEye: ["under eye", "undereye", "tear trough", "lower eyelid"],
+  rLeftNasolabialFold: ["nasolabial", "nasal fold", "smile line"],
+  rRightNasolabialFold: ["nasolabial", "nasal fold", "smile line"],
+  rLeftMarionetteLine: ["marionette", "oral commissure", "mouth corner"],
+  rRightMarionetteLine: ["marionette", "oral commissure", "mouth corner"],
 };
 
 const REGION_DISPLAY_LABEL: Record<string, string> = {
@@ -37,7 +44,28 @@ const REGION_DISPLAY_LABEL: Record<string, string> = {
   rRightCheek: "Cheeks",
   rLips: "Lips",
   rChin: "Chin/Jawline",
+  rLeftUnderEye: "Under Eyes",
+  rRightUnderEye: "Under Eyes",
+  rLeftNasolabialFold: "Nasolabial Folds",
+  rRightNasolabialFold: "Nasolabial Folds",
+  rLeftMarionetteLine: "Marionette Lines",
+  rRightMarionetteLine: "Marionette Lines",
+  rLowerFace: "Lower Face",
 };
+
+const GRANULAR_MIRROR_REGIONS: MirrorRegion[] = [
+  { id: "rLeftUnderEye", indices: [] },
+  { id: "rRightUnderEye", indices: [] },
+  { id: "rLeftNasolabialFold", indices: [] },
+  { id: "rRightNasolabialFold", indices: [] },
+  { id: "rLeftMarionetteLine", indices: [] },
+  { id: "rRightMarionetteLine", indices: [] },
+  // Lower face: mid-cheek → left jaw → chin → right jaw → mid-cheek
+  {
+    id: "rLowerFace",
+    indices: [205, 187, 147, 123, 116, 117, 93, 132, 58, 172, 136, 150, 149, 148, 152, 176, 378, 365, 288, 397, 361, 340, 346, 347, 376, 411, 425, 280],
+  },
+];
 
 let faceLandmarkerPromise: Promise<
   import("@mediapipe/tasks-vision").FaceLandmarker
@@ -78,6 +106,16 @@ function normalizeTerm(value: string): string {
 }
 
 /**
+ * Checks whether `term` appears as a whole word inside `kw`.
+ * Prevents e.g. term="face" from matching kw="midface" (substring-only match).
+ */
+function kwContainsWholeWord(kw: string, term: string): boolean {
+  if (kw === term) return true;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`).test(kw);
+}
+
+/**
  * Stable primitive for effect deps — parents often pass a fresh `highlightTerms` array each
  * render; MediaPipe should not re-run unless the actual strings changed.
  */
@@ -91,7 +129,10 @@ function highlightTermsFingerprint(terms: readonly string[] | undefined): string
 
 function getHighlightedRegionIds(highlightTerms: string[]): Set<string> {
   if (DEBUG_HIGHLIGHT_ALL_AREAS) {
-    return new Set(AI_MIRROR_REGIONS.map((r) => r.id));
+    return new Set([
+      ...AI_MIRROR_REGIONS.map((r) => r.id),
+      ...GRANULAR_MIRROR_REGIONS.map((r) => r.id),
+    ]);
   }
   const terms = highlightTerms.map(normalizeTerm).filter(Boolean);
   if (!terms.length) return new Set();
@@ -99,9 +140,34 @@ function getHighlightedRegionIds(highlightTerms: string[]): Set<string> {
 
   for (const [regionId, keywords] of Object.entries(REGION_KEYWORDS)) {
     const hit = terms.some((term) =>
-      keywords.some((kw) => term.includes(kw) || kw.includes(term)),
+      keywords.some((kw) => term.includes(kw) || kwContainsWholeWord(kw, term)),
     );
     if (hit) highlighted.add(regionId);
+  }
+  const hasUnderEye = terms.some((t) =>
+    /(?:under\s*eye|undereye|tear\s*trough|lower\s*eyelid)/i.test(t),
+  );
+  const hasNasolabial = terms.some((t) =>
+    /(?:nasolabial|nasal\s*fold|smile\s*line)/i.test(t),
+  );
+  const hasMarionette = terms.some((t) =>
+    /(?:marionette|oral\s*commissure|mouth\s*corner)/i.test(t),
+  );
+  if (hasUnderEye) {
+    highlighted.delete("rLeftEye");
+    highlighted.delete("rRightEye");
+  }
+  if (hasNasolabial) {
+    highlighted.delete("rNose");
+    highlighted.delete("rLeftCheek");
+    highlighted.delete("rRightCheek");
+  }
+  if (hasMarionette) {
+    highlighted.delete("rLips");
+  }
+  // "Lower face" gets its own dedicated region polygon.
+  if (terms.some((t) => /lower\s*face/i.test(t))) {
+    highlighted.add("rLowerFace");
   }
   return highlighted;
 }
@@ -159,6 +225,218 @@ function ovalPoints(
   return points;
 }
 
+function faceScalePixels(
+  landmarks: NormalizedLandmark[],
+  width: number,
+  height: number,
+): number {
+  const pts = getPointsByIndices(landmarks, [234, 454, 10, 152], width, height);
+  if (pts.length < 4) return Math.min(width, height);
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  return Math.max(
+    Math.max(...xs) - Math.min(...xs),
+    Math.max(...ys) - Math.min(...ys),
+  );
+}
+
+function stripAroundPolyline(
+  points: { x: number; y: number }[],
+  widthPx: number,
+): { x: number; y: number }[] {
+  if (points.length < 2) return [];
+  const left: { x: number; y: number }[] = [];
+  const right: { x: number; y: number }[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const prev = points[Math.max(0, i - 1)]!;
+    const next = points[Math.min(points.length - 1, i + 1)]!;
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const p = points[i]!;
+    left.push({ x: p.x + nx * widthPx, y: p.y + ny * widthPx });
+    right.push({ x: p.x - nx * widthPx, y: p.y - ny * widthPx });
+  }
+  return [...left, ...right.reverse()];
+}
+
+function landmarkPoint(
+  landmarks: NormalizedLandmark[],
+  index: number,
+  width: number,
+  height: number,
+): { x: number; y: number } | null {
+  const lm = landmarks[index];
+  if (!lm) return null;
+  return { x: lm.x * width, y: lm.y * height };
+}
+
+function pointBetween(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  t: number,
+): { x: number; y: number } {
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+  };
+}
+
+function isLinearFeatureRegion(regionId: string): boolean {
+  return (
+    regionId === "rLeftNasolabialFold" ||
+    regionId === "rRightNasolabialFold" ||
+    regionId === "rLeftMarionetteLine" ||
+    regionId === "rRightMarionetteLine"
+  );
+}
+
+function underEyeRegion(
+  landmarks: NormalizedLandmark[],
+  width: number,
+  height: number,
+  side: "left" | "right",
+): { x: number; y: number }[] {
+  const indices =
+    side === "left"
+      ? [33, 7, 163, 144, 145, 153, 154, 155, 133]
+      : [362, 382, 381, 380, 374, 373, 390, 249, 263];
+  const lid = getPointsByIndices(landmarks, indices, width, height);
+  if (lid.length < 3) return [];
+  const faceScale = faceScalePixels(landmarks, width, height);
+  const lower = lid
+    .slice()
+    .reverse()
+    .map((p) => ({ x: p.x, y: p.y + faceScale * 0.045 }));
+  return [...lid, ...lower];
+}
+
+function nasolabialFoldLine(
+  landmarks: NormalizedLandmark[],
+  width: number,
+  height: number,
+  side: "left" | "right",
+): { x: number; y: number }[] {
+  const start = landmarkPoint(landmarks, side === "left" ? 98 : 327, width, height);
+  const end = landmarkPoint(landmarks, side === "left" ? 61 : 291, width, height);
+  if (!start || !end) return [];
+  const faceScale = faceScalePixels(landmarks, width, height);
+  const outward = side === "left" ? -1 : 1;
+  const mid = pointBetween(start, end, 0.52);
+  mid.x += outward * faceScale * 0.018;
+  mid.y += faceScale * 0.01;
+  return [start, mid, end];
+}
+
+function nasolabialFoldRegion(
+  landmarks: NormalizedLandmark[],
+  width: number,
+  height: number,
+  side: "left" | "right",
+): { x: number; y: number }[] {
+  const line = nasolabialFoldLine(landmarks, width, height, side);
+  if (line.length < 2) return [];
+  const faceScale = faceScalePixels(landmarks, width, height);
+  return stripAroundPolyline(line, Math.max(4, faceScale * 0.012));
+}
+
+function marionetteLinePath(
+  landmarks: NormalizedLandmark[],
+  width: number,
+  height: number,
+  side: "left" | "right",
+): { x: number; y: number }[] {
+  const start = landmarkPoint(landmarks, side === "left" ? 61 : 291, width, height);
+  const chin = landmarkPoint(landmarks, side === "left" ? 172 : 397, width, height);
+  if (!start || !chin) return [];
+  const faceScale = faceScalePixels(landmarks, width, height);
+  const outward = side === "left" ? -1 : 1;
+  const end = {
+    x: start.x + outward * faceScale * 0.055,
+    y: start.y + faceScale * 0.22,
+  };
+  const guardEnd = pointBetween(end, chin, 0.18);
+  const mid = pointBetween(start, guardEnd, 0.52);
+  mid.x += outward * faceScale * 0.012;
+  return [start, mid, guardEnd];
+}
+
+function marionetteLineRegion(
+  landmarks: NormalizedLandmark[],
+  width: number,
+  height: number,
+  side: "left" | "right",
+): { x: number; y: number }[] {
+  const line = marionetteLinePath(landmarks, width, height, side);
+  if (line.length < 2) return [];
+  const faceScale = faceScalePixels(landmarks, width, height);
+  return stripAroundPolyline(line, Math.max(4, faceScale * 0.013));
+}
+
+function softFeatureCenter(
+  regionId: string,
+  landmarks: NormalizedLandmark[],
+  width: number,
+  height: number,
+): { x: number; y: number } | null {
+  if (regionId === "rLeftNasolabialFold") {
+    const line = nasolabialFoldLine(landmarks, width, height, "left");
+    return line.length ? averagePoint(line) : null;
+  }
+  if (regionId === "rRightNasolabialFold") {
+    const line = nasolabialFoldLine(landmarks, width, height, "right");
+    return line.length ? averagePoint(line) : null;
+  }
+  if (regionId === "rLeftMarionetteLine") {
+    const line = marionetteLinePath(landmarks, width, height, "left");
+    return line.length ? averagePoint(line) : null;
+  }
+  if (regionId === "rRightMarionetteLine") {
+    const line = marionetteLinePath(landmarks, width, height, "right");
+    return line.length ? averagePoint(line) : null;
+  }
+  return null;
+}
+
+function drawSoftFeatureRegion(
+  ctx: CanvasRenderingContext2D,
+  regionId: string,
+  center: { x: number; y: number },
+  width: number,
+  height: number,
+): void {
+  const base = Math.min(width, height);
+  const isNasolabial = regionId.includes("NasolabialFold");
+  const rx = Math.max(18, base * (isNasolabial ? 0.052 : 0.055));
+  const ry = Math.max(24, base * (isNasolabial ? 0.095 : 0.088));
+  const rotation =
+    regionId.includes("Left") ? -0.18 : regionId.includes("Right") ? 0.18 : 0;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.rotate(rotation);
+
+  const gradient = ctx.createRadialGradient(0, 0, 1, 0, 0, Math.max(rx, ry));
+  gradient.addColorStop(0, "rgba(59, 130, 246, 0.24)");
+  gradient.addColorStop(0.58, "rgba(96, 165, 250, 0.12)");
+  gradient.addColorStop(1, "rgba(96, 165, 250, 0)");
+
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx * 0.72, ry * 0.72, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(147, 197, 253, 0.35)";
+  ctx.lineWidth = Math.max(1, base * 0.0014);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 /**
  * More anatomically stable render region from MediaPipe landmarks.
  * - Cheeks: landmark-anchored ovals (avoids pac-man polygons).
@@ -172,6 +450,25 @@ function getRenderRegionPolygon(
   height: number,
   fallbackIndices: number[],
 ): { x: number; y: number }[] {
+  if (regionId === "rLeftUnderEye") {
+    return underEyeRegion(landmarks, width, height, "left");
+  }
+  if (regionId === "rRightUnderEye") {
+    return underEyeRegion(landmarks, width, height, "right");
+  }
+  if (regionId === "rLeftNasolabialFold") {
+    return nasolabialFoldRegion(landmarks, width, height, "left");
+  }
+  if (regionId === "rRightNasolabialFold") {
+    return nasolabialFoldRegion(landmarks, width, height, "right");
+  }
+  if (regionId === "rLeftMarionetteLine") {
+    return marionetteLineRegion(landmarks, width, height, "left");
+  }
+  if (regionId === "rRightMarionetteLine") {
+    return marionetteLineRegion(landmarks, width, height, "right");
+  }
+
   if (regionId === "rLeftCheek") {
     const cheek = getPointsByIndices(
       landmarks,
@@ -276,7 +573,25 @@ function drawAnnotatedFace(
   const highlightedRegions = getHighlightedRegionIds(highlightTerms);
   const regionLabels: Array<{ label: string; x: number; y: number }> = [];
 
-  for (const { id, indices } of AI_MIRROR_REGIONS) {
+  const renderRegions: MirrorRegion[] = [
+    ...AI_MIRROR_REGIONS,
+    ...GRANULAR_MIRROR_REGIONS.filter((r) => highlightedRegions.has(r.id)),
+  ];
+
+  for (const { id, indices } of renderRegions) {
+    if (isLinearFeatureRegion(id) && highlightedRegions.has(id)) {
+      const center = softFeatureCenter(id, landmarks, cw, ch);
+      if (center) {
+        drawSoftFeatureRegion(ctx, id, center, cw, ch);
+        regionLabels.push({
+          label: REGION_DISPLAY_LABEL[id] ?? "Focus Area",
+          x: center.x,
+          y: center.y,
+        });
+      }
+      continue;
+    }
+
     const poly = getRenderRegionPolygon(id, landmarks, cw, ch, indices);
     if (poly.length < 3) continue;
     const tone: RegionTone = highlightedRegions.has(id) ? "highlight" : "base";
@@ -400,6 +715,7 @@ export interface AiMirrorCanvasProps {
   imageUrl: string;
   alt?: string;
   highlightTerms?: string[];
+  showAnnotations?: boolean;
 }
 
 /**
@@ -410,6 +726,7 @@ export function AiMirrorCanvas({
   imageUrl,
   alt = "Your facial analysis",
   highlightTerms = [],
+  showAnnotations = true,
 }: AiMirrorCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -438,13 +755,6 @@ export function AiMirrorCanvas({
         const cw = Math.max(1, Math.round(img.naturalWidth * scale));
         const ch = Math.max(1, Math.round(img.naturalHeight * scale));
 
-        const { FaceLandmarker, DrawingUtils } =
-          await import("@mediapipe/tasks-vision");
-        const landmarker = await getFaceLandmarker();
-        if (cancelled) return;
-
-        const result = landmarker.detect(img);
-        const landmarks = result.faceLandmarks?.[0];
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (!ctx) {
           if (!cancelled) setStatus("error");
@@ -453,6 +763,20 @@ export function AiMirrorCanvas({
 
         canvas.width = cw;
         canvas.height = ch;
+
+        if (!showAnnotations) {
+          ctx.drawImage(img, 0, 0, cw, ch);
+          if (!cancelled) setStatus("ready");
+          return;
+        }
+
+        const { FaceLandmarker, DrawingUtils } =
+          await import("@mediapipe/tasks-vision");
+        const landmarker = await getFaceLandmarker();
+        if (cancelled) return;
+
+        const result = landmarker.detect(img);
+        const landmarks = result.faceLandmarks?.[0];
 
         if (!landmarks?.length) {
           ctx.drawImage(img, 0, 0, cw, ch);
@@ -493,7 +817,7 @@ export function AiMirrorCanvas({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- highlightTerms omitted on purpose:
     // compare via highlightFingerprint so new array refs from parents do not re-run MediaPipe.
-  }, [imageUrl, highlightFingerprint]);
+  }, [imageUrl, highlightFingerprint, showAnnotations]);
 
   return (
     <div
@@ -524,7 +848,7 @@ export function AiMirrorCanvas({
       {status === "loading" ? (
         <div className="ai-mirror-loading" role="status">
           <span className="ai-mirror-loading-dot" aria-hidden />
-          Mapping facial landmarks…
+          {showAnnotations ? "Mapping facial landmarks…" : "Loading photo…"}
         </div>
       ) : null}
     </div>

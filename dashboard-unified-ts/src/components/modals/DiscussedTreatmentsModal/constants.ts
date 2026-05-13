@@ -6,6 +6,7 @@ import {
   TREATMENT_CATEGORIES_IN_PRICE_LIST,
   isProviderRestrictedToPricingSheet,
   getEnergyDeviceTypesFromPriceList,
+  getEnergyTreatmentAreasFromPriceList,
   getFacialServiceTypesFromPriceList,
   getChemicalPeelTypesFromPriceList,
   getChemicalPeelAreasFromPriceList,
@@ -198,12 +199,9 @@ export const ENERGY_DEVICE_TYPES = [
 
 /**
  * Not named as separate SKUs on the 2025 sheet (PRFM is); keep as Microneedling Type options
- * so platelet / PDGF protocols are one modality in the recommender.
+ * so PDGF-with-microneedling is one modality in the recommender (PRP options removed — not offered).
  */
 export const MICRONEEDLING_PLATELET_GROWTH_FACTOR_TYPES = [
-  "PRP",
-  "PRP with microneedling",
-  "PRP (platelet-rich plasma)",
   "PDGF with microneedling",
 ] as const;
 
@@ -399,7 +397,7 @@ export const RECOMMENDED_PRODUCTS_BY_CONTEXT: {
     products: [
       "Standard microneedling",
       "RF microneedling",
-      "With growth factors / PRP",
+      "With growth factors / PDGF",
       "Nanoneedling",
       "TCA / TCA cross (acne scars)",
       "Suction (acne scars)",
@@ -582,7 +580,7 @@ export const TREATMENT_POSTCARE: Record<
   },
   Neurotoxin: {
     sendInstructionsLabel: "Send neurotoxin aftercare instructions",
-    instructionsText: `Post-Care Instructions for Neurotoxin (e.g. Botox)
+    instructionsText: `Post-Care Instructions for Neurotoxin (e.g. Botox, Dysport, or Daxxify)
 
 • No rubbing or massaging treated area for 24 hours
 • Avoid strenuous exercise for 24 hours
@@ -908,6 +906,11 @@ export function getTreatmentProductOptionsForProvider(
   }
   const canon = canonicalPlanTreatmentName(treatment);
   if (isJudgeMdProviderCode(providerCode)) {
+    if (canon === "Skincare") {
+      return SKINCARE_PRODUCTS.filter((p) =>
+        p === OTHER_PRODUCT_LABEL || p.toLowerCase().startsWith("skinceuticals"),
+      );
+    }
     if (canon === "Neurotoxin") {
       const o = getJudgeMdNeurotoxinProductOptions();
       return o.length > 0 ? [...o, OTHER_PRODUCT_LABEL] : [OTHER_PRODUCT_LABEL];
@@ -1002,14 +1005,16 @@ export const TREATMENT_META: Record<
     priceRange: _priceRange("Facial Surgery") ?? "Varies",
   },
   ...Object.fromEntries(
-    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.map((c) => [
-      c,
-      {
-        longevity: "Varies",
-        downtime: "1–2 weeks+",
-        priceRange: _priceRange(c as DashboardTreatmentCategory) ?? "Varies",
-      },
-    ]),
+    JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES.filter((c) => c !== "Facial Surgery").map(
+      (c) => [
+        c,
+        {
+          longevity: "Varies",
+          downtime: "1–2 weeks+",
+          priceRange: _priceRange(c as DashboardTreatmentCategory) ?? "Varies",
+        },
+      ],
+    ),
   ),
   "Body Sculpting": {
     longevity: "Varies",
@@ -1138,12 +1143,16 @@ export const PRFM_INJECTION_WHERE_OPTIONS = [
 /** Where options for Microneedling on the treatment recommender (Face / Neck / Chest only). */
 export const REGION_OPTIONS_MICRONEEDLING = ["Face", "Neck", "Chest"] as const;
 
-/** Where options for Laser, Microneedling in checkout (broad areas, not specific face areas). */
+/** Where options for Energy Treatment: priced broad treatment areas, not injectable micro-regions. */
+export const ENERGY_TREATMENT_WHERE_OPTIONS = [
+  ...getEnergyTreatmentAreasFromPriceList(),
+] as const;
+
+/** Where options for broad non-energy treatments in checkout. */
 export const CHECKOUT_REGION_OPTIONS_BROAD = ["Face", "Neck", "Chest"] as const;
 
 /** Treatments that use broad Face/Neck/Chest region in checkout instead of REGION_OPTIONS. */
 export const TREATMENTS_WITH_BROAD_REGION = [
-  ENERGY_TREATMENT_CATEGORY,
   "Microneedling",
 ] as const;
 
@@ -1244,12 +1253,18 @@ export const QUANTITY_QUICK_OPTIONS_DEFAULT = ["1", "2", "3", "4", "5"];
 export const QUANTITY_OPTIONS_FILLER = ["1", "2", "3", "4", "5"];
 /** Neurotoxin unit options: common dosing (10 single area, 35 typical multi-area, 50–80 full face). Includes default 35. */
 export const QUANTITY_OPTIONS_TOX = ["10", "20", "35", "40", "50", "60", "80", "100"];
-/** Biostimulants: Radiesse 1–6 syringes, Sculptra 1/3/4/5/6/8 vials. Quantity is separate from type. */
+/** Biostimulants: Radiesse 1–6 syringes; generic fallback when type is unset. Sculptra / EZ Gel use dedicated option sets in {@link getQuantityContext}. */
 export const QUANTITY_OPTIONS_BIOSTIMULANTS = ["1", "2", "3", "4", "5", "6", "8"];
+/**
+ * Skinvive skin booster: no 1-syringe option — **2 syringes** ($750 package) minimum; 3+ adds add-on pricing.
+ */
+export const QUANTITY_OPTIONS_SKINVIVE = ["2", "3", "4", "5", "6", "8"];
 /** Radiesse: syringes (matches price list 1–6). */
 export const QUANTITY_OPTIONS_RADIESSE = ["1", "2", "3", "4", "5", "6"];
-/** Sculptra: vials (matches price list 1, 3, 4, 5, 6, 8). */
-export const QUANTITY_OPTIONS_SCULPTRA = ["1", "3", "4", "5", "6", "8"];
+/** Sculptra: vials used at each treatment visit (total vials = this × {@link QUANTITY_OPTIONS_BIO_TREATMENT_SESSIONS}). */
+export const QUANTITY_OPTIONS_SCULPTRA_VIALS_PER_TREATMENT = ["1", "2", "3", "4", "5", "6"];
+/** Planned treatment visits for Sculptra / EZ Gel PRF courses (separate from vials per visit for Sculptra). */
+export const QUANTITY_OPTIONS_BIO_TREATMENT_SESSIONS = ["1", "2", "3", "4", "5"];
 
 export const QUANTITY_UNIT_OPTIONS = [
   "Syringes",
@@ -1267,3 +1282,18 @@ export const RECURRING_OPTIONS = [
   "Yearly",
 ];
 export const OTHER_RECURRING_LABEL = "Other";
+
+/** Interval-between-sessions options for multi-session treatment courses (Sculptra, EZ Gel PRF, lasers). */
+export const TREATMENT_INTERVAL_OPTIONS_BIO = [
+  "Every 4–6 weeks",
+  "Every 4 weeks",
+  "Every 6 weeks",
+  "Every 8 weeks",
+] as const;
+
+export const TREATMENT_INTERVAL_OPTIONS_LASER = [
+  "Every 4 weeks",
+  "Every 6 weeks",
+  "Every 8 weeks",
+  "Every 3 months",
+] as const;

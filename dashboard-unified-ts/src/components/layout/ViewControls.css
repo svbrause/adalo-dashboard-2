@@ -144,6 +144,12 @@
   left: 14px;
   color: #9e9e9e;
   pointer-events: none;
+  transform-origin: center;
+  transition: transform 0.2s ease;
+}
+
+.search-box-main:focus-within > svg {
+  transform: rotate(180deg);
 }
 
 .search-input-main {
@@ -266,6 +272,11 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.sort-section .control-content {
+  left: auto;
+  right: 0;
 }
 
 .filter-group {

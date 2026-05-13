@@ -1,3 +1,5 @@
+import { BACKEND_API_URL } from "../services/api";
+
 /**
  * Google Cloud Text-to-Speech for Post-Visit Blueprint “Listen” controls.
  *
@@ -7,10 +9,16 @@
  * POST JSON `{ text, voiceName?, languageCode?, speakingRate? }` → `audio/mpeg`.
  *
  * Optional env (see `vite-env.d.ts`):
- * - `VITE_GOOGLE_TTS_PROXY_URL` — full URL to that endpoint (required to enable GCP TTS in the app).
+ * - `VITE_GOOGLE_TTS_PROXY_URL` — full URL to that endpoint.
+ * - `VITE_GOOGLE_TTS_VOICE_NAME` — defaults to `en-GB-Chirp3-HD-Aoede`, a natural British female voice.
+ * - `VITE_GOOGLE_TTS_SPEAKING_RATE` — defaults to `0.96` for calmer narration.
  */
 
 const MAX_CHARS = 4500;
+const DEFAULT_VOICE_NAME = "en-GB-Chirp3-HD-Aoede";
+const DEFAULT_LANGUAGE_CODE = "en-GB";
+const DEFAULT_SPEAKING_RATE = 0.96;
+const DEFAULT_GOOGLE_TTS_PROXY_PATH = "/api/tts/google-cloud";
 
 let currentAudio: HTMLAudioElement | null = null;
 let currentObjectUrl: string | null = null;
@@ -39,7 +47,13 @@ export function cancelGoogleCloudPlayback(): void {
 }
 
 export function isGoogleCloudTtsConfigured(): boolean {
-  return Boolean(import.meta.env.VITE_GOOGLE_TTS_PROXY_URL?.trim());
+  return Boolean(getGoogleCloudTtsProxyUrl());
+}
+
+function getGoogleCloudTtsProxyUrl(): string {
+  const configured = import.meta.env.VITE_GOOGLE_TTS_PROXY_URL?.trim();
+  if (configured) return configured;
+  return `${BACKEND_API_URL.replace(/\/$/, "")}${DEFAULT_GOOGLE_TTS_PROXY_PATH}`;
 }
 
 function truncateForApi(text: string): string {
@@ -54,7 +68,7 @@ export type GoogleCloudSpeechResult = "ok" | "aborted" | "error";
  */
 export async function speakPlainTextGoogleCloud(
   text: string,
-  opts?: { onEnd?: () => void; onError?: () => void },
+  opts?: { onStart?: () => void; onEnd?: () => void; onError?: () => void },
 ): Promise<GoogleCloudSpeechResult> {
   const trimmed = truncateForApi(text.trim());
   if (!trimmed) {
@@ -66,9 +80,14 @@ export async function speakPlainTextGoogleCloud(
   fetchAbort = new AbortController();
   const signal = fetchAbort.signal;
 
-  const proxy = import.meta.env.VITE_GOOGLE_TTS_PROXY_URL?.trim();
-  const voiceName = import.meta.env.VITE_GOOGLE_TTS_VOICE_NAME?.trim();
-  const languageCode = import.meta.env.VITE_GOOGLE_TTS_LANGUAGE_CODE?.trim();
+  const proxy = getGoogleCloudTtsProxyUrl();
+  const voiceName =
+    import.meta.env.VITE_GOOGLE_TTS_VOICE_NAME?.trim() || DEFAULT_VOICE_NAME;
+  const languageCode =
+    import.meta.env.VITE_GOOGLE_TTS_LANGUAGE_CODE?.trim() || DEFAULT_LANGUAGE_CODE;
+  const speakingRate = Number(
+    import.meta.env.VITE_GOOGLE_TTS_SPEAKING_RATE?.trim() || DEFAULT_SPEAKING_RATE,
+  );
 
   if (!proxy) {
     return "error";
@@ -76,8 +95,11 @@ export async function speakPlainTextGoogleCloud(
 
   try {
     const body: Record<string, unknown> = { text: trimmed };
-    if (voiceName) body.voiceName = voiceName;
-    if (languageCode) body.languageCode = languageCode;
+    body.voiceName = voiceName;
+    body.languageCode = languageCode;
+    if (Number.isFinite(speakingRate) && speakingRate > 0) {
+      body.speakingRate = speakingRate;
+    }
 
     const res = await fetch(proxy, {
       method: "POST",
@@ -107,6 +129,7 @@ export async function speakPlainTextGoogleCloud(
     };
 
     await audio.play();
+    opts?.onStart?.();
     return "ok";
   } catch {
     if (signal.aborted) return "aborted";

@@ -148,10 +148,11 @@ function resolveChapterPriceDisplay(
         if (!planIds.has(d.id)) continue;
         fromQuote.push(priceDisplayForChapterQuickFacts(chapterKey, line));
       }
-      if (fromQuote.length > 0) {
+      const uniqueFromQuote = Array.from(new Set(fromQuote));
+      if (uniqueFromQuote.length > 0) {
         return {
           priceRange:
-            fromQuote.length === 1 ? fromQuote[0]! : fromQuote.join(" · "),
+            uniqueFromQuote.length === 1 ? uniqueFromQuote[0]! : uniqueFromQuote.join(" · "),
           priceFactLabel: "price",
         };
       }
@@ -164,9 +165,10 @@ function resolveChapterPriceDisplay(
     const m = matchPlanItemToSku(pi, priceList);
     if (m) fromSku.push(skuPriceDisplayForChapterQuickFacts(chapterKey, m));
   }
-  if (fromSku.length > 0) {
+  const uniqueFromSku = Array.from(new Set(fromSku));
+  if (uniqueFromSku.length > 0) {
     return {
-      priceRange: fromSku.join(" · "),
+      priceRange: uniqueFromSku.join(" · "),
       priceFactLabel: "price",
     };
   }
@@ -303,6 +305,7 @@ export function buildTreatmentChapters(
       if (down) chapterDowntime = down;
     }
     const caseCard =
+      treatmentCards.find((c) => c.key === slot.key) ??
       treatmentCards.find((c) => chapterTreatmentNormKey(c.treatment) === slot.key) ??
       (slot.key.startsWith("other procedures::")
         ? treatmentCards.find(

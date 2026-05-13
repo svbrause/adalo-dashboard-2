@@ -1,4 +1,6 @@
 import type { Client, DiscussedItem } from "../types";
+import type { SkincareQuizData } from "../types";
+import { isPlanQuoteCoreDiscussedItem } from "./discussedPlanQuoteRole";
 import {
   formatPrice,
   type CheckoutLineItemDetail,
@@ -17,6 +19,7 @@ import {
   TREATMENT_PRICE_LIST_2025,
   type TreatmentPriceItem,
 } from "../data/treatmentPricing2025";
+import { isWellnestWellnessProviderCode } from "../data/wellnestOfferings";
 import { getQuoteLineDiscussedItemIndexOrder } from "./pvbQuotePartition";
 import { isValidPlanScheduledDateIso } from "./planScheduledDate";
 
@@ -69,6 +72,8 @@ async function enrichAnalysisSummaryWithAiNarrative(
 export const POST_VISIT_BLUEPRINT_PATH = "/treatment-plan";
 /** Shorter path used in new SMS / share links (same page as {@link POST_VISIT_BLUEPRINT_PATH}). */
 export const POST_VISIT_BLUEPRINT_SHORT_PATH = "/tp";
+/** Wellnest token-in-path route: avoids query/hash payloads in patient SMS links. */
+export const POST_VISIT_BLUEPRINT_WELLNEST_PATH = "/tpw";
 /** Legacy path — still recognized so old SMS links keep working. */
 export const LEGACY_POST_VISIT_BLUEPRINT_PATH = "/post-visit-blueprint";
 const BLUEPRINT_STORAGE_KEY_PREFIX = "post_visit_blueprint_v1:";
@@ -126,6 +131,7 @@ export interface PostVisitBlueprintPayload {
     tableSource: "Patients" | "Web Popup Leads";
     ageRange?: string | null;
     skinType?: string | null;
+    skincareQuiz?: SkincareQuizData | null;
     skinTone?: string | null;
     ethnicBackground?: string | null;
     /**
@@ -210,6 +216,70 @@ function slimBlueprintPayloadForUrlEmbed(
     };
   }
   return { ...payload, patient };
+}
+
+/**
+ * Wellnest payloads carry rich wellness context and can trip API/proxy body limits if we
+ * include embedded photo bytes or long analysis prose. Store the durable clinical plan
+ * snapshot server-side, but let the patient page resolve media from stable/public sources.
+ */
+function slimWellnestBlueprintPayloadForServerStore(
+  payload: PostVisitBlueprintPayload,
+  options?: { publicPatientId?: string },
+): PostVisitBlueprintPayload {
+  if (!isWellnestWellnessProviderCode(payload.providerCode)) return payload;
+  const originalPatientId = payload.patient.id.trim();
+  const publicPatientId =
+    options?.publicPatientId ??
+    (originalPatientId.startsWith("wellnest-")
+      ? originalPatientId
+      : `wellnest-${originalPatientId}`);
+  const slimPayload = slimBlueprintPayloadForUrlEmbed(payload);
+  const compactDiscussedItems = payload.discussedItems.map((item) => ({
+    id: item.id,
+    addedAt: item.addedAt,
+    interest: item.interest,
+    findings: item.findings,
+    treatment: item.treatment,
+    product: item.product,
+    skincareAddOnForTreatment: item.skincareAddOnForTreatment,
+    brand: item.brand,
+    region: item.region,
+    timeline: item.timeline,
+    scheduledDate: item.scheduledDate,
+    quantity: item.quantity,
+    recurring: item.recurring,
+    planQuoteRole: item.planQuoteRole,
+  }));
+  const compactQuoteLineItems = payload.quote.lineItems.map((line) => ({
+    label: line.label,
+    skuName: line.skuName,
+    skuNote: line.skuNote,
+    price: line.price,
+    displayPrice: line.displayPrice,
+    longevity: line.longevity,
+    downtime: line.downtime,
+    sessions: line.sessions,
+    isEstimate: line.isEstimate,
+    description: line.description,
+    missingInfo: line.missingInfo,
+    quoteLineKind: line.quoteLineKind,
+    hidePriceFromPatient: line.hidePriceFromPatient,
+    patientPriceOverride: line.patientPriceOverride,
+  }));
+  return {
+    ...slimPayload,
+    patient: {
+      ...slimPayload.patient,
+      id: publicPatientId,
+    },
+    discussedItems: compactDiscussedItems,
+    quote: {
+      ...payload.quote,
+      lineItems: compactQuoteLineItems,
+    },
+    analysisSummary: undefined,
+  };
 }
 
 export function normalizeFrontPhotoUrl(value: unknown): string | null {
@@ -334,12 +404,20 @@ export function isPostVisitBlueprintPath(): boolean {
   return (
     p === normalizePath(POST_VISIT_BLUEPRINT_PATH) ||
     p === normalizePath(POST_VISIT_BLUEPRINT_SHORT_PATH) ||
+    p === normalizePath(POST_VISIT_BLUEPRINT_WELLNEST_PATH) ||
+    p.startsWith(`${normalizePath(POST_VISIT_BLUEPRINT_WELLNEST_PATH)}/`) ||
     p === normalizePath(LEGACY_POST_VISIT_BLUEPRINT_PATH)
   );
 }
 
 export function parsePostVisitBlueprintTokenFromUrl(): string | null {
   if (typeof window === "undefined") return null;
+  const path = normalizePath(window.location.pathname);
+  const wellnestPrefix = `${normalizePath(POST_VISIT_BLUEPRINT_WELLNEST_PATH)}/`;
+  if (path.startsWith(wellnestPrefix)) {
+    const tokenFromPath = decodeURIComponent(path.slice(wellnestPrefix.length)).trim();
+    if (tokenFromPath) return tokenFromPath;
+  }
   const params = new URLSearchParams(window.location.search);
   const token = params.get("t")?.trim() ?? "";
   return token || null;
@@ -364,8 +442,12 @@ function decodeBlueprintPayload(value: string): PostVisitBlueprintPayload | null
 export function buildPostVisitBlueprintLink(
   token: string,
   payload?: PostVisitBlueprintPayload,
+  options?: { wellnestPath?: boolean },
 ): string {
   const base = typeof window !== "undefined" ? window.location.origin : "";
+  if (options?.wellnestPath) {
+    return `${base}${POST_VISIT_BLUEPRINT_WELLNEST_PATH}/${encodeURIComponent(token)}`;
+  }
   const params = new URLSearchParams();
   params.set("t", token);
   /** Prefer `/tp` so SMS and copy-paste links stay shorter than `/treatment-plan`. */
@@ -513,6 +595,7 @@ export function defaultIncludeItemInSharedTreatmentPlanLink(
   item: DiscussedItem,
 ): boolean {
   if (!isDiscussedItemOnPostVisitBlueprint(item)) return false;
+  if (isPlanQuoteCoreDiscussedItem(item)) return true;
   if ((item.treatment ?? "").trim() === "Skincare") return true;
   if (item.scheduledDate?.trim()) return true;
   const t = (item.timeline ?? "").trim();
@@ -705,6 +788,7 @@ export async function createAndStorePostVisitBlueprint(input: {
       tableSource: input.client.tableSource,
       ageRange: input.client.ageRange,
       skinType: input.client.skinType,
+      skincareQuiz: input.client.skincareQuiz ?? undefined,
       skinTone: input.client.skinTone,
       ethnicBackground: input.client.ethnicBackground,
       frontPhoto: basePhotoUrl,
@@ -723,9 +807,23 @@ export async function createAndStorePostVisitBlueprint(input: {
   };
   let payloadOut: PostVisitBlueprintPayload = payload;
   localStorage.setItem(getStorageKey(token), JSON.stringify(payloadOut));
-  const storedRemote = await storePostVisitBlueprintOnServerWithRetry(
-    payloadOut as unknown as Record<string, unknown>,
-  );
+  const isWellnestBlueprint = isWellnestWellnessProviderCode(input.providerCode);
+  // Wellnest patient IDs get a "wellnest-" prefix which Airtable always rejects as an invalid
+  // record ID. Skip the linked attempt and store without a patient link directly.
+  let storedRemote: boolean;
+  if (isWellnestBlueprint) {
+    const unlinkedStorePayload = slimWellnestBlueprintPayloadForServerStore(
+      payloadOut,
+      { publicPatientId: "" },
+    );
+    storedRemote = await storePostVisitBlueprintOnServerWithRetry(
+      unlinkedStorePayload as unknown as Record<string, unknown>,
+    );
+  } else {
+    storedRemote = await storePostVisitBlueprintOnServerWithRetry(
+      payloadOut as unknown as Record<string, unknown>,
+    );
+  }
   if (storedRemote) {
     const remoteRaw = await fetchPostVisitBlueprintFromServer(token);
     const remoteParsed = parsePostVisitBlueprintPayload(remoteRaw);
@@ -739,8 +837,17 @@ export async function createAndStorePostVisitBlueprint(input: {
     }
   }
   const link = storedRemote
-    ? buildPostVisitBlueprintLink(token)
-    : buildPostVisitBlueprintLink(token, slimBlueprintPayloadForUrlEmbed(payloadOut));
+    ? buildPostVisitBlueprintLink(token, undefined, {
+        wellnestPath: isWellnestBlueprint,
+      })
+    : isWellnestBlueprint
+      ? ""
+      : buildPostVisitBlueprintLink(token, slimBlueprintPayloadForUrlEmbed(payloadOut));
+  if (isWellnestBlueprint && !link) {
+    throw new Error(
+      "Could not prepare a short Wellnest treatment plan link. Please try again in a moment.",
+    );
+  }
   return { token, link, payload: payloadOut };
 }
 
@@ -814,7 +921,17 @@ export function parsePostVisitBlueprintPayload(
   if (p.version !== 1) return null;
   const tok = typeof p.token === "string" ? p.token.trim() : "";
   if (!tok) return null;
-  if (!p.patient?.id || !p.patient?.name) return null;
+  if (!p.patient?.name) return null;
+  if (!p.patient?.id && isWellnestWellnessProviderCode(p.providerCode)) {
+    return {
+      ...p,
+      patient: {
+        ...p.patient,
+        id: `wellnest-${tok}`,
+      },
+    };
+  }
+  if (!p.patient?.id) return null;
   return p;
 }
 
@@ -825,3 +942,5 @@ export function trackPostVisitBlueprintEvent(
   if (!window.posthog) return;
   window.posthog.capture(eventName, properties ?? {});
 }
+
+export { isPlanQuoteCoreDiscussedItem };

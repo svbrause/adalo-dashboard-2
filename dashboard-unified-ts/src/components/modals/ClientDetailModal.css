@@ -355,7 +355,7 @@
 }
 
 .detail-section-wellness-quiz {
-  border-top: 2px solid var(--theme-border);
+  border-top: none;
   padding-top: 20px;
   margin-top: 20px;
   background: #fafafa;
@@ -1321,4 +1321,9 @@
     padding: 10px 16px;
     font-size: 14px;
   }
+}
+
+.discussed-treatments-record-checked-off {
+  font-size: 12px;
+  color: var(--theme-text-muted, #6b7280);
 }

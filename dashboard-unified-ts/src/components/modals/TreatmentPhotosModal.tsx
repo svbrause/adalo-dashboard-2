@@ -1,7 +1,6 @@
 // Wrapper that opens TreatmentPhotos in a modal overlay (same component, different entry point)
 
-import type { Client } from "../../types";
-import type { DiscussedItem } from "../../types";
+import type { Client, DiscussedItem, TreatmentPhoto } from "../../types";
 import TreatmentPhotos, {
   type TreatmentPlanAddDirectOptions,
   type TreatmentPlanPrefill,
@@ -31,6 +30,10 @@ export interface TreatmentPhotosModalProps {
   ) => void | DiscussedItem | Promise<void | DiscussedItem>;
   /** Current plan items – for "Added to plan" state */
   planItems?: DiscussedItem[];
+  /** Injected photos (e.g. Judge MD gallery) — skips Airtable fetch when non-empty */
+  demoPhotos?: TreatmentPhoto[] | null;
+  /** Link to full before/after gallery on the practice site (shown in header) */
+  galleryAttributionUrl?: string;
 }
 
 export default function TreatmentPhotosModal({
@@ -45,6 +48,8 @@ export default function TreatmentPhotosModal({
   onAddToPlanWithPrefill,
   onAddToPlanDirect,
   planItems = [],
+  demoPhotos,
+  galleryAttributionUrl,
 }: TreatmentPhotosModalProps) {
   return (
     <div
@@ -66,6 +71,8 @@ export default function TreatmentPhotosModal({
           onAddToPlanWithPrefill={onAddToPlanWithPrefill}
           onAddToPlanDirect={onAddToPlanDirect}
           planItems={planItems}
+          demoPhotos={demoPhotos}
+          galleryAttributionUrl={galleryAttributionUrl}
         />
       </div>
     </div>

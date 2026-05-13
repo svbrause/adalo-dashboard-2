@@ -8,9 +8,10 @@
  * Optional env overrides remain supported for quick swaps.
  */
 
-import type { Client, DiscussedItem } from "../types";
+import type { Client, DiscussedItem, WellnessQuizData } from "../types";
 import { isWellnestWellnessProviderCode } from "../data/wellnestOfferings";
 import { getWellnestDemoPhotoUrls } from "./wellnestDemoPhotos";
+import demoWellnessQuizzes from "./wellnestDemoWellnessQuizzes.json";
 
 const DEFAULT_DEMO_HEADSHOTS = {
   alex:
@@ -103,6 +104,46 @@ function items(...rows: DiscussedItem[]): DiscussedItem[] {
   return rows;
 }
 
+const WELLNEST_DEMO_WELLNESS_QUIZ: Record<
+  "alex" | "jordan" | "taylor",
+  WellnessQuizData
+> = {
+  alex: demoWellnessQuizzes.alex as WellnessQuizData,
+  jordan: demoWellnessQuizzes.jordan as WellnessQuizData,
+  taylor: demoWellnessQuizzes.taylor as WellnessQuizData,
+};
+
+/** Collapse spaces / case for matching demo names to live Airtable names. */
+function normalizeWellnestPersonName(
+  name: string | null | undefined,
+): string {
+  return (name ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * When real Patients/Leads from Airtable already use the same name as a demo row
+ * (e.g. "Alex Rivera" both as `wellnest-demo-alex` and a live `rec...`), do not
+ * append the sample — the list was showing two rows for one person.
+ */
+export function filterOutWellnestSamplesDuplicatedByName(
+  liveClients: Client[],
+  samples: Client[],
+): Client[] {
+  const liveNameSet = new Set(
+    liveClients
+      .map((c) => normalizeWellnestPersonName(c.name))
+      .filter((n) => n.length > 0),
+  );
+  return samples.filter((s) => {
+    const n = normalizeWellnestPersonName(s.name);
+    if (n && liveNameSet.has(n)) return false;
+    return true;
+  });
+}
+
 /** When true, dashboard merges demo rows for Wellnest1300 after API fetch. */
 export function isWellnestSampleClientInjectionEnabled(): boolean {
   const v = import.meta.env.VITE_WELLNEST_SAMPLE_CLIENTS as string | undefined;
@@ -148,12 +189,7 @@ export function getWellnestSampleClients(): Client[] {
           quantity: "1",
         },
       ),
-      wellnessQuiz: {
-        version: 1,
-        completedAt: nowIso(),
-        answers: {},
-        suggestedTreatmentIds: ["bpc-157", "tb-500", "cjc-1295"],
-      },
+      wellnessQuiz: WELLNEST_DEMO_WELLNESS_QUIZ.alex,
     }),
     baseClient({
       id: "wellnest-demo-jordan",
@@ -190,14 +226,15 @@ export function getWellnestSampleClients(): Client[] {
           quantity: "1",
         },
       ),
+      wellnessQuiz: WELLNEST_DEMO_WELLNESS_QUIZ.jordan,
     }),
     baseClient({
       id: "wellnest-demo-taylor",
       name: "Taylor Morgan",
       frontPhoto: DEMO_HEADSHOTS.taylor,
       phone: "+1 555 201 4403",
-      age: 47,
-      ageRange: "40-49",
+      age: 52,
+      ageRange: "50-59",
       goals: ["Body composition", "Metabolic support"],
       interestedIssues: "Visceral fat, joint comfort, bone health",
       discussedItems: items(
@@ -234,18 +271,9 @@ export function getWellnestSampleClients(): Client[] {
           quantity: "1",
         },
       ),
-      wellnessQuiz: {
-        version: 1,
-        completedAt: nowIso(),
-        answers: {},
-        suggestedTreatmentIds: ["tesamorelin", "aod-9604", "cartalax", "mk-677"],
-      },
+      wellnessQuiz: WELLNEST_DEMO_WELLNESS_QUIZ.taylor,
     }),
   ];
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
 }
 
 /** Append demo rows after live fetch when Wellnest + injection is on. */

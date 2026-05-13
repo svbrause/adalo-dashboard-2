@@ -9,8 +9,10 @@ import {
   getTreatmentDisplayName,
   matchProductTokensToOptionList,
 } from "../components/modals/DiscussedTreatmentsModal/utils";
+import { patientFacingSkincareShortName } from "./pvbSkincareDisplay";
 
 const OTHER_PROCEDURES = "Other procedures";
+const SKINCARE = "Skincare";
 
 function norm(s: string): string {
   return s.trim().toLowerCase();
@@ -24,6 +26,7 @@ export function chapterTreatmentNormKey(treatment: string): string {
 }
 
 const ENERGY_BASE_KEY = chapterTreatmentNormKey(ENERGY_TREATMENT_CATEGORY);
+export const SKINCARE_BASE_KEY = chapterTreatmentNormKey(SKINCARE);
 
 /** Slug for `other procedures::<slug>` / `energy treatment::<slug>` keys and DOM ids. */
 export function slugifyBlueprintProcedureToken(label: string): string {
@@ -43,9 +46,9 @@ export type BlueprintChapterSlot = {
 };
 
 /**
- * Ordered chapter slots — one per distinct treatment, with **Other procedures** and
- * **Energy Treatment** split into one section per selected procedure / device type when
- * multiple are listed in `product` (e.g. Moxi vs BBL).
+ * Ordered chapter slots — one per distinct treatment, with **Other procedures**,
+ * **Energy Treatment**, and **Skincare** split into one section per selected
+ * procedure / device / product when multiple are listed.
  */
 export function buildBlueprintChapterSchedule(
   discussedItems: DiscussedItem[],
@@ -135,6 +138,31 @@ export function buildBlueprintChapterSchedule(
       continue;
     }
 
+    if (t === SKINCARE) {
+      const raw = (item.product ?? "").trim();
+      if (raw && raw.toLowerCase() !== "other") {
+        const key = `${SKINCARE_BASE_KEY}::${slugifyBlueprintProcedureToken(raw)}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          out.push({
+            key,
+            treatment: SKINCARE,
+            displayName: patientFacingSkincareShortName(raw),
+          });
+        }
+      } else {
+        if (!seen.has(SKINCARE_BASE_KEY)) {
+          seen.add(SKINCARE_BASE_KEY);
+          out.push({
+            key: SKINCARE_BASE_KEY,
+            treatment: SKINCARE,
+            displayName: SKINCARE,
+          });
+        }
+      }
+      continue;
+    }
+
     const key = chapterTreatmentNormKey(t);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -191,6 +219,17 @@ export function planItemsForBlueprintChapterSlot(
               ? [raw]
               : [];
       return labels.some((l) => slugifyBlueprintProcedureToken(l) === suffix);
+    });
+  }
+
+  if (slot.key === SKINCARE_BASE_KEY || slot.key.startsWith(`${SKINCARE_BASE_KEY}::`)) {
+    return discussedItems.filter((i) => {
+      if ((i.treatment ?? "").trim() !== SKINCARE) return false;
+      const raw = (i.product ?? "").trim();
+      const hasProduct = raw && raw.toLowerCase() !== "other";
+      if (slot.key === SKINCARE_BASE_KEY) return !hasProduct;
+      const suffix = slot.key.slice(`${SKINCARE_BASE_KEY}::`.length);
+      return hasProduct && slugifyBlueprintProcedureToken(raw) === suffix;
     });
   }
 

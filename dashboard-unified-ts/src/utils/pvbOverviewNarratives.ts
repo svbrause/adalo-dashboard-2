@@ -1,4 +1,4 @@
-import type { DiscussedItem } from "../types";
+import type { DiscussedItem, SkincareQuizData } from "../types";
 import type { TreatmentChapter } from "./blueprintTreatmentChapters";
 import type {
   BlueprintAnalysisOverviewSnapshot,
@@ -9,9 +9,15 @@ import {
   getCheckoutDisplayName,
   getDisplayAreaForItem,
   getPlanQuantityLabelPrefix,
+  plannedForPatientLineFullDateFromDiscussedItem,
+  timelineOptionDisplayLabel,
   TREATMENT_PLAN_BULLET,
 } from "../components/modals/DiscussedTreatmentsModal/utils";
 import { patientFacingSkincareShortName } from "./pvbSkincareDisplay";
+import {
+  getRecommendedProductsForSkinType,
+  RECOMMENDED_PRODUCT_REASONS,
+} from "../data/skinTypeQuiz";
 import {
   buildChapterAnalysisParagraph,
   getChapterOverviewMergedConcerns,
@@ -24,9 +30,10 @@ import {
   canonicalPlanTreatmentName,
 } from "../components/modals/DiscussedTreatmentsModal/constants";
 import { chapterTreatmentNormKey } from "./pvbChapterSchedule";
+import { getWellnestOfferingByTreatmentName } from "../data/wellnestOfferings";
 
 /**
- * Meta line for blueprint “What’s included” — for Other procedures / Energy Treatment sub-chapters,
+ * Meta line for blueprint "What's included" — for Other procedures / Energy Treatment sub-chapters,
  * omit the full multi-type `product` string; the chapter title is already the procedure name.
  */
 function formatChapterPlanMetaLine(
@@ -55,6 +62,20 @@ function formatChapterPlanMetaLine(
   return parts.join(TREATMENT_PLAN_BULLET);
 }
 
+function planItemTimingMeta(item: DiscussedItem): string | null {
+  const scheduled = plannedForPatientLineFullDateFromDiscussedItem(item);
+  if (scheduled) return scheduled;
+  const t = (item.timeline ?? "").trim();
+  if (t === "Now") return "Timing: Now";
+  if (t === "Add next visit")
+    return `Timing: ${timelineOptionDisplayLabel("Add next visit")}`;
+  if (t === "Wishlist" || (!t && item.treatment?.trim() !== "Skincare")) {
+    return "Timing: Wishlist";
+  }
+  if (item.treatment?.trim() === "Skincare") return "Timing: Home care";
+  return t ? `Timing: ${timelineOptionDisplayLabel(t)}` : null;
+}
+
 /** One plan line for chapter overview: skincare uses short names and avoids repeating product in meta. */
 function buildChapterPlanBulletLine(
   item: DiscussedItem,
@@ -77,12 +98,24 @@ function buildChapterPlanBulletLine(
     ? patientFacingSkincareShortName(rawLabel)
     : rawLabel;
   if (!isSkincare) {
-    const meta = formatChapterPlanMetaLine(item, chapter);
-    return meta ? `${label} — ${meta}` : label;
+    const rawMeta = formatChapterPlanMetaLine(item, chapter);
+    const labelLower = label.trim().toLowerCase();
+    const filteredMetaParts = rawMeta
+      .split(TREATMENT_PLAN_BULLET)
+      .filter((part) => part.trim().toLowerCase() !== labelLower);
+    const meta = filteredMetaParts.join(TREATMENT_PLAN_BULLET);
+    const timing = planItemTimingMeta(item);
+    const fullMeta = [timing, meta].filter(Boolean).join(TREATMENT_PLAN_BULLET);
+    return fullMeta ? `${label} — ${fullMeta}` : label;
   }
   const area = getDisplayAreaForItem(item);
   const metaParts: string[] = [];
+  const timing = planItemTimingMeta(item);
+  if (timing) metaParts.push(timing);
   if (area) metaParts.push(area);
+  if (item.skincareAddOnForTreatment?.trim()) {
+    metaParts.push(`Add-on for ${item.skincareAddOnForTreatment.trim()}`);
+  }
   if (item.quantity && String(item.quantity).trim()) {
     const qLabel = getPlanQuantityLabelPrefix(item.treatment, undefined);
     metaParts.push(`${qLabel}: ${item.quantity}`);
@@ -97,6 +130,147 @@ export function formatEnglishList(items: string[]): string {
   if (clean.length === 1) return clean[0] ?? "";
   if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
   return `${clean.slice(0, -1).join(", ")}, and ${clean[clean.length - 1]}`;
+}
+
+function lowercaseGoalText(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/\bai\b/g, "AI")
+    .replace(/\bspf\b/g, "SPF");
+}
+
+function addYourToGoalObject(value: string): string {
+  if (/^(your|the|overall)\s+/i.test(value)) return value;
+  if (
+    /\b(eyelids?|eyes?|brows?|forehead|skin|lips?|cheeks?|jawline|chin|neck|face|lower face|midface|temples?)\b/i.test(
+      value,
+    )
+  ) {
+    return `your ${value}`;
+  }
+  return value;
+}
+
+function formatPatientGoalPhrase(raw: string): string {
+  const goal = lowercaseGoalText(raw);
+  const verbMap: Array<[RegExp, string]> = [
+    [/^rejuvenate\s+(.+)$/i, "rejuvenating"],
+    [/^balance\s+(.+)$/i, "balancing"],
+    [/^smoothen\s+(.+)$/i, "smoothing"],
+    [/^smooth\s+(.+)$/i, "smoothing"],
+    [/^even\s+(.+)$/i, "evening"],
+    [/^brighten\s+(.+)$/i, "brightening"],
+    [/^refresh\s+(.+)$/i, "refreshing"],
+    [/^restore\s+(.+)$/i, "restoring"],
+    [/^improve\s+(.+)$/i, "improving"],
+    [/^soften\s+(.+)$/i, "softening"],
+    [/^reduce\s+(.+)$/i, "reducing"],
+    [/^lift\s+(.+)$/i, "lifting"],
+    [/^contour\s+(.+)$/i, "contouring"],
+  ];
+  for (const [re, gerund] of verbMap) {
+    const m = goal.match(re);
+    if (!m?.[1]) continue;
+    return `${gerund} ${addYourToGoalObject(m[1].trim())}`;
+  }
+  return addYourToGoalObject(goal);
+}
+
+function formatPatientGoalList(goals: string[]): string {
+  return formatEnglishList(goals.map(formatPatientGoalPhrase));
+}
+
+function goalMatchesTreatmentName(goal: string, chapterName: string): boolean {
+  const g = goal.toLowerCase();
+  const c = chapterName.toLowerCase();
+  const isSkincare =
+    /skinceuticals|skincare|cleanser|serum|moistur|hyaluronic|cell cycle|retinol|spf|sunscreen|discoloration|phyto|glycolic|ferulic|cream|balm/.test(
+      c,
+    );
+  if (isSkincare) {
+    return /skin|tone|texture|pigment|spot|bright|hydrat|barrier|acne|pore|redness|even/.test(
+      g,
+    );
+  }
+  if (/neurotoxin|botox|dysport|daxxify|xeomin/i.test(chapterName)) {
+    return /brow|fine line|wrinkle|smooth|forehead|frown|crow|expression/.test(
+      g,
+    );
+  }
+  if (/filler|restylane|juvederm|voluma|volux|contour|lyft/i.test(chapterName)) {
+    return /lower eyelid|under.?eye|tear trough|rejuvenat|volume|hollow|lip|cheek|jaw|chin|contour|fold/.test(
+      g,
+    );
+  }
+  if (/biostimul|sculptra|radiesse|prf|ez gel/i.test(chapterName)) {
+    return /collagen|skin quality|firm|volume|fold|texture|rejuvenat|fine line/.test(
+      g,
+    );
+  }
+  if (/laser|moxi|bbl|energy|peel|microneed/i.test(chapterName)) {
+    return /skin|tone|texture|pigment|spot|bright|redness|pore|scar|even/.test(
+      g,
+    );
+  }
+  return false;
+}
+
+function formatChapterNameForGoalMapping(name: string): string {
+  if (
+    /skinceuticals|skincare|cleanser|serum|moistur|hyaluronic|cell cycle|retinol|spf|sunscreen|discoloration|phyto|glycolic|ferulic|cream|balm/i.test(
+      name,
+    )
+  ) {
+    return "your skincare products";
+  }
+  return name.trim();
+}
+
+function buildTreatmentGoalMappingSentence(
+  chapterNames: string[],
+  goals: string[],
+): string | null {
+  const cleanGoals = dedupeText(goals).slice(0, 4);
+  if (cleanGoals.length === 0 || chapterNames.length === 0) return null;
+
+  const usedGoals = new Set<string>();
+  const rows: string[] = [];
+  const labelSeen = new Set<string>();
+  for (const chapterName of chapterNames) {
+    const matchedGoals = cleanGoals.filter((goal) =>
+      goalMatchesTreatmentName(goal, chapterName),
+    );
+    if (matchedGoals.length === 0) continue;
+    const label = formatChapterNameForGoalMapping(chapterName);
+    const labelKey = label.toLowerCase();
+    if (labelSeen.has(labelKey)) continue;
+    labelSeen.add(labelKey);
+    matchedGoals.forEach((goal) => usedGoals.add(goal.toLowerCase()));
+    rows.push(
+      `${label} support${label.startsWith("your skincare products") ? "" : "s"} ${formatPatientGoalList(
+        matchedGoals,
+      )}`,
+    );
+  }
+
+  if (rows.length === 0) {
+    return `Your goals include ${formatPatientGoalList(cleanGoals)}.`;
+  }
+
+  const unmappedGoals = cleanGoals.filter(
+    (goal) => !usedGoals.has(goal.toLowerCase()),
+  );
+  const unmappedTail =
+    unmappedGoals.length > 0
+      ? ` The rest of the plan also supports ${formatPatientGoalList(
+          unmappedGoals,
+        )}.`
+      : "";
+  return `Your goals include ${formatPatientGoalList(cleanGoals)}. ${formatEnglishList(
+    rows,
+  )}.${unmappedTail}`;
 }
 
 /**
@@ -115,6 +289,44 @@ function formatAreaLabelsForProse(areas: string[]): string {
 
 /** One short sentence: what this category does technically (after the client-specific lead). */
 const TREATMENT_CATEGORY_INTRO: Partial<Record<string, string>> = {
+  // Wellnest peptide offerings
+  "BPC-157":
+    "It's a synthetic peptide that supports soft tissue healing, tendon and ligament recovery, and gut lining health—typically used for activity-related injuries and chronic GI issues.",
+  "Thymosin Beta-4 (TB-500)":
+    "It's a tissue-repair peptide that promotes muscle recovery, reduces inflammation, and improves mobility—often paired with BPC-157 for sports or injury recovery.",
+  "CJC-1295":
+    "It's a peptide that signals the body to produce more growth hormone naturally, supporting energy, body composition, and recovery.",
+  Ipamorelin:
+    "It's a peptide that gently triggers the body's own growth hormone release—often chosen for improved sleep quality and lean muscle support.",
+  Semax:
+    "It's a peptide that supports focus, mental clarity, and cognitive function—commonly used to help with brain fog and cognitive performance.",
+  Selank:
+    "It's a peptide that calms the stress response, supporting mood balance and resilience—without causing drowsiness.",
+  "P-21":
+    "It's a peptide that supports brain cell repair and memory function—typically considered for adults with cognitive or memory concerns.",
+  Pinealon:
+    "It's a short peptide that supports the brain's natural defenses against age-related decline, used to help maintain clarity and memory over time.",
+  "GHRP-2 / GHRP-6":
+    "They are peptides that stimulate the body's natural growth hormone production, supporting recovery and body composition—often used alongside CJC-1295.",
+  "IGF-1 LR3":
+    "It's a long-acting form of a natural growth factor that supports muscle building and recovery—used by adults focused on lean mass and athletic performance.",
+  "GHK-Cu":
+    "It's a naturally occurring copper peptide that supports tissue repair, collagen production, and overall skin and cellular health.",
+  "Melanotan-2":
+    "It works through the body's natural melanin system to encourage tanning and support related wellness goals.",
+  "MK-677":
+    "It's an oral compound that increases the body's natural growth hormone levels to support bone density, joint health, sleep quality, and lean muscle mass.",
+  Sermorelin:
+    "It's a peptide that prompts the body's own pituitary gland to release growth hormone naturally, supporting sleep quality, body composition, and recovery.",
+  Tessamorelin:
+    "It's a peptide that signals the body to release more growth hormone, helping reduce deep belly fat and support healthier body composition.",
+  Epitalon:
+    "It's a short peptide associated with cellular aging support—used in longevity protocols to promote healthy aging at the cellular level.",
+  "AOD-9604":
+    "It's a fragment of growth hormone that specifically targets fat metabolism—without raising blood sugar or causing other growth hormone side effects.",
+  Cartalax:
+    "It's a short peptide that supports cartilage and connective tissue repair—used for joint wear and osteoarthritis.",
+  // Standard aesthetic categories
   Skincare: "It supports your home routine and helps maintain your in-office results.",
   "Energy Treatment":
     "It uses light or gentle heat to improve skin tone, texture, and collagen production.",
@@ -122,13 +334,13 @@ const TREATMENT_CATEGORY_INTRO: Partial<Record<string, string>> = {
     "It refreshes tone and texture while encouraging collagen renewal over a series of sessions.",
   "Chemical Peel": "It speeds up surface renewal for better clarity and smoother fine lines.",
   Microneedling:
-    "It stimulates collagen\u2014often paired with topicals to help with texture and scarring.",
+    "It stimulates collagen—often paired with topicals to help with texture and scarring.",
   Filler: "It restores volume and contour in areas where structure has shifted over time.",
   Neurotoxin: "It softens expression lines by relaxing the muscles that cause them.",
   Biostimulants: "It encourages your skin to gradually rebuild collagen and structure on its own.",
   Kybella: "It reduces stubborn fat pockets, most often under the chin.",
   Threadlift: "It provides lift and support in areas with mild sagging.",
-  PRP: "It uses your body\u2019s own growth factors to support skin rejuvenation.",
+  PRP: "It uses your body’s own growth factors to support skin rejuvenation.",
   PDGF: "It supports tissue repair and skin quality in targeted areas.",
   "Facial Services":
     "It uses professional cleansing, exfoliation, and targeted esthetic steps to clarify, calm, or refresh the skin based on what your provider selected.",
@@ -145,7 +357,7 @@ const OTHER_PLAN_CATEGORY = "Other procedures";
  */
 const OTHER_PROCEDURE_HOW_IT_WORKS_BY_LABEL: Record<string, string> = {
   "prfm injections":
-    "It uses growth-factor concentrate from your own blood—prepared in office—to support repair and skin quality where it’s injected.",
+    "It uses growth-factor concentrate from your own blood—prepared in office—to support repair and skin quality where it's injected.",
   "prfm scalp (hair restoration)":
     "It applies growth-factor concentrate to the scalp to support follicle health and hair restoration as part of a broader plan.",
   "skinvive (skin booster)":
@@ -174,7 +386,7 @@ function normalizeHowItWorksLabel(raw: string): string {
 
 /**
  * "How it works" for **Other procedures** rows: exact label from the price list, then fuzzy
- * matches (e.g. "Skinvive II" → Skinvive copy).
+ * matches (e.g. legacy "Skinvive II" label → Skinvive copy).
  */
 function otherProcedureHowItWorksIntro(displayName: string): string | null {
   const n = normalizeHowItWorksLabel(displayName);
@@ -220,7 +432,7 @@ function otherProcedureHowItWorksIntro(displayName: string): string | null {
 }
 
 const OTHER_PROCEDURE_UNKNOWN_INTRO =
-  "It’s an in-office service your provider matched to a specific concern or comfort need from your visit.";
+  "It's an in-office service your provider matched to a specific concern or comfort need from your visit.";
 
 /**
  * Resolves the first "How it works" sentence. Sub-chapters under **Other procedures** used to
@@ -230,6 +442,8 @@ function resolveHowItWorksIntro(chapter: TreatmentChapter): string {
   const canon = canonicalPlanTreatmentName(chapter.treatment);
   const dn = chapter.displayName.trim();
   const dnLower = dn.toLowerCase();
+  const skincareNarrative = skincareProductNarrative(chapter);
+  if (skincareNarrative) return skincareNarrative.how;
 
   if (canon === OTHER_PLAN_CATEGORY) {
     const baseKey = chapterTreatmentNormKey(OTHER_PLAN_CATEGORY);
@@ -266,11 +480,8 @@ export function buildPvbPlanBridgeParagraph(
   globalInsights: { interests: string[]; findings: string[] },
 ): string | null {
   if (chapterDisplayNames.length === 0) return null;
-  const list = formatEnglishList(chapterDisplayNames);
   const out: string[] = [];
-  out.push(
-    `Your blueprint includes ${list}, so you can see what each step is meant to do and how the plan comes together.`,
-  );
+  out.push("Each step was chosen for a specific role in the plan.");
 
   const findingParts: string[] = [];
   if (snapshot?.detectedIssueLabels?.length) {
@@ -287,30 +498,7 @@ export function buildPvbPlanBridgeParagraph(
     snapshot?.areas?.filter((a) => a.hasInterest).map((a) => a.name) ?? [];
   const extraInterests = globalInsights.interests.slice(0, 6);
 
-  if (findingParts.length) {
-    const framing = frameIssuesForOverview(findingParts);
-    if (focusNames.length) {
-      if (framing.kind === "broad") {
-        out.push(
-          `These were chosen to ${framing.summary} in the areas you and your provider decided to prioritize during your visit.`,
-        );
-      } else {
-        out.push(
-          `These were chosen to ${formatEnglishList(framing.items)} in the areas you and your provider decided to prioritize during your visit.`,
-        );
-      }
-    } else {
-      if (framing.kind === "broad") {
-        out.push(
-          `These were chosen to ${framing.summary} in the areas your provider felt made the most sense to prioritize during your visit.`,
-        );
-      } else {
-        out.push(
-          `These were chosen to ${formatEnglishList(framing.items)} in the areas your provider felt made the most sense to prioritize during your visit.`,
-        );
-      }
-    }
-  } else if (focusNames.length) {
+  if (!findingParts.length && focusNames.length) {
     out.push(
       `These recommendations stay focused on what you wanted to prioritize during your visit.`,
     );
@@ -323,7 +511,7 @@ export function buildPvbPlanBridgeParagraph(
   return out.join(" ");
 }
 
-/** Shape of the patient's chapter list\u2014drives holistic "whole plan" framing copy. */
+/** Shape of the patient's chapter list—drives holistic "whole plan" framing copy. */
 export type PvbMainOverviewPlanShape = {
   chapterCount: number;
   /** Plan includes a Skincare chapter (home regimen / products). */
@@ -370,7 +558,7 @@ function focusAreasRedundantWithGoals(goals: string[], focus: string[]): boolean
   return focus.every((f) => goalSet.has(f.trim().toLowerCase()));
 }
 
-// \u2500\u2500 High-level overview: constructive / aspirational issue framing \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ── High-level overview: constructive / aspirational issue framing ───────────────
 //
 // The top-of-page overview uses positive, solution-oriented language ("smooth
 // fine lines on the forehead") instead of clinical issue labels ("forehead
@@ -408,7 +596,7 @@ function broadFramingSummary(issues: string[]): string {
 
 const CONSTRUCTIVE_REFRAME: [RegExp, string][] = [
   [/forehead\s+wrinkle/i, "smooth forehead lines"],
-  [/crow['\u2019]?s?\s*feet/i, "soften lines around the eyes"],
+  [/crow['’]?s?\s*feet/i, "soften lines around the eyes"],
   [/frown\s+line|glabella/i, "smooth frown lines"],
   [/wrinkle/i, "smooth fine lines"],
   [/fine\s*line/i, "soften fine lines"],
@@ -495,17 +683,23 @@ export function buildPvbMainPlanFramingParagraphs(
   let open: string;
   if (goals.length > 0 && findings.length > 0) {
     const framing = frameIssuesForOverview(findings);
+    const mappedGoals = buildTreatmentGoalMappingSentence(namedChapters, goals);
     if (framing.kind === "broad") {
-      open = `Your provider built this plan around ${formatEnglishList(goals)}, choosing treatments meant to ${framing.summary}.`;
+      open = mappedGoals
+        ? `${mappedGoals} Together, the plan is meant to ${framing.summary}.`
+        : `Your provider selected these recommendations to support goals like ${formatPatientGoalList(goals)}, with the overall plan meant to ${framing.summary}.`;
     } else {
-      open = `Your provider built this plan around ${formatEnglishList(goals)}, choosing treatments meant to ${formatEnglishList(framing.items)}.`;
+      open = mappedGoals
+        ? `${mappedGoals} Together, they also help ${formatEnglishList(framing.items)}.`
+        : `Your provider selected these recommendations to support goals like ${formatPatientGoalList(goals)}, including ${formatEnglishList(framing.items)}.`;
     }
   } else if (goals.length > 0) {
     const focusTail =
       focus.length > 0 && !focusAreasRedundantWithGoals(goals, focus)
         ? ` They gave extra attention to ${formatEnglishList(focus)}.`
         : "";
-    open = `Your provider built this plan around ${formatEnglishList(goals)}.${focusTail}`;
+    const mappedGoals = buildTreatmentGoalMappingSentence(namedChapters, goals);
+    open = `${mappedGoals ?? `This plan was built to support goals like ${formatPatientGoalList(goals)}.`}${focusTail}`;
   } else if (findings.length > 0 && areas.length > 0) {
     const areasPhrase = formatAreaLabelsForProse(areas);
     const framing = frameIssuesForOverview(findings);
@@ -524,7 +718,7 @@ export function buildPvbMainPlanFramingParagraphs(
   } else if (interests.length > 0 && areas.length > 0) {
     open = `Your provider selected treatments for ${formatEnglishList(interests)} across ${formatAreaLabelsForProse(areas)}.`;
   } else if (interests.length > 0) {
-    open = `Your provider built this plan around the priorities that came up during your visit: ${formatEnglishList(interests)}.`;
+    open = `Your provider selected these recommendations around the priorities that came up during your visit: ${formatEnglishList(interests)}.`;
   } else if (areas.length > 0) {
     open = `Your provider centered this plan on ${formatAreaLabelsForProse(areas)} because those were the areas that made the most sense to prioritize during your visit.`;
   } else if (namedChapters.length > 0) {
@@ -566,9 +760,17 @@ export type ChapterOverviewParts = {
   complementBottom?: string;
 };
 
+export function sanitizeAestheticIntelligenceText(text: string): string {
+  return text.replace(/\bblueprint\b/gi, (match) =>
+    match[0] === match[0]?.toUpperCase() ? "Plan" : "plan",
+  );
+}
+
 export type ChapterOverviewBuildOptions = {
   overviewSnapshot: BlueprintAnalysisOverviewSnapshot | null;
   planRow: PlanTreatmentRow | null;
+  skincareQuiz?: SkincareQuizData | null;
+  relatedSkincareAddOns?: DiscussedItem[];
 };
 
 /** Per-chapter context to generate complement-sandwich bookends (top + bottom around the core overview). */
@@ -597,121 +799,225 @@ function planPillarPhraseForComplement(
   return "the rest of your plan";
 }
 
-/** Single-token treatment areas — avoid “goal of Forehead” (anatomy isn’t a “goal”). */
-const PRIORITY_SINGLE_TOKEN_AREA = new Set([
-  "forehead",
-  "frown",
-  "glabella",
-  "brow",
-  "brows",
-  "temple",
-  "temples",
-  "cheek",
-  "cheeks",
-  "midface",
-  "jaw",
-  "chin",
-  "neck",
-  "chest",
-  "face",
-  "nose",
-  "lip",
-  "lips",
-  "eye",
-  "eyes",
-  "perioral",
-  "hand",
-  "hands",
-  "jowl",
-  "jowls",
-  "décolleté",
-  "decollete",
-]);
-
-function areaPhraseForPriorityBridge(lower: string): string {
-  switch (lower) {
-    case "forehead":
-      return "your forehead";
-    case "frown":
-    case "glabella":
-      return "your frown lines";
-    case "brow":
-    case "brows":
-      return "your brow area";
-    case "eye":
-    case "eyes":
-      return "your eye area";
-    case "lip":
-    case "lips":
-      return "your lips";
-    case "cheek":
-    case "cheeks":
-      return "your cheeks";
-    case "hand":
-    case "hands":
-      return "your hands";
-    case "neck":
-      return "your neck";
-    case "chest":
-      return "your chest";
-    case "chin":
-      return "your chin";
-    case "jaw":
-      return "your jawline";
-    case "face":
-      return "your face";
-    case "temple":
-    case "temples":
-      return "your temples";
-    case "midface":
-      return "your mid-face";
-    case "nose":
-      return "your nose";
-    case "perioral":
-      return "the skin around your mouth";
-    case "jowl":
-    case "jowls":
-      return "your jawline and jowls";
-    case "décolleté":
-    case "decollete":
-      return "your chest and décolleté";
-    default:
-      return `your ${lower}`;
-  }
-}
-
-/**
- * Copy for tying a chapter to `patientPriorities` (goals, findings, scan focus areas).
- * Returns full sentences for the top complement; trailing space + sentence for the bottom.
- */
-function patientPriorityBridgeCopy(priorityRaw: string): {
-  top: string;
-  tail: string;
-} | null {
-  const t = priorityRaw.trim();
-  if (!t) return null;
-
-  if (t.length > 160 || /[\n\r]/.test(t)) return null;
-
-  const lower = t.toLowerCase().replace(/\u2019/g, "'");
-
-  if (!/[\s,;]/.test(t) && PRIORITY_SINGLE_TOKEN_AREA.has(lower)) {
-    const phrase = areaPhraseForPriorityBridge(lower);
-    const s = `This aligns with priorities for ${phrase}.`;
-    return { top: s, tail: ` ${s}` };
-  }
-
-  if (/[\s,;]/.test(t) || t.length > 28) {
-    const s = `This aligns with what you prioritized: ${t}.`;
-    return { top: s, tail: ` ${s}` };
-  }
-
-  const s = `This aligns with your goal of ${t}.`;
-  return { top: s, tail: ` ${s}` };
-}
-
 /** When many sibling chapters exist, naming every procedure reads as redundant noise. */
 const SIBLING_NAME_LIST_CAP = 2;
+
+function formatQuizResultLabel(quiz: SkincareQuizData): string {
+  if (quiz.resultLabel?.trim()) return quiz.resultLabel.trim();
+  return quiz.result
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function findRecommendedProductReason(productName: string): string | null {
+  const key = productName.trim();
+  if (!key) return null;
+  const exact = RECOMMENDED_PRODUCT_REASONS[key];
+  if (exact) return exact;
+  const lower = key.toLowerCase();
+  const entry = Object.entries(RECOMMENDED_PRODUCT_REASONS).find(
+    ([name]) => {
+      const n = name.trim().toLowerCase();
+      return n.includes(lower) || lower.includes(n);
+    },
+  );
+  return entry?.[1] ?? null;
+}
+
+type SkincareProductNarrative = {
+  reason: string;
+  how: string;
+  expect: string;
+  fit: string;
+};
+
+function isSkincareChapter(chapter: TreatmentChapter): boolean {
+  return chapter.treatment.trim().toLowerCase() === "skincare";
+}
+
+function skincareProductName(chapter: TreatmentChapter): string {
+  const raw =
+    chapter.planItems.find((item) => item.product?.trim())?.product?.trim() ??
+    chapter.displayName.trim();
+  return patientFacingSkincareShortName(raw);
+}
+
+function skincareProductNarrative(chapter: TreatmentChapter): SkincareProductNarrative | null {
+  if (!isSkincareChapter(chapter)) return null;
+  const product = skincareProductName(chapter);
+  if (!product) return null;
+  const text = [
+    product,
+    chapter.displayName,
+    ...chapter.planItems.map((item) => item.product ?? ""),
+  ]
+    .join(" | ")
+    .toLowerCase();
+  const reason = findRecommendedProductReason(
+    chapter.planItems.find((item) => item.product?.trim())?.product?.trim() ??
+      chapter.displayName,
+  );
+  const reasonTail = reason ? `: ${reason.toLowerCase()}` : "";
+
+  if (/\b(spf|sunscreen|uv defense|broad spectrum|mineral)\b/.test(text)) {
+    return {
+      reason: `${product} was included to protect the results you are building and reduce UV-triggered pigment, redness, and collagen breakdown${reasonTail}.`,
+      how: "It forms a daily UV-protection layer so sun exposure is less likely to undo progress in tone, texture, and post-treatment healing.",
+      expect: `Use ${product} every morning and reapply with real sun exposure. The goal is prevention: fewer flare-ups of discoloration and better maintenance of in-office results.`,
+      fit: `${product} is the guardrail for the rest of the plan—it helps protect the skin changes your treatments and other products are trying to create.`,
+    };
+  }
+  if (/\b(triple lipid|ceramide|barrier|hydra balm|emollience|daily moisture|renew overnight|moistur|cream|gel-cream|dry|dehydrated)\b/.test(text)) {
+    return {
+      reason: `${product} was included to support barrier repair and hydration${reasonTail}.`,
+      how: "It reinforces the skin barrier with moisture-supporting ingredients so the surface is less dry, tight, or reactive.",
+      expect: `With consistent use, ${product} should help skin feel more comfortable and resilient. It is especially useful when active treatments, weather, or procedures leave the barrier stressed.`,
+      fit: `${product} gives the plan a recovery-and-maintenance layer, helping your skin tolerate active products and in-office treatments more smoothly.`,
+    };
+  }
+  if (/\b(hyaluronic|hydrating b5|h\.?a\.?|multi-glycan|plump|hydration)\b/.test(text)) {
+    return {
+      reason: `${product} was selected for hydration and plumping support${reasonTail}.`,
+      how: "It draws and holds water in the skin's surface layers, helping fine dehydration lines look softer and the skin feel more supple.",
+      expect: `Hydration benefits from ${product} can feel fairly immediate, while smoother-looking texture depends on steady daily use.`,
+      fit: `${product} supports the plan by keeping the skin hydrated, which helps procedures, brightening products, and barrier products perform better together.`,
+    };
+  }
+  if (/\b(discoloration|dark spot|hyperpigmentation|pigment|uneven|brightening|phyto a\+)\b/.test(text)) {
+    return {
+      reason: `${product} was chosen to target uneven tone, discoloration, and visible dark spots${reasonTail}.`,
+      how: "It works on pigment pathways and surface brightness so discoloration is less likely to look as pronounced over time.",
+      expect: `Pigment improvement with ${product} is gradual. Most people need consistent use plus daily sunscreen for the result to hold.`,
+      fit: `${product} handles the at-home pigment-control part of the plan, while procedures can address tone and texture from a different angle.`,
+    };
+  }
+  if (/\b(c e ferulic|phloretin|silymarin|serum 10|aox|antioxidant|vitamin c|environmental)\b/.test(text)) {
+    return {
+      reason: `${product} was added for antioxidant protection and brightness support${reasonTail}.`,
+      how: "Antioxidants help neutralize environmental stress that can contribute to dullness, uneven tone, and visible aging.",
+      expect: `With regular morning use, ${product} supports brighter-looking skin and helps defend the results you are building with the rest of the plan.`,
+      fit: `${product} is the daily protection step that pairs well with sunscreen and helps your in-office work last longer.`,
+    };
+  }
+  if (/\b(retinol|glycolic|cell cycle|retexturing|exfoliat|resurfacing|renewal|texture)\b/.test(text)) {
+    return {
+      reason: `${product} was included to support cell turnover, smoother texture, and visible renewal${reasonTail}.`,
+      how: "It encourages surface renewal so dull, rough, or uneven texture can gradually look more refined.",
+      expect: `Start ${product} exactly as directed, since renewal products can be irritating if overused. The payoff is usually gradual improvement in smoothness and clarity.`,
+      fit: `${product} brings the plan an at-home renewal step, complementing procedures that target texture, tone, and collagen.`,
+    };
+  }
+  if (/\b(acne|blemish|lha|purifying|oily|congested|pore|clay)\b/.test(text)) {
+    return {
+      reason: `${product} was selected to help with oil, congestion, breakouts, or visible pores${reasonTail}.`,
+      how: "It supports clearer skin by helping reduce buildup, excess oil, or congestion depending on the product type.",
+      expect: `Use ${product} consistently but avoid stacking too many strong actives at once. Clearer-looking skin usually builds over several weeks.`,
+      fit: `${product} keeps the breakout-control part of the plan moving at home, so office treatments are not doing all the work alone.`,
+    };
+  }
+  if (/\b(redness|sensitive|soothing|calming|phyto corrective|epidermal repair|redness neutralizer|irritation|sensiderm)\b/.test(text)) {
+    return {
+      reason: `${product} was included to calm visible redness, sensitivity, or irritation${reasonTail}.`,
+      how: "It supports a calmer skin environment by focusing on comfort, hydration, and visible redness control.",
+      expect: `${product} should feel supportive rather than aggressive. It is meant to help the skin stay calmer while the rest of the plan does its work.`,
+      fit: `${product} is the calming step in the routine, helping balance stronger active products or procedure-related sensitivity.`,
+    };
+  }
+  if (/\b(a\.?g\.?e|rgn|p-tiox|tripeptide|anti-aging|anti aging|wrinkle|firm|firmness|loss of firmness|eye cream|eye balm)\b/.test(text)) {
+    return {
+      reason: `${product} was chosen for visible aging support, including firmness, fine lines, or skin quality${reasonTail}.`,
+      how: "It targets visible aging from the home-care side, supporting smoother-looking texture and stronger-looking skin quality over time.",
+      expect: `${product} is a consistency product: results are subtle and cumulative, not overnight. The goal is steadier skin quality between visits.`,
+      fit: `${product} supports the long-game part of the plan, reinforcing skin quality while in-office treatments address structure, movement, or collagen more directly.`,
+    };
+  }
+  if (/\b(cleanser|cleansing|wash|toner|mist)\b/.test(text)) {
+    return {
+      reason: `${product} was added to make the routine easier to tolerate and keep the skin prepared for treatment products${reasonTail}.`,
+      how: "It helps remove oil, makeup, sunscreen, or buildup without making the rest of the routine work against irritated skin.",
+      expect: `${product} should make the routine feel cleaner and more balanced. It is not the dramatic step, but it helps every leave-on product work from a better starting point.`,
+      fit: `${product} is the foundation step: it prepares the skin so the active products and in-office plan can work more predictably.`,
+    };
+  }
+
+  return {
+    reason: `${product} was selected for the specific role it plays in your home routine${reasonTail}.`,
+    how: "It supports the skin from the home-care side so your daily routine is aligned with the goals of your treatment plan.",
+    expect: `Use ${product} as directed and give it time. Skincare results build through consistency more than single applications.`,
+    fit: `${product} gives your plan a daily maintenance step, helping reinforce the progress from your provider's recommendations.`,
+  };
+}
+
+function buildSkincareQuizFitParagraph(
+  chapter: TreatmentChapter,
+  quiz: SkincareQuizData | null | undefined,
+): string | null {
+  if (chapter.treatment.trim().toLowerCase() !== "skincare" || !quiz?.result) {
+    return null;
+  }
+  const selectedProducts = chapter.planItems
+    .map((item) => item.product?.trim() ?? "")
+    .filter(Boolean);
+  if (selectedProducts.length === 0) return null;
+
+  const recommended = new Set(
+    (quiz.recommendedProductNames?.length
+      ? quiz.recommendedProductNames
+      : getRecommendedProductsForSkinType(quiz.result)
+    ).map((name) => name.trim().toLowerCase()),
+  );
+  const matches = selectedProducts
+    .map((product) => {
+      const lower = product.toLowerCase();
+      const isQuizRecommended = Array.from(recommended).some(
+        (rec) => rec.includes(lower) || lower.includes(rec),
+      );
+      const reason = findRecommendedProductReason(product);
+      if (!isQuizRecommended && !reason) return null;
+      const shortName = patientFacingSkincareShortName(product);
+      return reason ? `${shortName} (${reason})` : shortName;
+    })
+    .filter((v): v is string => Boolean(v))
+    .slice(0, 3);
+
+  const addOnSources = Array.from(
+    new Set(
+      chapter.planItems
+        .map((item) => item.skincareAddOnForTreatment?.trim() ?? "")
+        .filter(Boolean),
+    ),
+  );
+
+  const label = formatQuizResultLabel(quiz);
+  const descSentence = quiz.resultDescription?.trim()
+    ? ` ${quiz.resultDescription.trim().split(/(?<=[.!?])\s+/)[0]}`
+    : "";
+  const productSentence = matches.length
+    ? ` In this plan, ${formatEnglishList(matches)} line up with those needs.`
+    : " The skincare products in this plan were selected to support the needs reflected in that result.";
+  const addOnSentence = addOnSources.length
+    ? ` ${addOnSources.length === 1 ? "It is" : "They are"} also marked as add-on support for ${formatEnglishList(addOnSources)}.`
+    : "";
+
+  return `Your skin quiz result was ${label}.${descSentence}${productSentence}${addOnSentence}`;
+}
+
+function buildRelatedSkincareAddOnParagraph(
+  relatedSkincareAddOns: DiscussedItem[] | undefined,
+): string | null {
+  const names = Array.from(
+    new Set(
+      (relatedSkincareAddOns ?? [])
+        .map((item) => item.product?.trim() ?? "")
+        .filter(Boolean)
+        .map(patientFacingSkincareShortName),
+    ),
+  ).slice(0, 3);
+  if (names.length === 0) return null;
+  return `The skincare add-on${names.length > 1 ? "s" : ""} tied to this treatment ${names.length > 1 ? "are" : "is"} ${formatEnglishList(names)}, so the at-home part of the plan supports skin quality and recovery around this visit.`;
+}
 
 function formatSiblingChapterListForBridge(others: string[]): string {
   if (others.length === 0) return "";
@@ -723,6 +1029,81 @@ function formatSiblingChapterListForBridge(others: string[]): string {
   return `${formatEnglishList(head)}, and ${rest} other treatment${rest === 1 ? "" : "s"}`;
 }
 
+function wellnestAddressParts(treatment: string, limit = 3): string[] {
+  const offering = getWellnestOfferingByTreatmentName(treatment);
+  return (
+    offering?.addresses
+      .split(/[,;]/)
+      .map((s) =>
+        s
+          .trim()
+          .replace(/\s+support$/i, "")
+          .replace(/\//g, " and ")
+          .toLowerCase(),
+      )
+      .filter((s) => s.length > 0)
+      .slice(0, limit) ?? []
+  );
+}
+
+function wellnestRolePhrase(treatment: string): string {
+  const offering = getWellnestOfferingByTreatmentName(treatment);
+  if (!offering) return "wellness support";
+  const category = offering.category.toLowerCase();
+  const browseGroup = offering.browseGroup.toLowerCase();
+  if (/cognitive|cognition/.test(category) || browseGroup === "cognition-mood") {
+    if (/stress|mood/.test(category)) return "stress, mood, and cognitive support";
+    return "focus and cognitive support";
+  }
+  if (/recovery|inflammation|gut|musculoskeletal|injury/.test(category)) {
+    return "recovery, inflammation, and tissue support";
+  }
+  if (/sleep|muscle/.test(category)) return "sleep and muscle-support goals";
+  if (/energy|recovery/.test(category)) return "energy, recovery, and body-composition goals";
+  if (/longevity|aging/.test(category)) return "healthy-aging and longevity support";
+  if (/weight|fat|composition/.test(category)) return "body-composition support";
+  const parts = wellnestAddressParts(treatment, 2);
+  return parts.length ? formatEnglishList(parts) : "wellness support";
+}
+
+function wellnestWhySentence(
+  self: string,
+  interest: string | undefined,
+): string {
+  const targets = wellnestAddressParts(self, 3);
+  const role = wellnestRolePhrase(self);
+  if (interest) {
+    return `${self} was added for ${role}, matching the priority your provider noted: ${interest}.`;
+  }
+  if (targets.length > 0) {
+    return `${self} was added for ${role}, especially ${formatEnglishList(targets)}.`;
+  }
+  return `${self} was added for ${role} based on what your provider reviewed during your visit.`;
+}
+
+function wellnestFullPlanSentence(
+  self: string,
+  others: string[],
+  priorityTail: string,
+): string {
+  const selfRole = wellnestRolePhrase(self);
+  if (others.length === 0) {
+    return `${self} is the main peptide in this plan, focused on ${selfRole}; consistency with the schedule your provider set is what matters most.${priorityTail}`;
+  }
+  if (others.length === 1) {
+    const other = others[0]!;
+    return `${self} covers ${selfRole}, while ${other} covers ${wellnestRolePhrase(other)}—so the plan is addressing two different wellness priorities at the same time.${priorityTail}`;
+  }
+  const rolePhrases = Array.from(
+    new Set([selfRole, ...others.map(wellnestRolePhrase)]),
+  ).slice(0, 3);
+  const additionalRoles = rolePhrases.filter((r) => r !== selfRole);
+  if (additionalRoles.length === 0) {
+    return `${self} covers ${selfRole}; the other peptide selections reinforce that same priority from complementary angles.${priorityTail}`;
+  }
+  return `${self} covers ${selfRole}; across the full plan, the peptide mix also supports ${formatEnglishList(additionalRoles)}.${priorityTail}`;
+}
+
 function buildChapterClientApplicationTop(
   chapter: TreatmentChapter,
   mergedConcerns: string[],
@@ -731,21 +1112,20 @@ function buildChapterClientApplicationTop(
 ): string | undefined {
   const self = chapter.displayName.trim();
   const area = chapter.displayArea?.trim() || "";
+  const skincareNarrative = skincareProductNarrative(chapter);
+  if (skincareNarrative) return skincareNarrative.reason;
   if (mergedConcerns.length > 0) {
     return `${self} is in your plan to address ${formatEnglishList(
       mergedConcerns.slice(0, 5),
     )}, based on what came up during your visit.`;
   }
   const interest = analysisInput?.planRow?.interest?.trim();
-  if (interest) {
-    return `This was included based on what you discussed with your provider\u2014${interest}.`;
+  const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
+  if (wellnestOffering) {
+    return wellnestWhySentence(self, interest);
   }
-  const priorityRaw =
-    (complementCtx?.patientPriorities ?? []).find((p) => p.trim().length > 0) ??
-    "";
-  const priorityBridge = patientPriorityBridgeCopy(priorityRaw);
-  if (priorityBridge) {
-    return priorityBridge.top;
+  if (interest) {
+    return `This was included based on what you discussed with your provider—${interest}.`;
   }
   if (complementCtx && complementCtx.totalChapters > 1) {
     const others = complementCtx.allChapterDisplayNames.filter(
@@ -769,10 +1149,19 @@ function buildChapterComplementBottom(
   ctx: ChapterComplementSandwichContext,
 ): string {
   const self = chapter.displayName.trim();
+  const priorityTail = "";
+  const skincareNarrative = skincareProductNarrative(chapter);
+  if (skincareNarrative) return skincareNarrative.fit;
+
+  const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
+  if (wellnestOffering) {
+    const others = ctx.allChapterDisplayNames.filter(
+      (_, i) => i !== ctx.chapterIndex,
+    );
+    return wellnestFullPlanSentence(self, others, priorityTail);
+  }
+
   const pillars = planPillarPhraseForComplement(ctx.planShape);
-  const priorityRaw =
-    (ctx.patientPriorities ?? []).find((p) => p.trim().length > 0) ?? "";
-  const priorityTail = patientPriorityBridgeCopy(priorityRaw)?.tail ?? "";
   if (ctx.totalChapters <= 1) {
     return `Staying consistent with ${self} is what keeps your results building over time.${priorityTail}`;
   }
@@ -780,13 +1169,16 @@ function buildChapterComplementBottom(
     (_, i) => i !== ctx.chapterIndex,
   );
   if (others.length >= 3) {
-    return `This chapter is one piece of a coordinated plan\u2014each in-office step is meant to work with the others, and together ${pillars} reinforce the same goals.${priorityTail}`;
+    const focus = chapter.displayArea?.trim()
+      ? `${self} focuses on ${chapter.displayArea.trim().toLowerCase()}`
+      : `${self} has a specific role in your plan`;
+    return `${focus}. It works alongside the other recommended steps so ${pillars} reinforce the same goals instead of feeling like separate treatments.${priorityTail}`;
   }
   if (others.length === 1) {
-    return `${self} works hand-in-hand with ${others[0]}\u2014together, ${pillars} reinforce the same goals.${priorityTail}`;
+    return `${self} works hand-in-hand with ${others[0]}—together, ${pillars} reinforce the same goals.${priorityTail}`;
   }
   const othersList = formatSiblingChapterListForBridge(others);
-  return `${self} works hand-in-hand with ${othersList}\u2014together, ${pillars} reinforce the same goals.${priorityTail}`;
+  return `${self} works hand-in-hand with ${othersList}—together, ${pillars} reinforce the same goals.${priorityTail}`;
 }
 
 /**
@@ -828,12 +1220,38 @@ export function buildChapterOverviewContent(
   }
 
   const planBullets = dedupeText(
-    chapter.planItems.map((item) => buildChapterPlanBulletLine(item, chapter)),
+    [
+      ...chapter.planItems.map((item) => buildChapterPlanBulletLine(item, chapter)),
+      ...((options?.relatedSkincareAddOns ?? []).map(
+        (item) =>
+          `Skincare support: ${patientFacingSkincareShortName(
+            item.product ?? "Skincare",
+          )}`,
+      )),
+    ],
   );
 
-  const analysis = buildChapterAnalysisParagraph(chapter, mergedConcerns, {
-    hadExplicitAddressingSentence,
-  });
+  const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
+  const skincareNarrative = skincareProductNarrative(chapter);
+  const baseAnalysis = skincareNarrative
+    ? skincareNarrative.expect
+    : wellnestOffering
+      ? wellnestOffering.resultsTimeline?.trim()
+        ? `Most people notice changes within ${wellnestOffering.resultsTimeline.trim()}, depending on the schedule and dosing your provider set.`
+        : `Your provider will guide timing and dosing so this fits safely into your broader wellness plan.`
+      : buildChapterAnalysisParagraph(chapter, mergedConcerns, {
+          hadExplicitAddressingSentence,
+        });
+  const skincareQuizFit = buildSkincareQuizFitParagraph(
+    chapter,
+    options?.skincareQuiz,
+  );
+  const relatedSkincareFit = buildRelatedSkincareAddOnParagraph(
+    options?.relatedSkincareAddOns,
+  );
+  const analysis = [baseAnalysis, skincareQuizFit, relatedSkincareFit]
+    .filter(Boolean)
+    .join(" ");
 
   let complementBottom: string | undefined;
   if (complementContext && complementContext.totalChapters > 0) {
@@ -841,11 +1259,15 @@ export function buildChapterOverviewContent(
   }
 
   return {
-    complementTop: complementTop?.trim() || undefined,
-    intro,
-    planBullets,
-    analysis,
-    complementBottom,
+    complementTop: complementTop?.trim()
+      ? sanitizeAestheticIntelligenceText(complementTop.trim())
+      : undefined,
+    intro: sanitizeAestheticIntelligenceText(intro),
+    planBullets: planBullets.map(sanitizeAestheticIntelligenceText),
+    analysis: sanitizeAestheticIntelligenceText(analysis),
+    complementBottom: complementBottom
+      ? sanitizeAestheticIntelligenceText(complementBottom)
+      : undefined,
   };
 }
 

@@ -1,5 +1,15 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const appVersion = (
+  JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8')) as {
+    version?: string
+  }
+).version?.trim() ?? '0.0.0'
 
 // https://vitejs.dev/config/
 // Post-Visit Blueprint links put the full payload in ?d= (very long URLs). Node’s default
@@ -53,6 +63,9 @@ export default defineConfig(({ mode }) => {
     Object.keys(devProxy).length > 0 ? devProxy : undefined
 
   return {
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+  },
   plugins: [react()],
   server: {
     port: 5173,

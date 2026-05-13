@@ -32,12 +32,35 @@
 
 .share-tp-link-dialog-header {
   flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.share-tp-link-dialog-header .share-tp-link-dialog-title {
+.share-tp-link-dialog-header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.share-tp-link-dialog-header .share-tp-link-dialog-close {
+  flex-shrink: 0;
+  margin-top: -2px;
+}
+
+.share-tp-link-dialog-close:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.share-tp-link-dialog-header-text .share-tp-link-dialog-title {
   margin: 0 0 6px;
   font-size: 18px;
   color: #0f172a;
+}
+
+.share-tp-link-dialog-header-text .share-tp-link-dialog-title:last-child {
+  margin-bottom: 12px;
 }
 
 .share-tp-link-dialog-subheading {
@@ -47,13 +70,23 @@
   color: var(--theme-text-muted, #64748b);
 }
 
-
 .share-tp-link-dialog-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+.share-tp-link-dialog-example {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(15, 118, 110, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #0f766e;
 }
 
 .share-tp-link-dialog-footer {
@@ -147,6 +180,10 @@
 }
 
 .share-treatment-plan-link-row-title {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--theme-text-primary, #1e293b);
@@ -278,6 +315,29 @@
   accent-color: #9dd6cb;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.share-tp-link-quote-row--core {
+  background: rgba(15, 118, 110, 0.05);
+}
+
+.share-tp-link-quote-row--core input[type="checkbox"]:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.share-tp-link-core-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  background: rgba(15, 118, 110, 0.18);
+  color: #0f766e;
 }
 
 .share-tp-link-quote-row-text {
@@ -607,19 +667,35 @@
   color: var(--theme-text-muted, #64748b);
 }
 
-/* Toolbar above quote rows — Edit prices was previously easy to miss below the total bar */
-.share-tp-link-quote-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 0 4px 12px;
-  gap: 10px;
+/* Bottom-of-quote text control — toggles per-row patient price overrides */
+.share-tp-link-quote-edit-prices-footer {
+  margin-top: 14px;
+  padding-top: 4px;
+  text-align: center;
 }
 
-.share-tp-link-edit-prices-btn {
-  flex-shrink: 0;
-  font-weight: 600;
-  white-space: nowrap;
+.share-tp-link-edit-prices-link {
+  margin: 0;
+  padding: 6px 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-accent, #2563eb);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.share-tp-link-edit-prices-link:hover {
+  color: var(--theme-accent-hover, #1d4ed8);
+}
+
+.share-tp-link-edit-prices-link:focus-visible {
+  outline: 2px solid var(--theme-accent, #2563eb);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .share-tp-link-patient-price-inline-edit {

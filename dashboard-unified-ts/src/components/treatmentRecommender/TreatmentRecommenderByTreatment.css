@@ -130,6 +130,12 @@
   min-height: 0;
 }
 
+/* When there is no client photo above, the divider is not needed. */
+.treatment-recommender-by-treatment__plan-section--no-client-photo {
+  border-top: none;
+  padding-top: 0;
+}
+
 /* Scrollable plan list / empty state; Quote stays in .plan-actions below (desktop) */
 .treatment-recommender-by-treatment__plan-body {
   display: flex;
@@ -171,10 +177,20 @@
   width: 100%;
 }
 
-.treatment-recommender-by-treatment__plan-title-row
-  .treatment-recommender-by-treatment__plan-title {
+.treatment-recommender-by-treatment__plan-title-block {
   flex: 1;
   min-width: 0;
+}
+
+.treatment-recommender-by-treatment__plan-title-row
+  .treatment-recommender-by-treatment__plan-title {
+  margin: 0;
+}
+
+.treatment-recommender-by-treatment__plan-last-updated {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--theme-text-muted, #64748b);
 }
 
 .treatment-recommender-by-treatment__plan-title {
@@ -1054,40 +1070,16 @@
   color: var(--theme-text-primary, #212121);
 }
 
-.treatment-recommender-wellnest-filters {
-  margin: 0 0 14px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: linear-gradient(
-    165deg,
-    rgba(13, 148, 136, 0.07) 0%,
-    rgba(248, 250, 252, 0.95) 100%
-  );
-  border: 1px solid var(--theme-border, #e2e8f0);
-}
-
-.treatment-recommender-wellnest-filters__row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.treatment-recommender-wellnest-filters__row:last-child {
-  margin-bottom: 0;
-}
-
-.treatment-recommender-wellnest-filters__label {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--theme-text-muted, #64748b);
-}
-
+/* Count suffix inside Wellnest focus chips (shared with treatment-recommender-filters chips) */
 .treatment-recommender-wellnest-filters__count {
   font-weight: 600;
   opacity: 0.85;
+}
+
+.treatment-recommender-filters__chip--selected
+  .treatment-recommender-wellnest-filters__count {
+  color: rgba(255, 255, 255, 0.92);
+  opacity: 1;
 }
 
 .treatment-recommender-by-treatment__wellnest-browse-chips {
@@ -1113,8 +1105,85 @@
   color: var(--theme-text-muted, #757575);
 }
 
+.treatment-recommender-by-treatment__screen-heading {
+  margin: 0 0 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--theme-text-primary, #212121);
+}
+
+.treatment-recommender-by-treatment__wellnest-search-heading {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+}
+
 .treatment-recommender-by-treatment__search-row {
   margin: 0 0 10px;
+}
+
+.treatment-recommender-by-treatment__focus-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.treatment-recommender-by-treatment__focus-toggle-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #377487;
+}
+
+.treatment-recommender-by-treatment__focus-toggle-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.treatment-recommender-by-treatment__focus-toggle-btn {
+  border: 1px solid rgba(55, 116, 135, 0.24);
+  background: rgba(55, 116, 135, 0.08);
+  color: #377487;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.treatment-recommender-by-treatment__focus-toggle-btn:hover {
+  border-color: rgba(55, 116, 135, 0.48);
+  background: rgba(55, 116, 135, 0.14);
+  transform: translateY(-1px);
+}
+
+.treatment-recommender-by-treatment__focus-toggle-btn:focus-visible {
+  outline: 2px solid rgba(55, 116, 135, 0.28);
+  outline-offset: 2px;
+  border-color: #377487;
+}
+
+.treatment-recommender-by-treatment__focus-toggle-btn--active {
+  background: linear-gradient(135deg, #377487, #2f6372);
+  border-color: #2f6372;
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(55, 116, 135, 0.18);
+}
+
+.treatment-recommender-by-treatment__focus-toggle-btn--active:hover {
+  background: linear-gradient(135deg, #2f6372, #265660);
+  border-color: #265660;
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 .treatment-recommender-by-treatment__search-input {
@@ -1132,6 +1201,20 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.treatment-recommender-by-treatment__plan-group-label {
+  margin: 8px 0 0;
+  padding: 0 2px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--theme-text-muted, #757575);
+}
+
+.treatment-recommender-by-treatment__plan-group-label:first-child {
+  margin-top: 0;
 }
 
 .treatment-recommender-by-treatment__empty {
@@ -1852,6 +1935,19 @@
   gap: 6px;
 }
 
+.treatment-recommender-by-treatment__chip-group-label {
+  flex: 0 0 100%;
+  margin: 8px 0 2px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--theme-text-muted, #6b7280);
+}
+
+.treatment-recommender-by-treatment__chip-group-label:first-child {
+  margin-top: 0;
+}
+
 /* Allow chips container to shrink when it contains the skincare carousel so carousel scrolls inside */
 .treatment-recommender-by-treatment__chips:has(
   .treatment-recommender-by-treatment__skincare-carousel-wrap
@@ -1953,6 +2049,13 @@
     background 0.2s,
     border-color 0.2s,
     color 0.2s;
+}
+
+.treatment-recommender-by-treatment__edit-options-btn--arrow {
+  width: 44px;
+  padding-inline: 0;
+  font-size: 1.125rem;
+  line-height: 1;
 }
 
 /* Subtle variant – link-style, less prominent */
@@ -2670,6 +2773,13 @@
   margin: 0 0 8px;
   font-size: 0.75rem;
   line-height: 1.35;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.treatment-recommender-by-treatment__wellnest-used-for-hint {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
   color: var(--theme-text-secondary, #616161);
 }
 

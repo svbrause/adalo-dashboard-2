@@ -2,12 +2,17 @@
 
 import type { Client, DiscussedItem } from "../../../types";
 import {
+  formatPlanActivityDateShort,
   formatPlanScheduledDateLabel,
   formatPlanScheduledDateLongLabel,
   formatPlanScheduledDateShortNoYear,
   isValidPlanScheduledDateIso,
 } from "../../../utils/planScheduledDate";
-import { isJudgeMdSurgeryPlanCategory } from "../../../data/judgeMdPricing2026";
+import {
+  getJudgemdSurgeryPlanAssessmentFilter,
+  isJudgeMdProviderCode,
+  isJudgeMdSurgeryPlanCategory,
+} from "../../../data/judgeMdPricing2026";
 import {
   ASSESSMENT_FINDINGS_BY_AREA,
   FINDING_TO_GOAL_REGION_TREATMENTS,
@@ -29,8 +34,12 @@ import {
   QUANTITY_OPTIONS_TOX,
   QUANTITY_OPTIONS_BIOSTIMULANTS,
   QUANTITY_OPTIONS_RADIESSE,
-  QUANTITY_OPTIONS_SCULPTRA,
+  QUANTITY_OPTIONS_SCULPTRA_VIALS_PER_TREATMENT,
+  QUANTITY_OPTIONS_BIO_TREATMENT_SESSIONS,
+  QUANTITY_OPTIONS_SKINVIVE,
   TIMELINE_SKINCARE,
+  TREATMENT_INTERVAL_OPTIONS_BIO,
+  TREATMENT_INTERVAL_OPTIONS_LASER,
 } from "./constants";
 import {
   getWellnestOfferingByTreatmentName,
@@ -120,23 +129,32 @@ export function expandCommaSeparatedProductsToPlanRows(
   return null;
 }
 
-/** Collapse biostimulant SKUs to Radiesse / Sculptra / Skinvive (or Other / custom). */
+/** Collapse biostimulant SKUs to Radiesse / Sculptra / EZ Gel PRF / Skinvive (or Other / custom). */
 export function canonicalBiostimulantProductLabel(value: string): string {
   const v = stripOptionalRecommenderPriceFromLabel(value);
   if (!v) return value;
   if (v === OTHER_PRODUCT_LABEL) return OTHER_PRODUCT_LABEL;
   if (/\bradiesse\b/i.test(v)) return "Radiesse";
   if (/\bsculptra\b/i.test(v)) return "Sculptra";
+  if (/ez\s*gel/i.test(v)) return "EZ Gel PRF";
   if (/\bskinvive\b/i.test(v)) return "Skinvive";
   return v;
 }
 
-/** Collapse neurotoxin per-unit SKU names to Botox / Dysport when applicable. */
+/** Collapse neurotoxin per-unit SKU names to Botox / Dysport / Daxxify when applicable. */
 export function canonicalNeurotoxinProductLabel(value: string): string {
   const v = stripOptionalRecommenderPriceFromLabel(value).trim();
   if (!v) return value;
   if (v.includes("Botox 1-Unit") || /^botox$/i.test(v)) return "Botox";
   if (v.includes("Dysport 1-Unit") || /^dysport$/i.test(v)) return "Dysport";
+  if (/daxxify|doxify/i.test(v) && (/per\s*unit|1-unit/i.test(v) || /^daxxify$/i.test(v) || /^doxify$/i.test(v)))
+    return "Daxxify";
+  if (/baby\s*tox/i.test(v)) return "Baby Tox";
+  if (/lip\s*flip/i.test(v)) return "Lip Flip";
+  if (/gummy\s*smile/i.test(v)) return "Gummy Smile";
+  if (/brow\s*lift|browlift/i.test(v)) return "Browlift";
+  if (/masseter/i.test(v)) return "Masseters";
+  if (/trapezius|trap/i.test(v)) return "Trapezius";
   return v;
 }
 
@@ -249,10 +267,24 @@ export function getFindingsForTreatment(treatment: string): string[] {
 export function getFindingsByAreaForTreatment(
   treatment: string,
 ): { area: string; findings: string[] }[] {
+  const jm = getJudgemdSurgeryPlanAssessmentFilter(treatment);
+  if (jm === "none") {
+    return [];
+  }
+  const allow: Set<string> | null =
+    jm && typeof jm === "object" && "allowedAreas" in jm
+      ? new Set(
+          jm.allowedAreas.map((a) => a.trim().toLowerCase()),
+        )
+      : null;
   const findingsForTx = new Set(getFindingsForTreatment(treatment));
   return ASSESSMENT_FINDINGS_BY_AREA.map(({ area, findings }) => ({
     area,
-    findings: findings.filter((f) => findingsForTx.has(f)),
+    findings: findings.filter(
+      (f) =>
+        findingsForTx.has(f) &&
+        (allow == null || allow.has(area.trim().toLowerCase())),
+    ),
   })).filter((g) => g.findings.length > 0);
 }
 
@@ -320,6 +352,19 @@ export interface QuantityContext {
   defaultQuantity: string;
   /** Placeholder text shown in the input when empty. Separate from defaultQuantity so a blank default can still have a hint. */
   inputPlaceholder?: string;
+  /**
+   * Which DiscussedItem field the primary chip row writes (`quantity` by default).
+   * EZ Gel uses `bioTreatmentSessions` for the "Treatments" row.
+   */
+  primaryDiscussedField?: "quantity" | "bioTreatmentSessions";
+  /** Sculptra: second row for planned visits (maps to `bioTreatmentSessions`). */
+  sculptraSessions?: {
+    unitLabel: string;
+    options: string[];
+    defaultSessions: string;
+  };
+  /** Optional interval-between-sessions chips (e.g. Sculptra, EZ Gel PRF, lasers). Maps to `treatmentInterval`. */
+  intervalOptions?: readonly string[];
 }
 
 /**
@@ -333,6 +378,7 @@ export function quantityAffectsPlanPricing(ctx: QuantityContext): boolean {
   return (
     u.includes("syringe") ||
     u.includes("vial") ||
+    u.includes("treatment") ||
     u.includes("session") ||
     u.includes("supply") ||
     u.includes("protocol")
@@ -352,6 +398,7 @@ export function shouldShowProminentPlanQuantity(
 export function getQuantityContext(
   treatment: string | undefined,
   product?: string,
+  providerCode?: string,
 ): QuantityContext {
   const select = (
     unitLabel: string,
@@ -384,8 +431,19 @@ export function getQuantityContext(
     t === "dysport" ||
     t === "xeomin"
   ) {
+    const p = (product ?? "").trim().toLowerCase();
+    if (
+      /lip\s*flip|gummy\s*smile|brow\s*lift|browlift|masseter|trapezius/.test(
+        p,
+      )
+    ) {
+      return select("Quantity", QUANTITY_QUICK_OPTIONS_DEFAULT);
+    }
+    const unitLabel = isJudgeMdProviderCode(providerCode)
+      ? "Units (Botox/Dysport/Daxxify)"
+      : "Units (Botox/Dysport)";
     return {
-      unitLabel: "Units (Botox/Dysport)",
+      unitLabel,
       options: [...QUANTITY_OPTIONS_TOX],
       quantityControl: "text",
       defaultQuantity: "",
@@ -398,14 +456,42 @@ export function getQuantityContext(
       return select("Syringes", QUANTITY_OPTIONS_RADIESSE);
     }
     if (p.includes("sculptra")) {
-      return select("Vials", QUANTITY_OPTIONS_SCULPTRA);
+      const vials = QUANTITY_OPTIONS_SCULPTRA_VIALS_PER_TREATMENT;
+      const sessions = QUANTITY_OPTIONS_BIO_TREATMENT_SESSIONS;
+      return {
+        unitLabel: "Vials per treatment",
+        options: [...vials],
+        quantityControl: "select",
+        defaultQuantity: vials[0] ?? "1",
+        primaryDiscussedField: "quantity",
+        sculptraSessions: {
+          unitLabel: "Treatments",
+          options: [...sessions],
+          defaultSessions: sessions[0] ?? "1",
+        },
+        intervalOptions: TREATMENT_INTERVAL_OPTIONS_BIO,
+      };
+    }
+    if (/ez\s*gel/i.test(p)) {
+      const sessions = QUANTITY_OPTIONS_BIO_TREATMENT_SESSIONS;
+      return {
+        unitLabel: "Treatments",
+        options: [...sessions],
+        quantityControl: "select",
+        defaultQuantity: sessions[0] ?? "2",
+        primaryDiscussedField: "bioTreatmentSessions",
+        intervalOptions: TREATMENT_INTERVAL_OPTIONS_BIO,
+      };
+    }
+    if (p.includes("skinvive")) {
+      return select("Syringes", QUANTITY_OPTIONS_SKINVIVE);
     }
     return select("Syringes / Vials", QUANTITY_OPTIONS_BIOSTIMULANTS);
   }
   if (t === "other procedures") {
     const p = (product ?? "").trim().toLowerCase();
     if (p.includes("skinvive")) {
-      return select("Syringes", QUANTITY_OPTIONS_BIOSTIMULANTS);
+      return select("Syringes", QUANTITY_OPTIONS_SKINVIVE);
     }
     return select("Sessions", QUANTITY_QUICK_OPTIONS_DEFAULT);
   }
@@ -416,8 +502,6 @@ export function getQuantityContext(
     t.includes("energy device") ||
     t === "energy treatment" ||
     t.includes("energy treatment") ||
-    t === "facial services" ||
-    t.includes("facial services") ||
     t === "rf" ||
     t === "radiofrequency" ||
     t.includes("radiofrequency") ||
@@ -425,6 +509,12 @@ export function getQuantityContext(
     t.includes("microneedling") ||
     t === "prp" ||
     t === "pdgf"
+  ) {
+    return { ...select("Sessions", QUANTITY_QUICK_OPTIONS_DEFAULT), intervalOptions: TREATMENT_INTERVAL_OPTIONS_LASER };
+  }
+  if (
+    t === "facial services" ||
+    t.includes("facial services")
   ) {
     return select("Sessions", QUANTITY_QUICK_OPTIONS_DEFAULT);
   }
@@ -434,6 +524,61 @@ export function getQuantityContext(
   return select("Quantity", QUANTITY_QUICK_OPTIONS_DEFAULT);
 }
 
+/** Normalize quantity + optional treatment sessions for persistence / pricing. */
+export function buildDiscussedBiostimQuantityFields(
+  treatment: string | undefined,
+  product: string | undefined,
+  quantityRaw: string | undefined,
+  bioTreatmentSessionsRaw: string | undefined,
+): Pick<DiscussedItem, "quantity" | "bioTreatmentSessions"> {
+  const ctx = getQuantityContext(treatment, product);
+  const q = (quantityRaw ?? "").trim();
+  const s = (bioTreatmentSessionsRaw ?? "").trim();
+  if (ctx.sculptraSessions) {
+    return {
+      quantity: (q || ctx.defaultQuantity).trim() || undefined,
+      bioTreatmentSessions:
+        (s || ctx.sculptraSessions.defaultSessions).trim() || undefined,
+    };
+  }
+  if (ctx.primaryDiscussedField === "bioTreatmentSessions") {
+    return {
+      quantity: undefined,
+      bioTreatmentSessions: (s || ctx.defaultQuantity).trim() || undefined,
+    };
+  }
+  return {
+    quantity: q || undefined,
+    bioTreatmentSessions: undefined,
+  };
+}
+
+function parsePositiveInteger(value: string | undefined): number | null {
+  const parsed = Number.parseInt((value ?? "").trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function shouldStoreTreatmentInterval(
+  ctx: QuantityContext,
+  bioTreatmentSessionsRaw: string | undefined,
+): boolean {
+  if (!ctx.intervalOptions?.length) return false;
+  const sessions = parsePositiveInteger(bioTreatmentSessionsRaw);
+  return Boolean(sessions && sessions > 1);
+}
+
+export function resolveTreatmentIntervalForPlanItem(
+  ctx: QuantityContext,
+  bioTreatmentSessionsRaw: string | undefined,
+  treatmentIntervalRaw: string | undefined,
+): string | undefined {
+  const selected = (treatmentIntervalRaw ?? "").trim();
+  if (!shouldStoreTreatmentInterval(ctx, bioTreatmentSessionsRaw)) {
+    return selected || undefined;
+  }
+  return selected || ctx.intervalOptions?.[0]?.trim() || undefined;
+}
+
 /**
  * Compact label for quantity values on plan lists and meta lines (e.g. "Units: 40", "Sessions: 3").
  * Matches {@link getQuantityContext} so copy aligns with checkout / quote semantics.
@@ -441,9 +586,15 @@ export function getQuantityContext(
 export function getPlanQuantityLabelPrefix(
   treatment: string | undefined,
   product?: string,
+  providerCode?: string,
 ): string {
-  const { unitLabel } = getQuantityContext(treatment, product);
-  if (unitLabel === "Units (Botox/Dysport)") return "Units";
+  const { unitLabel } = getQuantityContext(treatment, product, providerCode);
+  if (
+    unitLabel === "Units (Botox/Dysport)" ||
+    unitLabel === "Units (Botox/Dysport/Daxxify)"
+  ) {
+    return "Units";
+  }
   if (unitLabel === "Supply (protocol)") return "Supply";
   if (unitLabel === "Quantity") return "Qty";
   return unitLabel;
@@ -470,8 +621,26 @@ function normalizeToDisplayArea(
   text: string | null | undefined,
 ): string | null {
   if (!text || !String(text).trim()) return null;
-  const lower = String(text).toLowerCase().trim();
+  const s = String(text).trim();
+  const lower = s.toLowerCase();
+  // Combined peel/energy areas (e.g. "Face, Neck & Chest"): pass through as-is
+  if (
+    lower.includes("face") &&
+    (lower.includes("neck") || lower.includes("chest") || lower.includes("back"))
+  )
+    return s;
   if (lower.includes("lower face")) return "Lower face";
+  if (lower.includes("full face")) return "Full face";
+  if (lower.includes("upper face")) return "Upper face";
+  // Broad checkout areas (Energy Treatment, Microneedling)
+  if (lower === "face") return "Face";
+  if (lower === "chest") return "Chest";
+  if (lower === "hands" || lower.includes("hand")) return s;
+  if (lower.includes("arm") || lower.includes("leg")) return s;
+  if (lower.includes("brow")) return s;
+  if (lower.includes("spot treatment")) return s;
+  // Back areas from chemical peel (e.g. "Full Back", "Upper Back")
+  if (lower.includes("back")) return s;
   if (lower.includes("forehead")) return "Forehead";
   if (
     lower.includes("under eye") ||
@@ -497,7 +666,6 @@ function normalizeToDisplayArea(
   )
     return "Jawline";
   if (lower.includes("neck") || lower.includes("platysma")) return "Neck";
-  if (lower.includes("full face")) return "Full face";
   if (lower === "skin" || lower.includes("skin")) return "Skin";
   return null;
 }
@@ -587,7 +755,34 @@ export function formatTreatmentPlanRecordMetaLine(item: DiscussedItem): string {
   );
   const isSkincare = (item.treatment || "").trim() === "Skincare";
   if (product && !isSkincare) parts.push(product);
-  if (item.quantity && String(item.quantity).trim()) {
+  if (isSkincare && item.skincareAddOnForTreatment?.trim()) {
+    parts.push(`Add-on for ${item.skincareAddOnForTreatment.trim()}`);
+  }
+  const tLower = (item.treatment ?? "").trim().toLowerCase();
+  const pLower = product.toLowerCase();
+  if (
+    (tLower === "biostimulants" || tLower.includes("biostimulant")) &&
+    pLower.includes("sculptra")
+  ) {
+    const v = (item.quantity ?? "").trim();
+    const s = (item.bioTreatmentSessions ?? "").trim();
+    const interval = (item.treatmentInterval ?? "").trim();
+    if (v && s) {
+      parts.push(
+        `${v} vial${v === "1" ? "" : "s"} per visit × ${s} treatments${interval ? ` (${interval})` : ""}`,
+      );
+    } else if (v) {
+      const qLabel = getPlanQuantityLabelPrefix(item.treatment, product);
+      parts.push(`${qLabel}: ${v}`);
+    }
+  } else if (
+    (tLower === "biostimulants" || tLower.includes("biostimulant")) &&
+    /ez\s*gel/i.test(pLower)
+  ) {
+    const s = (item.bioTreatmentSessions ?? "").trim();
+    const interval = (item.treatmentInterval ?? "").trim();
+    if (s) parts.push(`Treatments: ${s}${interval ? ` (${interval})` : ""}`);
+  } else if (item.quantity && String(item.quantity).trim()) {
     const qLabel = getPlanQuantityLabelPrefix(
       item.treatment,
       isSkincare ? undefined : product || undefined,
@@ -595,6 +790,25 @@ export function formatTreatmentPlanRecordMetaLine(item: DiscussedItem): string {
     parts.push(`${qLabel}: ${item.quantity}`);
   }
   return parts.join(TREATMENT_PLAN_BULLET);
+}
+
+const SURGERY_LOGISTICS_LABELS: [keyof DiscussedItem, string][] = [
+  ["surgeryAnesthesia", "Anesthesia"],
+  ["surgeryFacilityLocation", "Location"],
+  ["surgeryProcedureTime", "Time"],
+  ["surgeryAdditionalNotes", "Details"],
+];
+
+/** One readable segment for surgery logistics (plan lists, SMS, blueprint). */
+export function formatSurgeryPlanLogisticsLine(item: DiscussedItem): string | null {
+  const treatment = (item.treatment || "").trim();
+  if (!isJudgeMdSurgeryPlanCategory(treatment)) return null;
+  const segments: string[] = [];
+  for (const [key, label] of SURGERY_LOGISTICS_LABELS) {
+    const raw = String(item[key] ?? "").trim();
+    if (raw) segments.push(`${label}: ${raw}`);
+  }
+  return segments.length ? segments.join(` ${TREATMENT_PLAN_BULLET} `) : null;
 }
 
 /**
@@ -628,6 +842,50 @@ export function getTreatmentPlanRowPrimaryLabel(item: DiscussedItem): string {
 }
 
 /**
+ * Apply a patch and keep `completedAt` aligned with `timeline`: entering Completed sets a
+ * timestamp once; leaving Completed clears it.
+ */
+export function mergeDiscussedItemPatch(
+  item: DiscussedItem,
+  patch: Partial<DiscussedItem>,
+): DiscussedItem {
+  const next: DiscussedItem = { ...item, ...patch };
+  if (
+    Object.prototype.hasOwnProperty.call(patch, "planQuoteRole") &&
+    patch.planQuoteRole === undefined
+  ) {
+    delete next.planQuoteRole;
+  }
+  for (const k of [
+    "surgeryAnesthesia",
+    "surgeryFacilityLocation",
+    "surgeryProcedureTime",
+    "surgeryAdditionalNotes",
+  ] as const) {
+    if (Object.prototype.hasOwnProperty.call(patch, k) && patch[k] === undefined) {
+      delete next[k];
+    }
+  }
+  if (patch.timeline !== undefined) {
+    const tl = (next.timeline ?? "").trim();
+    if (tl === "Completed") {
+      next.completedAt = item.completedAt ?? new Date().toISOString();
+    } else {
+      next.completedAt = undefined;
+    }
+  }
+  return next;
+}
+
+/** One-line hint when a row is Completed (shows check-off date when stored). */
+export function getDiscussedItemCheckedOffLabel(item: DiscussedItem): string | null {
+  if ((item.timeline ?? "").trim() !== "Completed") return null;
+  const d = formatPlanActivityDateShort(item.completedAt);
+  if (d) return `Checked off ${d}`;
+  return "Completed";
+}
+
+/**
  * User-facing label for a stored timeline value or plan section key.
  * Canonical stored value stays `"Add next visit"` for persistence.
  */
@@ -639,7 +897,7 @@ export function timelineOptionDisplayLabel(stored: string): string {
 /**
  * Short timing phrase for the plan row sub-line (with {@link getDisplayAreaForItem}).
  * Prefer scheduled date when set; otherwise maps timeline values to compact labels.
- * **Now** is omitted — the plan section already groups those rows under “Now”.
+ * **Now** is omitted — the plan section already groups those rows under "Now".
  */
 export function getTreatmentPlanRowTimingLabel(
   item: DiscussedItem,
@@ -657,7 +915,7 @@ export function getTreatmentPlanRowTimingLabel(
 
 /**
  * Timeline / wishlist words for meta lines. When a **scheduled date** is set, the
- * calendar date is omitted here so it can be shown once as “Planned for …” (see
+ * calendar date is omitted here so it can be shown once as "Planned for …" (see
  * {@link plannedForPatientLineFromDiscussedItem}).
  */
 export function getTreatmentPlanRowTimelineWordsSansScheduledDate(
@@ -676,7 +934,7 @@ export function getTreatmentPlanRowTimelineWordsSansScheduledDate(
   return getTreatmentPlanRowTimingLabel(item);
 }
 
-/** One line: “Planned for Jan 15” (no year), or null if no scheduled day. */
+/** One line: "Planned for Jan 15" (no year), or null if no scheduled day. */
 export function plannedForPatientLineFromDiscussedItem(
   item: DiscussedItem,
 ): string | null {
@@ -686,7 +944,7 @@ export function plannedForPatientLineFromDiscussedItem(
   return `Planned for ${short}`;
 }
 
-/** Patient blueprint / summary: “Planned for July 20, 2026”, or null if no scheduled day. */
+/** Patient blueprint / summary: "Planned for July 20, 2026", or null if no scheduled day. */
 export function plannedForPatientLineFullDateFromDiscussedItem(
   item: DiscussedItem,
 ): string | null {
@@ -717,11 +975,17 @@ export function getTreatmentPlanRowSecondaryLabel(
   item: DiscussedItem,
   opts?: TreatmentPlanRowLabelOpts,
 ): string | null {
+  const treatment = (item.treatment || "").trim();
+  const wellnestOffering = getWellnestOfferingByTreatmentName(treatment);
+  const focus = wellnestOffering && item.interest?.trim() ? item.interest.trim() : null;
   const area = getDisplayAreaForItem(item);
   const timing = opts?.omitTimeline
     ? null
     : getTreatmentPlanRowTimelineWordsSansScheduledDate(item);
-  const parts = [area, timing].filter(
+  const surgeryLine = isJudgeMdSurgeryPlanCategory(treatment)
+    ? formatSurgeryPlanLogisticsLine(item)
+    : null;
+  const parts = [focus, area, timing, surgeryLine].filter(
     (p): p is string => typeof p === "string" && p.trim().length > 0,
   );
   return parts.length ? parts.join(TREATMENT_PLAN_BULLET) : null;

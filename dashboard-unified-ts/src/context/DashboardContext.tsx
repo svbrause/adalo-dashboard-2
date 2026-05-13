@@ -23,8 +23,12 @@ import {
 } from "../services/api";
 import { mapRecordToClient } from "../utils/clientMapper";
 import { mergeDuplicateLeadAndPatient } from "../utils/mergeLeadPatient";
-import { getWellnestSampleClientsIfEnabled } from "../debug/wellnestSampleClients";
+import {
+  getWellnestSampleClientsIfEnabled,
+  filterOutWellnestSamplesDuplicatedByName,
+} from "../debug/wellnestSampleClients";
 import { withWellnestDemoDiscussedItemsOverlay } from "../utils/wellnestDemoPlanPersistence";
+import { getAdminDemoClientsIfEnabled } from "../debug/adminDemoClients";
 
 /**
  * Minimal set of Airtable field names the dashboard list/grid/kanban views actually read.
@@ -57,6 +61,8 @@ const PATIENTS_LIST_FIELDS: string[] = [
   "Aesthetic Goals",
   "Notes",
   "Name (from All Issues) (from Analyses)",
+  /** Long text JSON — detector issue severities; used in Facial Analysis + Analysis Overview when present. */
+  "Severity Scores (from Analyses)",
   "Processed Areas of Interest (from Form Submissions)",
   "Do you have any skin complaints? (from Form Submissions)",
   "Photos Viewed",
@@ -69,6 +75,8 @@ const PATIENTS_LIST_FIELDS: string[] = [
   "Coupon Expiration",
   "Treatments Discussed",
   "Discussed Treatments",
+  /** Long text — needed for peptide suggestions + match % (list fetch used to omit this, leaving scores at 0). */
+  "Wellness Quiz",
   "Location name (from Boulevard Appointments) (from Form Submissions)",
   "Appointment Service Staff First Name (from Boulevard Appointments) (from Form Submissions)",
   "Appointment Service Staff Last Name (from Boulevard Appointments) (from Form Submissions)",
@@ -417,11 +425,21 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           provider?.code,
         );
         if (wellnestSamples.length > 0) {
+          const noNameDupes = filterOutWellnestSamplesDuplicatedByName(
+            allClients,
+            wellnestSamples,
+          );
           const liveIds = new Set(allClients.map((c) => c.id));
-          const extras = wellnestSamples
+          const extras = noNameDupes
             .filter((c) => !liveIds.has(c.id))
             .map(withWellnestDemoDiscussedItemsOverlay);
           allClients = [...allClients, ...extras];
+        }
+
+        const adminDemos = getAdminDemoClientsIfEnabled(provider?.code, allClients);
+        if (adminDemos.length > 0) {
+          const liveIds = new Set(allClients.map((c) => c.id));
+          allClients = [...allClients, ...adminDemos.filter((c) => !liveIds.has(c.id))];
         }
 
         allClients = allClients.map((client) =>

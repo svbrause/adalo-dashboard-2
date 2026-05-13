@@ -86,3 +86,36 @@
   align-items: flex-start;
   gap: 4px;
 }
+
+/* Wellness quiz section: stack title / status / actions on narrow screens */
+@media (max-width: 640px) {
+  .detail-section-wellness-quiz .detail-section-header-flex {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .detail-section-wellness-quiz
+    .detail-section-header-flex
+    > .detail-section-header-actions {
+    margin-left: 0;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .detail-section-wellness-quiz
+    .detail-section-header-flex
+    > .detail-section-header-actions
+    .btn-sm {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .detail-section-wellness-quiz
+    .detail-section-header-flex
+    > .detail-section-status-pill {
+    align-self: flex-start;
+  }
+}

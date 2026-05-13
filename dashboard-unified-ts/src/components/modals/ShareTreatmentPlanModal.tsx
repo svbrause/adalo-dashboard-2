@@ -7,7 +7,6 @@ import { sendSMSNotification } from "../../services/api";
 import { formatProviderDisplayName } from "../../utils/providerHelpers";
 import {
   isValidPhone,
-  formatPhoneInput,
   cleanPhoneNumber,
   formatPhoneDisplay,
 } from "../../utils/validation";
@@ -250,15 +249,8 @@ export default function ShareTreatmentPlanModal({
                 required
                 placeholder="(555) 555-5555"
                 value={formData.phone}
-                onInput={(e) => {
-                  formatPhoneInput(e.target as HTMLInputElement);
-                  setFormData({
-                    ...formData,
-                    phone: (e.target as HTMLInputElement).value,
-                  });
-                }}
                 onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
+                  setFormData({ ...formData, phone: formatPhoneDisplay(e.target.value) })
                 }
                 className="form-input-base"
               />

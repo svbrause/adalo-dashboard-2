@@ -45,6 +45,9 @@ export interface DevGeminiTreatmentChapterPayload {
   longevity?: string;
   downtime?: string;
   priceRange?: string;
+  skincareQuizResult?: string;
+  skincareQuizDescription?: string;
+  relatedSkincareAddOns?: string[];
 }
 
 const DEFAULT_MODEL = "gemini-2.0-flash";
@@ -235,6 +238,20 @@ function buildTreatmentChapterPrompt(
   if (p.focusAreas.length) {
     contextChunks.push(`Focus areas: ${p.focusAreas.join("; ")}`);
   }
+  if (p.skincareQuizResult?.trim()) {
+    contextChunks.push(
+      `Skin quiz result: ${p.skincareQuizResult.trim()}${
+        p.skincareQuizDescription?.trim()
+          ? ` — ${p.skincareQuizDescription.trim()}`
+          : ""
+      }`,
+    );
+  }
+  if (p.relatedSkincareAddOns?.length) {
+    contextChunks.push(
+      `Skincare add-ons tied to this treatment: ${p.relatedSkincareAddOns.join("; ")}`,
+    );
+  }
 
   const quickFacts = [
     p.longevity ? `Longevity: ${p.longevity}` : null,
@@ -257,7 +274,8 @@ Requirements:
 - This paragraph sits after a short client-specific opening and a one-line modality explainer, then plan bullets, then a brief plan-level closing. Write the “why it fits this patient” layer: concrete ways this treatment moves the needle for their situation (appearance, confidence, practical expectations)—without repeating the opening “for you…” line, the one-line explainer, or the closing verbatim.
 - Add nuance (mechanism, timeline, sessions, what tends to change first) rather than restating the same concern list.
 - Use at least 2 specific context details from the inputs.
-- Include a practical expectation (timeline, sessions, downtime, or maintenance) when possible.
+- When Longevity is provided in Quick facts, state it naturally (e.g. “Results typically last X”). When Downtime is provided, mention it (e.g. “Expect about Y of downtime”). Do not omit these if the data is present.
+- Do NOT repeat the treatment/product name from the Plan details line more than once. The name already appears in the section heading and plan bullets above this paragraph.
 - Keep tone warm, specific, and insightful; avoid generic filler language.
 - Do NOT use bullets, headings, emojis, or diagnosis claims.
 - Output plain text only.`;

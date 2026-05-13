@@ -663,6 +663,7 @@ export default function ViewControls() {
           className="control-toggle-btn"
           onClick={() => { setShowSort(!showSort); setShowFilters(false); }}
           aria-label="Sort"
+          aria-expanded={showSort}
         >
           <span>Sort</span>
           <svg

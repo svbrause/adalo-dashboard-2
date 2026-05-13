@@ -1,7 +1,6 @@
 import type { BlueprintAnalysisDisplay } from "./postVisitBlueprintAnalysis";
 import {
   buildAssessmentFindingsSection,
-  formatEnglishList,
   type ChapterOverviewParts,
 } from "./pvbOverviewNarratives";
 import type { PvbResolvedPlanGlossaryTerm } from "./pvbPlanTermGlossary";
@@ -79,18 +78,7 @@ export function buildPvbMainOverviewSections(
     .filter(Boolean)
     .join(" ");
   const coordination = framing.slice(1).join(" ");
-  const goalsLead = analysisDisplay.goals
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 4);
-  const providerWhyWithGoals = [
-    goalsLead.length > 0
-      ? `Your goals are ${formatEnglishList(goalsLead)}.`
-      : null,
-    providerWhy,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const providerWhyWithGoals = providerWhy;
 
   if (providerWhyWithGoals) {
     out.push({

@@ -39,6 +39,8 @@ interface SkinTypeQuizModalProps {
   onAddToPlan?: (prefill: TreatmentPlanPrefill) => void | Promise<void>;
   /** Provider/practice name for intro copy (replaces "The Treatment Skin Boutique" when set). */
   providerName?: string | null;
+  /** When set, only products whose name starts with this brand are shown in results (e.g. "SkinCeuticals"). */
+  filterBrand?: string;
 }
 
 const DEFAULT_PROVIDER_NAME = "your practice";
@@ -50,6 +52,7 @@ export default function SkinTypeQuizModal({
   savedQuiz,
   onAddToPlan,
   providerName,
+  filterBrand,
 }: SkinTypeQuizModalProps) {
   const practiceName = (providerName && providerName.trim()) || DEFAULT_PROVIDER_NAME;
   const [answers, setAnswers] = useState<Record<string, number>>(
@@ -186,20 +189,31 @@ export default function SkinTypeQuizModal({
     ? Math.max(...Object.values(scores), 1)
     : 1;
 
-  const carouselItems = getSkincareCarouselItems();
+  const allCarouselItems = getSkincareCarouselItems();
+  const carouselItems = filterBrand
+    ? allCarouselItems.filter((p) =>
+        p.name.toLowerCase().startsWith(filterBrand.toLowerCase()),
+      )
+    : allCarouselItems;
   const recommendedWithDetails =
-    payload?.recommendedProductNames?.map((name) => {
-      const item = carouselItems.find((p) => p.name === name);
-      return {
-        name,
-        imageUrl: item?.imageUrl,
-        productUrl: item?.productUrl,
-        recommendedFor: RECOMMENDED_PRODUCT_REASONS[name] ?? "Recommended for your skin type",
-        description: item?.description,
-        price: item?.price,
-        imageUrls: item?.imageUrls,
-      };
-    }) ?? [];
+    payload?.recommendedProductNames
+      ?.filter((name) =>
+        filterBrand
+          ? name.toLowerCase().startsWith(filterBrand.toLowerCase())
+          : true,
+      )
+      .map((name) => {
+        const item = carouselItems.find((p) => p.name === name);
+        return {
+          name,
+          imageUrl: item?.imageUrl,
+          productUrl: item?.productUrl,
+          recommendedFor: RECOMMENDED_PRODUCT_REASONS[name] ?? "Recommended for your skin type",
+          description: item?.description,
+          price: item?.price,
+          imageUrls: item?.imageUrls,
+        };
+      }) ?? [];
 
   return (
     <>

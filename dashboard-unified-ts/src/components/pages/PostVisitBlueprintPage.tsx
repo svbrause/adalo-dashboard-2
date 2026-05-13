@@ -20,6 +20,7 @@ import {
   resolveHeroPhotoDisplayUrl,
   trackPostVisitBlueprintEvent,
   filterDiscussedItemsForPostVisitBlueprint,
+  isPlanQuoteCoreDiscussedItem,
   type PostVisitBlueprintPayload,
 } from "../../utils/postVisitBlueprint";
 import { capturePatientAcquisitionFunnelEvent } from "../../utils/patientAcquisitionAnalytics";
@@ -33,6 +34,7 @@ import {
   isPostVisitBlueprintAllowedForPatient,
   isTheTreatmentProviderCode,
 } from "../../utils/providerHelpers";
+import { isJudgeMdProviderCode } from "../../data/judgeMdPricing2026";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { buildWellnestBlueprintCasePhotos } from "../../utils/wellnestBlueprintCases";
 import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
@@ -43,6 +45,7 @@ import { getPostVisitBlueprintVideoCatalog } from "../../config/postVisitBluepri
 import {
   buildTreatmentChapters,
   splitChapterDisplayAreas,
+  type TreatmentChapter,
 } from "../../utils/blueprintTreatmentChapters";
 import {
   dedupeBlueprintDisplayStrings,
@@ -55,6 +58,7 @@ import {
 import {
   buildPvbMainPlanFramingParagraphs,
   buildPvbPlanBridgeParagraph,
+  sanitizeAestheticIntelligenceText,
 } from "../../utils/pvbOverviewNarratives";
 import {
   buildPvbMainOverviewSpeechText,
@@ -65,7 +69,6 @@ import {
   filterGlossaryTermsForChapter,
   getResolvedPlanGlossaryTerms,
 } from "../../utils/pvbPlanTermGlossary";
-import { mapRecommenderRegionsToMirrorTerms } from "../../utils/pvbRecommenderMirror";
 import {
   buildPvbAreaSubpageHash,
   buildPvbCategorySubpageHash,
@@ -86,9 +89,13 @@ import {
 } from "../../utils/pvbQuotePartition";
 import { buildPlanCalendarAgendaFromDiscussedItems } from "../../utils/pvbPlanCalendarAgenda";
 import { formatPlanScheduledDateLabel } from "../../utils/planScheduledDate";
-import { formatTreatmentPlanRowFullLine } from "../modals/DiscussedTreatmentsModal/utils";
+import {
+  formatSurgeryPlanLogisticsLine,
+  formatTreatmentPlanRowFullLine,
+  timelineOptionDisplayLabel,
+} from "../modals/DiscussedTreatmentsModal/utils";
 import type { DiscussedItem } from "../../types";
-import { patientFacingSkincareShortName } from "../../utils/pvbSkincareDisplay";
+import { patientFacingSkincareShortName, getSkincarePostCareLinks } from "../../utils/pvbSkincareDisplay";
 import "../postVisitBlueprint/PvbNarrative.css";
 import "./PostVisitBlueprintPage.css";
 import ponceBrandLogoSrc from "../../assets/images/ponce logo.png";
@@ -116,6 +123,7 @@ function heroUrlNeedsCorsHelp(url: string): boolean {
 /** The Treatment Skin Boutique — patient-facing blueprint branding */
 const THE_TREATMENT_BRAND_LOGO_SRC =
   "/post-visit-blueprint/videos/The%20Treatment%20Mint%20and%20Gray.png";
+const JUDGEMD_BRAND_LOGO_SRC = "/branding/judgemd-brand-logo.svg";
 const WELLNEST_BRAND_LOGO_SRC =
   "https://wellnestmd.com/wp-content/uploads/2024/12/nav-logo-5.svg";
 const WELLNEST_MARKETING_SITE_URL = "https://wellnestmd.com/";
@@ -135,27 +143,32 @@ function PvbBrandBar({
   });
   const isWellnest = isWellnestWellnessProviderCode(providerCode);
   const isTheTreatment = isTheTreatmentProviderCode(providerCode);
+  const isJudgeMd = isJudgeMdProviderCode(providerCode);
   const brandLogoSrc = isAdminSender
     ? ponceBrandLogoSrc
     : isWellnest
       ? WELLNEST_BRAND_LOGO_SRC
       : isTheTreatment
         ? THE_TREATMENT_BRAND_LOGO_SRC
-        : ""; // Other providers: no logo shown until theirs is configured
+        : isJudgeMd
+          ? JUDGEMD_BRAND_LOGO_SRC
+          : ""; // Other providers: no logo shown until theirs is configured
   const brandLabel = isAdminSender
     ? "Ponce AI"
     : isWellnest
       ? "Wellnest MD"
       : isTheTreatment
         ? "The Treatment Skin Boutique"
-        : (providerName?.trim() || "Your provider");
+        : isJudgeMd
+          ? (providerName?.trim() || "JudgeMD")
+          : (providerName?.trim() || "Your provider");
   return (
     <header className="pvb-brand-bar" aria-label={brandLabel}>
       {brandLogoSrc ? (
         <img
           src={brandLogoSrc}
           alt={brandLabel}
-          className={`pvb-brand-logo${isAdminSender ? " pvb-brand-logo--ponce" : ""}`}
+          className={`pvb-brand-logo${isAdminSender ? " pvb-brand-logo--ponce" : ""}${isJudgeMd ? " pvb-brand-logo--judgemd" : ""}`}
           width={isAdminSender ? 200 : 220}
           height={isAdminSender ? 48 : 72}
           decoding="async"
@@ -232,6 +245,7 @@ function mapPhotoRecord(record: AirtableRecord): BlueprintCasePhoto | null {
       ...toArray(fields["Name (from General Treatments)"]),
       ...toArray(fields["General Treatments"]),
     ],
+    areaNames: toArray(fields["Area Names"]),
     age: String(fields["Age"] ?? "").trim() || undefined,
     skinType: String(fields["Skin Type"] ?? "").trim() || undefined,
     skinTone: String(fields["Skin Tone"] ?? "").trim() || undefined,
@@ -249,6 +263,68 @@ function pvbQuoteRowScheduledNote(item: DiscussedItem | null): string | null {
   const lab = formatPlanScheduledDateLabel(item.scheduledDate);
   if (!lab) return null;
   return `Scheduled for ${lab}`;
+}
+
+function pvbQuoteRowTimingLabel(item: DiscussedItem | null): string | null {
+  if (!item) return null;
+  if (formatPlanScheduledDateLabel(item.scheduledDate)) return null;
+  const t = (item.timeline ?? "").trim();
+  if (t === "Now") return "Now";
+  if (t === "Add next visit") return timelineOptionDisplayLabel("Add next visit");
+  if (t === "Wishlist" || (!t && item.treatment?.trim() !== "Skincare")) {
+    return "Wishlist";
+  }
+  if (item.treatment?.trim() === "Skincare") return "Home care";
+  return t ? timelineOptionDisplayLabel(t) : null;
+}
+
+function pvbQuoteRowSurgeryLogisticsNote(item: DiscussedItem | null): string | null {
+  if (!item) return null;
+  return formatSurgeryPlanLogisticsLine(item);
+}
+
+function skincareAddOnSourceMatchesChapter(
+  item: DiscussedItem,
+  chapter: { treatment: string; displayName: string; planItems: DiscussedItem[] },
+): boolean {
+  const source = item.skincareAddOnForTreatment?.trim().toLowerCase();
+  if (!source) return false;
+  const treatment = chapter.treatment.trim().toLowerCase();
+  const displayName = chapter.displayName.trim().toLowerCase();
+  if (source === treatment || source === displayName) return true;
+  return chapter.planItems.some(
+    (planItem) => planItem.product?.trim().toLowerCase() === source,
+  );
+}
+
+/* ── Plan section grouping (mirrors ShareTreatmentPlanModal sections) ── */
+
+type PlanSectionKey = "now" | "scheduled" | "next_visit" | "wishlist" | "skincare";
+
+const PLAN_SECTION_ORDER: PlanSectionKey[] = [
+  "now",
+  "scheduled",
+  "next_visit",
+  "wishlist",
+  "skincare",
+];
+
+const PLAN_SECTION_LABELS: Record<PlanSectionKey, string> = {
+  now: "Now",
+  scheduled: "Scheduled",
+  next_visit: "Next Visit",
+  wishlist: "Wishlist",
+  skincare: "Skincare",
+};
+
+function getChapterSectionKey(chapter: TreatmentChapter): PlanSectionKey {
+  if (chapter.treatment.trim().toLowerCase() === "skincare") return "skincare";
+  const items = chapter.planItems;
+  if (items.some((i) => i.scheduledDate?.trim())) return "scheduled";
+  if (items.some((i) => (i.timeline ?? "").trim() === "Now")) return "now";
+  if (items.some((i) => (i.timeline ?? "").trim() === "Add next visit"))
+    return "next_visit";
+  return "wishlist";
 }
 
 /* ── Page component ── */
@@ -463,14 +539,13 @@ export default function PostVisitBlueprintPage() {
     };
   }, [blueprint, blueprintAllowed]);
 
-  /** Airtable explorer pool + Wellnest illustrative cases (peptides rarely match explorer tags). */
+  /** Airtable explorer pool + Wellnest curated cases (peptides never use aesthetic pool). */
   const casePhotoPool = useMemo(() => {
     if (!blueprint) return photoPool;
     if (!isWellnestWellnessProviderCode(blueprint.providerCode))
       return photoPool;
-    const extra = buildWellnestBlueprintCasePhotos(blueprint.discussedItems);
-    if (!extra.length) return photoPool;
-    return [...photoPool, ...extra];
+    // For Wellnest: only use curated Wellnest cases — never fall back to aesthetic before/afters.
+    return buildWellnestBlueprintCasePhotos();
   }, [blueprint, photoPool]);
 
   /* ── Derived data ── */
@@ -486,6 +561,7 @@ export default function PostVisitBlueprintPage() {
         ethnicBackground: blueprint.patient.ethnicBackground,
       },
       8,
+      blueprint.providerCode,
     );
   }, [blueprint, blueprintAllowed, casePhotoPool]);
 
@@ -509,6 +585,22 @@ export default function PostVisitBlueprintPage() {
     treatmentResultCards,
     blueprintVideoCatalog,
   ]);
+
+  const chaptersBySection = useMemo(() => {
+    const groups = new Map<PlanSectionKey, TreatmentChapter[]>();
+    for (const chapter of chapters) {
+      const key = getChapterSectionKey(chapter);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(chapter);
+    }
+    return groups;
+  }, [chapters]);
+
+  const chapterIndexMap = useMemo(() => {
+    const m = new Map<string, number>();
+    chapters.forEach((c, i) => m.set(c.key, i));
+    return m;
+  }, [chapters]);
 
   const analysisDisplay = useMemo(() => {
     if (!blueprint || !blueprintAllowed) return null;
@@ -624,7 +716,10 @@ export default function PostVisitBlueprintPage() {
       analysisDisplay,
       overviewBridgeParagraph,
       mainPlanFramingParagraphs,
-    );
+    ).map((section) => ({
+      ...section,
+      text: sanitizeAestheticIntelligenceText(section.text),
+    }));
   }, [analysisDisplay, overviewBridgeParagraph, mainPlanFramingParagraphs]);
 
   const planGlossaryTerms = useMemo(() => {
@@ -655,11 +750,11 @@ export default function PostVisitBlueprintPage() {
 
   const mainOverviewSpeechText = useMemo(() => {
     if (!analysisDisplay) return "";
-    return buildPvbMainOverviewSpeechText(
+    return sanitizeAestheticIntelligenceText(buildPvbMainOverviewSpeechText(
       analysisDisplay,
       overviewBridgeParagraph,
       mainPlanFramingParagraphs,
-    );
+    ));
   }, [analysisDisplay, overviewBridgeParagraph, mainPlanFramingParagraphs]);
 
   const quotePartition = useMemo(() => {
@@ -699,6 +794,28 @@ export default function PostVisitBlueprintPage() {
     },
     [blueprint, quoteDiscussedIndexOrder],
   );
+
+  /** Core plan lines cannot be deselected in the patient quote drawer. */
+  useEffect(() => {
+    if (!blueprint || !blueprintAllowed) return;
+    setSelectedRows((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (let idx = 0; idx < blueprint.quote.lineItems.length; idx++) {
+        const di = quoteDiscussedIndexOrder[idx];
+        const item = di !== undefined ? blueprint.discussedItems[di] : undefined;
+        if (
+          item &&
+          isPlanQuoteCoreDiscussedItem(item) &&
+          next[idx] === false
+        ) {
+          next[idx] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [blueprint, blueprintAllowed, quoteDiscussedIndexOrder]);
 
   const [overviewSectionRef, overviewSectionInView] =
     useInViewOnce<HTMLElement>("0px 0px -5% 0px", 0.05);
@@ -1047,18 +1164,6 @@ export default function PostVisitBlueprintPage() {
     [blueprint.discussedItems],
   );
 
-  const mirrorHighlightTerms = useMemo(() => {
-    if (
-      blueprint.recommenderFocusRegions &&
-      blueprint.recommenderFocusRegions.length > 0
-    ) {
-      return mapRecommenderRegionsToMirrorTerms(
-        blueprint.recommenderFocusRegions,
-      );
-    }
-    return discussedHotspotLabels;
-  }, [blueprint.recommenderFocusRegions, discussedHotspotLabels]);
-
   const visibleHotspots =
     blueprint.recommenderFocusRegions &&
     blueprint.recommenderFocusRegions.length > 0
@@ -1098,7 +1203,8 @@ export default function PostVisitBlueprintPage() {
     return sum + blueprintPatientLineAmount(line);
   }, 0);
   const toggledTotal = toggledSkincareSub + toggledTreatmentsSub;
-  const allowMintMembership = !isWellnestWellnessProviderCode(
+  /** Mint discount is a The Treatment Skin Boutique program only. */
+  const allowMintMembership = isTheTreatmentProviderCode(
     blueprint.providerCode,
   );
   const effectivePreviewMintMember = allowMintMembership
@@ -1133,18 +1239,16 @@ export default function PostVisitBlueprintPage() {
 
         {/* ═══ 1. HERO: Mirror + Welcome ═══ */}
         <section className="pvb-hero">
-          <div className="pvb-hero-mirror">
-            {heroPhotoUrl ? (
+          {heroPhotoUrl ? (
+            <div className="pvb-hero-mirror">
               <AiMirrorCanvas
                 imageUrl={heroPhotoUrl}
                 alt="Your facial analysis"
-                highlightTerms={mirrorHighlightTerms}
+                showAnnotations={false}
               />
-            ) : (
-              <div className="pvb-hero-mirror-placeholder">AI Analysis</div>
-            )}
-            <div className="pvb-hero-gradient" />
-          </div>
+              <div className="pvb-hero-gradient" />
+            </div>
+          ) : null}
 
           <div className="pvb-hero-welcome">
             <h1 className="pvb-hero-title">Hi {patientFirst}</h1>
@@ -1224,6 +1328,14 @@ export default function PostVisitBlueprintPage() {
             className={`pvb-analysis${overviewSectionInView ? " pvb-section--visible" : ""}`}
             id={PVB_ANALYSIS_SECTION_ID}
           >
+            {(() => {
+              const overviewHeading = isWellnestWellnessProviderCode(
+                blueprint.providerCode,
+              )
+                ? "Plan overview"
+                : "Aesthetic Intelligence";
+              return (
+                <>
             <div className="pvb-overview-heading-row">
               <div className="pvb-overview-heading-brand">
                 <AiSparkleLogo
@@ -1234,13 +1346,13 @@ export default function PostVisitBlueprintPage() {
                   className="pvb-analysis-title pvb-aesthetic-intelligence-heading"
                   id="pvb-analysis-heading"
                 >
-                  Aesthetic Intelligence
+                  {overviewHeading}
                 </h2>
                 <GeminiWordmark />
               </div>
               <PvbNarrativeAudioControls
                 text={mainOverviewSpeechText}
-                ariaLabel="Listen to Aesthetic Intelligence"
+                ariaLabel={`Listen to ${overviewHeading}`}
                 ariaLabelStop="Stop audio"
                 analytics={
                   blueprintPatientAnalytics
@@ -1249,6 +1361,9 @@ export default function PostVisitBlueprintPage() {
                 }
               />
             </div>
+                </>
+              );
+            })()}
             <p className="pvb-analysis-lead">
               Your assessment and how the treatments in your plan connect to
               your visit.
@@ -1348,41 +1463,61 @@ export default function PostVisitBlueprintPage() {
               {chapters.length !== 1 ? "treatments" : "treatment"} in your plan
             </p>
             <ol className="pvb-toc-list">
-              {chapters.map((c) => {
-                const tocId = treatmentChapterAnchorId(c.key);
-                const areaPills = splitChapterDisplayAreas(c.displayArea);
-                return (
-                  <li key={c.key} className="pvb-toc-item">
-                    <a
-                      className="pvb-toc-link"
-                      href={`#${tocId}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        if (blueprintPatientAnalytics) {
-                          trackPostVisitBlueprintEvent(
-                            "blueprint_toc_navigated",
-                            {
-                              ...blueprintPatientAnalytics,
-                              chapter_key: c.key,
-                              chapter_display_name: c.displayName,
-                            },
-                          );
-                        }
-                        scrollToChapter(c.key);
-                      }}
-                    >
-                      <span className="pvb-toc-item-name">{c.displayName}</span>
-                      {areaPills.length > 0 ? (
-                        <span
-                          className="pvb-toc-item-areas-subheading"
-                          aria-label="Treatment areas"
+              {PLAN_SECTION_ORDER.filter((sk) =>
+                chaptersBySection.has(sk),
+              ).flatMap((sectionKey) => {
+                const sectionChapters = chaptersBySection.get(sectionKey)!;
+                return [
+                  <li
+                    key={`toc-section-${sectionKey}`}
+                    className="pvb-toc-section-header"
+                    aria-hidden="true"
+                  >
+                    {PLAN_SECTION_LABELS[sectionKey]}
+                  </li>,
+                  ...sectionChapters.map((c) => {
+                    const tocId = treatmentChapterAnchorId(c.key);
+                    const areaPills = splitChapterDisplayAreas(c.displayArea);
+                    return (
+                      <li key={c.key} className="pvb-toc-item">
+                        <a
+                          className="pvb-toc-link"
+                          href={`#${tocId}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (blueprintPatientAnalytics) {
+                              trackPostVisitBlueprintEvent(
+                                "blueprint_toc_navigated",
+                                {
+                                  ...blueprintPatientAnalytics,
+                                  chapter_key: c.key,
+                                  chapter_display_name: c.displayName,
+                                },
+                              );
+                            }
+                            scrollToChapter(c.key);
+                          }}
                         >
-                          {areaPills.join(" · ")}
-                        </span>
-                      ) : null}
-                    </a>
-                  </li>
-                );
+                          <span className="pvb-toc-item-name">
+                            {c.displayName}
+                          </span>
+                          {c.treatment.trim().toLowerCase() === "skincare" ? (
+                            <span className="pvb-toc-item-areas-subheading">
+                              Skincare
+                            </span>
+                          ) : areaPills.length > 0 ? (
+                            <span
+                              className="pvb-toc-item-areas-subheading"
+                              aria-label="Treatment areas"
+                            >
+                              {areaPills.join(" · ")}
+                            </span>
+                          ) : null}
+                        </a>
+                      </li>
+                    );
+                  }),
+                ];
               })}
             </ol>
           </section>
@@ -1390,47 +1525,114 @@ export default function PostVisitBlueprintPage() {
 
         {/* ═══ 4. TREATMENT CHAPTERS ═══ */}
         <div className="pvb-chapters">
-          {chapters.map((chapter, i) => (
-            <TreatmentChapterView
-              key={chapter.key}
-              chapter={chapter}
-              index={i}
-              total={chapters.length}
-              anchorId={treatmentChapterAnchorId(chapter.key)}
-              chapterAnalysisContext={
-                analysisDisplay
-                  ? {
-                      overviewSnapshot: analysisDisplay.overviewSnapshot,
-                      planRow:
-                        analysisDisplay.planByTreatment.find(
-                          (r) => r.key === chapter.key,
-                        ) ?? null,
-                    }
-                  : undefined
-              }
-              chapterGlossaryTerms={filterGlossaryTermsForChapter(
-                planGlossaryTerms,
-                chapter.key,
-              )}
-              onVideoPlay={handleBlueprintVideoPlay}
-              onCaseDetail={openCaseDetailForAnalytics}
-              trackCaseGallery={trackCaseGalleryOnce}
-              blueprintPatientAnalytics={blueprintPatientAnalytics ?? undefined}
-              chapterComplementContext={
-                mainOverviewPlanShape
-                  ? {
-                      chapterIndex: i,
-                      totalChapters: chapters.length,
-                      allChapterDisplayNames: chapters.map(
-                        (c) => c.displayName,
-                      ),
-                      planShape: mainOverviewPlanShape,
-                      patientPriorities: chapterPatientPriorities,
-                    }
-                  : null
-              }
-            />
-          ))}
+          {PLAN_SECTION_ORDER.filter((sk) => chaptersBySection.has(sk)).map(
+            (sectionKey) => {
+              const sectionChapters = chaptersBySection.get(sectionKey)!;
+              const nonSkincareDisplayNames = chapters
+                .filter((c) => c.treatment.trim().toLowerCase() !== "skincare")
+                .map((c) => c.displayName);
+              return (
+                <div key={sectionKey} className="pvb-plan-section">
+                  <h2 className="pvb-plan-section-title">
+                    {PLAN_SECTION_LABELS[sectionKey]}
+                  </h2>
+                  {sectionChapters.map((chapter) => {
+                    const i = chapterIndexMap.get(chapter.key) ?? 0;
+                    const postCareForTreatments =
+                      chapter.treatment.trim().toLowerCase() === "skincare" &&
+                      chapter.planItems.length > 0
+                        ? (() => {
+                            const explicit = Array.from(
+                              new Set(
+                                chapter.planItems
+                                  .map(
+                                    (item) =>
+                                      item.skincareAddOnForTreatment?.trim() ??
+                                      "",
+                                  )
+                                  .filter(Boolean),
+                              ),
+                            );
+                            return explicit.length > 0
+                              ? explicit
+                              : getSkincarePostCareLinks(
+                                  chapter.planItems[0]?.product ??
+                                    chapter.displayName,
+                                  nonSkincareDisplayNames,
+                                );
+                          })()
+                        : undefined;
+                    return (
+                      <TreatmentChapterView
+                        key={chapter.key}
+                        chapter={chapter}
+                        index={i}
+                        total={chapters.length}
+                        anchorId={treatmentChapterAnchorId(chapter.key)}
+                        postCareForTreatments={postCareForTreatments}
+                        mirrorImageUrl={heroPhotoUrl}
+                        chapterAnalysisContext={
+                          analysisDisplay
+                            ? {
+                                overviewSnapshot:
+                                  analysisDisplay.overviewSnapshot,
+                                planRow:
+                                  analysisDisplay.planByTreatment.find(
+                                    (r) => r.key === chapter.key,
+                                  ) ?? null,
+                                skincareQuiz:
+                                  blueprint.patient.skincareQuiz ?? null,
+                                relatedSkincareAddOns:
+                                  chapter.treatment
+                                    .trim()
+                                    .toLowerCase() === "skincare"
+                                    ? []
+                                    : blueprint.discussedItems.filter(
+                                        (item) =>
+                                          item.treatment
+                                            .trim()
+                                            .toLowerCase() === "skincare" &&
+                                          skincareAddOnSourceMatchesChapter(
+                                            item,
+                                            chapter,
+                                          ),
+                                      ),
+                              }
+                            : undefined
+                        }
+                        chapterGlossaryTerms={filterGlossaryTermsForChapter(
+                          planGlossaryTerms,
+                          chapter.key,
+                        )}
+                        onVideoPlay={handleBlueprintVideoPlay}
+                        onCaseDetail={openCaseDetailForAnalytics}
+                        trackCaseGallery={trackCaseGalleryOnce}
+                        blueprintPatientAnalytics={
+                          blueprintPatientAnalytics ?? undefined
+                        }
+                        chapterComplementContext={
+                          mainOverviewPlanShape
+                            ? {
+                                chapterIndex: i,
+                                totalChapters: chapters.length,
+                                allChapterDisplayNames: chapters.map(
+                                  (c) => c.displayName,
+                                ),
+                                planShape: mainOverviewPlanShape,
+                                patientPriorities: chapterPatientPriorities,
+                              }
+                            : null
+                        }
+                        skincareProductShopLinks={
+                          !isJudgeMdProviderCode(blueprint.providerCode)
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              );
+            },
+          )}
         </div>
 
         {/* ═══ 5. CLOSING ═══ */}
@@ -1459,6 +1661,12 @@ export default function PostVisitBlueprintPage() {
                   casePhotos={casePhotoPool}
                   suggestionCards={patientSuggestionCards}
                   heroPhotoFallbackUrl={heroPhotoUrl}
+                  providerCode={blueprint.providerCode}
+                  casePhotoRankingPatient={{
+                    skinType: blueprint.patient.skinType,
+                    skinTone: blueprint.patient.skinTone,
+                    ethnicBackground: blueprint.patient.ethnicBackground,
+                  }}
                   onBack={backFromTreatmentSubpage}
                   onJumpToTreatment={jumpToTreatmentFromSubpage}
                   blueprintAnalyticsBase={
@@ -1487,6 +1695,12 @@ export default function PostVisitBlueprintPage() {
                   }
                   onOpenEyeAreaDetails={() => openAreaSubpage("Eyes")}
                   patientPhotoUrl={heroPhotoUrl}
+                  providerCode={blueprint.providerCode}
+                  casePhotoRankingPatient={{
+                    skinType: blueprint.patient.skinType,
+                    skinTone: blueprint.patient.skinTone,
+                    ethnicBackground: blueprint.patient.ethnicBackground,
+                  }}
                   blueprintAnalyticsBase={
                     blueprintPatientAnalytics ?? undefined
                   }
@@ -1509,6 +1723,12 @@ export default function PostVisitBlueprintPage() {
                 onBack={closeAnalysisSubpage}
                 onOpenTreatmentDetails={(r) => openTreatmentPlanSubpage(r.key)}
                 patientPhotoUrl={heroPhotoUrl}
+                providerCode={blueprint.providerCode}
+                casePhotoRankingPatient={{
+                  skinType: blueprint.patient.skinType,
+                  skinTone: blueprint.patient.skinTone,
+                  ethnicBackground: blueprint.patient.ethnicBackground,
+                }}
                 blueprintAnalyticsBase={blueprintPatientAnalytics ?? undefined}
               />
             );
@@ -1560,8 +1780,9 @@ export default function PostVisitBlueprintPage() {
             {quoteBookStep === "quote" ? (
               <>
                 <p className="pvb-drawer-intro">
-                  Select what you want to include, then proceed to send a
-                  booking request to your provider&apos;s team.
+                  Review the treatments and products your provider recommended.
+                  Select any optional add-ons you want included, then send the
+                  request so the team can help schedule your visit.
                 </p>
                 <div className="pvb-quote">
                   {skincareQuoteIdxs.length > 0 ? (
@@ -1571,19 +1792,33 @@ export default function PostVisitBlueprintPage() {
                       </h3>
                       {skincareQuoteIdxs.map((idx) => {
                         const line = lineItems[idx];
+                        const rowItem = discussedItemForQuoteLineIndex(idx);
                         const schedNote = pvbQuoteRowScheduledNote(
-                          discussedItemForQuoteLineIndex(idx),
+                          rowItem,
                         );
+                        const timingLabel = pvbQuoteRowTimingLabel(rowItem);
+                        const rowCore =
+                          rowItem && isPlanQuoteCoreDiscussedItem(rowItem);
+                        const surgeryNote =
+                          pvbQuoteRowSurgeryLogisticsNote(rowItem);
                         return (
                           <label
                             key={`${line.skuName ?? line.label}-${idx}`}
-                            className="pvb-quote-row"
+                            className={`pvb-quote-row${rowCore ? " pvb-quote-row--core" : ""}`}
                           >
                             <input
                               type="checkbox"
                               checked={Boolean(selectedRows[idx])}
+                              disabled={Boolean(rowCore)}
                               onChange={(e) => {
                                 const checked = e.target.checked;
+                                if (
+                                  !checked &&
+                                  rowItem &&
+                                  isPlanQuoteCoreDiscussedItem(rowItem)
+                                ) {
+                                  return;
+                                }
                                 setSelectedRows((prev) => ({
                                   ...prev,
                                   [idx]: checked,
@@ -1609,10 +1844,25 @@ export default function PostVisitBlueprintPage() {
                                 {patientFacingSkincareShortName(
                                   line.skuName ?? line.label,
                                 )}
+                                {rowCore ? (
+                                  <span className="pvb-quote-core-pill">
+                                    Locked in
+                                  </span>
+                                ) : null}
+                                {timingLabel ? (
+                                  <span className="pvb-quote-timing-pill">
+                                    {timingLabel}
+                                  </span>
+                                ) : null}
                               </span>
                               {schedNote ? (
                                 <span className="pvb-quote-row-sched">
                                   {schedNote}
+                                </span>
+                              ) : null}
+                              {surgeryNote ? (
+                                <span className="pvb-quote-row-sched pvb-quote-row-sched--meta">
+                                  {surgeryNote}
                                 </span>
                               ) : null}
                             </span>
@@ -1632,19 +1882,33 @@ export default function PostVisitBlueprintPage() {
                       <h3 className="pvb-quote-section-title">Treatments</h3>
                       {treatmentQuoteIdxs.map((idx) => {
                         const line = lineItems[idx];
+                        const rowItem = discussedItemForQuoteLineIndex(idx);
                         const schedNote = pvbQuoteRowScheduledNote(
-                          discussedItemForQuoteLineIndex(idx),
+                          rowItem,
                         );
+                        const timingLabel = pvbQuoteRowTimingLabel(rowItem);
+                        const rowCore =
+                          rowItem && isPlanQuoteCoreDiscussedItem(rowItem);
+                        const surgeryNote =
+                          pvbQuoteRowSurgeryLogisticsNote(rowItem);
                         return (
                           <label
                             key={`${line.skuName ?? line.label}-${idx}`}
-                            className="pvb-quote-row"
+                            className={`pvb-quote-row${rowCore ? " pvb-quote-row--core" : ""}`}
                           >
                             <input
                               type="checkbox"
                               checked={Boolean(selectedRows[idx])}
+                              disabled={Boolean(rowCore)}
                               onChange={(e) => {
                                 const checked = e.target.checked;
+                                if (
+                                  !checked &&
+                                  rowItem &&
+                                  isPlanQuoteCoreDiscussedItem(rowItem)
+                                ) {
+                                  return;
+                                }
                                 setSelectedRows((prev) => ({
                                   ...prev,
                                   [idx]: checked,
@@ -1668,10 +1932,25 @@ export default function PostVisitBlueprintPage() {
                             <span className="pvb-quote-row-text">
                               <span className="pvb-quote-row-title">
                                 {line.skuName ?? line.label}
+                                {rowCore ? (
+                                  <span className="pvb-quote-core-pill">
+                                    Locked in
+                                  </span>
+                                ) : null}
+                                {timingLabel ? (
+                                  <span className="pvb-quote-timing-pill">
+                                    {timingLabel}
+                                  </span>
+                                ) : null}
                               </span>
                               {schedNote ? (
                                 <span className="pvb-quote-row-sched">
                                   {schedNote}
+                                </span>
+                              ) : null}
+                              {surgeryNote ? (
+                                <span className="pvb-quote-row-sched pvb-quote-row-sched--meta">
+                                  {surgeryNote}
                                 </span>
                               ) : null}
                             </span>
@@ -1990,7 +2269,9 @@ export default function PostVisitBlueprintPage() {
               </button>
               <span className="pvb-case-eyebrow">Case story</span>
               <h2 className="pvb-case-title">{selectedCaseDetail.cardTitle}</h2>
-              <p className="pvb-case-cat">{selectedCaseDetail.treatment}</p>
+              {selectedCaseDetail.treatment !== selectedCaseDetail.cardTitle && (
+                <p className="pvb-case-cat">{selectedCaseDetail.treatment}</p>
+              )}
             </header>
 
             <div className="pvb-case-scroll">
@@ -2002,40 +2283,29 @@ export default function PostVisitBlueprintPage() {
                 />
               </div>
 
-              {(selectedCaseDetail.longevity ||
-                selectedCaseDetail.downtime ||
-                selectedCaseDetail.priceRange) && (
-                <div className="pvb-case-facts">
-                  {selectedCaseDetail.longevity ? (
-                    <div className="pvb-case-fact">
-                      <span className="pvb-case-fact-label">Lasts</span>
-                      <span className="pvb-case-fact-val">
-                        {selectedCaseDetail.longevity}
-                      </span>
-                    </div>
-                  ) : null}
-                  {selectedCaseDetail.downtime ? (
-                    <div className="pvb-case-fact">
-                      <span className="pvb-case-fact-label">Downtime</span>
-                      <span className="pvb-case-fact-val">
-                        {selectedCaseDetail.downtime}
-                      </span>
-                    </div>
-                  ) : null}
-                  {selectedCaseDetail.priceRange ? (
-                    <div className="pvb-case-fact">
-                      <span className="pvb-case-fact-label">Typical range</span>
-                      <span className="pvb-case-fact-val">
-                        {selectedCaseDetail.priceRange}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              )}
 
               {selectedCaseDetail.demographics ? (
                 <p className="pvb-case-demo">
                   {selectedCaseDetail.demographics}
+                </p>
+              ) : null}
+              {selectedCaseDetail.providerResultLabel ||
+              selectedCaseDetail.sourceLabel ? (
+                <p className="pvb-case-source">
+                  {selectedCaseDetail.providerResultLabel ??
+                    selectedCaseDetail.sourceLabel}
+                  {selectedCaseDetail.sourceUrl ? (
+                    <>
+                      {" "}
+                      <a
+                        href={selectedCaseDetail.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View source
+                      </a>
+                    </>
+                  ) : null}
                 </p>
               ) : null}
 

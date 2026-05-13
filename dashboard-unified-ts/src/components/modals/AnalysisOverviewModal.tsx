@@ -36,6 +36,7 @@ import {
 import {
   getDetectedIssuesFromClient,
   getInterestAreaNamesFromClient,
+  getSeverityIssueRowsFromClient,
 } from "../../utils/analysisOverviewClient";
 import {
   getQuantityContext,
@@ -60,6 +61,7 @@ import PhotoViewerModal from "./PhotoViewerModal";
 import TreatmentPhotosModal from "./TreatmentPhotosModal";
 import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
 import { RadarChart } from "../postVisitBlueprint/RadarChart";
+import { SeverityNormRing } from "../common/SeverityNormRing";
 import "./AnalysisOverviewModal.css";
 
 // ---------------------------------------------------------------------------
@@ -136,6 +138,8 @@ interface AnalysisOverviewModalProps {
     options?: TreatmentPlanAddDirectOptions,
   ) => Promise<void | DiscussedItem> | DiscussedItem | void;
   initialDetailView?: DetailView | null;
+  /** Renders without overlay/backdrop (e.g. inside element fullscreen). */
+  embedded?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -456,7 +460,10 @@ function SuggestionCard({
 
   useEffect(() => {
     if (!formOpen || isSkincare) return;
-    const qtyCtx = getQuantityContext(what, product.trim() || undefined);
+    const qtyCtx = getQuantityContext(
+      what,
+      product.trim() || undefined,
+    );
     if (qtyCtx.quantityControl === "text") return;
     const { options, defaultQuantity } = qtyCtx;
     const q = quantity.trim();
@@ -639,7 +646,10 @@ function SuggestionCard({
                   </div>
                 </div>
                 {!isSkincare && (() => {
-                  const qtyCtx = getQuantityContext(what, product.trim() || undefined);
+                  const qtyCtx = getQuantityContext(
+                    what,
+                    product.trim() || undefined,
+                  );
                   return (
                     <div className="ao-suggestion-card__form-row plan-add-row">
                       <span className="plan-add-row-label">{qtyCtx.unitLabel}</span>
@@ -1222,6 +1232,7 @@ export default function AnalysisOverviewModal({
   onClose,
   onAddToPlanDirect,
   initialDetailView,
+  embedded = false,
 }: AnalysisOverviewModalProps) {
   const { provider } = useDashboard();
   const [animate, setAnimate] = useState(false);
@@ -1323,6 +1334,10 @@ export default function AnalysisOverviewModal({
     () => getInterestAreaNamesFromClient(client),
     [client],
   );
+  const severityIssueRows = useMemo(
+    () => getSeverityIssueRowsFromClient(client),
+    [client],
+  );
 
   const categories = useMemo(
     () => computeCategories(detectedIssues),
@@ -1397,18 +1412,16 @@ export default function AnalysisOverviewModal({
 
   const patientFirst = client.name ? client.name.split(" ")[0] : "";
 
-  return (
+  const modalCardClass =
+    `modal-content analysis-overview-modal` +
+    `${isMaximized || embedded ? " analysis-overview-modal--maximized" : ""}` +
+    `${embedded ? " analysis-overview-modal--embedded" : ""}`;
+
+  const overviewCard = (
     <div
-      className="modal-overlay active"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="ao-modal-title"
+      className={modalCardClass}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div
-        className={`modal-content analysis-overview-modal${isMaximized ? " analysis-overview-modal--maximized" : ""}`}
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="analysis-overview-modal__header">
           <h2 id="ao-modal-title" className="analysis-overview-modal__title">
             {showCategoryDetail && detailView?.type === "category"
@@ -1421,19 +1434,21 @@ export default function AnalysisOverviewModal({
                   : `Facial Analysis${patientFirst ? ` — ${patientFirst}` : ""}`}
           </h2>
           <div className="analysis-overview-modal__header-actions">
-            <button
-              type="button"
-              className="analysis-overview-modal__maximize"
-              onClick={() => setIsMaximized(!isMaximized)}
-              aria-label={isMaximized ? "Restore" : "Maximize"}
-            >
-              {isMaximized ? "⊡" : "⛶"}
-            </button>
+            {!embedded && (
+              <button
+                type="button"
+                className="analysis-overview-modal__maximize"
+                onClick={() => setIsMaximized(!isMaximized)}
+                aria-label={isMaximized ? "Restore" : "Maximize"}
+              >
+                {isMaximized ? "⊡" : "⛶"}
+              </button>
+            )}
             <button
               type="button"
               className="modal-close analysis-overview-modal__close"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={embedded ? "Exit expanded view" : "Close"}
             >
               ×
             </button>
@@ -1591,6 +1606,42 @@ export default function AnalysisOverviewModal({
                 </div>
               </section>
 
+              {severityIssueRows.length > 0 && (
+                <section className="analysis-overview-modal__severity">
+                  <OverviewSectionHeading>Severity scores</OverviewSectionHeading>
+                  <p className="analysis-overview-modal__severity-note">
+                    Highest signals first. Center number is health 0–100 (like the overall
+                    gauge); arc fill matches that score. Uses severity_normalized_0_1 when
+                    present, otherwise a legacy estimate.
+                  </p>
+                  <div className="analysis-overview-modal__severity-list">
+                    {severityIssueRows.slice(0, 8).map((row) => (
+                      <div
+                        key={row.issue}
+                        className="analysis-overview-modal__severity-item"
+                      >
+                        <div className="analysis-overview-modal__severity-item-left">
+                          <span className="analysis-overview-modal__severity-issue">
+                            {row.issue}
+                          </span>
+                          {row.source ? (
+                            <span className="analysis-overview-modal__severity-source">
+                              {row.source}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="analysis-overview-modal__severity-item-right">
+                          <SeverityNormRing
+                            badness01={row.badness01 ?? 0}
+                            size={56}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* ===== Areas (merged with single legend) ===== */}
               {(focusAreas.length > 0 || otherAreas.length > 0) && (
                 <section className="analysis-overview-modal__areas">
@@ -1639,14 +1690,41 @@ export default function AnalysisOverviewModal({
             </>
           )}
         </div>
+    </div>
+  );
+
+  const photoViewerLayer =
+    showPhotoViewer && client ? (
+      <PhotoViewerModal
+        client={client}
+        initialPhotoType="front"
+        onClose={() => setShowPhotoViewer(false)}
+      />
+    ) : null;
+
+  if (embedded) {
+    return (
+      <div
+        className="analysis-overview-modal__embedded-root"
+        role="region"
+        aria-labelledby="ao-modal-title"
+      >
+        {overviewCard}
+        {photoViewerLayer}
       </div>
-      {showPhotoViewer && client && (
-        <PhotoViewerModal
-          client={client}
-          initialPhotoType="front"
-          onClose={() => setShowPhotoViewer(false)}
-        />
-      )}
+    );
+  }
+
+  return (
+    <div
+      className="modal-overlay active"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ao-modal-title"
+    >
+      {overviewCard}
+      {photoViewerLayer}
     </div>
   );
 }

@@ -1,4 +1,13 @@
-/* Wellness Quiz Modal */
+/* Wellness Quiz Modal — mint & gray color scheme */
+
+/* Scoped primary color: mint/teal overrides dashboard blue for all quiz elements */
+.wellness-quiz-modal-content,
+.wellness-quiz-standalone__inner {
+  --wq-primary: #377487;
+  --wq-primary-alpha-08: rgba(55, 116, 135, 0.08);
+  --wq-primary-alpha-12: rgba(55, 116, 135, 0.12);
+  --wq-primary-alpha-20: rgba(55, 116, 135, 0.20);
+}
 
 .wellness-quiz-modal-overlay {
   z-index: 10000;
@@ -70,12 +79,29 @@
   font-style: italic;
 }
 
+.wellness-quiz-intro-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 22px;
+}
+
+.wellness-quiz-intro-domain-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: var(--wq-primary-alpha-08, rgba(55, 116, 135, 0.08));
+  color: var(--wq-primary, #377487);
+  border: 1px solid var(--wq-primary-alpha-20, rgba(55, 116, 135, 0.20));
+}
+
 .wellness-quiz-question-category {
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--theme-accent, #1976d2);
+  color: var(--wq-primary, #377487);
   margin: 0 0 8px;
 }
 
@@ -112,8 +138,8 @@
 }
 
 .wellness-quiz-answer-btn--selected {
-  border-color: var(--theme-primary, #2563eb);
-  background: rgba(37, 99, 235, 0.08);
+  border-color: var(--wq-primary, #377487);
+  background: var(--wq-primary-alpha-08, rgba(55, 116, 135, 0.08));
 }
 
 /* Multi-select: chip row (same pattern as rest of UI) */
@@ -142,13 +168,13 @@
 }
 
 .wellness-quiz-chip--selected {
-  border-color: var(--theme-primary, #2563eb);
-  background: rgba(37, 99, 235, 0.08);
-  color: var(--theme-primary, #2563eb);
+  border-color: var(--wq-primary, #377487);
+  background: var(--wq-primary-alpha-08, rgba(55, 116, 135, 0.08));
+  color: var(--wq-primary, #377487);
 }
 
 .wellness-quiz-chip--selected:hover {
-  background: rgba(37, 99, 235, 0.12);
+  background: var(--wq-primary-alpha-12, rgba(55, 116, 135, 0.12));
 }
 
 .wellness-quiz-chip-label {
@@ -169,7 +195,7 @@
 }
 
 .wellness-quiz-btn--primary {
-  background: var(--theme-primary, #2563eb);
+  background: var(--wq-primary, #377487);
   color: #fff;
 }
 
@@ -228,6 +254,10 @@
   gap: 16px;
 }
 
+.wellness-quiz-treatment-list--compact {
+  gap: 10px;
+}
+
 .wellness-quiz-treatment-card {
   padding: 20px;
   border: 1px solid var(--theme-border, #e8e8e8);
@@ -235,8 +265,16 @@
   background: var(--theme-bg-card, #fff);
 }
 
+.wellness-quiz-treatment-list--compact .wellness-quiz-treatment-card {
+  padding: 14px 16px 16px;
+}
+
 .wellness-quiz-treatment-card-header {
   margin-bottom: 12px;
+}
+
+.wellness-quiz-treatment-list--compact .wellness-quiz-treatment-card-header {
+  margin-bottom: 8px;
 }
 
 .wellness-quiz-treatment-name {
@@ -253,6 +291,45 @@
   letter-spacing: 0.04em;
   color: var(--theme-text-muted, #757575);
   margin-bottom: 0;
+}
+
+/* Compact wellness quiz result cards: one blurb + optional “your answers” line */
+.wellness-quiz-treatment-blurb {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.wellness-quiz-treatment-matches-line {
+  margin: 0 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--theme-text-muted, #757575);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wellness-quiz-treatment-matches-line__prefix {
+  font-weight: 600;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.wellness-quiz-treatment-reasons-line {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--theme-text-muted, #757575);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wellness-quiz-treatment-matches-line--intake-goals {
+  margin-top: 6px;
 }
 
 .wellness-quiz-treatment-used-for {
@@ -326,10 +403,15 @@
   border-top: 1px solid var(--theme-border, #e8e8e8);
 }
 
+.wellness-quiz-treatment-list--compact .wellness-quiz-treatment-actions {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
 .wellness-quiz-btn--add-to-plan {
   background: transparent;
-  color: var(--theme-accent, #0d9488);
-  border: 1px solid var(--theme-accent, #0d9488);
+  color: var(--theme-accent, #377487);
+  border: 1px solid var(--theme-accent, #377487);
   font-size: 0.875rem;
   font-weight: 500;
   padding: 8px 14px;
@@ -337,9 +419,9 @@
 }
 
 .wellness-quiz-btn--add-to-plan:hover {
-  background: var(--theme-accent, #0d9488);
+  background: var(--theme-accent, #377487);
   color: #fff;
-  border-color: var(--theme-accent, #0d9488);
+  border-color: var(--theme-accent, #377487);
 }
 
 .wellness-quiz-loading,
@@ -353,6 +435,17 @@
   margin-top: 12px;
 }
 
+.wellness-quiz-contraindication-warning {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
 .wellness-quiz-footer {
   display: flex;
   flex-wrap: wrap;
@@ -361,4 +454,535 @@
   padding: 16px 24px;
   border-top: 1px solid var(--theme-border, #e0e0e0);
   flex-shrink: 0;
+}
+
+.wellness-quiz-question-footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.wellness-quiz-question-footer-nav .wellness-quiz-btn--primary {
+  margin-left: auto;
+}
+
+.wellness-quiz-severity-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wellness-quiz-severity-skip-note {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--theme-text-muted, #757575);
+  line-height: 1.45;
+}
+
+.wellness-quiz-severity-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--theme-surface-secondary, #f5f5f5);
+  border: 1px solid var(--theme-border, #e8e8e8);
+}
+
+.wellness-quiz-severity-row-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-text-primary, #1a1a1a);
+  line-height: 1.35;
+}
+
+.wellness-quiz-impact-scale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wellness-quiz-impact-btn {
+  min-width: 40px;
+  padding: 8px 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-secondary, #616161);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.wellness-quiz-impact-btn:hover {
+  border-color: var(--theme-accent, #377487);
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
+.wellness-quiz-impact-btn--selected {
+  border-color: var(--theme-accent, #377487);
+  background: rgba(55, 116, 135, 0.12);
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
+/* Results: domain emphasis (distinct from treatment-plan white rows) */
+.wellness-quiz-results-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wellness-quiz-domain-scores {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(55, 116, 135, 0.07) 0%,
+    rgba(37, 99, 235, 0.06) 100%
+  );
+  border: 1px solid rgba(55, 116, 135, 0.22);
+}
+
+.wellness-quiz-domain-scores__title {
+  margin: 0 0 12px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--theme-text-primary, #1a1a1a);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── InfoTip ── */
+.wq-info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.wq-info-tip__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  max-width: 15px;
+  max-height: 15px;
+  inline-size: 15px;
+  block-size: 15px;
+  flex: 0 0 15px;
+  align-self: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 1.5px solid var(--wq-primary, #377487);
+  background: none;
+  color: var(--wq-primary, #377487);
+  font-size: 0.6rem;
+  font-style: italic;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+  vertical-align: middle;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.wq-info-tip__btn:hover,
+.wq-info-tip__btn:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.wq-info-tip__bubble {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  width: 230px;
+  background: #1f2937;
+  color: #f3f4f6;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border-radius: 6px;
+  z-index: 200;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+
+.wq-info-tip__bubble--center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.wq-info-tip__bubble--left {
+  left: 0;
+  transform: none;
+}
+
+.wq-info-tip__bubble--right {
+  right: 0;
+  transform: none;
+}
+
+.wq-info-tip__bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  border: 5px solid transparent;
+  border-top-color: #1f2937;
+}
+
+.wq-info-tip__bubble--center::after { left: 50%; transform: translateX(-50%); }
+.wq-info-tip__bubble--left::after   { left: 8px; }
+.wq-info-tip__bubble--right::after  { right: 8px; }
+
+.wellness-quiz-domain-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wellness-quiz-domain-row--expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wellness-quiz-domain-row-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.wellness-quiz-domain-row-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 2px;
+}
+
+.wellness-quiz-domain-why-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.wellness-quiz-domain-why-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 9px;
+  font-size: 0.75rem;
+  color: var(--theme-text-primary, #1a1a1a);
+  background: var(--wq-primary-alpha-08, rgba(55, 116, 135, 0.08));
+  border: 1px solid var(--wq-primary-alpha-20, rgba(55, 116, 135, 0.2));
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+.wellness-quiz-domain-why-chip__topic {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--theme-text-secondary, #616161);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-right: 1px;
+}
+
+.wellness-quiz-domain-why-chip__pts {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--wq-primary, #377487);
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
+}
+
+/* Flat row (no breakdown) */
+.wellness-quiz-domain-row:not(.wellness-quiz-domain-row--expanded) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.wellness-quiz-domain-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.wellness-quiz-domain-bar-wrap {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.65);
+  overflow: hidden;
+  border: 1px solid rgba(55, 116, 135, 0.15);
+}
+
+.wellness-quiz-domain-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #377487, #377487);
+  min-width: 4px;
+  transition: width 0.25s ease;
+}
+
+.wellness-quiz-domain-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--theme-text-muted, #757575);
+  min-width: 2ch;
+  text-align: right;
+}
+
+/* Peptide suggestions: softer than plan “white card” rows */
+.wellness-quiz-peptide-suggestions .wellness-quiz-treatment-card {
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px dashed rgba(55, 116, 135, 0.35);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.wellness-quiz-peptide-suggestions .wellness-quiz-treatment-card--results-dense {
+  padding: 10px 12px;
+}
+
+.wellness-quiz-treatment-card-inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wellness-quiz-treatment-card-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.wellness-quiz-treatment-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.wellness-quiz-treatment-name-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.wellness-quiz-peptide-suggestions .wellness-quiz-treatment-name {
+  font-size: 0.9375rem;
+  margin-bottom: 0;
+}
+
+.wellness-quiz-peptide-match-explainer {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--theme-text-secondary, #616161);
+  background: rgba(55, 116, 135, 0.06);
+  border: 1px solid rgba(55, 116, 135, 0.2);
+  border-radius: 8px;
+}
+
+.wellness-quiz-peptide-match-explainer strong {
+  color: var(--theme-text-primary, #1a1a1a);
+  font-weight: 600;
+}
+
+.wellness-quiz-treatment-match-badge {
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 5px 10px 6px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--theme-accent, #377487);
+  background: rgba(55, 116, 135, 0.12);
+  border: 1px solid rgba(55, 116, 135, 0.28);
+  text-align: center;
+  line-height: 1.15;
+  max-width: 7.5rem;
+}
+
+.wellness-quiz-treatment-match-badge__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wellness-quiz-treatment-match-badge__pct {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.wellness-quiz-treatment-match-badge__sub {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+.wellness-quiz-treatment-match-badge__single {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wellness-quiz-treatment-category-inline {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-muted, #757575);
+  max-width: 100%;
+}
+
+.wellness-quiz-treatment-meta {
+  margin: 0 0 4px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--theme-text-secondary, #616161);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wellness-quiz-treatment-card--results-dense .wellness-quiz-treatment-card-header {
+  margin-bottom: 2px;
+}
+
+.wellness-quiz-treatment-matches-line--dense {
+  -webkit-line-clamp: 2;
+}
+
+.wellness-quiz-peptide-suggestions
+  .wellness-quiz-treatment-card--results-dense
+  .wellness-quiz-treatment-actions {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Per-question match breakdown inside treatment cards */
+.wellness-quiz-match-breakdown {
+  margin-top: 8px;
+}
+
+.wellness-quiz-match-breakdown__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--theme-text-secondary, #616161);
+  margin-bottom: 5px;
+}
+
+.wellness-quiz-match-breakdown__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wellness-quiz-match-breakdown__row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.wellness-quiz-match-breakdown__q {
+  font-weight: 600;
+  color: var(--theme-text-secondary, #616161);
+  white-space: nowrap;
+}
+
+.wellness-quiz-match-breakdown__pts {
+  font-weight: 700;
+  color: var(--wq-primary, #377487);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wellness-quiz-match-breakdown__a {
+  color: var(--theme-text-muted, #757575);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wellness-quiz-match-breakdown__more {
+  font-size: 0.6875rem;
+  color: var(--theme-text-muted, #9e9e9e);
+  padding-left: 0;
+}
+
+.wellness-quiz-peptide-expand {
+  margin-top: 10px;
+}
+
+.wellness-quiz-peptide-expand__btn {
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 520px) {
+  .wellness-quiz-treatment-card-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wellness-quiz-peptide-suggestions
+    .wellness-quiz-treatment-card--results-dense
+    .wellness-quiz-treatment-actions {
+    align-self: flex-start;
+  }
 }

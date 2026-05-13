@@ -26,22 +26,54 @@ export interface DiscussedItem {
   id: string;
   /** ISO date string when this item was added to the plan */
   addedAt?: string;
-  /** High-level treatment interest from analysis (e.g. "Improve Cheek Definition") that this treatment addresses */
+  /**
+   * High-level interest / goal: from facial analysis, or for Wellnest peptides, what this
+   * treatment is being used to address for this patient (e.g. sleep vs recovery vs body composition)
+   * when the catalog indication is broad (Ipamorelin is not only for sleep in our data).
+   */
   interest?: string;
   /** Detected issues linked to this item (e.g. "Forehead Wrinkles") when added by patient interest */
   findings?: string[];
   treatment: string;
   /** When treatment is Skincare, optional product type (e.g. Retinol, Vitamin C) */
   product?: string;
+  /** When a skincare line was added from another treatment's add-on picker, stores that source treatment. */
+  skincareAddOnForTreatment?: string;
   brand?: string;
   region?: string;
   timeline?: string;
   /** ISO date YYYY-MM-DD when the patient intends this treatment on a specific day (calendar view). */
   scheduledDate?: string;
+  /** When the row was marked Completed (ISO timestamp). Cleared if moved out of Completed. */
+  completedAt?: string;
+  /** Last time this plan array was saved (ISO timestamp); stamped on persist for “last updated” UI. */
+  updatedAt?: string;
   /** Quantity (e.g. syringes, units) – quick-select in UI */
   quantity?: string;
+  /**
+   * Biostimulants: planned number of treatment visits (e.g. Sculptra course over several sessions).
+   * With Sculptra, {@link quantity} is vials **per** visit when this is set; total vials for pricing = quantity × bioTreatmentSessions.
+   * Legacy Sculptra rows may omit this and store total vials in `quantity` only.
+   */
+  bioTreatmentSessions?: string;
+  /** Interval between treatment sessions in a course (e.g. "Every 4–6 weeks" for Sculptra/EZ Gel PRF). */
+  treatmentInterval?: string;
   recurring?: string;
   notes?: string;
+  /** Surgical plan row: anesthesia approach (free text, e.g. General, IV sedation, MAC). */
+  surgeryAnesthesia?: string;
+  /** Surgical plan row: facility / OR / office location. */
+  surgeryFacilityLocation?: string;
+  /** Surgical plan row: case time — start time, block, or estimated duration. */
+  surgeryProcedureTime?: string;
+  /** Surgical plan row: extra logistics (positioning, implants, garments, consents, etc.). */
+  surgeryAdditionalNotes?: string;
+  /**
+   * When `"core"`, this line is the agreed plan (locked in): it always appears on the shared
+   * treatment plan link and the patient quote cannot deselect it. Omit or leave unset for
+   * optional add-on lines the patient may toggle off.
+   */
+  planQuoteRole?: "core";
 }
 
 /** Treatment photo from the Photos table (before/after examples) */
@@ -84,6 +116,24 @@ export interface ContactHistoryEntry {
     | "cancelled";
   notes: string;
   date: string;
+}
+
+export interface AnalysisSeverityIssue {
+  predicted?: boolean;
+  probability?: number;
+  severity?: number;
+  /** When present, detector severity scaled to ~0–1 (preferred over raw `severity`). */
+  severity_normalized_0_1?: number;
+  severity_level?: string;
+  source?: string;
+  model_used?: string;
+}
+
+export interface AnalysisSeverityScoresData {
+  schema_version?: number;
+  detector_type?: string;
+  submission_id?: string;
+  issues: Record<string, AnalysisSeverityIssue>;
 }
 
 export interface Client {
@@ -152,6 +202,30 @@ export interface Client {
   skincareQuiz?: SkincareQuizData | null;
   /** Wellness quiz result (from "Wellness Quiz" long text field in Airtable – JSON). Peptide/treatment suggestions from Dr Reddy offerings. */
   wellnessQuiz?: WellnessQuizData | null;
+  /** Patients: optional long-text JSON from "Severity Scores (from Analyses)". */
+  severityScoresFromAnalyses?: AnalysisSeverityScoresData | null;
+  /**
+   * Extra angles for the client-detail face mirror (front / side / form uploads).
+   * Used by admin demos without Airtable; otherwise filled via {@link loadClientGalleryPhotoSlots}.
+   */
+  galleryPhotoSlots?: ClientPhotoSlot[];
+}
+
+/** One selectable photo angle in the client detail face mirror. */
+export interface ClientPhotoSlot {
+  id: string;
+  label: string;
+  url: string;
+}
+
+/** Aggregated “how much each wellness domain matters” for charts (from weighted quiz scoring). */
+export interface WellnessQuizCategoryScore {
+  id: string;
+  label: string;
+  /** 0–100 bar length (relative to strongest domain this quiz). */
+  percent: number;
+  /** Raw weighted sum before normalization. */
+  raw: number;
 }
 
 /**
@@ -159,10 +233,12 @@ export interface Client {
  * Suggested treatments are resolved from wellnessQuiz.ts by suggestedTreatmentIds.
  */
 export interface WellnessQuizData {
-  version: 1;
+  /** v2 adds impact ratings + categoryScores; v1 is legacy binary-style answers. */
+  version?: 1 | 2;
   completedAt: string;
-  answers: Record<string, number | number[]>;
+  answers: Record<string, number | number[] | Record<string, number>>;
   suggestedTreatmentIds: string[];
+  categoryScores?: WellnessQuizCategoryScore[];
 }
 
 /**

@@ -131,7 +131,7 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
     id: "manual-messaging",
     productName: "Staff-Sent Messages",
     description:
-      "Transactional texts: sent only when a staff member sends from the dashboard (scan link, skincare quiz, treatment plan link, analysis share). These are not toggled on or off — they fire when someone uses Share or Send.",
+      "Transactional texts: sent only when a staff member sends from the dashboard (scan link, skincare or wellness quiz, treatment plan link, analysis share). These are not toggled on or off — they fire when someone uses Share or Send.",
     owner: "Front Desk / Clinical Ops",
     events: [
       {
@@ -164,6 +164,27 @@ export const SMS_SETTINGS_PRODUCTS: SmsProductConfig[] = [
         template:
           "View your Skin Type Quiz results and personalized product recommendations: {{skin_quiz_link}}",
         recentVolume: { d7: 0, d14: 1, d30: 17 },
+      },
+      {
+        id: "wellness-quiz-invite",
+        eventName: "Wellness quiz — invite",
+        trigger: "Staff sends the public wellness quiz link to a lead or patient",
+        enabled: true,
+        channel: "sms",
+        template:
+          "Complete your short wellness quiz to see personalized options from our offerings:\n{{link}}",
+        recentVolume: { d7: 0, d14: 0, d30: 0 },
+      },
+      {
+        id: "wellness-quiz-results",
+        eventName: "Wellness quiz — share link (after results)",
+        trigger:
+          "Staff uses Share for a client who has already completed the wellness quiz (same public URL; message references results)",
+        enabled: true,
+        channel: "sms",
+        template:
+          "View your wellness quiz results and discuss suggestions with your provider: {{wellness_quiz_link}}",
+        recentVolume: { d7: 0, d14: 0, d30: 0 },
       },
       {
         id: "plan-share-manual",

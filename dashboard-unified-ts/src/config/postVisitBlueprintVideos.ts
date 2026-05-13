@@ -17,10 +17,19 @@ import {
   getWellnestOfferingByTreatmentName,
   isWellnestWellnessProviderCode,
 } from "../data/wellnestOfferings";
+import { isJudgeMdProviderCode } from "../data/judgeMdPricing2026";
 
 export type VideoSource = {
   src: string;
   mimeType: "video/mp4" | "video/quicktime";
+};
+
+export type VideoCaptionTrack = {
+  src: string;
+  label: string;
+  srclang: string;
+  kind: "captions" | "subtitles";
+  default?: boolean;
 };
 
 export interface PostVisitBlueprintVideo {
@@ -40,6 +49,8 @@ export interface PostVisitBlueprintVideo {
    * Generate with `npm run extract:blueprint-posters` (requires ffmpeg) or export a frame manually.
    */
   posterUrl?: string;
+  /** Optional WebVTT caption/subtitle tracks shown by the native video controls. */
+  captions?: VideoCaptionTrack[];
   /**
    * Numeric Vimeo video id (public embed). When set, patient UI uses player.vimeo.com instead of &lt;video&gt;.
    */
@@ -66,13 +77,19 @@ export interface PostVisitBlueprintVideo {
    * Use so a clip (e.g. Moxi) does not appear for every row of that treatment (e.g. all Energy Treatment).
    */
   matchAgainstPlanSpecificsOnly?: boolean;
+  /** Require the chapter's skincare plan row to be a moisturizer/barrier-cream product. */
+  requiresSkincareProductRole?: "moisturizer";
 }
 
 const BASE = "/post-visit-blueprint/videos";
 const POSTERS = `${BASE}/posters`;
+const JUDGEMD_GCS_BASE =
+  "https://storage.googleapis.com/test-deploy-august25/post-visit-blueprint/videos/judgemd";
 
 /** Cap Dr. Reddy clips per treatment chapter (was effectively “show all”). */
 export const WELLNEST_CHAPTER_VIDEO_MAX = 4;
+/** JudgeMD has a large reel library; keep each treatment chapter focused. */
+export const JUDGEMD_CHAPTER_VIDEO_MAX = 6;
 
 const WELLNEST_INTRO_ID = "reddy_what_are_peptides";
 
@@ -176,6 +193,293 @@ export const POST_VISIT_BLUEPRINT_VIDEOS: PostVisitBlueprintVideo[] = [
     ],
   },
 ];
+
+const JUDGEMD_REEL_FILES = [
+  "Reels/How to Heal After Your Labiaplasty.mov",
+  "Reels/How to Prepare for a Labiaplasty.mov",
+  "Reels/How to Tape Your Nose After a Rhinoplasty.mov",
+  "Reels 2/ae04587ba43f481a830a46d81f591b9f.mov",
+  "Reels 2/Beautiful Lip Filler Before & After(1).mov",
+  "Reels 2/Botox on Your Traps_.mov",
+  "Reels 2/Did You Know You Can Use Botox to Create a Brow Lift_.mov",
+  "Reels 2/Facial Balancing Using Filler.mov",
+  "Reels 2/Filler Migration_ What You Need to Know - Copy 1.mov",
+  "Reels 2/How Did He Get Tall_ Incoming Stitch.mov",
+  "Reels 2/How I Break Your Nose During a Rhinoplasty - Edited Copy 1_.mov",
+  "Reels 2/How I Break Your Nose During a Rhinoplasty - Edited Copy 2_.mov",
+  "Reels 2/How I Got This Patient Snatched.mov",
+  "Reels 2/How Long Does it Take to Get Filler Injected_.mov",
+  "Reels 2/How Much Does Botox Cost_.mov",
+  "Reels 2/How To_ Lymphatic Massage.mov",
+  "Reels 2/Injecting Filler to Make Jawline_.mov",
+  "Reels 2/Injecting Myself with Dysport.mov",
+  "Reels 2/One of My Favorite Rhinoplasties.mov",
+  "Reels 2/Plastic Surgeon’s Advice on Anti-Aging.mov",
+  "Reels 2/Rhinoplasty Risks.mov",
+  "Reels 2/Sculpting My Nose with Botox_.mov",
+  "Reels 2/Showing How Much Filler 1 Syringe is - Copy 1.mov",
+  "Reels 2/Stunning Results with My Angelina Jolie Lip Cleavage Technique!.mov",
+  "Reels 2/Testing Out the New _Longer Lasting_ Botox Alternative!.mov",
+  "Reels 2/Under Eye Filler Transformation.mov",
+  "Reels 2/Using Botox_ Slimming Out a Square Jaw.mov",
+  "Reels 2/What are Botox Bumps_.mov",
+  "Reels 2/What is a Liquid Rhinoplasty_.mov",
+  "Reels 2/What is an Asian Rhinoplasty_ - Copy 1.mov",
+  "Reels 2/Why Do I need to Get Botox Done Every Few Months_.mov",
+  "Reels 2/Why You Shouldn_t Dissolve & Refill the Same Day.mov",
+  "Reels 2/Why You Shouldn_t Get Filler Before a Wedding.mov",
+  "Reels 3/3 Things to Know Before Getting Filler.mov",
+  "Reels 3/Are Rhinoplasties Painful_.mov",
+  "Reels 3/Botox vs Dysport.mov",
+  "Reels 3/Doctor, Your Surgery Didn_t Work, I_m Fat Again.mov",
+  "Reels 3/Does Botox Create Excess Sweating in Other Places_.mov",
+  "Reels 3/efa8662c11b14b4e9f1489de0b2bf87e.mov",
+  "Reels 3/Filler in Your Temples_.mov",
+  "Reels 3/How Long Will My Filler Last_ When Do I need to Get Refilled_.mov",
+  "Reels 3/How to Accentuate Your Natural Features_.mov",
+  "Reels 3/How to Fix Your Hip Dips.mov",
+  "Reels 3/Injections I_ve Had Done.mov",
+  "Reels 3/Is Non-Surgical Rhinoplasty Worth It_.mov",
+  "Reels 3/Masseter Botox_.mov",
+  "Reels 3/The Internet_s Most Dangerous DIY Beauty Trend.mov",
+  "Reels 3/Using Thread Lifts to the Nose.mov",
+  "Reels 3/What is a Fat Transfer to the Nose_.mov",
+  "Reels 3/Who Can Be an _Injector_.mov",
+  "Reels 3/Why Lip Flips Can Look Bad.mov",
+  "Reels 3/Why We Ask if You_re a Smoker Before Getting Surgery.mov",
+  "Reels 4/22b9f8ffe440463b96ebf08492198f95.mov",
+  "Reels 4/Alternative to Getting a BBL.mov",
+  "Reels 4/Beautiful Lip Filler Before & After.mov",
+  "Reels 4/Beautiful Nose Transformation.mov",
+  "Reels 4/Before and After Botox to the Masseters.mov",
+  "Reels 4/Cheek and Chin Filler Before_After.mov",
+  "Reels 4/Crazy Button Nose Transformation.mov",
+  "Reels 4/Does Lip Filler Cause Lip Twitches_.mov",
+  "Reels 4/Filler Migration_ What You Need to Know - Copy 2.mp4",
+  "Reels 4/Fixing Damaged Nose - Fat Transfer.mov",
+  "Reels 4/Full Facial Balancing With Filler.mov",
+  "Reels 4/Full Facial Balancing With Filler(1).mov",
+  "Reels 4/Full Facial Balancing with Filler(2).mov",
+  "Reels 4/Getting Snatched with Fillers.mov",
+  "Reels 4/Giving My Patient Boobs.mov",
+  "Reels 4/Gummy Smile Injections.mov",
+  "Reels 4/How Botox Helps Teeth Grinding.mov",
+  "Reels 4/How Easy Can Your Breast Implants Pop_.mov",
+  "Reels 4/How Fast Dysport Works.mov",
+  "Reels 4/How I Break Your Nose During a Rhinoplasty - Edited Copy 3.mov",
+  "Reels 4/How I Break Your Nose During a Rhinoplasty - Long Copy_.mov",
+  "Reels 4/How I Fixed His Nose.mov",
+  "Reels 4/How I Make Rhinoplasties Look Natural.mov",
+  "Reels 4/I Taped My Forehead Every Night for 1 Week.mov",
+  "Reels 4/Insane Nose Transformation.mov",
+  "Reels 4/Lip Filler After Care - Copy 1.mov",
+  "Reels 4/Lip Filler After Care - Copy 2.mov",
+  "Reels 4/Liquid Rhinoplasty Results.mov",
+  "Reels 4/No Gatekeeping What I’ve Had Injected.mov",
+  "Reels 4/One of the Most Underrated Places to get Filler, The Chin.mov",
+  "Reels 4/Plump But Natural Lip Fillers Results.mov",
+  "Reels 4/Pouty Lip Transformation.mov",
+  "Reels 4/Rhinoplasty & Eyelid Transformation.mov",
+  "Reels 4/Should You Get A Lip Flip_.mov",
+  "Reels 4/Showing How Much Filler 1 Syringe is - Copy 2.mov",
+  "Reels 4/Showing My “Before Rhinoplasty” Nose.mov",
+  "Reels 4/This is How I Slim Out Your Nose.mov",
+  "Reels 4/Transformational Rhinoplasty Before and After.mov",
+  "Reels 4/Using Glue as Lip Filer.mov",
+  "Reels 4/When Patient Reacts Like This.mov",
+  "Reels 4/When they love their results_.mov",
+  "Reels 4/Why Is Everyone Getting Buccal Fat Pad Removal_.mov",
+  "Reels 5/Casey Neistat_s Take On Cosmetic Surgery - Under Eye Surgery.mov",
+  "Reels 5/Does Lip Filler Affect Kissing_.mov",
+  "Reels 5/Hip Dip Filler - Part 1.mov",
+  "Reels 5/Hip Dip Filler - Part 2.mov",
+  "Reels 5/How Much Does Filler Cost_.mov",
+  "Reels 5/How to Choose the Right Plastic Surgeon.mov",
+  "Reels 5/Injecting My Own Botox.mov",
+  "Reels 5/Misconceptions on Under Eye Filler.mov",
+  "Reels 5/The Correct Way to Put Moisturizer On - copy 1.mov",
+  "Reels 5/The Correct Way to Put Moisturizer On - copy 2.mov",
+  "Reels 5/What are Russian Doll Lips_.mov",
+  "Reels 5/What is a Lip Flip_.mov",
+  "Reels 5/What is the Crunching Sound When Getting Botox_.mov",
+  "Reels 5/Why BBLs are so Dangerous.mov",
+] as const;
+
+function fileStem(path: string): string {
+  return path.split("/").pop()?.replace(/\.[^.]+$/, "") ?? path;
+}
+
+function judgeMdVideoTitleFromPath(path: string): string {
+  return fileStem(path)
+    .replace(/\s+-\s+Edited Copy \d+\??$/i, "")
+    .replace(/\s+-\s+Long Copy_?$/i, "")
+    .replace(/\s+-\s+Copy \d+$/i, "")
+    .replace(/\(\d+\)$/g, "")
+    .replace(/Before_After/gi, "Before/After")
+    .replace(/Shouldn_t/gi, "Shouldn't")
+    .replace(/Didn_t/gi, "Didn't")
+    .replace(/Doesn_t/gi, "Doesn't")
+    .replace(/Don_t/gi, "Don't")
+    .replace(/You_re/gi, "You're")
+    .replace(/I_m/gi, "I'm")
+    .replace(/I_ve/gi, "I've")
+    .replace(/([A-Za-z])_s\b/g, "$1's")
+    .replace(/\s+_([^_]+)_/g, ' "$1"')
+    .replace(/_$/g, "?")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function judgeMdVideoIdFromPath(path: string): string {
+  return `judgemd_${path
+    .replace(/\.[^.]+$/, "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")}`;
+}
+
+function judgeMdVideoSubtitle(title: string): string {
+  const lower = title.toLowerCase();
+  if (/prepare|heal|after care|tape|lymphatic|risks/.test(lower)) {
+    return "Helpful preparation and after-care guidance from JudgeMD.";
+  }
+  if (/before|after|transformation|results|reacts/.test(lower)) {
+    return "";
+  }
+  return "A short JudgeMD education clip related to this treatment.";
+}
+
+function judgeMdVideoKeywords(title: string): string[] {
+  const lower = title.toLowerCase();
+  const keywords = new Set<string>([lower]);
+  const add = (...values: string[]) => {
+    for (const v of values) keywords.add(v);
+  };
+
+  if (
+    /botox|dysport|toxin|masseter|traps|brow lift|lip flip|gummy smile|teeth grinding|crunching|sweating|bumps|square jaw/.test(
+      lower,
+    )
+  ) {
+    add(
+      "neurotoxin",
+      "botox",
+      "dysport",
+      "daxxify",
+      "masseter",
+      "forehead",
+      "brow",
+      "gummy smile",
+      "teeth grinding",
+      "traps",
+    );
+  }
+  if (
+    /filler|fillers|syringe|lip|lips|jawline|chin|cheek|temple|tear trough|under eye|facial balancing|hip dip|liquid rhinoplasty|dissolve|migration|kissing|russian doll/.test(
+      lower,
+    )
+  ) {
+    add(
+      "filler",
+      "dermal filler",
+      "hyaluronic",
+      "lip filler",
+      "jawline",
+      "chin",
+      "cheek",
+      "temple",
+      "tear trough",
+      "under eye",
+      "facial balancing",
+      "liquid rhinoplasty",
+      "hip dip",
+    );
+  }
+  if (/rhinoplasty|nose|nasal/.test(lower)) {
+    add(
+      "rhinoplasty",
+      "facial surgery",
+      "nose",
+      "nose reshaping",
+      "tip rhinoplasty",
+      "revision rhinoplasty",
+      "liquid rhinoplasty",
+    );
+  }
+  if (/eyelid|under eye surgery|blepharoplasty/.test(lower)) {
+    add("facial surgery", "blepharoplasty", "eyelid", "eyes", "under eye");
+  }
+  if (/thread lift|buccal|forehead|fat transfer to the nose|fat transfer/.test(lower)) {
+    add("facial surgery", "thread lift", "buccal fat", "forehead", "fat transfer");
+  }
+  if (/labiaplasty|vaginal/.test(lower)) {
+    add("vaginal rejuvenation", "labiaplasty", "vaginal");
+  }
+  if (/breast|boobs|implant/.test(lower)) {
+    add("breast surgery", "breast augmentation", "breast implants");
+  }
+  if (/bbl|body|snatched|lymphatic|hip dip|liposuction|fat again/.test(lower)) {
+    add("body sculpting", "liposuction", "bbl", "hip dip", "body contouring");
+  }
+  if (/moisturizer|anti-aging|skin/.test(lower)) {
+    add("skincare", "skin", "anti-aging", "moisturizer");
+  }
+  if (/plastic surgeon|cosmetic surgery|injector/.test(lower)) {
+    add("plastic surgery", "cosmetic surgery", "facial surgery", "body sculpting");
+  }
+
+  return Array.from(keywords);
+}
+
+function judgeMdVideoFromPath(path: string): PostVisitBlueprintVideo {
+  const title = judgeMdVideoTitleFromPath(path);
+  const id = judgeMdVideoIdFromPath(path);
+  const isMoisturizerEducation = /correct way to put moisturizer on/i.test(title);
+  return {
+    id,
+    title,
+    subtitle: judgeMdVideoSubtitle(title),
+    posterUrl: `${JUDGEMD_GCS_BASE}/posters/${id}.jpg`,
+    captions: [
+      {
+        src: `${JUDGEMD_GCS_BASE}/captions/${id}.vtt`,
+        label: "English",
+        srclang: "en",
+        kind: "captions",
+        default: true,
+      },
+    ],
+    sources: [
+      {
+        src: `${JUDGEMD_GCS_BASE}/videos/${id}.mp4`,
+        mimeType: "video/mp4",
+      },
+    ],
+    matchAgainstPlanSpecificsOnly: isMoisturizerEducation || undefined,
+    requiresSkincareProductRole: isMoisturizerEducation ? "moisturizer" : undefined,
+    matchKeywords: isMoisturizerEducation
+      ? [
+          "moisturizer",
+          "moisturizing",
+          "moisture",
+          "daily moisture",
+          "triple lipid",
+          "emollience",
+          "hydra balm",
+          "renew overnight",
+          "cream",
+          "barrier",
+        ]
+      : judgeMdVideoKeywords(title),
+  };
+}
+
+export const POST_VISIT_BLUEPRINT_JUDGEMD_VIDEOS: PostVisitBlueprintVideo[] =
+  JUDGEMD_REEL_FILES.map(judgeMdVideoFromPath);
 
 /**
  * Dr. Reddy educational clips on Vimeo for Wellnest MD (`Wellnest1300`) patient blueprints.
@@ -486,14 +790,23 @@ export const POST_VISIT_BLUEPRINT_WELLNEST_VIMEO_VIDEOS: PostVisitBlueprintVideo
 export function getPostVisitBlueprintVideoCatalog(
   providerCode?: string | null,
 ): PostVisitBlueprintVideo[] {
-  return isWellnestWellnessProviderCode(providerCode)
-    ? POST_VISIT_BLUEPRINT_WELLNEST_VIMEO_VIDEOS
-    : POST_VISIT_BLUEPRINT_VIDEOS;
+  if (isWellnestWellnessProviderCode(providerCode)) {
+    return POST_VISIT_BLUEPRINT_WELLNEST_VIMEO_VIDEOS;
+  }
+  if (isJudgeMdProviderCode(providerCode)) {
+    return POST_VISIT_BLUEPRINT_JUDGEMD_VIDEOS;
+  }
+  return POST_VISIT_BLUEPRINT_VIDEOS;
 }
 
 /** True when the catalog is the all-Vimeo Wellnest set (per-chapter limiting applies). */
 export function isWellnestVimeoVideoCatalog(catalog: PostVisitBlueprintVideo[]): boolean {
   return catalog.length > 0 && catalog.every((v) => Boolean(v.vimeoId));
+}
+
+/** True when the active catalog is JudgeMD's local reel set. */
+export function isJudgeMdReelVideoCatalog(catalog: PostVisitBlueprintVideo[]): boolean {
+  return catalog.length > 0 && catalog.every((v) => v.id.startsWith("judgemd_"));
 }
 
 function planHaystack(
@@ -529,6 +842,38 @@ function planSpecificHaystack(items: DiscussedItem[]): string {
     if (item.findings?.length) parts.push(...item.findings);
   }
   return parts.join(" ").toLowerCase();
+}
+
+function isSkincareMoisturizerPlanItem(item: DiscussedItem): boolean {
+  if ((item.treatment ?? "").trim().toLowerCase() !== "skincare") return false;
+  const text = [item.product, item.notes]
+    .map((v) => v?.trim() ?? "")
+    .join(" ")
+    .toLowerCase();
+  if (!text) return false;
+  if (/\b(eye|lip)\b/.test(text) && /\b(cream|balm|treatment)\b/.test(text)) {
+    return false;
+  }
+  if (
+    /\b(cleanser|cleansing|wash|toner|mist|mask|scrub|spf|sunscreen|uv defense|serum|retinol)\b/.test(
+      text,
+    ) &&
+    !/\b(moisturizer|moisturizing|moisture|cream|balm|barrier)\b/.test(text)
+  ) {
+    return false;
+  }
+  return /\b(moisturizer|moisturizing|moisture|daily moisture|triple lipid|emollience|hydra balm|renew overnight|cream|gel-cream|barrier)\b/.test(
+    text,
+  );
+}
+
+function chapterHasRequiredVideoSkincareRole(
+  items: DiscussedItem[],
+  role: PostVisitBlueprintVideo["requiresSkincareProductRole"],
+): boolean {
+  if (!role) return true;
+  if (role === "moisturizer") return items.some(isSkincareMoisturizerPlanItem);
+  return true;
 }
 
 function wellnestChapterContext(items: DiscussedItem[]): {
@@ -626,11 +971,23 @@ function selectDefaultChapterVideos(
   const specificsHaystack = planSpecificHaystack(items);
   const ordered = orderBlueprintVideosForPlan(items, catalog);
 
-  return ordered.filter((v) => {
+  const matched = ordered.filter((v) => {
+    if (!chapterHasRequiredVideoSkincareRole(items, v.requiresSkincareProductRole)) {
+      return false;
+    }
     const hay = v.matchAgainstPlanSpecificsOnly ? specificsHaystack : fullHaystack;
     if (!hay.trim()) return false;
     return v.matchKeywords.some((kw) => hay.includes(kw.toLowerCase()));
   });
+  if (!isJudgeMdReelVideoCatalog(catalog)) return matched;
+  const seenTitles = new Set<string>();
+  const deduped = matched.filter((video) => {
+    const key = video.title.trim().toLowerCase();
+    if (seenTitles.has(key)) return false;
+    seenTitles.add(key);
+    return true;
+  });
+  return deduped.slice(0, JUDGEMD_CHAPTER_VIDEO_MAX);
 }
 
 /**

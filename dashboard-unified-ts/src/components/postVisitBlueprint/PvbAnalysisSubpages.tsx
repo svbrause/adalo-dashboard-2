@@ -30,7 +30,14 @@ import {
   pickCasePhotoUrlForPlanRow,
   pickSuggestionOrCasePhotoForPlanRow,
   type BlueprintCasePhoto,
+  type CasePhotoRankingPatient,
 } from "../../utils/postVisitBlueprintCases";
+import {
+  getEffectivePriceList,
+  getPriceRange2025,
+  normalizePlanTreatmentCategoryForPricing,
+  type DashboardTreatmentCategory,
+} from "../../data/treatmentPricing2025";
 import {
   trackPostVisitBlueprintEvent,
   type BlueprintPatientAnalyticsBase,
@@ -240,8 +247,19 @@ function truncateTxDesc(s: string): string {
   return `${t.slice(0, TX_DESC_MAX).trim()}…`;
 }
 
+function sheetPriceRangeForPlanCategory(
+  categoryLabel: string,
+  providerCode?: string | null,
+): string | undefined {
+  const priceList = getEffectivePriceList(undefined, providerCode);
+  const catRaw = normalizePlanTreatmentCategoryForPricing(categoryLabel);
+  if (!catRaw) return undefined;
+  return getPriceRange2025(catRaw as DashboardTreatmentCategory, priceList);
+}
+
 function getTreatmentMetaForPlanRow(
   row: PlanTreatmentRow,
+  providerCode?: string | null,
 ): { longevity?: string; downtime?: string; priceRange?: string } {
   const dk = row.key.trim().toLowerCase();
 
@@ -256,18 +274,37 @@ function getTreatmentMetaForPlanRow(
         : base.longevity;
     const downtime =
       resolveOtherProcedureSubChapterDowntime(row.displayName) ?? base.downtime;
-    return { ...base, longevity, downtime };
+    const pr =
+      sheetPriceRangeForPlanCategory("Other procedures", providerCode) ??
+      base.priceRange;
+    return { ...base, longevity, downtime, priceRange: pr };
   }
 
   const byKey = Object.keys(TREATMENT_META).find((k) => k.toLowerCase() === dk);
-  if (byKey) return TREATMENT_META[byKey];
+  if (byKey) {
+    const base = TREATMENT_META[byKey];
+    const pr =
+      sheetPriceRangeForPlanCategory(byKey, providerCode) ?? base.priceRange;
+    return { ...base, priceRange: pr };
+  }
   const dn = row.displayName.trim();
-  if (TREATMENT_META[dn]) return TREATMENT_META[dn];
+  if (TREATMENT_META[dn]) {
+    const base = TREATMENT_META[dn];
+    const pr =
+      sheetPriceRangeForPlanCategory(dn, providerCode) ?? base.priceRange;
+    return { ...base, priceRange: pr };
+  }
   const ci = Object.keys(TREATMENT_META).find(
     (k) => k.toLowerCase() === dn.toLowerCase(),
   );
-  if (ci) return TREATMENT_META[ci];
-  return {};
+  if (ci) {
+    const base = TREATMENT_META[ci];
+    const pr =
+      sheetPriceRangeForPlanCategory(ci, providerCode) ?? base.priceRange;
+    return { ...base, priceRange: pr };
+  }
+  const fallback = sheetPriceRangeForPlanCategory(dn, providerCode);
+  return fallback ? { priceRange: fallback } : {};
 }
 
 function planRowDescription(row: PlanTreatmentRow): string {
@@ -338,6 +375,8 @@ export function PvbTreatmentPlanDetailSubpage({
   casePhotos = [],
   suggestionCards,
   heroPhotoFallbackUrl,
+  providerCode,
+  casePhotoRankingPatient,
   onBack,
   onJumpToTreatment,
   blueprintAnalyticsBase,
@@ -348,6 +387,9 @@ export function PvbTreatmentPlanDetailSubpage({
   suggestionCards?: PatientSuggestionCard[];
   /** Front photo when no case / suggestion image */
   heroPhotoFallbackUrl?: string | null;
+  /** Signed-in practice code — drives JudgeMD / Wellnest price bands on this subpage. */
+  providerCode?: string | null;
+  casePhotoRankingPatient?: CasePhotoRankingPatient;
   onBack: () => void;
   onJumpToTreatment: (anchorId: string) => void;
   blueprintAnalyticsBase?: BlueprintPatientAnalyticsBase;
@@ -366,8 +408,11 @@ export function PvbTreatmentPlanDetailSubpage({
     casePhotos,
     matchedSuggestion,
     heroPhotoFallbackUrl,
+    casePhotoRankingPatient
+      ? { patient: casePhotoRankingPatient }
+      : undefined,
   );
-  const meta = getTreatmentMetaForPlanRow(row);
+  const meta = getTreatmentMetaForPlanRow(row, providerCode);
   const initials = row.displayName
     .split(/\s+/)
     .map((w) => w[0])
@@ -440,6 +485,9 @@ export function PvbTreatmentPlanDetailSubpage({
           <h1 className="pvb-suggestion-page__title" id="pvb-subpage-tx-title">
             {row.displayName}
           </h1>
+          {row.plannedForSummaryLine ? (
+            <p className="pvb-suggestion-page__planned">{row.plannedForSummaryLine}</p>
+          ) : null}
           {metaLine ? <p className="pvb-suggestion-page__area">{metaLine}</p> : null}
         </div>
 
@@ -529,6 +577,8 @@ function PvbRelatedPlanTreatmentsSection({
   rows,
   casePhotos = [],
   patientPhotoFallbackUrl,
+  providerCode,
+  casePhotoRankingPatient,
   onOpenTreatmentDetails,
   blueprintAnalyticsBase,
 }: {
@@ -536,6 +586,8 @@ function PvbRelatedPlanTreatmentsSection({
   casePhotos?: BlueprintCasePhoto[];
   /** When no Treatment Explorer match, show patient photo so cards stay personal */
   patientPhotoFallbackUrl?: string | null;
+  providerCode?: string | null;
+  casePhotoRankingPatient?: CasePhotoRankingPatient;
   onOpenTreatmentDetails: (row: PlanTreatmentRow) => void;
   blueprintAnalyticsBase?: BlueprintPatientAnalyticsBase;
 }) {
@@ -578,10 +630,12 @@ function PvbRelatedPlanTreatmentsSection({
       <ul className="pvb-tx-card-list">
         {rows.map((row) => {
           const photoUrl =
-            pickCasePhotoUrlForPlanRow(row, casePhotos) ??
+            pickCasePhotoUrlForPlanRow(row, casePhotos, {
+              patient: casePhotoRankingPatient,
+            }) ??
             patientPhotoFallbackUrl?.trim() ??
             null;
-          const meta = getTreatmentMetaForPlanRow(row);
+          const meta = getTreatmentMetaForPlanRow(row, providerCode);
           const desc = planRowDescription(row);
           const initials = row.displayName
             .split(/\s+/)
@@ -714,6 +768,8 @@ export function PvbCategoryDetailSubpage({
   onOpenTreatmentDetails,
   onOpenEyeAreaDetails,
   patientPhotoUrl,
+  providerCode,
+  casePhotoRankingPatient,
   blueprintAnalyticsBase,
 }: {
   cat: SnapshotCategory;
@@ -729,6 +785,8 @@ export function PvbCategoryDetailSubpage({
   onOpenEyeAreaDetails?: () => void;
   /** Front / scan reference (same as page hero) */
   patientPhotoUrl?: string | null;
+  providerCode?: string | null;
+  casePhotoRankingPatient?: CasePhotoRankingPatient;
   blueprintAnalyticsBase?: BlueprintPatientAnalyticsBase;
 }) {
   useEffect(() => {
@@ -823,6 +881,8 @@ export function PvbCategoryDetailSubpage({
           rows={relevantPlans}
           casePhotos={casePhotos}
           patientPhotoFallbackUrl={patientPhotoUrl}
+          providerCode={providerCode}
+          casePhotoRankingPatient={casePhotoRankingPatient}
           onOpenTreatmentDetails={onOpenTreatmentDetails}
           blueprintAnalyticsBase={blueprintAnalyticsBase}
         />
@@ -844,6 +904,8 @@ export function PvbAreaDetailSubpage({
   onBack,
   onOpenTreatmentDetails,
   patientPhotoUrl,
+  providerCode,
+  casePhotoRankingPatient,
   blueprintAnalyticsBase,
 }: {
   area: SnapshotArea;
@@ -854,6 +916,8 @@ export function PvbAreaDetailSubpage({
   onBack: () => void;
   onOpenTreatmentDetails: (row: PlanTreatmentRow) => void;
   patientPhotoUrl?: string | null;
+  providerCode?: string | null;
+  casePhotoRankingPatient?: CasePhotoRankingPatient;
   blueprintAnalyticsBase?: BlueprintPatientAnalyticsBase;
 }) {
   useEffect(() => {
@@ -1000,6 +1064,8 @@ export function PvbAreaDetailSubpage({
           rows={relevantPlans}
           casePhotos={casePhotos}
           patientPhotoFallbackUrl={patientPhotoUrl}
+          providerCode={providerCode}
+          casePhotoRankingPatient={casePhotoRankingPatient}
           onOpenTreatmentDetails={onOpenTreatmentDetails}
           blueprintAnalyticsBase={blueprintAnalyticsBase}
         />

@@ -13,6 +13,7 @@ import {
   buildBlueprintChapterSchedule,
   planItemsForBlueprintChapterSlot,
 } from "./pvbChapterSchedule";
+import { blueprintPlannedForDatesSummaryLine } from "./planScheduledDate";
 import {
   getDetectedIssueDisplayStrings,
   getDetectedIssuesFromClient,
@@ -367,6 +368,8 @@ export type PlanTreatmentRow = {
   anchorId: string;
   interest?: string;
   findings: string[];
+  /** Distinct scheduled calendar days for plan lines in this chapter (patient-facing). */
+  plannedForSummaryLine?: string | null;
 };
 
 export function buildPlanTreatmentRows(
@@ -400,6 +403,7 @@ export function buildPlanTreatmentRows(
       anchorId: treatmentChapterAnchorId(slot.key),
       interest: interests.size ? Array.from(interests).join(" · ") : undefined,
       findings: Array.from(findings),
+      plannedForSummaryLine: blueprintPlannedForDatesSummaryLine(planItems),
     });
   }
   return rows;

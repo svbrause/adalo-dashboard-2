@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
+  /** Semver from `package.json`, injected at build in vite.config.ts. */
+  readonly VITE_APP_VERSION: string;
   /**
    * Show the “Gemini” wordmark next to AI copy. Default off; set to `true` to show.
    */
@@ -18,12 +20,17 @@ interface ImportMetaEnv {
   readonly VITE_OPENAI_MODEL?: string;
   /**
    * Google Cloud Text-to-Speech — POST JSON `{ text, voiceName?, languageCode?, speakingRate? }`
-   * to your backend; response `audio/mpeg`. Same GCP project / service account as GCS is fine.
+   * to your backend; response `audio/mpeg`. Defaults to `{VITE_BACKEND_API_URL}/api/tts/google-cloud`.
+   * Same GCP project / service account as GCS is fine.
    */
   readonly VITE_GOOGLE_TTS_PROXY_URL?: string;
-  /** Optional defaults forwarded to the proxy (e.g. `en-US-Neural2-F`, `en-US`). */
+  /**
+   * Optional overrides for the proxy. When unset, the app defaults to British Chirp 3 HD
+   * (`en-GB-Chirp3-HD-Aoede` / `en-GB`) at a calmer speaking rate.
+   */
   readonly VITE_GOOGLE_TTS_VOICE_NAME?: string;
   readonly VITE_GOOGLE_TTS_LANGUAGE_CODE?: string;
+  readonly VITE_GOOGLE_TTS_SPEAKING_RATE?: string;
   readonly VITE_ELEVENLABS_PROXY_URL?: string;
   readonly VITE_ELEVENLABS_API_KEY?: string;
   readonly VITE_ELEVENLABS_VOICE_ID?: string;

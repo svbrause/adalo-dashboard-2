@@ -22,6 +22,7 @@ import {
   getSkincareCarouselItems,
   getCheckoutTreatmentTypeOptionsForProvider,
   CHECKOUT_REGION_OPTIONS_BROAD,
+  ENERGY_TREATMENT_WHERE_OPTIONS,
   CHEMICAL_PEEL_AREA_OPTIONS,
   TREATMENTS_WITH_BROAD_REGION,
   TREATMENTS_WITH_NO_REGION,
@@ -30,10 +31,7 @@ import {
   TIMELINE_OPTIONS,
   PRFM_INJECTION_WHERE_OPTIONS,
 } from "./constants";
-import {
-  getWellnestOfferingByTreatmentName,
-  isWellnestWellnessProviderCode,
-} from "../../../data/wellnestOfferings";
+import { getWellnestOfferingByTreatmentName } from "../../../data/wellnestOfferings";
 import {
   isJudgeMdProviderCode,
   isJudgeMdSurgeryPlanCategory,
@@ -41,6 +39,7 @@ import {
 import { RECOMMENDED_PRODUCT_REASONS } from "../../../data/skinTypeQuiz";
 import { getQuoteLineDiscussedItemIndexOrder } from "../../../utils/pvbQuotePartition";
 import { isWishlistTimelineDiscussedItem } from "../../../utils/postVisitBlueprint";
+import { isTheTreatmentProviderCode } from "../../../utils/providerHelpers";
 import { MintMembershipInfoTrigger } from "../../shared/MintMembershipInfoTrigger";
 
 export interface TreatmentPlanCheckoutProps {
@@ -96,10 +95,11 @@ function matchSkincareProduct(
 function getQuantityOptionsForCheckout(
   treatment: string | undefined,
   product?: string,
+  providerCode?: string,
 ): { label: string; options: string[] } | null {
   const t = (treatment ?? "").trim();
   if (t === "Skincare") return null;
-  const result = getQuantityContext(treatment ?? "", product);
+  const result = getQuantityContext(treatment ?? "", product, providerCode);
   return { label: result.unitLabel, options: result.options };
 }
 
@@ -135,8 +135,8 @@ function getRegionOptionsForTreatment(
     }
     return [];
   }
-  return isEnergyTreatmentCategory(t) ||
-    (TREATMENTS_WITH_BROAD_REGION as readonly string[]).includes(t)
+  if (isEnergyTreatmentCategory(t)) return ENERGY_TREATMENT_WHERE_OPTIONS;
+  return (TREATMENTS_WITH_BROAD_REGION as readonly string[]).includes(t)
     ? CHECKOUT_REGION_OPTIONS_BROAD
     : REGION_OPTIONS;
 }
@@ -158,6 +158,23 @@ function getDisplayRegionForCheckout(
       lower.includes("full face"))
   )
     return "Face";
+  if (
+    optList.includes("Full Face") &&
+    (lower === "face" || lower.includes("full face"))
+  )
+    return "Full Face";
+  const faceNeckChest = optList.find((o) =>
+    o.toLowerCase().includes("face") &&
+    o.toLowerCase().includes("neck") &&
+    o.toLowerCase().includes("chest"),
+  );
+  if (
+    faceNeckChest &&
+    lower.includes("face") &&
+    lower.includes("neck") &&
+    lower.includes("chest")
+  )
+    return faceNeckChest;
   if (optList.includes("Neck") && lower.includes("neck")) return "Neck";
   if (optList.includes("Chest") && lower.includes("chest")) return "Chest";
   const parts = r
@@ -246,6 +263,9 @@ export default function TreatmentPlanCheckout({
   const [overrideProduct, setOverrideProduct] = useState<
     Record<string, string>
   >({});
+  const [overrideInterval, setOverrideInterval] = useState<
+    Record<string, string>
+  >({});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<{
     item: DiscussedItem;
@@ -283,9 +303,13 @@ export default function TreatmentPlanCheckout({
               ? overrideTimeline[key]
               : i.timeline,
           quantity: overrides[key] !== undefined ? overrides[key] : i.quantity,
+          treatmentInterval:
+            overrideInterval[key] !== undefined
+              ? overrideInterval[key]
+              : i.treatmentInterval,
         };
       }),
-    [items, overrides, overrideRegion, overrideTimeline, overrideProduct],
+    [items, overrides, overrideRegion, overrideTimeline, overrideProduct, overrideInterval],
   );
 
   const getSkincareProductInfo = useMemo((): ((
@@ -403,7 +427,7 @@ export default function TreatmentPlanCheckout({
 
   if (items.length === 0) return null;
 
-  const allowMintMembership = !isWellnestWellnessProviderCode(providerCode);
+  const allowMintMembership = isTheTreatmentProviderCode(providerCode);
   const effectiveMintMember = allowMintMembership ? isMintMember : false;
   const subtotal = quoteData.total;
   const mintDiscount = effectiveMintMember && subtotal > 0 ? subtotal * 0.1 : 0;
@@ -607,6 +631,7 @@ export default function TreatmentPlanCheckout({
               quantityOptions={getQuantityOptionsForCheckout(
                 editingItem.treatment,
                 editingItem.product ?? undefined,
+                providerCode,
               )}
               checkoutTypeOptions={checkoutTypeOptions}
               onQuantityChange={(value) =>
@@ -623,6 +648,12 @@ export default function TreatmentPlanCheckout({
               }
               onProductChange={(value) =>
                 setOverrideProduct((prev) => ({ ...prev, [editingKey]: value }))
+              }
+              intervalValue={
+                overrideInterval[editingKey] ?? editingItem.treatmentInterval ?? ""
+              }
+              onIntervalChange={(value) =>
+                setOverrideInterval((prev) => ({ ...prev, [editingKey]: value }))
               }
               getRecommendedForSkincare={getRecommendedForSkincare}
               whenOneClick
@@ -786,6 +817,8 @@ function CheckoutDetailPanel({
   onRegionChange,
   onTimelineChange,
   onProductChange,
+  intervalValue,
+  onIntervalChange,
   getRecommendedForSkincare,
   whenOneClick,
   onMoveToWishlist,
@@ -805,6 +838,8 @@ function CheckoutDetailPanel({
   onRegionChange: (value: string) => void;
   onTimelineChange: (value: string) => void;
   onProductChange: (value: string) => void;
+  intervalValue?: string;
+  onIntervalChange?: (value: string) => void;
   getRecommendedForSkincare: (productName: string) => string;
   whenOneClick?: boolean;
   onMoveToWishlist?: () => void;
@@ -832,6 +867,12 @@ function CheckoutDetailPanel({
     providerCode,
   );
 
+  const intervalOptions = getQuantityContext(
+    item.treatment ?? "",
+    item.product ?? undefined,
+    providerCode,
+  ).intervalOptions ?? [];
+
   const isAddForm = variant === "add-form";
 
   if (isAddForm) {
@@ -840,7 +881,43 @@ function CheckoutDetailPanel({
         className="treatment-recommender-by-treatment__add-form"
         aria-label="Edit item"
       >
-        {/* Energy Treatment: Type chips only (no Where). */}
+        {/* Energy Treatment: Where and Type. */}
+        {isEnergyTreatmentCategory(treatmentKey) && regionOptions.length > 0 && (
+          <div className="treatment-recommender-by-treatment__add-row">
+            <span className="treatment-recommender-by-treatment__add-row-label">
+              Where:
+            </span>
+            <div className="treatment-recommender-by-treatment__chips">
+              {regionOptions.map((r) => {
+                const currentWhere =
+                  getDisplayRegionForCheckout(item.region, regionOptions) || "";
+                const selected = currentWhere === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                    onClick={() => onRegionChange(r)}
+                    title={selected ? `Selected: ${r}` : `Select ${r}`}
+                    aria-label={selected ? `Selected: ${r}` : `Select ${r}`}
+                  >
+                    <span className="treatment-recommender-by-treatment__chip-label">
+                      {r}
+                    </span>
+                    {selected && (
+                      <span
+                        className="treatment-recommender-by-treatment__chip-remove"
+                        aria-hidden
+                      >
+                        ×
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {isEnergyTreatmentCategory(treatmentKey) && showTypeSelect && (
           <div className="treatment-recommender-by-treatment__add-row">
             <span className="treatment-recommender-by-treatment__add-row-label">
@@ -1286,6 +1363,25 @@ function CheckoutDetailPanel({
                     </span>
                   </button>
                 ))}
+            </div>
+          </div>
+        )}
+        {intervalOptions.length > 0 && onIntervalChange && (
+          <div className="treatment-recommender-by-treatment__add-row">
+            <span>Interval:</span>
+            <div className="treatment-recommender-by-treatment__chips">
+              {intervalOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  className={`treatment-recommender-by-treatment__chip${(intervalValue ?? "") === opt ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                  onClick={() => onIntervalChange((intervalValue ?? "") === opt ? "" : opt)}
+                >
+                  <span className="treatment-recommender-by-treatment__chip-label">
+                    {opt}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         )}

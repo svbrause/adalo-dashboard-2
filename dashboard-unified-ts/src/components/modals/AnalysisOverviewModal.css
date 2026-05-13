@@ -1,5 +1,24 @@
 /* Analysis Overview Modal */
 
+/* Embedded inside element fullscreen (no overlay) */
+.analysis-overview-modal__embedded-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--theme-bg-card, #fff);
+}
+
+.analysis-overview-modal.analysis-overview-modal--embedded {
+  min-height: 0;
+  flex: 1;
+}
+
+.analysis-overview-modal.analysis-overview-modal--embedded .analysis-overview-modal__body {
+  min-height: 0;
+}
+
 .analysis-overview-modal {
   max-width: 1080px;
   width: 92vw;
@@ -533,6 +552,60 @@
 .ao-modal-cat-card__explore:hover {
   background: rgba(0, 0, 0, 0.04);
   border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* ===================== Severity scores section ===================== */
+.analysis-overview-modal__severity {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-overview-modal__severity-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.analysis-overview-modal__severity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.analysis-overview-modal__severity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--theme-border, #e8e8e8);
+  border-radius: 10px;
+  background: var(--theme-bg-card, #fff);
+}
+
+.analysis-overview-modal__severity-item-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.analysis-overview-modal__severity-issue {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--theme-text-primary, #212121);
+}
+
+.analysis-overview-modal__severity-source {
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary, #757575);
+}
+
+.analysis-overview-modal__severity-item-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 /* ===================== Areas section ===================== */

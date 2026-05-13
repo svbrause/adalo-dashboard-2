@@ -277,6 +277,23 @@ export const WELLNEST_BROWSE_GROUP_LABELS: Record<string, string> = {
   longevity: "Longevity",
 };
 
+export const WELLNEST_BROWSE_GROUP_DESCRIPTIONS: Record<string, string> = {
+  "recovery-tissue":
+    "Peptides that support soft-tissue repair, tendon and ligament healing, and reduced inflammation. BPC-157 also has GI lining support properties. Relevant for active injuries, post-surgical recovery, or chronic inflammatory conditions.",
+  "gh-performance":
+    "Growth hormone secretagogues that stimulate natural GH release from the pituitary. Benefits include improved body composition, lean muscle preservation, faster recovery, deeper sleep, and anti-aging effects. Most relevant for adults 40+ experiencing age-related GH decline.",
+  "cognition-mood":
+    "Peptides targeting brain function and emotional regulation. Semax addresses brain fog and cognitive performance; Selank has anxiolytic and mood-balancing effects; P-21 and Pinealon support synapse health and are typically used in older patients for cognitive protection.",
+  "metabolic-composition":
+    "Peptides that support fat metabolism and body composition. Tesamorelin and AOD-9604 promote fat loss — particularly visceral adipose tissue — and are used as adjuncts to diet and exercise.",
+  "skin-aesthetic":
+    "Peptides targeting skin quality and appearance. GHK-Cu stimulates collagen and elastin production, improving firmness and reducing laxity. Melanotan 2 increases melanin for natural tanning support and may also support libido.",
+  "bone-joint":
+    "Compounds supporting skeletal and joint health. MK-677 supports bone density and is relevant for osteoporosis risk. Cartalax supports cartilage repair and is used for joint degeneration or arthritis.",
+  longevity:
+    "Compounds associated with healthy aging and cellular longevity. Epitalon is a tetrapeptide linked to telomere regulation and metabolism reset, used by patients with a focus on extending healthspan.",
+};
+
 export type WellnestPriceBand = "budget" | "mid" | "premium" | "variable";
 
 /** Bucket list pricing for filter chips (uses highest number in the price string). */
@@ -338,7 +355,7 @@ export function isWellnestWellnessProviderCode(
   code: string | null | undefined,
 ): boolean {
   const c = (code ?? "").trim().toLowerCase();
-  return c === WELLNEST_PROVIDER_CODE.toLowerCase();
+  return c === WELLNEST_PROVIDER_CODE.toLowerCase() || c.startsWith("wellnest");
 }
 
 export function getWellnestOfferingByTreatmentName(

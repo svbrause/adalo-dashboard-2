@@ -3,10 +3,12 @@
 import type { DiscussedItem } from "../../../types";
 import {
   formatTreatmentPlanRowFullLine,
+  getDiscussedItemCheckedOffLabel,
   getTreatmentPlanRowPrimaryLabel,
   getTreatmentPlanRowSecondaryLabel,
   timelineOptionDisplayLabel,
 } from "./utils";
+import { isPlanQuoteCoreDiscussedItem } from "../../../utils/discussedPlanQuoteRole";
 
 export interface NewItemPreview {
   primary: string;
@@ -21,6 +23,7 @@ export interface NewItemPreview {
 
 interface PlanListColumnProps {
   clientName: string;
+  planLastUpdatedShort?: string | null;
   items: DiscussedItem[];
   itemsBySection: Record<string, DiscussedItem[]>;
   sectionLabels: readonly string[];
@@ -39,10 +42,13 @@ interface PlanListColumnProps {
   onDrop: (e: React.DragEvent<HTMLElement>, sectionLabel: string) => void;
   /** Short labels (e.g. “Needs units”) when checkout pricing is incomplete for that row. */
   planPricingBadgeByItemId?: ReadonlyMap<string, string>;
+  /** JudgeMD: show concrete add-on vs locked-in example in the list hint. */
+  showJudgeMdAddOnExample?: boolean;
 }
 
 export default function PlanListColumn({
   clientName,
+  planLastUpdatedShort,
   items,
   itemsBySection,
   sectionLabels,
@@ -60,6 +66,7 @@ export default function PlanListColumn({
   onDragLeave,
   onDrop,
   planPricingBadgeByItemId,
+  showJudgeMdAddOnExample,
 }: PlanListColumnProps) {
   const firstName = clientName?.trim().split(/\s+/)[0] || "Patient";
 
@@ -70,10 +77,17 @@ export default function PlanListColumn({
     >
       <div className="discussed-treatments-list-section discussed-treatments-master-list">
         <div className="discussed-treatments-master-list-header">
-          <h3 className="discussed-treatments-list-title">
-            {firstName}&apos;s plan ({items.length}{" "}
-            {items.length === 1 ? "item" : "items"})
-          </h3>
+          <div className="discussed-treatments-master-list-header-titles">
+            <h3 className="discussed-treatments-list-title">
+              {firstName}&apos;s plan ({items.length}{" "}
+              {items.length === 1 ? "item" : "items"})
+            </h3>
+            {planLastUpdatedShort ? (
+              <p className="discussed-treatments-list-last-updated">
+                Last updated {planLastUpdatedShort}
+              </p>
+            ) : null}
+          </div>
           <button
             type="button"
             className="btn-secondary btn-sm"
@@ -83,7 +97,17 @@ export default function PlanListColumn({
           </button>
         </div>
         <p className="discussed-treatments-list-hint">
-          Click a row to view details. Drag items to reorder between sections.
+          Click a row to view details; use Edit to lock lines into the patient
+          quote vs optional add-ons. Drag items to reorder between sections.
+          {showJudgeMdAddOnExample ? (
+            <>
+              {" "}
+              <span className="discussed-treatments-list-hint-example">
+                Example: abdomen and flanks lipo locked in, submental lipo as an
+                add-on on its own plan row (not locked).
+              </span>
+            </>
+          ) : null}
         </p>
         {!selectedPlanItemId && !editingId && showAddForm && (
           <div
@@ -214,12 +238,22 @@ export default function PlanListColumn({
                               {planSecondary}
                             </div>
                           ) : null}
+                          {(item.timeline ?? "").trim() === "Completed" ? (
+                            <div className="discussed-treatments-record-meta-line discussed-treatments-record-checked-off">
+                              {getDiscussedItemCheckedOffLabel(item)}
+                            </div>
+                          ) : null}
                           {pricingBadge ? (
                             <div
                               className="plan-pricing-warning-pill discussed-treatments-record-pricing-badge"
                               title="Add units or product type so checkout can show a firm price"
                             >
                               {pricingBadge}
+                            </div>
+                          ) : null}
+                          {isPlanQuoteCoreDiscussedItem(item) ? (
+                            <div className="discussed-treatments-record-plan-role-pill discussed-treatments-record-plan-role-pill--core">
+                              Locked in quote
                             </div>
                           ) : null}
                         </div>

@@ -2,6 +2,8 @@
 
 interface DiscussedTreatmentsModalHeaderProps {
   clientName: string;
+  /** Shown under the title when the plan has been saved (e.g. “Jun 26”). */
+  planLastUpdatedShort?: string | null;
   /** SMS summary (non–plan-link) or plan link — parent chooses */
   onShare: () => void;
   /** When false, Share button is hidden (e.g. empty plan). */
@@ -17,6 +19,7 @@ interface DiscussedTreatmentsModalHeaderProps {
 
 export default function DiscussedTreatmentsModalHeader({
   clientName,
+  planLastUpdatedShort,
   onShare,
   showShare = true,
   onClose,
@@ -43,6 +46,11 @@ export default function DiscussedTreatmentsModalHeader({
           Adding to the plan saves to their record. Pick a topic, check what you
           discussed, add to plan — then share when ready.
         </p>
+        {planLastUpdatedShort ? (
+          <p className="discussed-treatments-modal-header-last-updated">
+            Last updated {planLastUpdatedShort}
+          </p>
+        ) : null}
       </div>
       <div className="discussed-treatments-modal-header-actions">
         {onViewExamples && (

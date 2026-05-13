@@ -1,6 +1,14 @@
 // Utility to map Airtable records to Client format
 
-import { Client, AirtableRecord, DiscussedItem, SkincareQuizData } from "../types";
+import {
+  Client,
+  AirtableRecord,
+  DiscussedItem,
+  SkincareQuizData,
+  AnalysisSeverityScoresData,
+  WellnessQuizCategoryScore,
+  WellnessQuizData,
+} from "../types";
 import { coerceToAirtableNumberAge } from "./validation";
 
 /** Parse "Skincare Quiz" long text field (JSON) from Airtable fields. Exported for use when fetching quiz fields separately. */
@@ -29,6 +37,157 @@ export function parseSkincareQuizFromFields(fields: Record<string, unknown>): Sk
   } catch {
     return undefined;
   }
+}
+
+function parseWellnessQuizCategoryScores(
+  raw: unknown,
+): WellnessQuizCategoryScore[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: WellnessQuizCategoryScore[] = [];
+  for (const x of raw) {
+    if (!x || typeof x !== "object") continue;
+    const r = x as Record<string, unknown>;
+    if (
+      typeof r.id === "string" &&
+      typeof r.label === "string" &&
+      typeof r.percent === "number" &&
+      Number.isFinite(r.percent) &&
+      typeof r.raw === "number" &&
+      Number.isFinite(r.raw)
+    ) {
+      out.push({
+        id: r.id,
+        label: r.label,
+        percent: r.percent,
+        raw: r.raw,
+      });
+    }
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+/**
+ * Parse "Wellness Quiz" long text JSON from Airtable (v1 legacy or v2 with severity + categoryScores).
+ * Exported for API / standalone results validation.
+ */
+export function parseWellnessQuizJson(raw: string): WellnessQuizData | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  try {
+    const parsed = JSON.parse(t) as unknown;
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const o = parsed as Record<string, unknown>;
+    if (typeof o.completedAt !== "string") return undefined;
+    if (!o.answers || typeof o.answers !== "object" || Array.isArray(o.answers)) {
+      return undefined;
+    }
+
+    const ver = o.version;
+    const version: 1 | 2 = ver === 2 ? 2 : 1;
+
+    const ids = Array.isArray(o.suggestedTreatmentIds)
+      ? o.suggestedTreatmentIds.filter((x): x is string => typeof x === "string")
+      : [];
+
+    const categoryScores = parseWellnessQuizCategoryScores(o.categoryScores);
+
+    const base: WellnessQuizData = {
+      version,
+      completedAt: o.completedAt,
+      answers: o.answers as WellnessQuizData["answers"],
+      suggestedTreatmentIds: ids,
+    };
+    if (categoryScores && categoryScores.length > 0) {
+      base.categoryScores = categoryScores;
+    }
+    return base;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Read Wellness Quiz field from Airtable field map (supports alternate field name casing). */
+export function parseWellnessQuizFromFields(
+  fields: Record<string, unknown>,
+): WellnessQuizData | undefined {
+  const raw = fields["Wellness Quiz"] ?? fields["Wellness quiz"] ?? null;
+  if (!raw || typeof raw !== "string" || !raw.trim()) return undefined;
+  return parseWellnessQuizJson(raw);
+}
+
+function parseSeverityScoresFromFields(
+  fields: Record<string, unknown>,
+): AnalysisSeverityScoresData | undefined {
+  const raw = fields["Severity Scores (from Analyses)"] ?? null;
+  if (!raw) return undefined;
+
+  const normalizedRaw: unknown = Array.isArray(raw) ? raw[0] : raw;
+  if (!normalizedRaw) return undefined;
+
+  const parsed = (() => {
+    if (typeof normalizedRaw === "string") {
+      const t = normalizedRaw.trim();
+      if (!t) return null;
+      try {
+        return JSON.parse(t) as unknown;
+      } catch {
+        return null;
+      }
+    }
+    if (typeof normalizedRaw === "object") return normalizedRaw as unknown;
+    return null;
+  })();
+  if (!parsed || typeof parsed !== "object") return undefined;
+  const obj = parsed as Record<string, unknown>;
+  if (!obj.issues || typeof obj.issues !== "object" || Array.isArray(obj.issues)) {
+    return undefined;
+  }
+  const normalizedIssues: AnalysisSeverityScoresData["issues"] = {};
+  for (const [issueName, issueData] of Object.entries(
+    obj.issues as Record<string, unknown>,
+  )) {
+    if (!issueData || typeof issueData !== "object") continue;
+    const issue = issueData as Record<string, unknown>;
+    const rawNorm01 =
+      typeof issue.severity_normalized_0_1 === "number"
+        ? issue.severity_normalized_0_1
+        : typeof issue.severityNormalized01 === "number"
+          ? issue.severityNormalized01
+          : typeof issue.severityNormalized0_1 === "number"
+            ? issue.severityNormalized0_1
+            : undefined;
+    normalizedIssues[issueName] = {
+      predicted: issue.predicted === true,
+      probability:
+        typeof issue.probability === "number" && Number.isFinite(issue.probability)
+          ? issue.probability
+          : undefined,
+      severity:
+        typeof issue.severity === "number" && Number.isFinite(issue.severity)
+          ? issue.severity
+          : undefined,
+      severity_normalized_0_1:
+        typeof rawNorm01 === "number" && Number.isFinite(rawNorm01)
+          ? Math.max(0, Math.min(1, rawNorm01))
+          : undefined,
+      severity_level:
+        typeof issue.severity_level === "string" ? issue.severity_level : undefined,
+      source: typeof issue.source === "string" ? issue.source : undefined,
+      model_used:
+        typeof issue.model_used === "string" ? issue.model_used : undefined,
+    };
+  }
+  if (Object.keys(normalizedIssues).length === 0) return undefined;
+  return {
+    schema_version:
+      typeof obj.schema_version === "number" && Number.isFinite(obj.schema_version)
+        ? obj.schema_version
+        : undefined,
+    detector_type:
+      typeof obj.detector_type === "string" ? obj.detector_type : undefined,
+    submission_id: typeof obj.submission_id === "string" ? obj.submission_id : undefined,
+    issues: normalizedIssues,
+  };
 }
 
 /** Normalize Airtable "Wellness Goals": long text (comma / JSON array), or multi-select string array. */
@@ -497,28 +656,10 @@ export function mapRecordToClient(
     })(),
     contactHistory: [],
     skincareQuiz: parseSkincareQuizFromFields(fields as Record<string, unknown>),
-    wellnessQuiz: (() => {
-      const raw = fields["Wellness Quiz"] ?? fields["Wellness quiz"] ?? null;
-      if (!raw || typeof raw !== "string" || !raw.trim()) return undefined;
-      try {
-        const parsed = JSON.parse(raw) as unknown;
-        if (!parsed || typeof parsed !== "object") return undefined;
-        const o = parsed as Record<string, unknown>;
-        if (o.version !== 1 || typeof o.completedAt !== "string") return undefined;
-        if (!o.answers || typeof o.answers !== "object") return undefined;
-        const ids = Array.isArray(o.suggestedTreatmentIds)
-          ? o.suggestedTreatmentIds.filter((x): x is string => typeof x === "string")
-          : [];
-        return {
-          version: 1 as const,
-          completedAt: o.completedAt,
-          answers: o.answers as Record<string, number | number[]>,
-          suggestedTreatmentIds: ids,
-        };
-      } catch {
-        return undefined;
-      }
-    })(),
+    wellnessQuiz: parseWellnessQuizFromFields(fields as Record<string, unknown>),
+    severityScoresFromAnalyses: parseSeverityScoresFromFields(
+      fields as Record<string, unknown>,
+    ),
   };
 
   return client;

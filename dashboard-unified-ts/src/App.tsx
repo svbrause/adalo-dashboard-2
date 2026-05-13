@@ -15,9 +15,11 @@ import DebugPatientIssuesPage from "./debug/DebugPatientIssuesPage";
 import DebugIndexPage from "./debug/DebugIndexPage";
 import DebugClientDetailPage from "./components/debug/DebugClientDetailPage";
 import SkinQuizStandalonePage from "./components/pages/SkinQuizStandalonePage";
+import WellnessQuizStandalonePage from "./components/pages/WellnessQuizStandalonePage";
 import PostVisitBlueprintPage from "./components/pages/PostVisitBlueprintPage";
 import ProviderAdConceptsPage from "./components/pages/ProviderAdConceptsPage";
 import { isSkinQuizStandalonePath } from "./utils/skinQuizLink";
+import { isWellnessQuizStandalonePath } from "./utils/wellnessQuizLink";
 import { isPostVisitBlueprintPath } from "./utils/postVisitBlueprint";
 import FirebaseAdminPage from "./components/pages/FirebaseAdminPage";
 import StaffForgotPasswordPage from "./components/auth/StaffForgotPasswordPage";
@@ -121,6 +123,9 @@ function AppContent() {
   // Public standalone skin quiz (unique link from SMS) – no login
   if (isSkinQuizStandalonePath()) {
     return <SkinQuizStandalonePage />;
+  }
+  if (isWellnessQuizStandalonePath()) {
+    return <WellnessQuizStandalonePage />;
   }
   // Public shared treatment plan (`/tp`, `/treatment-plan`, legacy `/post-visit-blueprint`) – no login
   if (isPostVisitBlueprintPath()) {

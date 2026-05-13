@@ -48,7 +48,14 @@ const EXPECTED = [
     interestedIssues: "Brain fog, stress, sleep latency",
     goals: ["Sleep", "Focus", "Stress balance"],
     discussedCount: 3,
-    wellnessSuggestedIds: ["semax", "selank", "ipamorelin"],
+    wellnessSuggestedIds: [
+      "selank",
+      "ipamorelin",
+      "semax",
+      "bpc-157",
+      "tb-500",
+      "cjc-1295",
+    ],
   },
   {
     email: "wellnest-demo-taylor@demo.wellnest.local",
@@ -56,7 +63,15 @@ const EXPECTED = [
     interestedIssues: "Visceral fat, joint comfort, bone health",
     goals: ["Body composition", "Metabolic support"],
     discussedCount: 4,
-    wellnessSuggestedIds: ["tesamorelin", "aod-9604", "cartalax", "mk-677"],
+    wellnessSuggestedIds: [
+      "cartalax",
+      "tessamorelin",
+      "aod-9604",
+      "cjc-1295",
+      "epitalon",
+      "bpc-157",
+      "tb-500",
+    ],
   },
 ];
 

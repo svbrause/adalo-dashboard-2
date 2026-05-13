@@ -1,0 +1,87 @@
+{
+  "alex": {
+    "version": 2,
+    "completedAt": "2025-10-02T18:30:00.000Z",
+    "answers": {
+      "age": 1,
+      "activity": 2,
+      "bodyComposition": 3,
+      "skinInterest": 0,
+      "goals": [0, 2],
+      "goalsSeverity": { "0": 4, "2": 3 },
+      "conditions": [1],
+      "conditionsSeverity": { "1": 3 }
+    },
+    "suggestedTreatmentIds": ["bpc-157", "tb-500", "cjc-1295"],
+    "categoryScores": [
+      { "id": "gh-performance", "label": "GH · performance · sleep", "raw": 14.28, "percent": 100 },
+      { "id": "other", "label": "other", "raw": 10, "percent": 70 },
+      { "id": "recovery-tissue", "label": "Recovery & tissue", "raw": 9, "percent": 63 },
+      { "id": "cognition-mood", "label": "Cognition & mood", "raw": 2, "percent": 14 },
+      { "id": "skin-aesthetic", "label": "Skin & tanning", "raw": 1, "percent": 7 }
+    ]
+  },
+  "jordan": {
+    "version": 2,
+    "completedAt": "2025-10-08T14:00:00.000Z",
+    "answers": {
+      "age": 3,
+      "activity": 1,
+      "bodyComposition": 0,
+      "skinInterest": 0,
+      "goals": [3, 4, 5],
+      "goalsSeverity": { "3": 4, "4": 3, "5": 4 },
+      "conditions": [4],
+      "conditionsSeverity": {}
+    },
+    "suggestedTreatmentIds": [
+      "selank",
+      "ipamorelin",
+      "semax",
+      "bpc-157",
+      "tb-500",
+      "cjc-1295"
+    ],
+    "categoryScores": [
+      { "id": "cognition-mood", "label": "Cognition & mood", "raw": 11.96, "percent": 100 },
+      { "id": "gh-performance", "label": "GH · performance · sleep", "raw": 8.36, "percent": 70 },
+      { "id": "other", "label": "other", "raw": 6.64, "percent": 56 },
+      { "id": "recovery-tissue", "label": "Recovery & tissue", "raw": 2, "percent": 17 },
+      { "id": "skin-aesthetic", "label": "Skin & tanning", "raw": 1, "percent": 8 },
+      { "id": "bone-joint", "label": "Bone & joint", "raw": 1, "percent": 8 },
+      { "id": "longevity", "label": "Longevity", "raw": 1, "percent": 8 }
+    ]
+  },
+  "taylor": {
+    "version": 2,
+    "completedAt": "2025-10-12T11:15:00.000Z",
+    "answers": {
+      "age": 3,
+      "activity": 1,
+      "bodyComposition": 2,
+      "skinInterest": 0,
+      "goals": [7, 8],
+      "goalsSeverity": { "7": 4, "8": 4 },
+      "conditions": [3],
+      "conditionsSeverity": { "3": 4 }
+    },
+    "suggestedTreatmentIds": [
+      "cartalax",
+      "tessamorelin",
+      "aod-9604",
+      "cjc-1295",
+      "epitalon",
+      "bpc-157",
+      "tb-500"
+    ],
+    "categoryScores": [
+      { "id": "other", "label": "other", "raw": 13.72, "percent": 100 },
+      { "id": "bone-joint", "label": "Bone & joint", "raw": 12.76, "percent": 93 },
+      { "id": "gh-performance", "label": "GH · performance · sleep", "raw": 6.68, "percent": 49 },
+      { "id": "longevity", "label": "Longevity", "raw": 2.68, "percent": 20 },
+      { "id": "recovery-tissue", "label": "Recovery & tissue", "raw": 2, "percent": 15 },
+      { "id": "cognition-mood", "label": "Cognition & mood", "raw": 2, "percent": 15 },
+      { "id": "skin-aesthetic", "label": "Skin & tanning", "raw": 1, "percent": 7 }
+    ]
+  }
+}

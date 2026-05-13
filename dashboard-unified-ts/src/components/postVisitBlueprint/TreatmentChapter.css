@@ -59,6 +59,14 @@
   letter-spacing: -0.02em;
 }
 
+.tc-head-planned {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #64748b;
+}
+
 /* Neurotoxin: areas + planned date (replaces chip row for this chapter) */
 .tc-neuro-areas {
   margin-bottom: 18px;
@@ -126,6 +134,53 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #64748b;
+}
+
+.tc-area-mirror {
+  display: grid;
+  /* Bias width toward the face mirror so region highlights / callouts read more clearly */
+  grid-template-columns: minmax(200px, 1.38fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  margin: 0 0 18px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.86);
+  border: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.tc-area-mirror__media,
+.tc-area-mirror__copy {
+  min-width: 0;
+}
+
+.tc-area-mirror__copy .tc-section-label {
+  margin-bottom: 8px;
+}
+
+.tc-area-mirror__media .ai-mirror-canvas-wrap {
+  border-radius: 12px;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+}
+
+.tc-area-mirror__media .ai-mirror-canvas,
+.tc-area-mirror__media .ai-mirror-fallback-img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  object-position: center;
+}
+
+.tc-area-mirror__copy .pvb-chips {
+  gap: 6px;
+}
+
+.tc-area-mirror__copy .pvb-chip {
+  font-size: 0.76rem;
+  line-height: 1.2;
 }
 
 /* Chapter overview — treatment context, plan lines, analysis tie-in */
@@ -301,8 +356,8 @@
 
 .tc-video-thumbs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
   /* Bleed to card edges (same idea as photo carousel) so thumbs are wider */
   width: calc(100% + 40px);
   margin-left: -20px;
@@ -337,7 +392,7 @@
   position: relative; /* required so video + play overlay fill this box */
   display: block;
   width: 100%;
-  min-height: 96px;
+  min-height: 130px;
   aspect-ratio: 16 / 9;
   border-radius: 12px;
   overflow: hidden;
@@ -411,9 +466,9 @@
   position: relative;
   z-index: 6;
   margin-left: 3px; /* optical center for ▶ */
-  font-size: 1.08em;
+  font-size: 2em;
   font-weight: 900;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .tc-video-thumb-title {
@@ -481,7 +536,7 @@
 }
 
 .tc-video-modal-title {
-  margin: 0 44px 8px 0;
+  margin: 0 44px 4px 0;
   font-size: 1.1rem;
   font-weight: 800;
   color: #3a3c3e;
@@ -490,10 +545,55 @@
 }
 
 .tc-video-modal-sub {
-  margin: 0 0 14px;
+  margin: 0 0 8px;
   font-size: 0.88rem;
   color: #64748b;
   line-height: 1.45;
+}
+
+.tc-video-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
+}
+
+.tc-video-caption-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #475569;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tc-video-caption-toggle span:first-child {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 18px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.tc-video-caption-toggle--on {
+  border-color: #0f766e;
+  background: #ecfdf5;
+  color: #0f766e;
+}
+
+.tc-video-caption-toggle--on span:first-child {
+  background: #0f766e;
+  color: #ffffff;
 }
 
 .tc-video-modal-frame {
@@ -583,6 +683,7 @@
 }
 
 .tc-carousel-img-wrap {
+  position: relative;
   background: #eceeed;
 }
 
@@ -592,6 +693,26 @@
   /* Landscape frame — shorter than square; cover keeps subject centered */
   aspect-ratio: 4 / 3;
   object-fit: cover;
+}
+
+.tc-provider-result-badge,
+.tc-source-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  max-width: calc(100% - 20px);
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.76);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+}
+
+.tc-provider-result-badge {
+  background: linear-gradient(135deg, #0f766e, #3a3c3e);
 }
 
 .tc-carousel-caption {
@@ -696,6 +817,30 @@
   border-top: 1px solid rgba(150, 152, 154, 0.25);
 }
 
+.tc-skincare-post-care-banner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, rgba(157, 214, 203, 0.18) 0%, rgba(99, 179, 167, 0.12) 100%);
+  border: 1px solid rgba(157, 214, 203, 0.45);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0f6b5e;
+}
+
+.tc-skincare-post-care-icon {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.tc-skincare-post-care-text {
+  line-height: 1.3;
+}
+
 .tc-skincare-products .tc-section-label {
   margin-bottom: 14px;
 }
@@ -758,10 +903,26 @@
   line-height: 1.35;
   color: #475569;
   text-align: center;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   word-break: break-word;
 }
 
+.tc-skincare-products__addon {
+  color: #64748b;
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+@media (max-width: 680px) {
+  .tc-area-mirror {
+    grid-template-columns: 1fr;
+  }
+
+  .tc-area-mirror__media .ai-mirror-canvas,
+  .tc-area-mirror__media .ai-mirror-fallback-img {
+    max-height: none;
+  }
+}

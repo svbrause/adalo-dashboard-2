@@ -28,6 +28,7 @@ import {
   createAndStorePostVisitBlueprint,
   defaultIncludeItemInSharedTreatmentPlanLink,
   filterDiscussedItemsForPostVisitBlueprint,
+  isPlanQuoteCoreDiscussedItem,
   isWishlistTimelineDiscussedItem as isWishlistTimelineItem,
   showPriceOnSharedTreatmentPlanLink,
   trackPostVisitBlueprintEvent,
@@ -328,6 +329,9 @@ export default function ShareTreatmentPlanLinkModal({
     for (const item of eligibleItems) {
       next[item.id] = defaultIncludeItemInSharedTreatmentPlanLink(item);
     }
+    for (const item of eligibleItems) {
+      if (isPlanQuoteCoreDiscussedItem(item)) next[item.id] = true;
+    }
     setInclusionById(next);
   }, [eligibleIdsKey, eligibleItems]);
 
@@ -407,16 +411,6 @@ export default function ShareTreatmentPlanLinkModal({
   const [sharePricingImperfect, setSharePricingImperfect] = useState(false);
   const [blueprintSmsFullDraft, setBlueprintSmsFullDraft] = useState("");
 
-  const modalSubheading = useMemo(() => {
-    if (step === "pick") {
-      return "Select only the treatments you'd like to share.";
-    }
-    if (sharePricingImperfect) {
-      return "Review the message and enter phone. Keep the plan link in the text.";
-    }
-    return "Enter phone and optional note.";
-  }, [sharePricingImperfect, step]);
-
   useEffect(() => {
     if (!isPostVisitBlueprintSender(provider)) return;
     warmPostVisitBlueprintForSend(client, discussedItems);
@@ -430,15 +424,20 @@ export default function ShareTreatmentPlanLinkModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, preparingLink, sending]);
 
-  const toggleInclude = useCallback((id: string) => {
-    setInclusionById((prev) => {
-      const nextOn = !prev[id];
-      if (!nextOn) {
-        setPatientPriceOverrideInputById((ov) => ({ ...ov, [id]: "" }));
-      }
-      return { ...prev, [id]: nextOn };
-    });
-  }, []);
+  const toggleInclude = useCallback(
+    (id: string) => {
+      const row = eligibleItems.find((i) => i.id === id);
+      if (row && isPlanQuoteCoreDiscussedItem(row)) return;
+      setInclusionById((prev) => {
+        const nextOn = !prev[id];
+        if (!nextOn) {
+          setPatientPriceOverrideInputById((ov) => ({ ...ov, [id]: "" }));
+        }
+        return { ...prev, [id]: nextOn };
+      });
+    },
+    [eligibleItems],
+  );
 
   const renderShareRowTimelineActions = useCallback(
     (item: DiscussedItem) => {
@@ -878,27 +877,33 @@ export default function ShareTreatmentPlanLinkModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="share-treatment-plan-link-title"
-        aria-describedby="share-treatment-plan-link-subtitle"
       >
         <div
           className="share-treatment-plan-link-dialog"
           onClick={(e) => e.stopPropagation()}
         >
           <header className="share-tp-link-dialog-header">
-            <h2
-              id="share-treatment-plan-link-title"
-              className="share-tp-link-dialog-title"
+            <div className="share-tp-link-dialog-header-text">
+              <h2
+                id="share-treatment-plan-link-title"
+                className="share-tp-link-dialog-title"
+              >
+                Share treatment plan
+              </h2>
+            </div>
+            <button
+              type="button"
+              className="modal-close share-tp-link-dialog-close"
+              onClick={onClose}
+              aria-label="Close"
             >
-              Share treatment plan
-            </h2>
-            <p
-              id="share-treatment-plan-link-subtitle"
-              className="share-tp-link-dialog-subheading"
-            >
-              Your account can&apos;t send the patient plan link. Ask an
-              administrator if you need access.
-            </p>
+              ×
+            </button>
           </header>
+          <p className="share-treatment-plan-link-empty">
+            Your account can&apos;t send the patient plan link. Ask an
+            administrator if you need access.
+          </p>
           <button type="button" className="btn-primary" onClick={onClose}>
             Close
           </button>
@@ -914,52 +919,51 @@ export default function ShareTreatmentPlanLinkModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-treatment-plan-link-title"
-      aria-describedby="share-treatment-plan-link-subtitle"
+      aria-describedby={
+        step === "pick" ? "share-treatment-plan-link-subtitle" : undefined
+      }
     >
       <div
         className="treatment-plan-checkout-blueprint-compose-modal share-treatment-plan-link-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="share-tp-link-dialog-header">
-          <h3
-            id="share-treatment-plan-link-title"
-            className="share-tp-link-dialog-title"
+          <div className="share-tp-link-dialog-header-text">
+            <h3
+              id="share-treatment-plan-link-title"
+              className="share-tp-link-dialog-title"
+            >
+              Share treatment plan
+            </h3>
+            {step === "pick" ? (
+              <p
+                id="share-treatment-plan-link-subtitle"
+                className="share-tp-link-dialog-subheading"
+              >
+                Select the plan items to share with the patient.
+              </p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="modal-close share-tp-link-dialog-close"
+            onClick={() => !preparingLink && !sending && onClose()}
+            disabled={preparingLink || sending}
+            aria-label="Close"
           >
-            Share treatment plan
-          </h3>
-          <p
-            id="share-treatment-plan-link-subtitle"
-            className="share-tp-link-dialog-subheading"
-          >
-            {modalSubheading}
-          </p>
+            ×
+          </button>
         </header>
         {step === "pick" ? (
           <>
             <div className="share-tp-link-dialog-body">
-              {eligibleItems.length === 0 ? (
+                {eligibleItems.length === 0 ? (
                 <p className="share-treatment-plan-link-empty">
                   Nothing here to share yet. Move items out of Completed or add
                   plan lines first.
                 </p>
               ) : (
                 <div className="share-tp-link-quote">
-                  {bulkEditablePriceItems.length > 0 ? (
-                    <div className="share-tp-link-quote-toolbar">
-                      <button
-                        type="button"
-                        className="btn-secondary btn-sm share-tp-link-edit-prices-btn"
-                        onClick={() =>
-                          setInlinePatientPricesEditing((o) => !o)
-                        }
-                        aria-expanded={inlinePatientPricesEditing}
-                      >
-                        {inlinePatientPricesEditing
-                          ? "Done editing prices"
-                          : "Edit prices"}
-                      </button>
-                    </div>
-                  ) : null}
                   {skincareShareItems.length > 0 ? (
                     <div className="share-tp-link-quote-section">
                       <h4 className="share-tp-link-quote-section-title">
@@ -976,15 +980,21 @@ export default function ShareTreatmentPlanLinkModal({
                             plannedForPatientLineFromDiscussedItem(item);
                           return (
                             <li key={item.id} className="share-tp-link-quote-row-li">
-                              <label className="share-tp-link-quote-row">
+                              <label
+                                className={`share-tp-link-quote-row${isPlanQuoteCoreDiscussedItem(item) ? " share-tp-link-quote-row--core" : ""}`}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={Boolean(inclusionById[item.id])}
+                                  disabled={isPlanQuoteCoreDiscussedItem(item)}
                                   onChange={() => toggleInclude(item.id)}
                                 />
                                 <span className="share-tp-link-quote-row-text">
                                   <span className="share-treatment-plan-link-row-title">
                                     {getTreatmentPlanRowPrimaryLabel(item)}
+                                    {isPlanQuoteCoreDiscussedItem(item) ? (
+                                      <span className="share-tp-link-core-pill">Locked in</span>
+                                    ) : null}
                                   </span>
                                   {skincareSecondary ? (
                                     <span className="share-treatment-plan-link-row-sub">
@@ -1071,15 +1081,21 @@ export default function ShareTreatmentPlanLinkModal({
                                 plannedForPatientLineFromDiscussedItem(item);
                               return (
                                 <li key={item.id} className="share-tp-link-quote-row-li">
-                                  <label className="share-tp-link-quote-row">
+                                  <label
+                                    className={`share-tp-link-quote-row${isPlanQuoteCoreDiscussedItem(item) ? " share-tp-link-quote-row--core" : ""}`}
+                                  >
                                     <input
                                       type="checkbox"
                                       checked={Boolean(inclusionById[item.id])}
+                                      disabled={isPlanQuoteCoreDiscussedItem(item)}
                                       onChange={() => toggleInclude(item.id)}
                                     />
                                     <span className="share-tp-link-quote-row-text">
                                       <span className="share-treatment-plan-link-row-title">
                                         {getTreatmentPlanRowPrimaryLabel(item)}
+                                        {isPlanQuoteCoreDiscussedItem(item) ? (
+                                          <span className="share-tp-link-core-pill">Locked in</span>
+                                        ) : null}
                                       </span>
                                       {treatmentSecondary ? (
                                         <span className="share-treatment-plan-link-row-sub">
@@ -1178,6 +1194,22 @@ export default function ShareTreatmentPlanLinkModal({
                       </p>
                     ) : null}
                   </div>
+                  {bulkEditablePriceItems.length > 0 ? (
+                    <div className="share-tp-link-quote-edit-prices-footer">
+                      <button
+                        type="button"
+                        className="share-tp-link-edit-prices-link"
+                        onClick={() =>
+                          setInlinePatientPricesEditing((o) => !o)
+                        }
+                        aria-expanded={inlinePatientPricesEditing}
+                      >
+                        {inlinePatientPricesEditing
+                          ? "Done editing prices"
+                          : "Edit prices"}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>

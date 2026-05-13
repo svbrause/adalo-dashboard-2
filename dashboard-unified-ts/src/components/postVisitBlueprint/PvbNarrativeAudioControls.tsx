@@ -48,20 +48,29 @@ function StopGlyph({ className }: { className?: string }) {
   );
 }
 
+function LoadingGlyph({ className }: { className?: string }) {
+  return <span className={className} aria-hidden />;
+}
+
 export function PvbNarrativeAudioControls({
   text,
   label = "Listen",
+  loadingLabel = "Preparing audio",
   stopLabel = "Stop",
   ariaLabel,
+  ariaLabelLoading,
   ariaLabelStop,
   variant = "icon",
   analytics,
 }: {
   text: string;
   label?: string;
+  loadingLabel?: string;
   stopLabel?: string;
   /** Announced when idle (play action). */
   ariaLabel?: string;
+  /** Announced while audio is being fetched. Defaults to `loadingLabel`. */
+  ariaLabelLoading?: string;
   /** Announced while playing (stop action). Defaults to `stopLabel`. */
   ariaLabelStop?: string;
   variant?: "label" | "icon";
@@ -69,6 +78,7 @@ export function PvbNarrativeAudioControls({
   analytics?: PvbNarrativeAudioAnalytics;
 }) {
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
   const supported = typeof window !== "undefined" && isTtsAvailable();
 
   useEffect(() => () => cancelSpeech(), []);
@@ -76,13 +86,15 @@ export function PvbNarrativeAudioControls({
   useEffect(() => {
     cancelSpeech();
     setPlaying(false);
+    setLoading(false);
   }, [text]);
 
   const toggle = useCallback(() => {
     if (!supported) return;
-    if (playing) {
+    if (playing || loading) {
       cancelSpeech();
       setPlaying(false);
+      setLoading(false);
       if (analytics) {
         trackPostVisitBlueprintEvent("blueprint_narrative_audio_stopped", {
           token: analytics.token,
@@ -95,8 +107,14 @@ export function PvbNarrativeAudioControls({
       }
       return;
     }
+    setLoading(true);
     speakPlainText(text, {
+      onStart: () => {
+        setLoading(false);
+        setPlaying(true);
+      },
       onEnd: () => {
+        setLoading(false);
         setPlaying(false);
         if (analytics) {
           trackPostVisitBlueprintEvent("blueprint_narrative_audio_stopped", {
@@ -110,6 +128,7 @@ export function PvbNarrativeAudioControls({
         }
       },
       onError: () => {
+        setLoading(false);
         setPlaying(false);
         if (analytics) {
           trackPostVisitBlueprintEvent("blueprint_narrative_audio_stopped", {
@@ -123,7 +142,6 @@ export function PvbNarrativeAudioControls({
         }
       },
     });
-    setPlaying(true);
     if (analytics) {
       trackPostVisitBlueprintEvent("blueprint_narrative_audio_started", {
         token: analytics.token,
@@ -133,29 +151,36 @@ export function PvbNarrativeAudioControls({
         chapter_display_name: analytics.chapter_display_name,
       });
     }
-  }, [text, playing, supported, analytics]);
+  }, [text, playing, loading, supported, analytics]);
 
   if (!supported || !text.trim()) return null;
 
-  const accessibleLabel = playing
+  const accessibleLabel = loading
+    ? (ariaLabelLoading ?? loadingLabel)
+    : playing
     ? (ariaLabelStop ?? stopLabel)
     : (ariaLabel ?? label);
 
   return (
     <button
       type="button"
-      className={`pvb-narrative-audio${variant === "icon" ? " pvb-narrative-audio--icon" : ""}${playing ? " pvb-narrative-audio--playing" : ""}`}
+      className={`pvb-narrative-audio${variant === "icon" ? " pvb-narrative-audio--icon" : ""}${playing ? " pvb-narrative-audio--playing" : ""}${loading ? " pvb-narrative-audio--loading" : ""}`}
       onClick={toggle}
-      aria-pressed={playing}
+      aria-pressed={playing || loading}
+      aria-busy={loading}
       title={accessibleLabel}
       aria-label={accessibleLabel}
     >
       {variant === "icon" ? (
-        playing ? (
+        loading ? (
+          <LoadingGlyph className="pvb-narrative-audio__spinner" />
+        ) : playing ? (
           <StopGlyph className="pvb-narrative-audio__glyph" />
         ) : (
           <SpeakerGlyph className="pvb-narrative-audio__glyph" />
         )
+      ) : loading ? (
+        loadingLabel
       ) : playing ? (
         stopLabel
       ) : (

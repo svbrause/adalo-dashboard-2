@@ -23,6 +23,7 @@ import {
   createTreatmentRecommenderCustomOption,
   deleteTreatmentRecommenderOption,
   updateTreatmentRecommenderOption,
+  updateTreatmentRecommenderOptionOrder,
   type TreatmentRecommenderOptionType,
 } from "../../services/api";
 import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
@@ -31,14 +32,13 @@ import {
   getWellnestOfferingByTreatmentName,
   getWellnestProductOptionsForTreatment,
   isWellnestWellnessProviderCode,
-  parseWellnestWhatItAddressesChips,
   WELLNEST_BROWSE_GROUP_LABELS,
-  WELLNEST_BROWSE_GROUP_ORDER,
   WELLNEST_REGULATORY_NOTICE,
 } from "../../data/wellnestOfferings";
 import {
-  getWellnessQuizMatchAnswerLabelsForTreatment,
   getWellnessQuizMatchReasons,
+  scoreIntakeGoalsAgainstWellnestCorpus,
+  type IntakeGoalMatchResult,
   WELLNESS_TREATMENTS,
 } from "../../data/wellnessQuiz";
 import {
@@ -76,6 +76,9 @@ import {
   getTreatmentPlanRowPrimaryLabel,
   getTreatmentPlanRowSecondaryLabel,
   getQuantityContext,
+  buildDiscussedBiostimQuantityFields,
+  resolveTreatmentIntervalForPlanItem,
+  shouldStoreTreatmentInterval,
   shouldShowProminentPlanQuantity,
   canonicalBiostimulantProductLabel,
   canonicalNeurotoxinProductLabel,
@@ -87,6 +90,7 @@ import {
 import {
   REGION_OPTIONS,
   REGION_OPTIONS_MICRONEEDLING,
+  ENERGY_TREATMENT_WHERE_OPTIONS,
   CHEMICAL_PEEL_AREA_OPTIONS,
   MICRONEEDLING_TYPE_OPTIONS,
   TIMELINE_OPTIONS,
@@ -131,6 +135,7 @@ import { WELLNEST_CURATED_BLUEPRINT_CASES } from "../../data/wellnestCuratedBlue
 import {
   formatPlanScheduledDateLabel,
   isValidPlanScheduledDateIso,
+  planItemsLastUpdatedShortLabel,
 } from "../../utils/planScheduledDate";
 import { buildPlanCalendarAgendaFromDiscussedItems } from "../../utils/pvbPlanCalendarAgenda";
 import {
@@ -143,10 +148,22 @@ import {
   getNeurotoxinTypeOptionLabels,
   getSkuOptionsForCategory,
   getPriceListLabelsForTreatmentRecommenderSearch,
+  parseProviderPricingDocument,
   type ProviderPricingJson,
 } from "../../data/treatmentPricing2025";
-import { isJudgeMdSurgeryPlanCategory } from "../../data/judgeMdPricing2026";
-import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
+import {
+  buildJudgeMdPlanBuilderRowSpecs,
+  buildJudgeMdPlanBuilderTreatmentOrder,
+  isJudgeMdNonsurgicalPlanBuilderTreatment,
+  isJudgeMdProviderCode,
+  isJudgeMdSurgeryPlanCategory,
+  JUDGEMD_TREATMENT_SKINCARE_PAIRINGS,
+} from "../../data/judgeMdPricing2026";
+import {
+  getJudgeMdRecommenderGalleryExhibit,
+  isJudgeMdPlanBuilderGalleryEyeTreatment,
+  judgeMdExhibitToDemoPhotos,
+} from "../../data/judgeMdGalleryExhibit";
 import { PlanQuantityStepperInput } from "./planQuantityStepper";
 
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
@@ -155,7 +172,6 @@ import "../modals/AnalysisOverviewModal.css";
 import "./TreatmentRecommenderByTreatment.css";
 
 /** Biostimulants before/after image for the treatment card. */
-import biostimulantsBeforeAfterUrl from "../../assets/images/Biostimulators-Before-and-After-With-Pictures-1.webp";
 
 /** Safe fragment for DOM ids in optional-details sections (treatment names may include spaces). */
 function planOptDomIdSuffix(treatmentName: string): string {
@@ -271,7 +287,11 @@ function initialAddToPlanRowForTreatment(
     notes: "",
     deliveryForm: wellnestOffering ? wellnestDefaultDeliveryForm : "",
     dosing: wellnestOffering ? wellnestDefaultDosing : "",
+    wellnestUsedFor: [] as string[],
     findings: [] as string[],
+    bioTreatmentSessions: "",
+    treatmentInterval: "",
+    skincareAddOns: [] as string[],
   };
   const quantity =
     treatment === "Skincare"
@@ -301,12 +321,22 @@ function getWellnestDeliveryDefaults(treatment: string): {
 function parseStructuredPlanNotes(
   notes: string | undefined,
   forWellnest: boolean,
-): { deliveryForm: string; dosing: string; freeNotes: string } {
+): {
+  deliveryForm: string;
+  dosing: string;
+  usedFor: string[];
+  freeNotes: string;
+} {
   if (!forWellnest) {
-    return { deliveryForm: "", dosing: "", freeNotes: notes?.trim() ?? "" };
+    return {
+      deliveryForm: "",
+      dosing: "",
+      usedFor: [],
+      freeNotes: notes?.trim() ?? "",
+    };
   }
   if (!notes?.trim()) {
-    return { deliveryForm: "", dosing: "", freeNotes: "" };
+    return { deliveryForm: "", dosing: "", usedFor: [], freeNotes: "" };
   }
   const parts = notes
     .split("|")
@@ -314,12 +344,19 @@ function parseStructuredPlanNotes(
     .filter(Boolean);
   let deliveryForm = "";
   let dosing = "";
+  let usedFor: string[] = [];
   const rest: string[] = [];
   for (const part of parts) {
     if (/^delivery form:/i.test(part)) {
       deliveryForm = part.replace(/^delivery form:\s*/i, "").trim();
     } else if (/^dosing:/i.test(part)) {
       dosing = part.replace(/^dosing:\s*/i, "").trim();
+    } else if (/^used for:/i.test(part)) {
+      const raw = part.replace(/^used for:\s*/i, "").trim();
+      usedFor = raw
+        .split(/;/)
+        .map((s) => s.trim())
+        .filter(Boolean);
     } else {
       rest.push(part);
     }
@@ -327,6 +364,7 @@ function parseStructuredPlanNotes(
   return {
     deliveryForm,
     dosing,
+    usedFor,
     freeNotes: rest.join(" | "),
   };
 }
@@ -343,7 +381,9 @@ function parseWhereFromDiscussedRegion(
     .map((s) => s.trim())
     .filter(Boolean);
   const opts: readonly string[] =
-    treatment === "Microneedling"
+    isEnergyTreatmentCategory(treatment)
+      ? ENERGY_TREATMENT_WHERE_OPTIONS
+      : treatment === "Microneedling"
       ? REGION_OPTIONS_MICRONEEDLING
       : treatment === "Chemical Peel"
         ? CHEMICAL_PEEL_AREA_OPTIONS
@@ -473,6 +513,11 @@ function discussedItemToAddPlanFormState(
   );
   const deliveryFormWellnest = parsedNotes.deliveryForm.trim() || wdf;
   const dosingWellnest = parsedNotes.dosing.trim() || wdg;
+  const wellnestUsedForHydrated = wellnestOffering
+    ? parsedNotes.usedFor.length > 0
+      ? parsedNotes.usedFor
+      : base.wellnestUsedFor
+    : base.wellnestUsedFor;
 
   const productRaw = stripOptionalRecommenderPriceFromLabel(
     (item.product ?? "").trim(),
@@ -481,7 +526,7 @@ function discussedItemToAddPlanFormState(
   const isLaser = isEnergyTreatmentCategory(treatment);
 
   let where = base.where;
-  if (!isSkincare && !isLaser) {
+  if (!isSkincare) {
     where = parseWhereFromDiscussedRegion(item.region ?? "", treatment);
   }
 
@@ -625,12 +670,28 @@ function discussedItemToAddPlanFormState(
     dosing: wellnestOffering ? dosingWellnest : undefined,
   };
   const qtyTrim = (item.quantity ?? "").trim();
+  const sessionsTrim = (item.bioTreatmentSessions ?? "").trim();
+  const qtyCtxHydrate = getQuantityContext(
+    treatment,
+    treatmentProductHintForQuantity(hintRow),
+    providerCode,
+  );
   const quantity =
     treatment === "Skincare"
       ? ""
       : qtyTrim ||
-        getQuantityContext(treatment, treatmentProductHintForQuantity(hintRow))
-          .defaultQuantity;
+        qtyCtxHydrate.defaultQuantity;
+  const bioTreatmentSessions =
+    treatment === "Skincare"
+      ? ""
+      : sessionsTrim
+        ? sessionsTrim
+        : qtyCtxHydrate.sculptraSessions && !qtyTrim
+          ? qtyCtxHydrate.sculptraSessions.defaultSessions
+          : qtyCtxHydrate.primaryDiscussedField === "bioTreatmentSessions" &&
+              !sessionsTrim
+            ? qtyCtxHydrate.defaultQuantity
+            : "";
 
   const scheduledRaw = (item.scheduledDate ?? "").trim();
   const scheduledDate = isValidPlanScheduledDateIso(scheduledRaw)
@@ -649,10 +710,13 @@ function discussedItemToAddPlanFormState(
     skincareWhat,
     product: productFree,
     quantity,
+    bioTreatmentSessions,
+    treatmentInterval: item.treatmentInterval?.trim() || "",
     notes: parsedNotes.freeNotes,
     deliveryForm: wellnestOffering ? deliveryFormWellnest : base.deliveryForm,
     dosing: wellnestOffering ? dosingWellnest : base.dosing,
     detailsExpanded: false,
+    wellnestUsedFor: wellnestUsedForHydrated,
     findings: item.findings?.length ? [...item.findings] : [],
   };
 }
@@ -934,17 +998,6 @@ function FeatureBreakdownSection({
   );
 }
 
-type WellnestGoalSignal = {
-  score: number;
-  matchedGoals: string[];
-};
-
-type WellnestBrowseFilterChip = {
-  id: string;
-  label: string;
-  count: number;
-};
-
 const WELLNESS_TREATMENT_KEYWORDS_BY_ID: Record<string, string[]> =
   Object.fromEntries(
     WELLNESS_TREATMENTS.map((t) => [t.id, t.matchKeywords ?? []]),
@@ -953,77 +1006,6 @@ const WELLNESS_TREATMENT_SUMMARY_BY_ID: Record<string, string> =
   Object.fromEntries(WELLNESS_TREATMENTS.map((t) => [t.id, t.summary ?? ""]));
 const WELLNEST_CASE_IMAGE_FALLBACK =
   "/post-visit-blueprint/videos/wellnest/images.jpeg";
-
-function normalizeGoalToken(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function expandGoalAliases(goal: string): string[] {
-  const g = normalizeGoalToken(goal);
-  const aliases: Record<string, string[]> = {
-    recovery: ["recovery", "injury", "muscle", "mobility", "training"],
-    "training support": ["training", "recovery", "muscle", "performance"],
-    energy: ["energy", "fatigue", "metabolic"],
-    sleep: ["sleep", "rest"],
-    focus: ["focus", "memory", "cognitive", "brain fog"],
-    longevity: ["longevity", "anti-aging", "cellular aging", "metabolism"],
-    "stress balance": ["stress", "anxiety", "mood"],
-    "body composition": ["body composition", "fat", "weight", "metabolic"],
-    "metabolic support": [
-      "metabolic",
-      "fat metabolism",
-      "weight",
-      "visceral fat",
-    ],
-    gut: ["gut", "gi", "inflammation"],
-    "gut comfort": ["gut", "gi", "inflammation"],
-  };
-  const mapped = aliases[g] ?? [];
-  return Array.from(new Set([g, ...mapped]));
-}
-
-function scoreWellnestGoalMatch(
-  goals: string[],
-  treatmentCorpus: string,
-  matchKeywords: string[],
-): WellnestGoalSignal {
-  const matchedGoals = new Set<string>();
-  const normalizedCorpus = normalizeGoalToken(treatmentCorpus);
-  const keywords = (matchKeywords ?? [])
-    .map((k) => normalizeGoalToken(k))
-    .filter((k) => k.length >= 3);
-  let score = 0;
-  for (const rawGoal of goals) {
-    const goal = rawGoal.trim();
-    const goalL = normalizeGoalToken(goal);
-    if (!goalL) continue;
-    const goalCandidates = expandGoalAliases(goal);
-    let matched = false;
-    for (const candidate of goalCandidates) {
-      if (candidate.length >= 3 && normalizedCorpus.includes(candidate)) {
-        score += 2;
-        matched = true;
-        break;
-      }
-      for (const kw of keywords) {
-        if (
-          candidate.includes(kw) ||
-          kw.includes(candidate) ||
-          candidate
-            .split(/\s+/)
-            .some((part) => part.length >= 3 && kw.includes(part))
-        ) {
-          score += 1;
-          matched = true;
-          break;
-        }
-      }
-      if (matched) break;
-    }
-    if (matched) matchedGoals.add(goal);
-  }
-  return { score, matchedGoals: Array.from(matchedGoals) };
-}
 
 function getWellnestPatientFriendlyAddressCopy(
   offering: ReturnType<typeof getWellnestOfferingByTreatmentName>,
@@ -1052,6 +1034,7 @@ function getWellnestDefaultDosing(
 function getUnifiedRecommenderEditSections(
   treatment: string,
   hasWellnestOffering: boolean,
+  includeSkincareAddOns = false,
 ): { optionType: TreatmentRecommenderOptionType; title: string }[] {
   if (hasWellnestOffering) {
     return [];
@@ -1060,7 +1043,10 @@ function getUnifiedRecommenderEditSections(
     return [{ optionType: "skincare_what", title: "Skincare — Products" }];
   }
   if (isEnergyTreatmentCategory(treatment)) {
-    return [{ optionType: "laser_what", title: "Energy Treatment — Type" }];
+    return [
+      { optionType: "laser_what", title: "Energy Treatment — Type" },
+      { optionType: "laser_where", title: "Energy Treatment — Where" },
+    ];
   }
 
   const mid: { optionType: TreatmentRecommenderOptionType; title: string }[] =
@@ -1110,6 +1096,16 @@ function getUnifiedRecommenderEditSections(
     mid.push({ optionType: "where", title: `${treatment} — Where` });
   }
 
+  if (
+    includeSkincareAddOns &&
+    (JUDGEMD_TREATMENT_SKINCARE_PAIRINGS[treatment]?.length ?? 0) > 0
+  ) {
+    mid.push({
+      optionType: "skincare_what",
+      title: "Skincare add-ons",
+    });
+  }
+
   return mid;
 }
 
@@ -1123,7 +1119,49 @@ function buildRecommenderOptionValueWithOptionalPrice(
   return p ? `${n} · ${p}` : n;
 }
 
+function applySavedRecommenderOrder<T extends { value: string }>(
+  records: readonly T[],
+  orderedValues: readonly string[] | undefined,
+): T[] {
+  if (!orderedValues?.length) return [...records];
+  const byValue = new Map(records.map((record) => [record.value, record]));
+  const seen = new Set<string>();
+  const ordered: T[] = [];
+  for (const value of orderedValues) {
+    const record = byValue.get(value);
+    if (record && !seen.has(value)) {
+      ordered.push(record);
+      seen.add(value);
+    }
+  }
+  for (const record of records) {
+    if (!seen.has(record.value)) ordered.push(record);
+  }
+  return ordered;
+}
+
 type SkincareCarouselRow = ReturnType<typeof getSkincareCarouselItems>[number];
+
+function getJudgeMdSkincareAddOnsForTreatment(
+  treatment: string,
+  skincareItems: readonly SkincareCarouselRow[],
+): SkincareCarouselRow[] {
+  const keywords = JUDGEMD_TREATMENT_SKINCARE_PAIRINGS[treatment] ?? [];
+  if (keywords.length === 0) return [];
+  const seen = new Set<string>();
+  const out: SkincareCarouselRow[] = [];
+  for (const kw of keywords) {
+    const lower = kw.toLowerCase();
+    const match = skincareItems.find((item) =>
+      item.name.toLowerCase().includes(lower),
+    );
+    if (match && !seen.has(match.name)) {
+      seen.add(match.name);
+      out.push(match);
+    }
+  }
+  return out;
+}
 
 /** Single selectable product tile (Skincare add-to-plan grid / search). */
 function TreatmentRecommenderSkincareSelectChip({
@@ -1197,10 +1235,9 @@ function discussedItemPreviewFromAddPlanForm(
   skincareProductOverride?: string,
 ): DiscussedItem {
   const isSkincare = row.treatment === "Skincare";
-  const isLaser = isEnergyTreatmentCategory(row.treatment);
   const wellnestOffering = getWellnestOfferingByTreatmentName(row.treatment);
   const region =
-    isSkincare || isLaser
+    isSkincare
       ? ""
       : row.where.length > 0
         ? row.where.join(", ")
@@ -1222,6 +1259,13 @@ function discussedItemPreviewFromAddPlanForm(
   }
   const notesJoined = noteParts.length > 0 ? noteParts.join(" | ") : undefined;
   const findingsForItem = row.findings?.filter((f) => (f ?? "").trim());
+  const qtyFields = buildDiscussedBiostimQuantityFields(
+    row.treatment,
+    productOut,
+    row.quantity,
+    row.bioTreatmentSessions,
+  );
+  const qtyCtx = getQuantityContext(row.treatment, productOut);
   return {
     id: "__add-plan-preview__",
     treatment: row.treatment,
@@ -1229,7 +1273,13 @@ function discussedItemPreviewFromAddPlanForm(
     scheduledDate: row.scheduledDate?.trim() || undefined,
     region: region || undefined,
     product: productOut,
-    quantity: row.quantity?.trim() || undefined,
+    quantity: qtyFields.quantity,
+    bioTreatmentSessions: qtyFields.bioTreatmentSessions,
+    treatmentInterval: resolveTreatmentIntervalForPlanItem(
+      qtyCtx,
+      qtyFields.bioTreatmentSessions ?? qtyFields.quantity,
+      row.treatmentInterval,
+    ),
     notes: notesJoined,
     findings: findingsForItem?.length ? findingsForItem : [],
   };
@@ -1391,42 +1441,19 @@ export default function TreatmentRecommenderByTreatment({
   const [lastAddedItem, setLastAddedItem] = useState<DiscussedItem | null>(
     null,
   );
-  const [filterState, setFilterState] =
-    useState<TreatmentRecommenderFilterState>(() => ({
+  const filterState = useMemo<TreatmentRecommenderFilterState>(
+    () => ({
       ...DEFAULT_RECOMMENDER_FILTER_STATE,
-    }));
+    }),
+    [],
+  );
 
   useEffect(() => {
     onRecommenderRegionsChange?.(filterState.region);
   }, [filterState.region, onRecommenderRegionsChange]);
 
-  const [addToPlanForTreatment, setAddToPlanForTreatment] = useState<{
-    treatment: string;
-    where: string[];
-    /** For Skincare: multi-select "What" options (product names). */
-    skincareWhat?: string[];
-    /** For Skincare: selected category labels to filter the product carousel. */
-    skincareCategoryFilter?: string[];
-    /** For Energy Treatment: multi-select Type options (e.g. BBL, Moxi, Sofwave, Ultherapy). */
-    laserWhat?: string[];
-    /** For Biostimulants: multi-select "What" options (e.g. Sculptra, Radiesse, Ellansé). */
-    biostimulantWhat?: string[];
-    /** For Microneedling: multi-select type options (e.g. PRP, TCA, TXA, PDGF, Subcision). */
-    microneedlingType?: string[];
-    /** For Facial Services: multi-select service line items (e.g. Dermasweep, Signature Facial). */
-    facialServiceWhat?: string[];
-    when: string;
-    /** ISO YYYY-MM-DD; when set, row appears on the treatment calendar and in the Scheduled list section. */
-    scheduledDate?: string;
-    detailsExpanded: boolean;
-    product?: string;
-    quantity?: string;
-    notes?: string;
-    dosing?: string;
-    deliveryForm?: string;
-    /** Assessment findings (same as main plan modal “To address”). */
-    findings: string[];
-  } | null>(null);
+  const [addToPlanForTreatment, setAddToPlanForTreatment] =
+    useState<AddPlanFormState | null>(null);
   /** When set, Confirm saves via {@link onUpdatePlanItem} instead of adding a row. */
   const [editingPlanItemId, setEditingPlanItemId] = useState<string | null>(
     null,
@@ -1522,7 +1549,8 @@ export default function TreatmentRecommenderByTreatment({
 
   useEffect(() => {
     if (!initialOpenPlanItemId) return;
-    if (!onUpdatePlanItem || !onAddToPlanDirect) {
+    /** Editing an existing item only needs onUpdatePlanItem; new adds also need onAddToPlanDirect. */
+    if (!onUpdatePlanItem) {
       onConsumedInitialOpenPlanItemId?.();
       return;
     }
@@ -1547,7 +1575,6 @@ export default function TreatmentRecommenderByTreatment({
     initialOpenPlanItemId,
     client.discussedItems,
     onUpdatePlanItem,
-    onAddToPlanDirect,
     onConsumedInitialOpenPlanItemId,
     provider?.code,
   ]);
@@ -1642,6 +1669,8 @@ export default function TreatmentRecommenderByTreatment({
   const [photoExplorerContext, setPhotoExplorerContext] = useState<{
     treatment: string;
     region?: string;
+    /** Judge MD: curated wp-content before/afters for this plan card + link to full gallery */
+    judgeMdGallery?: { pageUrl: string; imageUrls: readonly string[] };
   } | null>(null);
   /** Full-screen educational overlay for Wellnest peptide cards (no aesthetic before/after gallery). */
   const [wellnestDetailTreatment, setWellnestDetailTreatment] = useState<
@@ -1649,8 +1678,10 @@ export default function TreatmentRecommenderByTreatment({
   >(null);
   const [showWellnestArticleShare, setShowWellnestArticleShare] =
     useState(false);
-  const [wellnestBrowseFilter, setWellnestBrowseFilter] = useState("all");
   const [treatmentSearchQuery, setTreatmentSearchQuery] = useState("");
+  const [judgeMdTreatmentFocus, setJudgeMdTreatmentFocus] = useState<
+    "all" | "nonsurgical" | "surgical"
+  >("all");
   const [wellnestArticleSelection, setWellnestArticleSelection] = useState<
     Record<string, boolean>
   >({});
@@ -1695,10 +1726,44 @@ export default function TreatmentRecommenderByTreatment({
     [client.goals],
   );
 
-  const getWellnestGoalSignalForTreatment = (treatmentName: string) => {
+  /** Most recently added Breast Surgery plan row’s product line → Judge MD gallery variant. */
+  const judgeMdBreastSurgeryProductHint = useMemo(() => {
+    const items = client.discussedItems ?? [];
+    const breastPlanRows = items.filter(
+      (i) => i.treatment?.trim().toLowerCase() === "breast surgery",
+    );
+    const withProduct = breastPlanRows.filter((i) => (i.product ?? "").trim());
+    if (withProduct.length === 0) return undefined;
+    withProduct.sort((a, b) => {
+      const ta = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+      const tb = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+      return tb - ta;
+    });
+    return withProduct[0]!.product!.trim();
+  }, [client.discussedItems]);
+
+  /** Most recently added Body Sculpting plan row’s product line → lipo vs abdominoplasty gallery. */
+  const judgeMdBodySculptingProductHint = useMemo(() => {
+    const items = client.discussedItems ?? [];
+    const bodyPlanRows = items.filter(
+      (i) => i.treatment?.trim().toLowerCase() === "body sculpting",
+    );
+    const withProduct = bodyPlanRows.filter((i) => (i.product ?? "").trim());
+    if (withProduct.length === 0) return undefined;
+    withProduct.sort((a, b) => {
+      const ta = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+      const tb = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+      return tb - ta;
+    });
+    return withProduct[0]!.product!.trim();
+  }, [client.discussedItems]);
+
+  const getWellnestGoalSignalForTreatment = (
+    treatmentName: string,
+  ): IntakeGoalMatchResult | null => {
     const wellnestOffering = getWellnestOfferingByTreatmentName(treatmentName);
     if (!wellnestOffering || wellnessIntakeGoals.length === 0) return null;
-    return scoreWellnestGoalMatch(
+    return scoreIntakeGoalsAgainstWellnestCorpus(
       wellnessIntakeGoals,
       [
         wellnestOffering.category,
@@ -1866,6 +1931,23 @@ export default function TreatmentRecommenderByTreatment({
     setOptionRecords(extractRecommenderOptionsFromPricingJson(raw));
   }, [provider?.["Treatment Pricing"]]);
 
+  const recommenderOptionOrder = useMemo(
+    () =>
+      parseProviderPricingDocument(
+        provider?.["Treatment Pricing"] as string | undefined,
+      ).recommenderOptionOrder ?? {},
+    [provider?.["Treatment Pricing"]],
+  );
+
+  const orderRecommenderRecords = useCallback(
+    <T extends { value: string }>(
+      optionType: TreatmentRecommenderOptionType,
+      records: readonly T[],
+    ): T[] =>
+      applySavedRecommenderOrder(records, recommenderOptionOrder[optionType]),
+    [recommenderOptionOrder],
+  );
+
   const baseWhereOptions = useMemo(
     () => REGION_OPTIONS.filter((r) => r !== "Multiple" && r !== "Other"),
     [],
@@ -1884,10 +1966,13 @@ export default function TreatmentRecommenderByTreatment({
     });
   }, [whereOptionRecords]);
   const whereOptions = useMemo(
-    () =>
-      whereOptionRecordsDeduped.length > 0
-        ? whereOptionRecordsDeduped.map((o) => o.value)
-        : baseWhereOptions,
+    () => {
+      const ordered = [...baseWhereOptions];
+      for (const option of whereOptionRecordsDeduped) {
+        if (!ordered.includes(option.value)) ordered.push(option.value);
+      }
+      return ordered;
+    },
     [whereOptionRecordsDeduped, baseWhereOptions],
   );
 
@@ -1897,28 +1982,58 @@ export default function TreatmentRecommenderByTreatment({
     [optionRecords],
   );
   const skincareWhatOptions = useMemo(
-    () =>
-      skincareWhatOptionRecords.length > 0
-        ? skincareWhatOptionRecords.map((o) => o.value)
-        : skincareCarouselItems.map((i) => i.name),
+    () => {
+      const configuredValues = skincareWhatOptionRecords.map((o) => o.value);
+      const catalogValues = skincareCarouselItems.map((i) => i.name);
+      const values =
+        configuredValues.length > 0
+          ? [...configuredValues, ...catalogValues]
+          : catalogValues;
+      return Array.from(new Set(values));
+    },
     [skincareWhatOptionRecords, skincareCarouselItems],
   );
-  /** Carousel items allowed by provider (from table when seeded, or full list when not yet). */
+  /** Carousel items allowed by provider. JudgeMD is restricted to SkinCeuticals plus surgical recovery/scar care. */
   const skincareCarouselItemsAllowed = useMemo(() => {
     const set = new Set(skincareWhatOptions);
-    return skincareCarouselItems.filter((item) => set.has(item.name));
-  }, [skincareCarouselItems, skincareWhatOptions]);
+    const allowed = skincareCarouselItems.filter((item) => set.has(item.name));
+    const providerAllowed = isJudgeMdProviderCode(provider?.code)
+      ? allowed.filter((item) => {
+          const lower = item.name.toLowerCase();
+          return (
+            lower.startsWith("skinceuticals") ||
+            lower.startsWith("vitamedica") ||
+            lower.startsWith("biocorneum") ||
+            lower.startsWith("biodermis")
+          );
+        })
+      : allowed;
+    return orderRecommenderRecords(
+      "skincare_what",
+      providerAllowed.map((item) => ({ value: item.name, item })),
+    ).map(({ item }) => item);
+  }, [
+    skincareCarouselItems,
+    skincareWhatOptions,
+    provider?.code,
+    orderRecommenderRecords,
+  ]);
 
   /** Same merge as product chips: catalog ∪ custom `skincare_what` rows (for unified edit modal). */
   const skincareWhatDisplayRecords = useMemo(() => {
     const valueToId = new Map(
       skincareWhatOptionRecords.map((r) => [r.value, r.id]),
     );
-    return skincareWhatOptions.map((value) => ({
+    const records = skincareWhatOptions.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [skincareWhatOptions, skincareWhatOptionRecords]);
+    return orderRecommenderRecords("skincare_what", records);
+  }, [
+    skincareWhatOptions,
+    skincareWhatOptionRecords,
+    orderRecommenderRecords,
+  ]);
 
   const quizSkincareRoutineSections = useMemo(
     () =>
@@ -1945,6 +2060,20 @@ export default function TreatmentRecommenderByTreatment({
   }, [
     client.skincareQuiz?.recommendedProductNames,
     quizSkincareRoutineSections,
+  ]);
+
+  /** SkinCeuticals add-on products suggested for the currently selected non-surgical JudgeMD treatment. */
+  const judgemdSkincareAddOnPool = useMemo(() => {
+    if (!isJudgeMdProviderCode(provider?.code)) return [];
+    const treatment = addToPlanForTreatment?.treatment ?? "";
+    return getJudgeMdSkincareAddOnsForTreatment(
+      treatment,
+      skincareCarouselItemsAllowed,
+    );
+  }, [
+    provider?.code,
+    addToPlanForTreatment?.treatment,
+    skincareCarouselItemsAllowed,
   ]);
 
   /** Wellness quiz treatment IDs (same ids as {@link wellnestOfferings} `wellnessQuizId`). */
@@ -2112,22 +2241,59 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [laserWhatOptionRecords, laserWhatOptions]);
+    return orderRecommenderRecords("laser_what", records);
+  }, [laserWhatOptionRecords, laserWhatOptions, orderRecommenderRecords]);
+
+  const laserWhereOptionRecords = useMemo(
+    () => optionRecords.filter((o) => o.optionType === "laser_where"),
+    [optionRecords],
+  );
+  const baseLaserWhere = useMemo(
+    () => [...ENERGY_TREATMENT_WHERE_OPTIONS],
+    [],
+  );
+  const laserWhereDisplayRecords = useMemo(() => {
+    const valueToId = new Map(
+      laserWhereOptionRecords.map((r) => [r.value, r.id]),
+    );
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    for (const v of baseLaserWhere) {
+      if (seen.has(v)) continue;
+      seen.add(v);
+      ordered.push(v);
+    }
+    for (const r of laserWhereOptionRecords) {
+      if (seen.has(r.value)) continue;
+      seen.add(r.value);
+      ordered.push(r.value);
+    }
+    const records = ordered.map((value) => ({
+      id: valueToId.get(value) ?? "",
+      value,
+    }));
+    return orderRecommenderRecords("laser_where", records);
+  }, [laserWhereOptionRecords, baseLaserWhere, orderRecommenderRecords]);
 
   const biostimulantWhatOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "biostimulant_what"),
     [optionRecords],
   );
   const biostimulantTypeBaseLabels = useMemo(
-    () => [
-      ...getBiostimulantTypeOptionLabels(effectivePriceList),
-      OTHER_PRODUCT_LABEL,
-    ],
-    [effectivePriceList],
+    () => {
+      const base = isJudgeMdProviderCode(provider?.code)
+        ? getTreatmentProductOptionsForProvider(
+            provider?.code,
+            "Biostimulants",
+          ).filter((v) => v !== OTHER_PRODUCT_LABEL)
+        : getBiostimulantTypeOptionLabels(effectivePriceList);
+      return [...base, OTHER_PRODUCT_LABEL];
+    },
+    [effectivePriceList, provider?.code],
   );
   const biostimulantDisplayRecords = useMemo(() => {
     const valueToId = new Map<string, string>();
@@ -2149,21 +2315,38 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(c);
       ordered.push(c);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [biostimulantWhatOptionRecords, biostimulantTypeBaseLabels]);
+    return orderRecommenderRecords("biostimulant_what", records);
+  }, [
+    biostimulantWhatOptionRecords,
+    biostimulantTypeBaseLabels,
+    orderRecommenderRecords,
+  ]);
   const fillerSkuOptions = useMemo(
-    () => getSkuOptionsForCategory("Filler", effectivePriceList).map((s) => s.label),
-    [effectivePriceList],
+    () =>
+      isJudgeMdProviderCode(provider?.code)
+        ? getTreatmentProductOptionsForProvider(provider?.code, "Filler").filter(
+            (v) => v !== OTHER_PRODUCT_LABEL,
+          )
+        : getSkuOptionsForCategory("Filler", effectivePriceList).map(
+            (s) => s.label,
+          ),
+    [effectivePriceList, provider?.code],
   );
   const neurotoxinTypeBaseLabels = useMemo(
-    () => [
-      ...getNeurotoxinTypeOptionLabels(effectivePriceList),
-      OTHER_PRODUCT_LABEL,
-    ],
-    [effectivePriceList],
+    () => {
+      const base = isJudgeMdProviderCode(provider?.code)
+        ? getTreatmentProductOptionsForProvider(
+            provider?.code,
+            "Neurotoxin",
+          ).filter((v) => v !== OTHER_PRODUCT_LABEL)
+        : getNeurotoxinTypeOptionLabels(effectivePriceList);
+      return [...base, OTHER_PRODUCT_LABEL];
+    },
+    [effectivePriceList, provider?.code],
   );
   const chemicalPeelTypeOptions = useMemo(
     () =>
@@ -2225,11 +2408,16 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [otherProcedureTypeBaseLabels, otherProceduresWhatOptionRecords]);
+    return orderRecommenderRecords("other_procedures_what", records);
+  }, [
+    otherProcedureTypeBaseLabels,
+    otherProceduresWhatOptionRecords,
+    orderRecommenderRecords,
+  ]);
 
   const prfmInjectionWhereDisplayRecords = useMemo(
     () => [...PRFM_INJECTION_WHERE_OPTIONS].map((value) => ({ id: "", value })),
@@ -2260,11 +2448,16 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [microneedlingWhereOptionRecords, baseMicroneedlingWhere]);
+    return orderRecommenderRecords("microneedling_where", records);
+  }, [
+    microneedlingWhereOptionRecords,
+    baseMicroneedlingWhere,
+    orderRecommenderRecords,
+  ]);
 
   const microneedlingTypeOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "microneedling_type"),
@@ -2290,11 +2483,16 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [microneedlingTypeOptionRecords, baseMicroneedlingTypes]);
+    return orderRecommenderRecords("microneedling_type", records);
+  }, [
+    microneedlingTypeOptionRecords,
+    baseMicroneedlingTypes,
+    orderRecommenderRecords,
+  ]);
 
   const chemicalPeelWhereOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "chemical_peel_where"),
@@ -2320,11 +2518,16 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [chemicalPeelWhereOptionRecords, baseChemicalPeelWhere]);
+    return orderRecommenderRecords("chemical_peel_where", records);
+  }, [
+    chemicalPeelWhereOptionRecords,
+    baseChemicalPeelWhere,
+    orderRecommenderRecords,
+  ]);
 
   const timelineOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "timeline"),
@@ -2346,21 +2549,23 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [timelineOptionRecords]);
+    return orderRecommenderRecords("timeline", records);
+  }, [timelineOptionRecords, orderRecommenderRecords]);
 
   const genericWhereDisplayRecords = useMemo(() => {
     const valueToId = new Map(
       whereOptionRecordsDeduped.map((r) => [r.value, r.id]),
     );
-    return whereOptions.map((value) => ({
+    const records = whereOptions.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [whereOptions, whereOptionRecordsDeduped]);
+    return orderRecommenderRecords("where", records);
+  }, [whereOptions, whereOptionRecordsDeduped, orderRecommenderRecords]);
 
   const fillerWhatOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "filler_what"),
@@ -2382,11 +2587,20 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const displayValues = isJudgeMdProviderCode(provider?.code)
+      ? [...ordered].sort((a, b) => a.localeCompare(b))
+      : ordered;
+    const records = displayValues.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [fillerSkuOptions, fillerWhatOptionRecords]);
+    return orderRecommenderRecords("filler_what", records);
+  }, [
+    fillerSkuOptions,
+    fillerWhatOptionRecords,
+    provider?.code,
+    orderRecommenderRecords,
+  ]);
 
   const neurotoxinWhatOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "neurotoxin_what"),
@@ -2412,11 +2626,16 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(c);
       ordered.push(c);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [neurotoxinTypeBaseLabels, neurotoxinWhatOptionRecords]);
+    return orderRecommenderRecords("neurotoxin_what", records);
+  }, [
+    neurotoxinTypeBaseLabels,
+    neurotoxinWhatOptionRecords,
+    orderRecommenderRecords,
+  ]);
 
   const chemicalPeelWhatOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "chemical_peel_what"),
@@ -2438,11 +2657,16 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [chemicalPeelTypeOptions, chemicalPeelWhatOptionRecords]);
+    return orderRecommenderRecords("chemical_peel_what", records);
+  }, [
+    chemicalPeelTypeOptions,
+    chemicalPeelWhatOptionRecords,
+    orderRecommenderRecords,
+  ]);
 
   const facialServiceWhatOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "facial_service_what"),
@@ -2468,11 +2692,16 @@ export default function TreatmentRecommenderByTreatment({
       seen.add(r.value);
       ordered.push(r.value);
     }
-    return ordered.map((value) => ({
+    const records = ordered.map((value) => ({
       id: valueToId.get(value) ?? "",
       value,
     }));
-  }, [facialServiceWhatOptionRecords, baseFacialServiceTypes]);
+    return orderRecommenderRecords("facial_service_what", records);
+  }, [
+    facialServiceWhatOptionRecords,
+    baseFacialServiceTypes,
+    orderRecommenderRecords,
+  ]);
 
   const canEditRecommenderOptions = Boolean(provider?.id);
 
@@ -2484,17 +2713,54 @@ export default function TreatmentRecommenderByTreatment({
     return getUnifiedRecommenderEditSections(
       unifiedEditModalTreatment,
       Boolean(unifiedEditModalOffering),
+      isJudgeMdProviderCode(provider?.code),
     );
-  }, [unifiedEditModalTreatment, unifiedEditModalOffering]);
+  }, [unifiedEditModalTreatment, unifiedEditModalOffering, provider?.code]);
+
+  const unifiedEditSkincareAddOnPool = useMemo(() => {
+    if (
+      !unifiedEditModalTreatment ||
+      unifiedEditModalTreatment === "Skincare" ||
+      !isJudgeMdProviderCode(provider?.code)
+    ) {
+      return [];
+    }
+    return getJudgeMdSkincareAddOnsForTreatment(
+      unifiedEditModalTreatment,
+      skincareCarouselItemsAllowed,
+    );
+  }, [
+    unifiedEditModalTreatment,
+    provider?.code,
+    skincareCarouselItemsAllowed,
+  ]);
+
+  const unifiedEditSkincareAddOnRecords = useMemo(() => {
+    const byValue = new Map(
+      skincareWhatDisplayRecords.map((record) => [record.value, record]),
+    );
+    return unifiedEditSkincareAddOnPool.map(
+      (item) => byValue.get(item.name) ?? { id: "", value: item.name },
+    );
+  }, [skincareWhatDisplayRecords, unifiedEditSkincareAddOnPool]);
 
   /** Rows shown in add-to-plan chips (defaults ∪ Airtable) — unified edit uses the same list. */
   const getUnifiedEditSectionDisplayRecords = useCallback(
     (optionType: TreatmentRecommenderOptionType) => {
       switch (optionType) {
         case "skincare_what":
+          if (
+            unifiedEditModalTreatment &&
+            unifiedEditModalTreatment !== "Skincare" &&
+            unifiedEditSkincareAddOnRecords.length > 0
+          ) {
+            return unifiedEditSkincareAddOnRecords;
+          }
           return skincareWhatDisplayRecords;
         case "laser_what":
           return laserWhatDisplayRecords;
+        case "laser_where":
+          return laserWhereDisplayRecords;
         case "biostimulant_what":
           return biostimulantDisplayRecords;
         case "microneedling_type":
@@ -2522,6 +2788,7 @@ export default function TreatmentRecommenderByTreatment({
     [
       skincareWhatDisplayRecords,
       laserWhatDisplayRecords,
+      laserWhereDisplayRecords,
       biostimulantDisplayRecords,
       microneedlingTypeDisplayRecords,
       microneedlingWhereDisplayRecords,
@@ -2532,6 +2799,8 @@ export default function TreatmentRecommenderByTreatment({
       fillerTypeDisplayRecords,
       neurotoxinTypeDisplayRecords,
       genericWhereDisplayRecords,
+      unifiedEditModalTreatment,
+      unifiedEditSkincareAddOnRecords,
     ],
   );
 
@@ -2565,20 +2834,25 @@ export default function TreatmentRecommenderByTreatment({
     const suggestedNames = Array.from(
       new Set(withGoals.map((s) => s.treatment)),
     );
-    const seen = new Set<string>();
-    const names: string[] = [];
-    for (const t of suggestedNames) {
-      if (allowedOrdered.includes(t) && !seen.has(t)) {
-        seen.add(t);
-        names.push(t);
-      }
-    }
-    for (const t of allowedOrdered) {
-      if (!seen.has(t)) {
-        seen.add(t);
-        names.push(t);
-      }
-    }
+    const names = isJudgeMdProviderCode(provider?.code)
+      ? buildJudgeMdPlanBuilderTreatmentOrder(suggestedNames, allowedOrdered)
+      : (() => {
+          const seen = new Set<string>();
+          const out: string[] = [];
+          for (const t of suggestedNames) {
+            if (allowedOrdered.includes(t) && !seen.has(t)) {
+              seen.add(t);
+              out.push(t);
+            }
+          }
+          for (const t of allowedOrdered) {
+            if (!seen.has(t)) {
+              seen.add(t);
+              out.push(t);
+            }
+          }
+          return out;
+        })();
     const hasSkinQuizProducts =
       client.skincareQuiz?.recommendedProductNames &&
       client.skincareQuiz.recommendedProductNames.length > 0;
@@ -2634,98 +2908,10 @@ export default function TreatmentRecommenderByTreatment({
     });
   }, [suggestedTreatments, provider?.code, wellnessIntakeGoals]);
 
-  const wellnestBrowseChips = useMemo<WellnestBrowseFilterChip[]>(() => {
-    if (!isWellnestWellnessProviderCode(provider?.code)) return [];
-    const all = treatmentsToShow;
-    const goalMatched = all.filter(
-      (t) => (getWellnestGoalSignalForTreatment(t)?.score ?? 0) > 0,
-    );
-    const wellnessQuizMatched = all.filter((t) => {
-      const o = getWellnestOfferingByTreatmentName(t);
-      const id = o?.wellnessQuizId?.trim();
-      return Boolean(id && wellnessQuizSuggestedIdSet.has(id));
-    });
-    const chips: WellnestBrowseFilterChip[] = [
-      { id: "all", label: "All peptides", count: all.length },
-      { id: "goal", label: "Goal matches", count: goalMatched.length },
-    ];
-    if (wellnessQuizMatched.length > 0) {
-      chips.push({
-        id: "wellness_quiz",
-        label: "Wellness quiz matches",
-        count: wellnessQuizMatched.length,
-      });
-    }
-    const byGroup = new Map<string, number>();
-    for (const t of all) {
-      const o = getWellnestOfferingByTreatmentName(t);
-      if (!o) continue;
-      const g = o.browseGroup;
-      byGroup.set(g, (byGroup.get(g) ?? 0) + 1);
-    }
-    const ordered = WELLNEST_BROWSE_GROUP_ORDER as readonly string[];
-    for (const gid of ordered) {
-      const count = byGroup.get(gid);
-      if (!count) continue;
-      chips.push({
-        id: `group:${gid}`,
-        label: WELLNEST_BROWSE_GROUP_LABELS[gid] ?? gid,
-        count,
-      });
-    }
-    for (const [gid, count] of byGroup) {
-      if (ordered.includes(gid)) continue;
-      chips.push({
-        id: `group:${gid}`,
-        label: WELLNEST_BROWSE_GROUP_LABELS[gid] ?? gid,
-        count,
-      });
-    }
-    return chips;
-  }, [
-    provider?.code,
-    treatmentsToShow,
-    wellnessIntakeGoals,
-    wellnessQuizSuggestedIdSet,
-  ]);
-
-  const visibleTreatmentsToShow = useMemo(() => {
-    if (!isWellnestWellnessProviderCode(provider?.code))
-      return treatmentsToShow;
-
-    let list = treatmentsToShow;
-
-    if (wellnestBrowseFilter === "goal") {
-      list = list.filter(
-        (t) => (getWellnestGoalSignalForTreatment(t)?.score ?? 0) > 0,
-      );
-    } else if (wellnestBrowseFilter === "wellness_quiz") {
-      list = list.filter((t) => {
-        const o = getWellnestOfferingByTreatmentName(t);
-        const id = o?.wellnessQuizId?.trim();
-        return Boolean(id && wellnessQuizSuggestedIdSet.has(id));
-      });
-    } else if (wellnestBrowseFilter.startsWith("group:")) {
-      const gid = wellnestBrowseFilter.slice(6);
-      list = list.filter((t) => {
-        const o = getWellnestOfferingByTreatmentName(t);
-        return o?.browseGroup === gid;
-      });
-    }
-
-    return list;
-  }, [
-    provider?.code,
-    treatmentsToShow,
-    wellnestBrowseFilter,
-    wellnessIntakeGoals,
-    wellnessQuizSuggestedIdSet,
-  ]);
-
   const searchedTreatmentsToShow = useMemo(() => {
     const q = treatmentSearchQuery.trim();
-    if (!q) return visibleTreatmentsToShow;
-    return visibleTreatmentsToShow.filter((treatment) => {
+    if (!q) return treatmentsToShow;
+    return treatmentsToShow.filter((treatment) => {
       const wellnestOffering = getWellnestOfferingByTreatmentName(treatment);
       const groupLabel = wellnestOffering?.browseGroup
         ? (WELLNEST_BROWSE_GROUP_LABELS[wellnestOffering.browseGroup] ?? "")
@@ -2742,33 +2928,43 @@ export default function TreatmentRecommenderByTreatment({
       return treatmentRecommenderCatalogSearchMatches(haystack, q);
     });
   }, [
-    visibleTreatmentsToShow,
+    treatmentsToShow,
     treatmentSearchQuery,
     provider?.code,
     effectivePriceList,
   ]);
 
-  useEffect(() => {
-    setWellnestBrowseFilter("all");
-  }, [provider?.code, client.id]);
+  const judgeMdFocusedTreatmentsToShow = useMemo(() => {
+    if (!isJudgeMdProviderCode(provider?.code)) return searchedTreatmentsToShow;
+    if (judgeMdTreatmentFocus === "nonsurgical") {
+      return searchedTreatmentsToShow.filter((t) =>
+        isJudgeMdNonsurgicalPlanBuilderTreatment(t),
+      );
+    }
+    if (judgeMdTreatmentFocus === "surgical") {
+      return searchedTreatmentsToShow.filter((t) => isJudgeMdSurgeryPlanCategory(t));
+    }
+    return searchedTreatmentsToShow;
+  }, [judgeMdTreatmentFocus, provider?.code, searchedTreatmentsToShow]);
+
+  const visibleTreatmentCount = isJudgeMdProviderCode(provider?.code)
+    ? judgeMdFocusedTreatmentsToShow.length
+    : searchedTreatmentsToShow.length;
+
+  /** Judge MD: section labels + cards; other providers: card-only rows. */
+  const treatmentRecommenderCardSpecs = useMemo(() => {
+    if (isJudgeMdProviderCode(provider?.code)) {
+      return buildJudgeMdPlanBuilderRowSpecs(judgeMdFocusedTreatmentsToShow);
+    }
+    return searchedTreatmentsToShow.map((treatment) => ({
+      kind: "card" as const,
+      treatment,
+    }));
+  }, [judgeMdFocusedTreatmentsToShow, provider?.code, searchedTreatmentsToShow]);
 
   useEffect(() => {
-    if (wellnestBrowseFilter !== "wellness_quiz") return;
-    if (wellnessQuizSuggestedIdSet.size === 0) {
-      setWellnestBrowseFilter("all");
-      return;
-    }
-    const anyMatch = treatmentsToShow.some((t) => {
-      const id = getWellnestOfferingByTreatmentName(t)?.wellnessQuizId?.trim();
-      return Boolean(id && wellnessQuizSuggestedIdSet.has(id));
-    });
-    if (!anyMatch) setWellnestBrowseFilter("all");
-  }, [
-    wellnestBrowseFilter,
-    wellnessQuizSuggestedIdSet,
-    treatmentsToShow,
-    provider?.code,
-  ]);
+    setJudgeMdTreatmentFocus("all");
+  }, [provider?.code, client.id]);
 
   /** Opens the skincare add-to-plan form and activates the recommended filter so the user lands directly on their client's recommended products. */
   const handleOpenSkincareWithRecommendedFilter = useCallback(() => {
@@ -2797,18 +2993,33 @@ export default function TreatmentRecommenderByTreatment({
     if (!addToPlanForTreatment) return;
     if (editingPlanItemId && !onUpdatePlanItem) return;
     const isSkincare = addToPlanForTreatment.treatment === "Skincare";
-    const isLaser = isEnergyTreatmentCategory(addToPlanForTreatment.treatment);
     const wellnestOffering = getWellnestOfferingByTreatmentName(
       addToPlanForTreatment.treatment,
     );
     const region =
-      isSkincare || isLaser
+      isSkincare
         ? ""
         : addToPlanForTreatment.where.length > 0
           ? addToPlanForTreatment.where.join(", ")
           : "";
     const treatmentProduct = treatmentProductHintForQuantity(
       addToPlanForTreatment,
+    );
+    const qtyStored = buildDiscussedBiostimQuantityFields(
+      addToPlanForTreatment.treatment,
+      treatmentProduct ?? undefined,
+      addToPlanForTreatment.quantity,
+      addToPlanForTreatment.bioTreatmentSessions,
+    );
+    const qtyCtxStored = getQuantityContext(
+      addToPlanForTreatment.treatment,
+      treatmentProduct ?? undefined,
+      provider?.code,
+    );
+    const treatmentIntervalStored = resolveTreatmentIntervalForPlanItem(
+      qtyCtxStored,
+      qtyStored.bioTreatmentSessions ?? qtyStored.quantity,
+      addToPlanForTreatment.treatmentInterval,
     );
     const noteParts: string[] = [];
     if (wellnestOffering && addToPlanForTreatment.deliveryForm?.trim()) {
@@ -2832,19 +3043,48 @@ export default function TreatmentRecommenderByTreatment({
       scheduledTrim && isValidPlanScheduledDateIso(scheduledTrim)
         ? scheduledTrim
         : undefined;
+    const skincareAddOnNames = !isSkincare
+      ? (addToPlanForTreatment.skincareAddOns ?? [])
+          .map((n) => n.trim())
+          .filter(Boolean)
+      : [];
+    const addSkincareAddOns = async () => {
+      if (skincareAddOnNames.length === 0 || !onAddToPlanDirect) return;
+      const addOnSourceLabel =
+        treatmentProduct?.trim() || addToPlanForTreatment.treatment;
+      const addOnPrefills = skincareAddOnNames.map((name) => ({
+        interest: "",
+        region: "",
+        treatment: "Skincare",
+        timeline: addToPlanForTreatment.when,
+        scheduledDate: scheduledForPrefill,
+        treatmentProduct: name,
+        skincareAddOnForTreatment: addOnSourceLabel,
+      }));
+      if (onAddMultipleToPlanDirect) {
+        await onAddMultipleToPlanDirect(addOnPrefills, { skipToast: true });
+      } else {
+        for (const p of addOnPrefills) {
+          await onAddToPlanDirect(p, { skipToast: true });
+        }
+      }
+    };
     const patch: Partial<DiscussedItem> = {
       region: region || undefined,
       treatment: addToPlanForTreatment.treatment,
       timeline: addToPlanForTreatment.when,
       scheduledDate: scheduledForPrefill,
       product: treatmentProduct?.trim() || undefined,
-      quantity: addToPlanForTreatment.quantity?.trim() || undefined,
+      quantity: qtyStored.quantity,
+      bioTreatmentSessions: qtyStored.bioTreatmentSessions,
+      treatmentInterval: treatmentIntervalStored,
       notes: notesJoined,
       findings: findingsForItem?.length ? findingsForItem : [],
     };
     try {
       if (editingPlanItemId && onUpdatePlanItem) {
         await onUpdatePlanItem(editingPlanItemId, patch);
+        await addSkincareAddOns();
         setEditingPlanItemId(null);
         setAddToPlanForTreatment(null);
       } else {
@@ -2861,7 +3101,6 @@ export default function TreatmentRecommenderByTreatment({
               provider?.code,
             )
           : null;
-
         if (isSkincare && skincareProductNames.length > 1) {
           const prefills = skincareProductNames.map((productName) => ({
             interest: "",
@@ -2904,6 +3143,12 @@ export default function TreatmentRecommenderByTreatment({
               productName.trim().toLowerCase() !== "prfm injections"
                 ? ""
                 : region;
+            const qf = buildDiscussedBiostimQuantityFields(
+              addToPlanForTreatment.treatment,
+              productName,
+              addToPlanForTreatment.quantity,
+              addToPlanForTreatment.bioTreatmentSessions,
+            );
             return {
               interest: "",
               region: regionForRow,
@@ -2911,7 +3156,17 @@ export default function TreatmentRecommenderByTreatment({
               timeline: addToPlanForTreatment.when,
               scheduledDate: scheduledForPrefill,
               treatmentProduct: productName,
-              quantity: addToPlanForTreatment.quantity?.trim() || undefined,
+              quantity: qf.quantity,
+              bioTreatmentSessions: qf.bioTreatmentSessions,
+              treatmentInterval: resolveTreatmentIntervalForPlanItem(
+                getQuantityContext(
+                  addToPlanForTreatment.treatment,
+                  productName,
+                  provider?.code,
+                ),
+                qf.bioTreatmentSessions ?? qf.quantity,
+                addToPlanForTreatment.treatmentInterval,
+              ),
               notes: notesJoined,
               findings: findingsForItem?.length ? findingsForItem : undefined,
             };
@@ -2930,8 +3185,10 @@ export default function TreatmentRecommenderByTreatment({
               if (result) lastNew = result as DiscussedItem;
             }
           }
+          await addSkincareAddOns();
+          const addOnCount = skincareAddOnNames.length;
           showToast(
-            `${splitNonSkincareProducts.length} ${addToPlanForTreatment.treatment} lines added to plan`,
+            `${splitNonSkincareProducts.length} ${addToPlanForTreatment.treatment} lines${addOnCount > 0 ? ` + ${addOnCount} skincare add-on${addOnCount > 1 ? "s" : ""}` : ""} added to plan`,
           );
           setAddToPlanForTreatment(null);
           if (lastNew) setLastAddedItem(lastNew);
@@ -2943,11 +3200,14 @@ export default function TreatmentRecommenderByTreatment({
             timeline: addToPlanForTreatment.when,
             scheduledDate: scheduledForPrefill,
             treatmentProduct,
-            quantity: addToPlanForTreatment.quantity?.trim() || undefined,
+            quantity: qtyStored.quantity,
+            bioTreatmentSessions: qtyStored.bioTreatmentSessions,
+            treatmentInterval: treatmentIntervalStored,
             notes: notesJoined,
             findings: findingsForItem?.length ? findingsForItem : undefined,
           };
           const newItem = await onAddToPlanDirect(prefill);
+          await addSkincareAddOns();
           setAddToPlanForTreatment(null);
           if (newItem) setLastAddedItem(newItem);
         }
@@ -2992,10 +3252,69 @@ export default function TreatmentRecommenderByTreatment({
     const qtyCtx = getQuantityContext(
       addToPlanForTreatment.treatment,
       treatmentProductHintForQuantity(addToPlanForTreatment),
+      provider?.code,
     );
     if (qtyCtx.quantityControl === "text") return;
-    const { options, defaultQuantity } = qtyCtx;
     const q = (addToPlanForTreatment.quantity ?? "").trim();
+    const s = (addToPlanForTreatment.bioTreatmentSessions ?? "").trim();
+
+    if (qtyCtx.sculptraSessions) {
+      const ss = qtyCtx.sculptraSessions;
+      const vOk = q && qtyCtx.options.includes(q);
+      const sOk = s && ss.options.includes(s);
+      const nextSessions = sOk ? s : ss.defaultSessions;
+      const nextInterval =
+        resolveTreatmentIntervalForPlanItem(
+          qtyCtx,
+          nextSessions,
+          addToPlanForTreatment.treatmentInterval,
+        ) ?? "";
+      if (
+        vOk &&
+        sOk &&
+        (addToPlanForTreatment.treatmentInterval ?? "") === nextInterval
+      )
+        return;
+      setAddToPlanForTreatment((prev) =>
+        prev
+          ? {
+              ...prev,
+              quantity: vOk ? q : qtyCtx.defaultQuantity,
+              bioTreatmentSessions: nextSessions,
+              treatmentInterval: nextInterval,
+            }
+          : null,
+      );
+      return;
+    }
+
+    if (qtyCtx.primaryDiscussedField === "bioTreatmentSessions") {
+      const sOk = s && qtyCtx.options.includes(s);
+      const nextSessions = sOk ? s : qtyCtx.defaultQuantity;
+      const nextInterval =
+        resolveTreatmentIntervalForPlanItem(
+          qtyCtx,
+          nextSessions,
+          addToPlanForTreatment.treatmentInterval,
+        ) ?? "";
+      if (
+        sOk &&
+        (addToPlanForTreatment.treatmentInterval ?? "") === nextInterval
+      )
+        return;
+      setAddToPlanForTreatment((prev) =>
+        prev
+          ? {
+              ...prev,
+              bioTreatmentSessions: nextSessions,
+              treatmentInterval: nextInterval,
+            }
+          : null,
+      );
+      return;
+    }
+
+    const { options, defaultQuantity } = qtyCtx;
     if (q && options.includes(q)) return;
     const next = defaultQuantity;
     if (q !== next) {
@@ -3014,6 +3333,8 @@ export default function TreatmentRecommenderByTreatment({
     addToPlanForTreatment?.skincareWhat,
     addToPlanForTreatment?.skincareCategoryFilter,
     addToPlanForTreatment?.quantity,
+    addToPlanForTreatment?.bioTreatmentSessions,
+    addToPlanForTreatment?.treatmentInterval,
   ]);
 
   useEffect(() => {
@@ -3136,6 +3457,7 @@ export default function TreatmentRecommenderByTreatment({
     clientPhotoView === "front" ? frontPhotoUrl : sidePhotoUrl;
   const hasFront = frontPhotoUrl != null;
   const hasSide = sidePhotoUrl != null;
+  const hasAnyClientPhoto = hasFront || hasSide;
 
   /** Plan items grouped by section (Skincare first when present, then Now, Add next visit, Scheduled, Wishlist, Completed). */
   const planItemsBySection = useMemo(() => {
@@ -3187,6 +3509,10 @@ export default function TreatmentRecommenderByTreatment({
   }, [planItemsBySection]);
 
   const planItemCount = (client.discussedItems ?? []).length;
+  const planLastUpdatedShort = useMemo(
+    () => planItemsLastUpdatedShortLabel(client.discussedItems),
+    [client.discussedItems],
+  );
   const firstName = client.name?.trim().split(/\s+/)[0] || "Patient";
 
   const checkoutLinesByDiscussedIndex = useMemo(
@@ -3287,70 +3613,93 @@ export default function TreatmentRecommenderByTreatment({
   return (
     <div className="treatment-recommender-by-treatment">
       <aside className="treatment-recommender-by-treatment__client-column">
-        <div
-          className={`treatment-recommender-by-treatment__client-photo-wrap ${currentClientPhotoUrl ? "treatment-recommender-by-treatment__client-photo-wrap--clickable" : ""}`}
-          role={currentClientPhotoUrl ? "button" : undefined}
-          tabIndex={currentClientPhotoUrl ? 0 : undefined}
-          onClick={() => currentClientPhotoUrl && setShowClientPhotoModal(true)}
-          onKeyDown={(e) =>
-            currentClientPhotoUrl &&
-            (e.key === "Enter" || e.key === " ") &&
-            setShowClientPhotoModal(true)
-          }
-          title={currentClientPhotoUrl ? "Click to expand" : undefined}
-        >
-          {currentClientPhotoUrl ? (
-            <>
-              <img
-                src={currentClientPhotoUrl}
-                alt={`${client.name} – ${clientPhotoView}`}
-                className="treatment-recommender-by-treatment__client-photo"
-              />
-              <div className="treatment-recommender-by-treatment__client-photo-overlay">
-                Click to expand
-              </div>
-            </>
-          ) : (
-            <div className="treatment-recommender-by-treatment__client-photo-placeholder">
-              No {clientPhotoView} photo
+        {hasAnyClientPhoto && (
+          <>
+            <div
+              className={`treatment-recommender-by-treatment__client-photo-wrap ${
+                currentClientPhotoUrl
+                  ? "treatment-recommender-by-treatment__client-photo-wrap--clickable"
+                  : ""
+              }`}
+              role={currentClientPhotoUrl ? "button" : undefined}
+              tabIndex={currentClientPhotoUrl ? 0 : undefined}
+              onClick={() =>
+                currentClientPhotoUrl && setShowClientPhotoModal(true)
+              }
+              onKeyDown={(e) =>
+                currentClientPhotoUrl &&
+                (e.key === "Enter" || e.key === " ") &&
+                setShowClientPhotoModal(true)
+              }
+              title={currentClientPhotoUrl ? "Click to expand" : undefined}
+            >
+              {currentClientPhotoUrl ? (
+                <>
+                  <img
+                    src={currentClientPhotoUrl}
+                    alt={`${client.name} – ${clientPhotoView}`}
+                    className="treatment-recommender-by-treatment__client-photo"
+                  />
+                  <div className="treatment-recommender-by-treatment__client-photo-overlay">
+                    Click to expand
+                  </div>
+                </>
+              ) : (
+                <div className="treatment-recommender-by-treatment__client-photo-placeholder">
+                  No {clientPhotoView} photo
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className="treatment-recommender-by-treatment__client-photo-toggles">
-          <button
-            type="button"
-            className={`treatment-recommender-by-treatment__client-toggle ${
-              clientPhotoView === "front"
-                ? "treatment-recommender-by-treatment__client-toggle--active"
-                : ""
-            }`}
-            onClick={() => setClientPhotoView("front")}
-            disabled={!hasFront}
-          >
-            Front
-          </button>
-          <button
-            type="button"
-            className={`treatment-recommender-by-treatment__client-toggle ${
-              clientPhotoView === "side"
-                ? "treatment-recommender-by-treatment__client-toggle--active"
-                : ""
-            }`}
-            onClick={() => setClientPhotoView("side")}
-            disabled={!hasSide}
-          >
-            Side
-          </button>
-        </div>
+            <div className="treatment-recommender-by-treatment__client-photo-toggles">
+              <button
+                type="button"
+                className={`treatment-recommender-by-treatment__client-toggle ${
+                  clientPhotoView === "front"
+                    ? "treatment-recommender-by-treatment__client-toggle--active"
+                    : ""
+                }`}
+                onClick={() => setClientPhotoView("front")}
+                disabled={!hasFront}
+              >
+                Front
+              </button>
+              <button
+                type="button"
+                className={`treatment-recommender-by-treatment__client-toggle ${
+                  clientPhotoView === "side"
+                    ? "treatment-recommender-by-treatment__client-toggle--active"
+                    : ""
+                }`}
+                onClick={() => setClientPhotoView("side")}
+                disabled={!hasSide}
+              >
+                Side
+              </button>
+            </div>
+          </>
+        )}
 
-        <div className="treatment-recommender-by-treatment__plan-section">
+        <div
+          className={`treatment-recommender-by-treatment__plan-section${
+            !hasAnyClientPhoto
+              ? " treatment-recommender-by-treatment__plan-section--no-client-photo"
+              : ""
+          }`}
+        >
           <div className="treatment-recommender-by-treatment__plan-title-row">
-            <h3 className="treatment-recommender-by-treatment__plan-title">
-              {firstName}&apos;s plan{" "}
-              <span className="treatment-recommender-by-treatment__plan-item-count">
-                ({planItemCount} {planItemCount === 1 ? "item" : "items"})
-              </span>
-            </h3>
+            <div className="treatment-recommender-by-treatment__plan-title-block">
+              <h3 className="treatment-recommender-by-treatment__plan-title">
+                {firstName}&apos;s plan{" "}
+                <span className="treatment-recommender-by-treatment__plan-item-count">
+                  ({planItemCount} {planItemCount === 1 ? "item" : "items"})
+                </span>
+              </h3>
+              {planLastUpdatedShort ? (
+                <p className="treatment-recommender-by-treatment__plan-last-updated">
+                  Last updated {planLastUpdatedShort}
+                </p>
+              ) : null}
+            </div>
             {planItemCount > 0 && planHasScheduledItems && planViewMode === "calendar" ? (
               <button
                 type="button"
@@ -3687,7 +4036,7 @@ export default function TreatmentRecommenderByTreatment({
                               : ""
                           }${pricingMissing ? " treatment-recommender-by-treatment__plan-row-wrap--pricing-incomplete" : ""}${isBuilt ? " treatment-recommender-by-treatment__plan-row-wrap--built" : ""}`}
                         >
-                          {onUpdatePlanItem && onAddToPlanDirect ? (
+                          {onUpdatePlanItem ? (
                             <button
                               type="button"
                               className="treatment-recommender-by-treatment__plan-row treatment-recommender-by-treatment__plan-row--interactive"
@@ -3818,10 +4167,9 @@ export default function TreatmentRecommenderByTreatment({
 
       <div className="treatment-recommender-by-treatment__main">
         <div className="treatment-recommender-by-treatment__body">
-          <TreatmentRecommenderFilters
-            state={filterState}
-            onStateChange={(next) => setFilterState((s) => ({ ...s, ...next }))}
-          />
+          <h2 className="treatment-recommender-by-treatment__screen-heading">
+            Treatment recommendations
+          </h2>
           <div className="treatment-recommender-by-treatment__search-row">
             <input
               type="search"
@@ -3833,59 +4181,65 @@ export default function TreatmentRecommenderByTreatment({
             />
           </div>
 
-          {wellnestBrowseChips.length > 0 && (
-            <div
-              className="treatment-recommender-wellnest-filters"
-              role="region"
-              aria-label="Peptide browse filters"
-            >
-              <div className="treatment-recommender-wellnest-filters__row">
-                <span
-                  className="treatment-recommender-wellnest-filters__label"
-                  id="wellnest-filter-focus-label"
-                >
-                  Focus
-                </span>
-                <div
-                  className="treatment-recommender-by-treatment__wellnest-browse-chips"
-                  aria-labelledby="wellnest-filter-focus-label"
-                >
-                  {wellnestBrowseChips.map((chip) => {
-                    const selected = wellnestBrowseFilter === chip.id;
-                    return (
-                      <button
-                        key={chip.id}
-                        type="button"
-                        className={`treatment-recommender-by-treatment__chip ${
-                          selected
-                            ? "treatment-recommender-by-treatment__chip--selected"
-                            : ""
-                        }`}
-                        onClick={() => setWellnestBrowseFilter(chip.id)}
-                      >
-                        {chip.label}{" "}
-                        <span className="treatment-recommender-wellnest-filters__count">
-                          ({chip.count})
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+          {isJudgeMdProviderCode(provider?.code) ? (
+            <div className="treatment-recommender-by-treatment__focus-toggle-row">
+              <span className="treatment-recommender-by-treatment__focus-toggle-label">
+                Considering:
+              </span>
+              <div
+                className="treatment-recommender-by-treatment__focus-toggle-group"
+                role="group"
+                aria-label="Consider surgical or non-surgical options"
+              >
+                {[
+                  { id: "all" as const, label: "All" },
+                  { id: "nonsurgical" as const, label: "Non-surgical" },
+                  { id: "surgical" as const, label: "Surgical" },
+                ].map((option) => {
+                  const selected = judgeMdTreatmentFocus === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`treatment-recommender-by-treatment__focus-toggle-btn${
+                        selected
+                          ? " treatment-recommender-by-treatment__focus-toggle-btn--active"
+                          : ""
+                      }`}
+                      onClick={() => setJudgeMdTreatmentFocus(option.id)}
+                      aria-pressed={selected}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          )}
+          ) : null}
+
           <h2 className="treatment-recommender-by-treatment__results-heading">
-            {searchedTreatmentsToShow.length} treatment option
-            {searchedTreatmentsToShow.length !== 1 ? "s" : ""}
+            {visibleTreatmentCount} treatment option
+            {visibleTreatmentCount !== 1 ? "s" : ""}
           </h2>
 
           <div className="treatment-recommender-by-treatment__cards">
-            {searchedTreatmentsToShow.length === 0 ? (
+            {visibleTreatmentCount === 0 ? (
               <p className="treatment-recommender-by-treatment__empty">
-                No treatments match your current filters/search.
+                No treatments match your current search or selection.
               </p>
             ) : (
-              searchedTreatmentsToShow.map((treatment) => {
+              treatmentRecommenderCardSpecs.map((spec) => {
+                if (spec.kind === "heading") {
+                  return (
+                    <h3
+                      key={spec.key}
+                      className="treatment-recommender-by-treatment__plan-group-label"
+                    >
+                      {spec.label}
+                    </h3>
+                  );
+                }
+                const treatment = spec.treatment;
                 const wellnestOffering =
                   getWellnestOfferingByTreatmentName(treatment);
                 const wellnestDeliveryOptions = wellnestOffering
@@ -3929,37 +4283,28 @@ export default function TreatmentRecommenderByTreatment({
                         wellnessQuizTreatmentId,
                       )
                     : [];
-                const wellnessQuizMatchAnswerLabels =
-                  client.wellnessQuiz?.answers &&
-                  showWellnessQuizTreatmentBadge &&
-                  wellnessQuizTreatmentId
-                    ? getWellnessQuizMatchAnswerLabelsForTreatment(
-                        client.wellnessQuiz.answers,
-                        wellnessQuizTreatmentId,
-                      )
-                    : [];
                 const wellnessQuizMatchDetailTitle =
                   wellnessQuizMatchReasonLines.length > 0
                     ? wellnessQuizMatchReasonLines.join("\n")
                     : "Suggested by this client's completed wellness quiz";
-                const wellnestAddressChips = wellnestOffering
-                  ? parseWellnestWhatItAddressesChips(
-                      wellnestOffering.addresses,
-                    )
-                  : [];
                 const cardPhotos = getPhotosForTreatment(treatment);
-                const cardPhoto = cardPhotos[0];
-                /** Eye opens Treatment Photos for non-Wellnest; hide when the library has no matches. */
+                /** Eye: Airtable examples, Wellnest education, or Judge MD gallery (Breast/Body/Vaginal only). */
+                const judgeMdGalleryOpts =
+                  treatment === "Breast Surgery"
+                    ? { breastSurgeryProductLine: judgeMdBreastSurgeryProductHint }
+                    : treatment === "Body Sculpting"
+                      ? { bodySculptingProductLine: judgeMdBodySculptingProductHint }
+                      : undefined;
                 const showPhotoExamplesButton =
-                  Boolean(wellnestOffering) || cardPhotos.length > 0;
-                const wellnestHeroUrl = wellnestOffering
-                  ? getWellnestRecommenderImageUrl(treatment)
-                  : null;
-                const displayCardPhotoSrc =
-                  wellnestHeroUrl ??
-                  (cardPhoto
-                    ? cardPhoto.thumbnailUrl || cardPhoto.photoUrl
-                    : null);
+                  Boolean(wellnestOffering) ||
+                  cardPhotos.length > 0 ||
+                  (isJudgeMdProviderCode(provider?.code) &&
+                    !wellnestOffering &&
+                    isJudgeMdPlanBuilderGalleryEyeTreatment(treatment) &&
+                    getJudgeMdRecommenderGalleryExhibit(
+                      treatment,
+                      judgeMdGalleryOpts,
+                    ) != null);
                 return (
                   <div
                     key={treatment}
@@ -3974,30 +4319,6 @@ export default function TreatmentRecommenderByTreatment({
                     className="treatment-recommender-by-treatment__card"
                   >
                     <div className="treatment-recommender-by-treatment__card-top">
-                      {(displayCardPhotoSrc ||
-                        treatment === "Biostimulants") && (
-                        <div
-                          className={`treatment-recommender-by-treatment__card-photo-wrap${
-                            wellnestOffering
-                              ? " treatment-recommender-by-treatment__card-photo-wrap--wellnest"
-                              : ""
-                          }`}
-                        >
-                          {displayCardPhotoSrc ? (
-                            <img
-                              src={displayCardPhotoSrc}
-                              alt=""
-                              className="treatment-recommender-by-treatment__card-photo"
-                            />
-                          ) : (
-                            <img
-                              src={biostimulantsBeforeAfterUrl}
-                              alt="Biostimulants before and after"
-                              className="treatment-recommender-by-treatment__card-photo"
-                            />
-                          )}
-                        </div>
-                      )}
                       <div className="treatment-recommender-by-treatment__card-head">
                         <div className="treatment-recommender-by-treatment__card-title-row">
                           <h2 className="treatment-recommender-by-treatment__card-title">
@@ -4007,28 +4328,54 @@ export default function TreatmentRecommenderByTreatment({
                             <button
                               type="button"
                               className="treatment-recommender-by-treatment__examples-eye-btn"
-                              onClick={() =>
-                                wellnestOffering
-                                  ? setWellnestDetailTreatment(treatment)
-                                  : setPhotoExplorerContext({
-                                      treatment,
-                                      region:
-                                        filterState.region.length > 0
-                                          ? getInternalRegionForFilter(
-                                              filterState.region[0],
-                                            )
-                                          : undefined,
-                                    })
-                              }
+                              onClick={() => {
+                                if (wellnestOffering) {
+                                  setWellnestDetailTreatment(treatment);
+                                  return;
+                                }
+                                const region0 =
+                                  filterState.region.length > 0
+                                    ? getInternalRegionForFilter(
+                                        filterState.region[0],
+                                      )
+                                    : undefined;
+                                const ex =
+                                  isJudgeMdProviderCode(provider?.code) &&
+                                  isJudgeMdPlanBuilderGalleryEyeTreatment(
+                                    treatment,
+                                  ) &&
+                                  getJudgeMdRecommenderGalleryExhibit(
+                                    treatment,
+                                    judgeMdGalleryOpts,
+                                  );
+                                setPhotoExplorerContext({
+                                  treatment,
+                                  region: region0,
+                                  judgeMdGallery: ex
+                                    ? {
+                                        pageUrl: ex.pageUrl,
+                                        imageUrls: ex.imageUrls,
+                                      }
+                                    : undefined,
+                                });
+                              }}
                               title={
                                 wellnestOffering
                                   ? "Overview and examples"
-                                  : "View examples"
+                                  : treatment === "Facial Surgery"
+                                    ? "View blepharoplasty before and after examples"
+                                    : treatment === "Rhinoplasty"
+                                      ? "View rhinoplasty before and after examples"
+                                    : "View examples"
                               }
                               aria-label={
                                 wellnestOffering
                                   ? "Overview and examples"
-                                  : "View examples"
+                                  : treatment === "Facial Surgery"
+                                    ? "View blepharoplasty before and after examples"
+                                    : treatment === "Rhinoplasty"
+                                      ? "View rhinoplasty before and after examples"
+                                    : "View examples"
                               }
                             >
                               <svg
@@ -4241,15 +4588,6 @@ export default function TreatmentRecommenderByTreatment({
                               {wellnestGoalMatchLabel}
                             </span>
                           ) : null}
-                          {wellnestAddressChips.map((chipLabel, chipIdx) => (
-                            <span
-                              key={`wellnest-addr-${treatment}-${chipIdx}`}
-                              className="treatment-recommender-wellnest-card__chip treatment-recommender-wellnest-card__chip--addresses"
-                              title="What it addresses (Dr Reddy treatment offerings)"
-                            >
-                              {chipLabel}
-                            </span>
-                          ))}
                           <span className="treatment-recommender-wellnest-card__chip">
                             Visible results: {wellnestOffering.resultsTimeline}
                           </span>
@@ -4257,21 +4595,6 @@ export default function TreatmentRecommenderByTreatment({
                             {wellnestOffering.pricing}
                           </span>
                         </div>
-                        {showWellnessQuizTreatmentBadge &&
-                        wellnessQuizMatchAnswerLabels.length > 0 ? (
-                          <p
-                            className="treatment-recommender-wellnest-card__wellness-quiz-detail"
-                            title={wellnessQuizMatchDetailTitle}
-                          >
-                            <span className="treatment-recommender-wellnest-card__wellness-quiz-detail-prefix">
-                              Their answers included
-                            </span>{" "}
-                            {wellnessQuizMatchAnswerLabels.slice(0, 5).join(", ")}
-                            {wellnessQuizMatchAnswerLabels.length > 5
-                              ? "…"
-                              : "."}
-                          </p>
-                        ) : null}
                       </div>
                     )}
 
@@ -4310,6 +4633,7 @@ export default function TreatmentRecommenderByTreatment({
                             getUnifiedRecommenderEditSections(
                               treatment,
                               Boolean(wellnestOffering),
+                              isJudgeMdProviderCode(provider?.code),
                             ).length > 0 ? (
                               <div className="treatment-recommender-by-treatment__add-form-toolbar">
                                 <button
@@ -4809,6 +5133,82 @@ export default function TreatmentRecommenderByTreatment({
                             {treatment !== "Skincare" &&
                               !wellnestOffering &&
                               !usesOtherProceduresStructuredPlan(treatment) && (
+                              <>
+                              {isEnergyTreatmentCategory(treatment) && (
+                                <div className="treatment-recommender-by-treatment__add-row">
+                                  <span className="treatment-recommender-by-treatment__add-row-label">
+                                    Where:
+                                  </span>
+                                  <div className="treatment-recommender-by-treatment__chips">
+                                    {laserWhereDisplayRecords.map(
+                                      (rec, whereIdx) => {
+                                        const r = rec.value;
+                                        const whereSelected =
+                                          addToPlanForTreatment.where.includes(
+                                            r,
+                                          );
+                                        const recordId = rec.id || null;
+                                        return (
+                                          <button
+                                            key={
+                                              recordId
+                                                ? String(recordId)
+                                                : `energy-where-${whereIdx}-${r}`
+                                            }
+                                            type="button"
+                                            className={`treatment-recommender-by-treatment__chip ${
+                                              whereSelected
+                                                ? "treatment-recommender-by-treatment__chip--selected"
+                                                : ""
+                                            }`}
+                                            onClick={() => {
+                                              setAddToPlanForTreatment(
+                                                (prev) =>
+                                                  prev
+                                                    ? {
+                                                        ...prev,
+                                                        where:
+                                                          prev.where.includes(r)
+                                                            ? prev.where.filter(
+                                                                (x) => x !== r,
+                                                              )
+                                                            : [
+                                                                ...prev.where,
+                                                                r,
+                                                              ],
+                                                      }
+                                                    : null,
+                                              );
+                                            }}
+                                            title={
+                                              whereSelected
+                                                ? `Remove ${r}`
+                                                : `Add ${r}`
+                                            }
+                                            aria-label={
+                                              whereSelected
+                                                ? `Remove ${r}`
+                                                : `Add ${r}`
+                                            }
+                                          >
+                                            <span className="treatment-recommender-by-treatment__chip-label">
+                                              {r}
+                                            </span>
+                                            {whereSelected && (
+                                              <span
+                                                className="treatment-recommender-by-treatment__chip-remove"
+                                                aria-hidden
+                                              >
+                                                ×
+                                              </span>
+                                            )}
+                                          </button>
+                                        );
+                                      },
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                               <div className="treatment-recommender-by-treatment__add-row">
                                 <span className="treatment-recommender-by-treatment__add-row-label">
                                   {isEnergyTreatmentCategory(treatment)
@@ -5033,11 +5433,14 @@ export default function TreatmentRecommenderByTreatment({
                                         </button>
                                       ))}
                                   {treatment !== "Skincare" &&
-                                    !isEnergyTreatmentCategory(treatment) &&
                                     !usesOtherProceduresStructuredPlan(treatment) &&
                                     addToPlanForTreatment.where
                                       .filter((w) =>
-                                        treatment === "Microneedling"
+                                        isEnergyTreatmentCategory(treatment)
+                                          ? !laserWhereDisplayRecords.some(
+                                              (r) => r.value === w,
+                                            )
+                                          : treatment === "Microneedling"
                                           ? !microneedlingWhereDisplayRecords.some(
                                               (r) => r.value === w,
                                             )
@@ -5080,6 +5483,7 @@ export default function TreatmentRecommenderByTreatment({
                                       ))}
                                 </div>
                               </div>
+                              </>
                             )}
                             {treatment === "Biostimulants" && (
                               <div className="treatment-recommender-by-treatment__add-row">
@@ -5326,6 +5730,7 @@ export default function TreatmentRecommenderByTreatment({
                                         ? chemicalPeelTypeDisplayRecords
                                         : otherProcedureDisplayRecords
                                   ).map((rec, prodIdx) => {
+                                    if (!("value" in rec)) return rec;
                                     const opt = rec.value;
                                     const otherProcOpts =
                                       usesOtherProceduresMultiSelectProduct(treatment)
@@ -5518,6 +5923,46 @@ export default function TreatmentRecommenderByTreatment({
                                 message={addPlanDraftPricing.message}
                               />
                             ) : null}
+                            {judgemdSkincareAddOnPool.length > 0 && (
+                              <div className="treatment-recommender-by-treatment__add-row treatment-recommender-by-treatment__add-row--skincare-addons">
+                                <span className="treatment-recommender-by-treatment__add-row-label">
+                                  Skincare add-ons:
+                                </span>
+                                <div className="treatment-recommender-by-treatment__chips">
+                                  {judgemdSkincareAddOnPool.map((item) => {
+                                    const selected = (addToPlanForTreatment.skincareAddOns ?? []).includes(item.name);
+                                    return (
+                                      <button
+                                        key={item.name}
+                                        type="button"
+                                        className={`treatment-recommender-by-treatment__chip${selected ? " treatment-recommender-by-treatment__chip--selected" : ""}`}
+                                        title={selected ? `Remove ${item.name}` : `Add ${item.name}`}
+                                        aria-label={selected ? `Remove ${item.name}` : `Add ${item.name}`}
+                                        onClick={() =>
+                                          setAddToPlanForTreatment((prev) => {
+                                            if (!prev) return null;
+                                            const current = prev.skincareAddOns ?? [];
+                                            return {
+                                              ...prev,
+                                              skincareAddOns: selected
+                                                ? current.filter((n) => n !== item.name)
+                                                : [...current, item.name],
+                                            };
+                                          })
+                                        }
+                                      >
+                                        <span className="treatment-recommender-by-treatment__chip-label">
+                                          {item.name.replace(/\s*\|.*$/, "")}
+                                        </span>
+                                        {selected && (
+                                          <span className="treatment-recommender-by-treatment__chip-remove" aria-hidden>×</span>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                             <div className="treatment-recommender-by-treatment__add-row treatment-recommender-by-treatment__add-row--when-with-date">
                               <span className="treatment-recommender-by-treatment__add-row-label">
                                 When:
@@ -5648,54 +6093,194 @@ export default function TreatmentRecommenderByTreatment({
                                 const qtyCtx = getQuantityContext(
                                   addToPlanForTreatment.treatment,
                                   qtyHint,
+                                  provider?.code,
                                 );
-                                return (
-                                  <>
+                                const renderIntervalSelector = (
+                                  sessionsRaw: string | undefined,
+                                ) =>
+                                  shouldStoreTreatmentInterval(
+                                    qtyCtx,
+                                    sessionsRaw,
+                                  ) ? (
                                     <label className="treatment-recommender-by-treatment__details-label treatment-recommender-by-treatment__pricing-qty">
                                       <span className="treatment-recommender-by-treatment__pricing-qty-label">
-                                        {qtyCtx.unitLabel}
+                                        Interval
                                       </span>
-                                      {qtyCtx.quantityControl === "text" ? (
-                                        <input
-                                          type="text"
-                                          inputMode="numeric"
-                                          className="treatment-recommender-by-treatment__details-input"
-                                          aria-label={qtyCtx.unitLabel}
-                                          placeholder={qtyCtx.inputPlaceholder ?? qtyCtx.defaultQuantity}
-                                          value={
-                                            addToPlanForTreatment.quantity ?? ""
-                                          }
-                                          onChange={(e) => {
-                                            const v = e.target.value.replace(
-                                              /\D/g,
-                                              "",
-                                            );
-                                            setAddToPlanForTreatment((prev) =>
-                                              prev
-                                                ? { ...prev, quantity: v }
-                                                : null,
-                                            );
-                                          }}
-                                        />
-                                      ) : (
-                                        <PlanQuantityStepperInput
-                                          unitLabel={qtyCtx.unitLabel}
-                                          quantity={
-                                            addToPlanForTreatment.quantity ?? ""
-                                          }
-                                          options={qtyCtx.options}
-                                          defaultQuantity={qtyCtx.defaultQuantity}
-                                          inputId={`plan-qty-prominent-${treatment}`}
-                                          onQuantityChange={(next) =>
-                                            setAddToPlanForTreatment((prev) =>
-                                              prev
-                                                ? { ...prev, quantity: next }
-                                                : null,
-                                            )
-                                          }
-                                        />
-                                      )}
+                                      <select
+                                        className="treatment-recommender-by-treatment__details-input"
+                                        value={
+                                          addToPlanForTreatment.treatmentInterval ||
+                                          qtyCtx.intervalOptions?.[0] ||
+                                          ""
+                                        }
+                                        onChange={(e) =>
+                                          setAddToPlanForTreatment((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  treatmentInterval:
+                                                    e.target.value,
+                                                }
+                                              : null,
+                                          )
+                                        }
+                                      >
+                                        {(qtyCtx.intervalOptions ?? []).map(
+                                          (option) => (
+                                            <option
+                                              key={option}
+                                              value={option}
+                                            >
+                                              {option}
+                                            </option>
+                                          ),
+                                        )}
+                                      </select>
                                     </label>
+                                  ) : null;
+                                return (
+                                  <>
+                                    {qtyCtx.sculptraSessions ? (
+                                      <>
+                                        <label className="treatment-recommender-by-treatment__details-label treatment-recommender-by-treatment__pricing-qty">
+                                          <span className="treatment-recommender-by-treatment__pricing-qty-label">
+                                            {qtyCtx.unitLabel}
+                                          </span>
+                                          <PlanQuantityStepperInput
+                                            unitLabel={qtyCtx.unitLabel}
+                                            quantity={
+                                              addToPlanForTreatment.quantity ?? ""
+                                            }
+                                            options={qtyCtx.options}
+                                            defaultQuantity={qtyCtx.defaultQuantity}
+                                            inputId={`plan-qty-vials-${treatment}`}
+                                            onQuantityChange={(next) =>
+                                              setAddToPlanForTreatment((prev) =>
+                                                prev
+                                                  ? { ...prev, quantity: next }
+                                                  : null,
+                                              )
+                                            }
+                                          />
+                                        </label>
+                                        <label className="treatment-recommender-by-treatment__details-label treatment-recommender-by-treatment__pricing-qty">
+                                          <span className="treatment-recommender-by-treatment__pricing-qty-label">
+                                            {qtyCtx.sculptraSessions.unitLabel}
+                                          </span>
+                                          <PlanQuantityStepperInput
+                                            unitLabel={
+                                              qtyCtx.sculptraSessions.unitLabel
+                                            }
+                                            quantity={
+                                              addToPlanForTreatment.bioTreatmentSessions ??
+                                              ""
+                                            }
+                                            options={qtyCtx.sculptraSessions.options}
+                                            defaultQuantity={
+                                              qtyCtx.sculptraSessions.defaultSessions
+                                            }
+                                            inputId={`plan-qty-sessions-${treatment}`}
+                                            onQuantityChange={(next) =>
+                                              setAddToPlanForTreatment((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      bioTreatmentSessions: next,
+                                                    }
+                                                  : null,
+                                              )
+                                            }
+                                          />
+                                        </label>
+                                        {renderIntervalSelector(
+                                          addToPlanForTreatment.bioTreatmentSessions ||
+                                            qtyCtx.sculptraSessions
+                                              .defaultSessions,
+                                        )}
+                                      </>
+                                    ) : qtyCtx.primaryDiscussedField ===
+                                      "bioTreatmentSessions" ? (
+                                      <>
+                                        <label className="treatment-recommender-by-treatment__details-label treatment-recommender-by-treatment__pricing-qty">
+                                          <span className="treatment-recommender-by-treatment__pricing-qty-label">
+                                            {qtyCtx.unitLabel}
+                                          </span>
+                                          <PlanQuantityStepperInput
+                                            unitLabel={qtyCtx.unitLabel}
+                                            quantity={
+                                              addToPlanForTreatment.bioTreatmentSessions ??
+                                              ""
+                                            }
+                                            options={qtyCtx.options}
+                                            defaultQuantity={qtyCtx.defaultQuantity}
+                                            inputId={`plan-qty-prominent-${treatment}`}
+                                            onQuantityChange={(next) =>
+                                              setAddToPlanForTreatment((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      bioTreatmentSessions: next,
+                                                    }
+                                                  : null,
+                                              )
+                                            }
+                                          />
+                                        </label>
+                                        {renderIntervalSelector(
+                                          addToPlanForTreatment.bioTreatmentSessions ||
+                                            qtyCtx.defaultQuantity,
+                                        )}
+                                      </>
+                                    ) : (
+                                      <label className="treatment-recommender-by-treatment__details-label treatment-recommender-by-treatment__pricing-qty">
+                                        <span className="treatment-recommender-by-treatment__pricing-qty-label">
+                                          {qtyCtx.unitLabel}
+                                        </span>
+                                        {qtyCtx.quantityControl === "text" ? (
+                                          <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            className="treatment-recommender-by-treatment__details-input"
+                                            aria-label={qtyCtx.unitLabel}
+                                            placeholder={
+                                              qtyCtx.inputPlaceholder ??
+                                              qtyCtx.defaultQuantity
+                                            }
+                                            value={
+                                              addToPlanForTreatment.quantity ?? ""
+                                            }
+                                            onChange={(e) => {
+                                              const v = e.target.value.replace(
+                                                /\D/g,
+                                                "",
+                                              );
+                                              setAddToPlanForTreatment((prev) =>
+                                                prev
+                                                  ? { ...prev, quantity: v }
+                                                  : null,
+                                              );
+                                            }}
+                                          />
+                                        ) : (
+                                          <PlanQuantityStepperInput
+                                            unitLabel={qtyCtx.unitLabel}
+                                            quantity={
+                                              addToPlanForTreatment.quantity ?? ""
+                                            }
+                                            options={qtyCtx.options}
+                                            defaultQuantity={qtyCtx.defaultQuantity}
+                                            inputId={`plan-qty-prominent-${treatment}`}
+                                            onQuantityChange={(next) =>
+                                              setAddToPlanForTreatment((prev) =>
+                                                prev
+                                                  ? { ...prev, quantity: next }
+                                                  : null,
+                                              )
+                                            }
+                                          />
+                                        )}
+                                      </label>
+                                    )}
                                     {addPlanDraftPricing.placement === "units" &&
                                     addPlanDraftPricing.message ? (
                                       <AddPlanFieldPricingHint
@@ -5705,6 +6290,70 @@ export default function TreatmentRecommenderByTreatment({
                                   </>
                                 );
                               })()}
+                            {wellnestOffering ? (
+                              <section
+                                className="plan-opt-section"
+                                aria-labelledby={`plan-opt-delivery-${planOptDomIdSuffix(treatment)}`}
+                              >
+                                <h4
+                                  className="plan-opt-section__title"
+                                  id={`plan-opt-delivery-${planOptDomIdSuffix(treatment)}`}
+                                >
+                                  Delivery & dosing
+                                </h4>
+                                <div className="plan-opt-section__body">
+                                  <label className="treatment-recommender-by-treatment__details-label">
+                                    Delivery form
+                                    <select
+                                      className="treatment-recommender-by-treatment__details-input"
+                                      value={
+                                        addToPlanForTreatment.deliveryForm ?? ""
+                                      }
+                                      onChange={(e) =>
+                                        setAddToPlanForTreatment((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                deliveryForm: e.target.value,
+                                              }
+                                            : null,
+                                        )
+                                      }
+                                    >
+                                      {getWellnestProductOptionsForTreatment(
+                                        treatment,
+                                      ).map((opt, wIdx) => (
+                                        <option
+                                          key={`wellnest-opt-${wIdx}-${opt}`}
+                                          value={opt}
+                                        >
+                                          {opt}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label className="treatment-recommender-by-treatment__details-label">
+                                    Dosing
+                                    <input
+                                      type="text"
+                                      className="treatment-recommender-by-treatment__details-input"
+                                      placeholder="e.g. 5 weeks"
+                                      value={addToPlanForTreatment.dosing ?? ""}
+                                      onChange={(e) =>
+                                        setAddToPlanForTreatment((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                dosing: e.target.value,
+                                              }
+                                            : null,
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                </div>
+                              </section>
+                            ) : null}
                             <div
                               className={`treatment-recommender-by-treatment__details plan-opt-details${
                                 addToPlanForTreatment.detailsExpanded
@@ -5959,6 +6608,7 @@ export default function TreatmentRecommenderByTreatment({
                                       const qtyCtx = getQuantityContext(
                                         addToPlanForTreatment.treatment,
                                         qtyHint,
+                                        provider?.code,
                                       );
                                       return (
                                         <section
@@ -6040,73 +6690,6 @@ export default function TreatmentRecommenderByTreatment({
                                       );
                                     })()
                                   : null}
-                                {wellnestOffering && (
-                                  <section
-                                    className="plan-opt-section"
-                                    aria-labelledby={`plan-opt-delivery-${planOptDomIdSuffix(treatment)}`}
-                                  >
-                                    <h4
-                                      className="plan-opt-section__title"
-                                      id={`plan-opt-delivery-${planOptDomIdSuffix(treatment)}`}
-                                    >
-                                      Delivery & dosing
-                                    </h4>
-                                    <div className="plan-opt-section__body">
-                                      <label className="treatment-recommender-by-treatment__details-label">
-                                        Delivery form
-                                        <select
-                                          className="treatment-recommender-by-treatment__details-input"
-                                          value={
-                                            addToPlanForTreatment.deliveryForm ??
-                                            ""
-                                          }
-                                          onChange={(e) =>
-                                            setAddToPlanForTreatment((prev) =>
-                                              prev
-                                                ? {
-                                                    ...prev,
-                                                    deliveryForm: e.target.value,
-                                                  }
-                                                : null,
-                                            )
-                                          }
-                                        >
-                                          {getWellnestProductOptionsForTreatment(
-                                            treatment,
-                                          ).map((opt, wIdx) => (
-                                            <option
-                                              key={`wellnest-opt-${wIdx}-${opt}`}
-                                              value={opt}
-                                            >
-                                              {opt}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </label>
-                                      <label className="treatment-recommender-by-treatment__details-label">
-                                        Dosing
-                                        <input
-                                          type="text"
-                                          className="treatment-recommender-by-treatment__details-input"
-                                          placeholder="e.g. 5 weeks"
-                                          value={
-                                            addToPlanForTreatment.dosing ?? ""
-                                          }
-                                          onChange={(e) =>
-                                            setAddToPlanForTreatment((prev) =>
-                                              prev
-                                                ? {
-                                                    ...prev,
-                                                    dosing: e.target.value,
-                                                  }
-                                                : null,
-                                            )
-                                          }
-                                        />
-                                      </label>
-                                    </div>
-                                  </section>
-                                )}
                                 {!wellnestOffering &&
                                   !treatmentUsesStructuredProductSelectors(
                                     addToPlanForTreatment.treatment,
@@ -6660,6 +7243,17 @@ export default function TreatmentRecommenderByTreatment({
               : undefined
           }
           planItems={client.discussedItems ?? []}
+          demoPhotos={
+            photoExplorerContext.judgeMdGallery
+              ? judgeMdExhibitToDemoPhotos(photoExplorerContext.treatment, {
+                  pageUrl: photoExplorerContext.judgeMdGallery.pageUrl,
+                  imageUrls: photoExplorerContext.judgeMdGallery.imageUrls,
+                })
+              : undefined
+          }
+          galleryAttributionUrl={
+            photoExplorerContext.judgeMdGallery?.pageUrl
+          }
         />
       )}
 
@@ -6700,6 +7294,42 @@ export default function TreatmentRecommenderByTreatment({
                 const composerOpen =
                   unifiedEditComposerOpenByType[section.optionType] === true;
                 const showPriceField = section.optionType !== "timeline";
+                const persistSectionOrder = (
+                  nextRows: Array<{ value: string }>,
+                ) => {
+                  if (!provider?.id) return;
+                  const raw = provider?.["Treatment Pricing"] as
+                    | string
+                    | undefined;
+                  updateTreatmentRecommenderOptionOrder(
+                    provider.id,
+                    section.optionType,
+                    nextRows.map((row) => row.value),
+                    raw,
+                  )
+                    .then((updatedPricingRaw) => {
+                      if (provider) {
+                        setProvider({
+                          ...provider,
+                          "Treatment Pricing": updatedPricingRaw,
+                        });
+                      }
+                      setOptionRecords(
+                        extractRecommenderOptionsFromPricingJson(
+                          updatedPricingRaw,
+                        ),
+                      );
+                    })
+                    .catch(() => showToast("Could not reorder"));
+                };
+                const moveSectionRow = (fromIndex: number, toIndex: number) => {
+                  if (toIndex < 0 || toIndex >= sectionRows.length) return;
+                  const nextRows = [...sectionRows];
+                  const [moved] = nextRows.splice(fromIndex, 1);
+                  if (!moved) return;
+                  nextRows.splice(toIndex, 0, moved);
+                  persistSectionOrder(nextRows);
+                };
                 const closeComposer = () => {
                   setUnifiedEditComposerOpenByType((prev) => ({
                     ...prev,
@@ -6768,8 +7398,12 @@ export default function TreatmentRecommenderByTreatment({
                     ) : null}
                     {sectionRows.length > 0 || composerOpen ? (
                       <ul className="treatment-recommender-by-treatment__unified-edit-items">
-                        {sectionRows.map((rec) => {
+                        {sectionRows.map((rec, rowIndex) => {
                           const rowMatKey = `${section.optionType}\u001f${rec.value}`;
+                          const canMoveUp = rowIndex > 0;
+                          const canMoveDown = rowIndex < sectionRows.length - 1;
+                          const strippedLabel =
+                            stripOptionalRecommenderPriceFromLabel(rec.value);
                           return (
                             <li
                               key={
@@ -6782,12 +7416,42 @@ export default function TreatmentRecommenderByTreatment({
                                 <>
                                   <div className="treatment-recommender-by-treatment__unified-edit-item-text">
                                     <span className="treatment-recommender-by-treatment__unified-edit-item-label">
-                                      {stripOptionalRecommenderPriceFromLabel(
-                                        rec.value,
-                                      )}
+                                      {strippedLabel}
                                     </span>
                                   </div>
                                   <div className="treatment-recommender-by-treatment__unified-edit-item-trailing">
+                                    <button
+                                      type="button"
+                                      className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--arrow"
+                                      disabled={
+                                        !canEditRecommenderOptions ||
+                                        unifiedEditRowBusy ||
+                                        !canMoveUp
+                                      }
+                                      title={`Move ${strippedLabel} up`}
+                                      aria-label={`Move ${strippedLabel} up`}
+                                      onClick={() =>
+                                        moveSectionRow(rowIndex, rowIndex - 1)
+                                      }
+                                    >
+                                      <span aria-hidden="true">↑</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--arrow"
+                                      disabled={
+                                        !canEditRecommenderOptions ||
+                                        unifiedEditRowBusy ||
+                                        !canMoveDown
+                                      }
+                                      title={`Move ${strippedLabel} down`}
+                                      aria-label={`Move ${strippedLabel} down`}
+                                      onClick={() =>
+                                        moveSectionRow(rowIndex, rowIndex + 1)
+                                      }
+                                    >
+                                      <span aria-hidden="true">↓</span>
+                                    </button>
                                     <button
                                       type="button"
                                       className="treatment-recommender-by-treatment__edit-options-btn"
@@ -6944,12 +7608,44 @@ export default function TreatmentRecommenderByTreatment({
                                 <>
                                   <div className="treatment-recommender-by-treatment__unified-edit-item-text">
                                     <span className="treatment-recommender-by-treatment__unified-edit-item-label">
-                                      {stripOptionalRecommenderPriceFromLabel(
-                                        rec.value,
-                                      )}
+                                      {strippedLabel}
                                     </span>
                                   </div>
                                   <div className="treatment-recommender-by-treatment__unified-edit-item-trailing">
+                                    <button
+                                      type="button"
+                                      className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--arrow"
+                                      disabled={
+                                        !canEditRecommenderOptions ||
+                                        (unifiedEditRowBusy &&
+                                          editingRecordId !== rec.id) ||
+                                        !canMoveUp
+                                      }
+                                      title={`Move ${strippedLabel} up`}
+                                      aria-label={`Move ${strippedLabel} up`}
+                                      onClick={() =>
+                                        moveSectionRow(rowIndex, rowIndex - 1)
+                                      }
+                                    >
+                                      <span aria-hidden="true">↑</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="treatment-recommender-by-treatment__edit-options-btn treatment-recommender-by-treatment__edit-options-btn--arrow"
+                                      disabled={
+                                        !canEditRecommenderOptions ||
+                                        (unifiedEditRowBusy &&
+                                          editingRecordId !== rec.id) ||
+                                        !canMoveDown
+                                      }
+                                      title={`Move ${strippedLabel} down`}
+                                      aria-label={`Move ${strippedLabel} down`}
+                                      onClick={() =>
+                                        moveSectionRow(rowIndex, rowIndex + 1)
+                                      }
+                                    >
+                                      <span aria-hidden="true">↓</span>
+                                    </button>
                                     <button
                                       type="button"
                                       className="treatment-recommender-by-treatment__edit-options-btn"

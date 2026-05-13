@@ -5,6 +5,27 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  /* Fill the scroll viewport so the release label can sit bottom-right when content is short */
+  min-height: calc(100dvh - 88px);
+  box-sizing: border-box;
+}
+
+/* Release label — bottom-right of the Settings viewport (short pages) or after content (long pages) */
+.settings-app-version {
+  margin-top: auto;
+  margin-bottom: 0;
+  padding-top: 24px;
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+  align-self: flex-end;
+  width: fit-content;
+  max-width: 100%;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+  text-align: right;
+  user-select: none;
 }
 
 /* Notifications & treatment pricing: a bit narrower than the hub but room for wide tables */

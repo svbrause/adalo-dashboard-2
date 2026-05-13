@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInViewOnce } from "../../hooks/useInViewOnce";
 import { createPortal } from "react-dom";
 import { type TreatmentChapter } from "../../utils/blueprintTreatmentChapters";
@@ -19,12 +19,15 @@ import {
 } from "../../utils/postVisitBlueprint";
 import {
   buildChapterOverviewContent,
+  sanitizeAestheticIntelligenceText,
   type ChapterComplementSandwichContext,
   type ChapterOverviewBuildOptions,
 } from "../../utils/pvbOverviewNarratives";
+import { getChapterOverviewMergedConcerns } from "../../utils/pvbChapterOverviewFromAnalysis";
 import type { PvbResolvedPlanGlossaryTerm } from "../../utils/pvbPlanTermGlossary";
 import { buildChapterOverviewSpeechText } from "../../utils/pvbOverviewSpeechText";
 import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
+import { AiMirrorCanvas } from "./AiMirrorCanvas";
 import { PvbChapterOverviewTypewriter } from "./PvbChapterOverviewTypewriter";
 import { PvbNarrativeAudioControls } from "./PvbNarrativeAudioControls";
 import { WellnestThumbnail } from "./WellnestThumbnail";
@@ -43,6 +46,7 @@ import {
   getDisplayAreaForItem,
   plannedForPatientLineFullDateFromDiscussedItem,
 } from "../modals/DiscussedTreatmentsModal/utils";
+import { blueprintPlannedForDatesSummaryLine } from "../../utils/planScheduledDate";
 import "./TreatmentChapter.css";
 
 /** When Vimeo CDN poster URLs 403, swap to this local asset (Wellnest Dr. Reddy clips). */
@@ -66,6 +70,15 @@ interface TreatmentChapterViewProps {
   blueprintPatientAnalytics?: BlueprintPatientAnalyticsBase;
   /** Overview sandwich: top = for-you / how it applies to this patient; bottom = fit with the full plan. */
   chapterComplementContext?: ChapterComplementSandwichContext | null;
+  /** For skincare chapters: treatments in the plan that this product is a recommended post-care for. */
+  postCareForTreatments?: string[];
+  /** Patient front photo for treatment-specific AI Mirror highlights. */
+  mirrorImageUrl?: string | null;
+  /**
+   * When false, skincare “Products discussed” cells are not linked to boutique URLs
+   * (e.g. JudgeMD post-visit plan should not send patients to The Treatment Shopify).
+   */
+  skincareProductShopLinks?: boolean;
 }
 
 function buildDemographics(photo: BlueprintCasePhoto): string | null {
@@ -122,18 +135,38 @@ export function TreatmentChapterView({
   trackCaseGallery,
   blueprintPatientAnalytics,
   chapterComplementContext,
+  postCareForTreatments,
+  mirrorImageUrl,
+  skincareProductShopLinks = true,
 }: TreatmentChapterViewProps) {
   const card = chapter.caseCard;
   const photos = card?.photos ?? [];
   const len = photos.length;
   const isSkincareChapter = chapter.treatment.trim().toLowerCase() === "skincare";
   const isNeurotoxinChapter = chapter.key === "neurotoxin";
+  const chapterHeadScheduledLine = useMemo(() => {
+    if (isNeurotoxinChapter) return null;
+    return blueprintPlannedForDatesSummaryLine(chapter.planItems);
+  }, [chapter.planItems, isNeurotoxinChapter]);
+
   const planHighlightChips =
     chapter.planDisplayHighlights !== undefined
       ? chapter.planDisplayHighlights
       : card?.planHighlights ?? [];
+  const chapterMirrorTerms = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          chapter.mirrorHighlightTerms
+            .map((term) => term.trim())
+            .filter(Boolean),
+        ),
+      ).slice(0, 6),
+    [chapter.mirrorHighlightTerms],
+  );
 
   const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
+  const overviewLabel = wellnestOffering ? "Plan overview" : "Aesthetic Intelligence";
   const externalExamples = wellnestOffering
     ? getWellnestExternalExamplesForOffering(wellnestOffering)
     : [];
@@ -183,6 +216,10 @@ export function TreatmentChapterView({
       ?.flatMap((a) => a.improvements ?? [])
       .filter(Boolean)
       .slice(0, 14) ?? [];
+    const ctx = snapshot ? { overviewSnapshot: snapshot, planRow } : undefined;
+    const filteredIssues = ctx
+      ? getChapterOverviewMergedConcerns(chapter, ctx).slice(0, 14)
+      : (snapshot?.detectedIssueLabels?.slice(0, 14) ?? []);
     return {
       treatment: chapter.treatment,
       displayName: chapter.displayName,
@@ -191,12 +228,20 @@ export function TreatmentChapterView({
       planBullets: chapterOverview.planBullets.slice(0, 8),
       findings: planRow?.findings?.slice(0, 10) ?? [],
       interest: planRow?.interest,
-      detectedIssues: snapshot?.detectedIssueLabels?.slice(0, 14) ?? [],
+      detectedIssues: filteredIssues,
       focusAreas,
       areaImprovements,
       longevity: chapter.meta.longevity,
       downtime: chapter.meta.downtime,
       priceRange: chapter.meta.priceRange,
+      skincareQuizResult: chapterAnalysisContext?.skincareQuiz?.resultLabel ??
+        chapterAnalysisContext?.skincareQuiz?.result,
+      skincareQuizDescription:
+        chapterAnalysisContext?.skincareQuiz?.resultDescription,
+      relatedSkincareAddOns:
+        chapterAnalysisContext?.relatedSkincareAddOns
+          ?.map((item) => item.product?.trim() ?? "")
+          .filter((name): name is string => Boolean(name)) ?? [],
     };
   }, [chapter, chapterOverview.planBullets, chapterAnalysisContext]);
 
@@ -209,7 +254,12 @@ export function TreatmentChapterView({
     void (async () => {
       const text = await fetchTreatmentChapterOverview(aiChapterPayload);
       if (cancelled) return;
-      setAiChapterAnalysis(text && text.trim().length > 0 ? text.trim() : null);
+      const clean = text?.trim();
+      setAiChapterAnalysis(
+        clean && clean.length > 0
+          ? sanitizeAestheticIntelligenceText(clean)
+          : null,
+      );
     })();
     return () => {
       cancelled = true;
@@ -219,11 +269,25 @@ export function TreatmentChapterView({
   const chapterOverviewResolved = useMemo(
     () => {
       if (aiChapterAnalysis) {
+        const hasSkincareSpecificContext =
+          isSkincareChapter ||
+          Boolean(chapterAnalysisContext?.relatedSkincareAddOns?.length);
+        if (hasSkincareSpecificContext) {
+          return {
+            ...chapterOverview,
+            analysis: `${aiChapterAnalysis} ${chapterOverview.analysis}`.trim(),
+          };
+        }
         return { ...chapterOverview, analysis: aiChapterAnalysis };
       }
       return chapterOverview;
     },
-    [chapterOverview, aiChapterAnalysis],
+    [
+      chapterOverview,
+      aiChapterAnalysis,
+      isSkincareChapter,
+      chapterAnalysisContext?.relatedSkincareAddOns?.length,
+    ],
   );
   const chapterOverviewSpeech = useMemo(
     () =>
@@ -231,6 +295,8 @@ export function TreatmentChapterView({
     [chapterOverviewResolved, chapterGlossaryTerms],
   );
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
+  const [captionsEnabled, setCaptionsEnabled] = useState(true);
+  const expandedVideoRef = useRef<HTMLVideoElement | null>(null);
   /** Vimeo poster URLs that failed to load (e.g. CDN 403) — show branded fallback. */
   const [vimeoPosterLoadFailed, setVimeoPosterLoadFailed] = useState<
     Record<string, true>
@@ -238,6 +304,17 @@ export function TreatmentChapterView({
   const expandedVideo = expandedVideoId
     ? catalogVideos.find((v) => v.id === expandedVideoId) ?? null
     : null;
+  const expandedVideoHasCaptions = Boolean(
+    expandedVideo && !expandedVideo.vimeoId && expandedVideo.captions?.length,
+  );
+
+  const syncExpandedVideoCaptions = useCallback(() => {
+    const video = expandedVideoRef.current;
+    if (!video) return;
+    for (let i = 0; i < video.textTracks.length; i += 1) {
+      video.textTracks[i].mode = captionsEnabled && i === 0 ? "showing" : "disabled";
+    }
+  }, [captionsEnabled]);
 
   useEffect(() => {
     if (!expandedVideoId) return;
@@ -253,6 +330,10 @@ export function TreatmentChapterView({
     };
   }, [expandedVideoId]);
 
+  useEffect(() => {
+    syncExpandedVideoCaptions();
+  }, [expandedVideo, syncExpandedVideoCaptions]);
+
   const openCaseDetail = useCallback(
     (photo: BlueprintCasePhoto, treatmentCard: TreatmentResultsCard) => {
       const p = processPhoto(photo, treatmentCard);
@@ -260,6 +341,9 @@ export function TreatmentChapterView({
         cardTitle: treatmentCard.displayName,
         treatment: treatmentCard.treatment,
         photoUrl: photo.photoUrl,
+        sourceLabel: photo.sourceLabel ?? null,
+        sourceUrl: photo.sourceUrl ?? null,
+        providerResultLabel: photo.providerResultLabel ?? null,
         story: p.storyDisplay,
         caption: p.captionDisplay,
         storyDetailed: p.storyDetailedDisplay,
@@ -290,10 +374,17 @@ export function TreatmentChapterView({
       {/* Header */}
       <div className="tc-head">
         <h2 className="tc-name">{chapter.displayName}</h2>
+        {chapterHeadScheduledLine ? (
+          <p className="tc-head-planned">{chapterHeadScheduledLine}</p>
+        ) : null}
       </div>
 
-      {/* Regions / plan notes — high on the card so they are not buried below photos */}
-      {planHighlightChips.length > 0 && !isSkincareChapter && !isNeurotoxinChapter && (
+      {/* Non-area plan notes — area context now lives with the treatment-area mirror. */
+      }
+      {planHighlightChips.length > 0 &&
+        !isSkincareChapter &&
+        !isNeurotoxinChapter &&
+        chapterMirrorTerms.length === 0 && (
         <div className="tc-highlights tc-highlights--top">
           <div className="pvb-chips">
             {planHighlightChips.map((h) => (
@@ -305,38 +396,70 @@ export function TreatmentChapterView({
         </div>
       )}
 
-      {isNeurotoxinChapter && chapter.planItems.length > 0 ? (
+      {isNeurotoxinChapter &&
+      chapter.planItems.length > 0 &&
+      chapterMirrorTerms.length === 0 ? (
         <div className="tc-neuro-areas">
           <h3 className="tc-section-label">Areas</h3>
           <ul className="tc-neuro-areas-list" role="list">
-            {chapter.planItems.map((item) => {
-              const areaLabel =
-                getDisplayAreaForItem(item)?.trim() || "Treatment area";
-              const planned =
-                plannedForPatientLineFullDateFromDiscussedItem(item);
-              return (
-                <li key={item.id} className="tc-neuro-areas-row" role="listitem">
-                  <span className="tc-neuro-areas-name">{areaLabel}</span>
-                  {planned ? (
-                    <span className="tc-neuro-areas-planned">{planned}</span>
-                  ) : null}
-                </li>
-              );
-            })}
+            {Array.from(
+              chapter.planItems
+                .reduce((map, item) => {
+                  const areaLabel =
+                    getDisplayAreaForItem(item)?.trim() || "Treatment area";
+                  if (!map.has(areaLabel)) {
+                    map.set(areaLabel, {
+                      id: item.id,
+                      planned: plannedForPatientLineFullDateFromDiscussedItem(item),
+                    });
+                  }
+                  return map;
+                }, new Map<string, { id: string; planned: string | null }>())
+                .entries(),
+            ).map(([areaLabel, { id, planned }]) => (
+              <li key={id} className="tc-neuro-areas-row" role="listitem">
+                <span className="tc-neuro-areas-name">{areaLabel}</span>
+                {planned ? (
+                  <span className="tc-neuro-areas-planned">{planned}</span>
+                ) : null}
+              </li>
+            ))}
           </ul>
         </div>
+      ) : null}
+
+      {mirrorImageUrl && chapterMirrorTerms.length > 0 ? (
+        <section className="tc-area-mirror" aria-label={`${chapter.displayName} treatment area`}>
+          <div className="tc-area-mirror__media">
+            <AiMirrorCanvas
+              imageUrl={mirrorImageUrl}
+              alt={`${chapter.displayName} treatment area`}
+              highlightTerms={chapterMirrorTerms}
+            />
+          </div>
+          <div className="tc-area-mirror__copy">
+            <h3 className="tc-section-label">Treatment area</h3>
+            <div className="pvb-chips">
+              {chapterMirrorTerms.slice(0, 4).map((term) => (
+                <span key={term} className="pvb-chip">
+                  {term}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
       ) : null}
 
       <div className="tc-overview">
         <div className="tc-overview-head">
           <div className="tc-overview-brand">
             <AiSparkleLogo size={15} className="tc-overview-ai-logo pvb-ai-sparkle-glow" />
-            <h3 className="tc-label pvb-aesthetic-intelligence-heading">Aesthetic Intelligence</h3>
+            <h3 className="tc-label pvb-aesthetic-intelligence-heading">{overviewLabel}</h3>
             <GeminiWordmark />
           </div>
           <PvbNarrativeAudioControls
             text={chapterOverviewSpeech}
-            ariaLabel={`Listen to Aesthetic Intelligence for ${chapter.displayName}`}
+            ariaLabel={`Listen to ${overviewLabel} for ${chapter.displayName}`}
             ariaLabelStop="Stop audio"
             analytics={
               blueprintPatientAnalytics
@@ -541,7 +664,25 @@ export function TreatmentChapterView({
               >
                 {expandedVideo.title}
               </h4>
-              <p className="tc-video-modal-sub">{expandedVideo.subtitle}</p>
+              {expandedVideo.subtitle ? (
+                <p className="tc-video-modal-sub">{expandedVideo.subtitle}</p>
+              ) : null}
+              {expandedVideoHasCaptions ? (
+                <div className="tc-video-modal-actions">
+                  <button
+                    type="button"
+                    className={`tc-video-caption-toggle${
+                      captionsEnabled ? " tc-video-caption-toggle--on" : ""
+                    }`}
+                    aria-pressed={captionsEnabled}
+                    aria-label={captionsEnabled ? "Turn captions off" : "Turn captions on"}
+                    onClick={() => setCaptionsEnabled((value) => !value)}
+                  >
+                    <span aria-hidden>CC</span>
+                    <span>{captionsEnabled ? "On" : "Off"}</span>
+                  </button>
+                </div>
+              ) : null}
               <div className="tc-video-modal-frame">
                 {expandedVideo.vimeoId ? (
                   <iframe
@@ -558,21 +699,34 @@ export function TreatmentChapterView({
                 ) : (
                   <video
                     key={expandedVideo.id}
+                    ref={expandedVideoRef}
                     className="tc-video-modal-player"
                     controls
                     playsInline
                     preload="metadata"
                     poster={expandedVideo.posterUrl}
+                    crossOrigin={expandedVideo.captions?.length ? "anonymous" : undefined}
                     autoPlay
                     onPlay={() =>
                       onVideoPlay(expandedVideo.id, expandedVideo.title)
                     }
+                    onLoadedMetadata={syncExpandedVideoCaptions}
                   >
                     {(expandedVideo.sources ?? []).map((source) => (
                       <source
                         key={source.src}
                         src={source.src}
                         type={source.mimeType}
+                      />
+                    ))}
+                    {(expandedVideo.captions ?? []).map((track) => (
+                      <track
+                        key={track.src}
+                        kind={track.kind}
+                        src={track.src}
+                        srcLang={track.srclang}
+                        label={track.label}
+                        default={captionsEnabled && track.default}
                       />
                     ))}
                   </video>
@@ -605,6 +759,15 @@ export function TreatmentChapterView({
                       className="tc-carousel-img"
                       loading="lazy"
                     />
+                    {photo.providerResultLabel ? (
+                      <span className="tc-provider-result-badge">
+                        {photo.providerResultLabel}
+                      </span>
+                    ) : photo.sourceLabel ? (
+                      <span className="tc-source-badge">
+                        {photo.sourceLabel}
+                      </span>
+                    ) : null}
                   </div>
                   {showDemoLine ? (
                     <div className="tc-carousel-caption tc-carousel-caption--compact">
@@ -677,11 +840,27 @@ export function TreatmentChapterView({
       {/* Skincare: boutique product images + caption under each */}
       {isSkincareChapter && skincareProductSlots.length > 0 && (
         <div className="tc-skincare-products">
+          {postCareForTreatments && postCareForTreatments.length > 0 && (
+            <div className="tc-skincare-post-care-banner">
+              <span className="tc-skincare-post-care-icon" aria-hidden>✦</span>
+              <span className="tc-skincare-post-care-text">
+                Post-care for{" "}
+                {postCareForTreatments.join(", ")}
+              </span>
+            </div>
+          )}
           <h3 className="tc-section-label">Products discussed</h3>
           <div className="tc-skincare-products__grid" role="list">
             {skincareProductSlots.map((slot) => {
               const caption = (
-                <span className="tc-skincare-products__caption">{slot.shortName}</span>
+                <span className="tc-skincare-products__caption">
+                  <span>{slot.shortName}</span>
+                  {slot.addOnForTreatments?.length ? (
+                    <span className="tc-skincare-products__addon">
+                      Add-on for {slot.addOnForTreatments.join(", ")}
+                    </span>
+                  ) : null}
+                </span>
               );
               const inner = (
                 <>
@@ -708,11 +887,15 @@ export function TreatmentChapterView({
                   {caption}
                 </>
               );
-              return slot.productUrl ? (
+              const shopUrl =
+                skincareProductShopLinks && slot.productUrl?.trim()
+                  ? slot.productUrl.trim()
+                  : null;
+              return shopUrl ? (
                 <a
                   key={slot.planProductLabel}
                   className="tc-skincare-products__cell tc-skincare-products__cell--link"
-                  href={slot.productUrl}
+                  href={shopUrl}
                   target="_blank"
                   rel="noreferrer"
                   role="listitem"

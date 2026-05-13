@@ -16,6 +16,84 @@
   overflow: hidden;
 }
 
+/* ── 3D Split Layout ─────────────────────────────────────────────────────── */
+
+/**
+ * When a client has a 3D model, the panel uses a two-column grid:
+ *   Left col  (cdp-face-col):  Face mirror — annotated photo ↔ 3D toggle
+ *   Right col (scroll):        Existing client detail content
+ * The header spans both columns.
+ */
+.client-detail-panel--3d-split {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  /* Wider face column so photo / 3D turntable read larger (was 42%) */
+  grid-template-columns: minmax(340px, 48%) 1fr;
+}
+
+.client-detail-panel--3d-split .client-detail-panel-header {
+  grid-column: 1 / -1;
+  max-width: none;
+}
+
+/* Face mirror left column */
+.cdp-face-col {
+  grid-row: 2;
+  grid-column: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--theme-bg-surface, #f8fafc);
+}
+
+.cdp-face-col .fmp-root {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  border-right: none;
+}
+
+/* Right content column scrolls independently */
+.client-detail-panel--3d-split .client-detail-panel-scroll {
+  grid-row: 2;
+  grid-column: 2;
+  border-left: 1px solid var(--theme-border);
+}
+
+/* Remove max-width centering in right column when in split mode */
+.client-detail-panel--3d-split .client-detail-panel-body {
+  max-width: none;
+  padding: 24px 28px;
+}
+
+@media (max-width: 900px) {
+  .client-detail-panel--3d-split {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .client-detail-panel--3d-split .client-detail-panel-header {
+    grid-column: 1;
+  }
+
+  .cdp-face-col {
+    grid-row: 2;
+    grid-column: 1;
+    height: clamp(300px, 52vw, 480px);
+  }
+
+  .client-detail-panel--3d-split .client-detail-panel-scroll {
+    grid-row: 3;
+    grid-column: 1;
+    border-left: none;
+    border-top: 1px solid var(--theme-border);
+  }
+}
+
+/* ── End 3D Split Layout ─────────────────────────────────────────────────── */
+
 /* Panel header */
 .client-detail-panel-header {
   display: flex;
@@ -721,7 +799,7 @@
 }
 
 .client-detail-panel .detail-section-wellness-quiz {
-  border-top: 2px solid var(--theme-border);
+  border-top: none;
   padding-top: 20px;
   margin-top: 20px;
   background: #fafafa;
@@ -1196,4 +1274,9 @@
   .client-detail-panel-body .modal-contact-edit-toolbar .edit-toggle-btn {
     padding: 10px;
   }
+}
+
+.discussed-treatments-record-checked-off {
+  font-size: 12px;
+  color: var(--theme-text-muted, #6b7280);
 }

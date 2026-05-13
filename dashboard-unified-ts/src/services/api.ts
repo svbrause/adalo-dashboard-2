@@ -6,9 +6,12 @@ import {
   fetchCategoryAssessmentViaDevGemini,
   fetchTreatmentChapterOverviewViaDevGemini,
 } from "./geminiDevAssessment";
-import type { Offer, DoctorAdviceRequest, SkincareQuizData } from "../types";
+import type { Offer, DoctorAdviceRequest, SkincareQuizData, WellnessQuizData } from "../types";
 import { cleanPhoneNumber } from "../utils/validation";
-import { parseSkincareQuizFromFields } from "../utils/clientMapper";
+import {
+  parseSkincareQuizFromFields,
+  parseWellnessQuizJson,
+} from "../utils/clientMapper";
 import { buildSmsSendErrorMessage } from "./smsSendErrorMessage";
 
 export const BACKEND_API_URL =
@@ -704,6 +707,49 @@ export async function fetchSkinQuizResultsFromLink(
 }
 
 /**
+ * Submit wellness quiz from the public standalone page (patient link from SMS).
+ * Backend should implement POST /api/wellness-quiz/submit to update the Airtable
+ * "Wellness Quiz" field (and optionally the linked Web Popup Lead) without dashboard auth.
+ */
+export async function submitWellnessQuizFromLink(
+  recordId: string,
+  tableName: string,
+  payload: WellnessQuizData
+): Promise<boolean> {
+  const apiUrl = `${API_BASE_URL}/api/wellness-quiz/submit`;
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recordId, tableName, payload }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.message || "Failed to save wellness quiz");
+  }
+  return true;
+}
+
+/**
+ * Fetch existing wellness quiz for a record (public standalone). Used when the patient
+ * opens the link and has already completed the quiz — show results instead of the flow.
+ */
+export async function fetchWellnessQuizResultsFromLink(
+  recordId: string,
+  tableName: string
+): Promise<WellnessQuizData | null> {
+  const params = new URLSearchParams({ recordId, tableName });
+  const apiUrl = `${API_BASE_URL}/api/wellness-quiz/results?${params.toString()}`;
+  const response = await fetch(apiUrl);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.message || "Failed to load wellness quiz");
+  }
+  const raw = await response.text();
+  return parseWellnessQuizJson(raw) ?? null;
+}
+
+/**
  * One SMS row after the backend merges sources (see fetchSmsNotifications).
  * Shape should match both Airtable tables used for history.
  */
@@ -931,6 +977,7 @@ export type TreatmentRecommenderOptionType =
   | "where"
   | "skincare_what"
   | "laser_what"
+  | "laser_where"
   | "biostimulant_what"
   | "microneedling_where"
   | "microneedling_type"
@@ -961,6 +1008,7 @@ import {
   addCustomRecommenderOption,
   removeRecommenderOption,
   renameCustomRecommenderOption,
+  setRecommenderOptionOrder,
   type ProviderPricingDocument,
 } from "../data/treatmentPricing2025";
 
@@ -1102,6 +1150,19 @@ export async function updateTreatmentRecommenderOption(
     },
     updatedPricingRaw,
   };
+}
+
+/** Persist an explicit display order for one recommender option section. */
+export async function updateTreatmentRecommenderOptionOrder(
+  providerId: string,
+  optionType: TreatmentRecommenderOptionType,
+  orderedValues: string[],
+  currentPricingRaw: string | null | undefined,
+): Promise<string> {
+  if (!providerId?.trim()) throw new Error("providerId is required");
+  return persistRecommenderDocument(providerId, currentPricingRaw, (doc) =>
+    setRecommenderOptionOrder(doc, optionType, orderedValues),
+  );
 }
 
 /**
@@ -1418,6 +1479,9 @@ export interface TreatmentChapterOverviewPayload {
   longevity?: string;
   downtime?: string;
   priceRange?: string;
+  skincareQuizResult?: string;
+  skincareQuizDescription?: string;
+  relatedSkincareAddOns?: string[];
 }
 
 const LLM_BACKEND_TIMEOUT_MS = 28_000;

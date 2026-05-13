@@ -30,6 +30,7 @@ import {
 } from "../../utils/providerHelpers";
 import { providerHasSmsAndSettingsAccess } from "../../utils/providerPrivileges";
 import { renderTemplateVars } from "../../utils/renderTemplateVars";
+import { APP_VERSION_LABEL } from "../../config/appVersion";
 import "./SettingsView.css";
 
 type PreviewSelection = {
@@ -104,9 +105,11 @@ function orderStaffSentNotifItems(
     ["sms:analysis-scan-invite", 0],
     ["sms:skincare-quiz-invite", 1],
     ["sms:skincare-quiz-results", 2],
-    ["sms:plan-share-manual", 3],
-    ["sms:plan-delivered", 4],
-    ["sms:analysis-share-manual", 5],
+    ["sms:wellness-quiz-invite", 3],
+    ["sms:wellness-quiz-results", 4],
+    ["sms:plan-share-manual", 5],
+    ["sms:plan-delivered", 6],
+    ["sms:analysis-share-manual", 7],
   ]);
   return [...items].sort(
     (a, b) =>
@@ -1913,6 +1916,10 @@ export default function SettingsView() {
           )}
         </section>
       ) : null}
+
+      <p className="settings-app-version" title="Dashboard release">
+        {APP_VERSION_LABEL}
+      </p>
 
       {preview ? (
         <div className="modal-overlay active" onClick={() => setPreview(null)}>

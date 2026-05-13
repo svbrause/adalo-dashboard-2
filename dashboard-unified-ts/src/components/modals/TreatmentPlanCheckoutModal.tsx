@@ -8,7 +8,7 @@ import TreatmentPlanCheckout from "./DiscussedTreatmentsModal/TreatmentPlanCheck
 import type { CheckoutLineItemDetail } from "../../data/treatmentPricing2025";
 import { formatPrice } from "../../data/treatmentPricing2025";
 import { useDashboard } from "../../context/DashboardContext";
-import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
+import { isTheTreatmentProviderCode } from "../../utils/providerHelpers";
 import "./TreatmentPlanCheckoutModal.css";
 import "../treatmentRecommender/TreatmentRecommenderByTreatment.css";
 
@@ -186,7 +186,7 @@ export default function TreatmentPlanCheckoutModal({
     [treatmentPhotos, skincareCarousel],
   );
 
-  const allowMintMembership = !isWellnestWellnessProviderCode(
+  const allowMintMembership = isTheTreatmentProviderCode(
     providerCode ?? provider?.code,
   );
   const effectiveMintMember = allowMintMembership ? isMintMember : false;

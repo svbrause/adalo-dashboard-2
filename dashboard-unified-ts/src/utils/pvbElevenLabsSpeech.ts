@@ -55,7 +55,7 @@ export type ElevenLabsSpeechResult = "ok" | "aborted" | "error";
  */
 export async function speakPlainTextElevenLabs(
   text: string,
-  opts?: { onEnd?: () => void; onError?: () => void },
+  opts?: { onStart?: () => void; onEnd?: () => void; onError?: () => void },
 ): Promise<ElevenLabsSpeechResult> {
   const trimmed = truncateForApi(text.trim());
   if (!trimmed) {
@@ -141,6 +141,7 @@ export async function speakPlainTextElevenLabs(
     };
 
     await audio.play();
+    opts?.onStart?.();
     return "ok";
   } catch {
     if (signal.aborted) return "aborted";

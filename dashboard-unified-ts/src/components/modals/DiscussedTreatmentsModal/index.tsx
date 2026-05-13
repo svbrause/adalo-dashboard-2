@@ -34,7 +34,11 @@ import {
 } from "./constants";
 import { useDashboard } from "../../../context/DashboardContext";
 import { getEffectivePriceList } from "../../../data/treatmentPricing2025";
-import { isJudgeMdSurgeryPlanCategory } from "../../../data/judgeMdPricing2026";
+import { planItemsLastUpdatedShortLabel } from "../../../utils/planScheduledDate";
+import {
+  isJudgeMdProviderCode,
+  isJudgeMdSurgeryPlanCategory,
+} from "../../../data/judgeMdPricing2026";
 import {
   getRecommendedProducts,
   getFindingsForTreatment,
@@ -47,10 +51,13 @@ import {
   shouldShowProminentPlanQuantity,
   getTreatmentDisplayName,
   getDisplayAreaForItem,
+  resolveTreatmentIntervalForPlanItem,
   parseInterestedIssues,
   generateId,
   expandCommaSeparatedProductsToPlanRows,
+  mergeDiscussedItemPatch,
   timelineOptionDisplayLabel,
+  formatSurgeryPlanLogisticsLine,
 } from "./utils";
 import { DiscussedTreatmentsQuantityFormRow } from "./DiscussedTreatmentsQuantityFormRow";
 import DiscussedTreatmentsModalHeader from "./DiscussedTreatmentsModalHeader";
@@ -61,10 +68,12 @@ import TreatmentPhotos, {
 } from "./TreatmentPhotos";
 import ShareTreatmentPlanModal from "../ShareTreatmentPlanModal";
 import ShareTreatmentPlanLinkModal from "../ShareTreatmentPlanLinkModal";
+import SkinTypeQuizModal from "../SkinTypeQuizModal";
 import TreatmentPlanCheckoutModal from "../TreatmentPlanCheckoutModal";
 import { getAlignedCheckoutLineItemsForDiscussedItems } from "./TreatmentPlanCheckout";
 import { planPricingWarningShort } from "../../../utils/planPricingWarnings";
 import { isPostVisitBlueprintSender } from "../../../utils/providerHelpers";
+import { getWellnestOfferingByTreatmentName } from "../../../data/wellnestOfferings";
 import "./index.css";
 
 export default function DiscussedTreatmentsModal({
@@ -150,6 +159,7 @@ export default function DiscussedTreatmentsModal({
     string | null
   >(null);
   const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [showSkincareQuizInPlan, setShowSkincareQuizInPlan] = useState(false);
   const isNarrowScreen = useIsNarrowScreen(768);
 
   const [form, setForm] = useState({
@@ -169,6 +179,8 @@ export default function DiscussedTreatmentsModal({
     region: "",
     timeline: "",
     quantity: "",
+    bioTreatmentSessions: "",
+    treatmentInterval: "",
     quantityUnit: "", // override unit (default from getQuantityContext); e.g. "Syringes", "Units"
     recurring: "",
     recurringOther: "",
@@ -313,6 +325,8 @@ export default function DiscussedTreatmentsModal({
     treatment: string;
     product: string;
     quantity: string;
+    bioTreatmentSessions: string;
+    treatmentInterval: string;
     quantityUnit: string;
     brand: string;
     brandOther: string;
@@ -321,11 +335,19 @@ export default function DiscussedTreatmentsModal({
     timeline: string;
     timelineOther: string;
     notes: string;
+    /** When true, `planQuoteRole: "core"` on save — patient quote cannot drop this line. */
+    planQuoteLocked: boolean;
+    surgeryAnesthesia: string;
+    surgeryFacilityLocation: string;
+    surgeryProcedureTime: string;
+    surgeryAdditionalNotes: string;
   }>({
     interest: "",
     treatment: "",
     product: "",
     quantity: "",
+    bioTreatmentSessions: "",
+    treatmentInterval: "",
     quantityUnit: "",
     brand: "",
     brandOther: "",
@@ -334,6 +356,11 @@ export default function DiscussedTreatmentsModal({
     timeline: "",
     timelineOther: "",
     notes: "",
+    planQuoteLocked: false,
+    surgeryAnesthesia: "",
+    surgeryFacilityLocation: "",
+    surgeryProcedureTime: "",
+    surgeryAdditionalNotes: "",
   });
   const addFormSectionRef = useRef<HTMLDivElement>(null);
 
@@ -443,6 +470,11 @@ export default function DiscussedTreatmentsModal({
     return m;
   }, [items, effectivePriceList]);
 
+  const planLastUpdatedShort = useMemo(
+    () => planItemsLastUpdatedShortLabel(items),
+    [items],
+  );
+
   /** Preview for the "New item" row when add form is visible (left column stays connected). */
   const newItemPreview = useMemo(() => {
     const treatment =
@@ -500,6 +532,7 @@ export default function DiscussedTreatmentsModal({
       ? getPlanQuantityLabelPrefix(
           treatment ?? undefined,
           isSkincare ? undefined : (product ?? undefined),
+          provider?.code,
         )
       : null;
     return {
@@ -657,7 +690,7 @@ export default function DiscussedTreatmentsModal({
     } else {
       // Move item to Completed section (keep in list)
       const nextItems = items.map((i) =>
-        i.id === item.id ? { ...i, timeline: "Completed" } : i
+        i.id === item.id ? mergeDiscussedItemPatch(i, { timeline: "Completed" }) : i,
       );
       setItems(nextItems);
       persistItems(nextItems).finally(() => setSavingAdd(false));
@@ -705,13 +738,14 @@ export default function DiscussedTreatmentsModal({
   const handleSelectTreatmentFirst = (treatment: string) => {
     setSelectedTreatmentFirst(treatment);
     setSelectedFindingByTreatment([]);
-    const qtyCtx = getQuantityContext(treatment);
+    const qtyCtx = getQuantityContext(treatment, undefined, provider?.code);
     setForm((f) => ({
       ...f,
       selectedTreatments: [],
       otherTreatment: "",
       quantityUnit: qtyCtx.unitLabel,
       quantity: "",
+      bioTreatmentSessions: "",
     }));
   };
 
@@ -884,7 +918,7 @@ export default function DiscussedTreatmentsModal({
     patch: Partial<DiscussedItem>,
   ) => {
     const nextItems = items.map((it) =>
-      it.id === itemId ? { ...it, ...patch } : it,
+      it.id === itemId ? mergeDiscussedItemPatch(it, patch) : it,
     );
     setItems(nextItems);
     try {
@@ -980,20 +1014,56 @@ export default function DiscussedTreatmentsModal({
     };
     const quantityVal = form.quantity?.trim();
     const quantityUnitVal = form.quantityUnit?.trim();
-    const quantityForItem =
-      quantityVal && quantityUnitVal && quantityUnitVal !== "Quantity"
-        ? `${quantityVal} ${quantityUnitVal}`
-        : quantityVal || undefined;
-    const optional = {
-      brand,
-      region,
-      quantity: quantityForItem,
-      recurring:
-        form.recurring === OTHER_RECURRING_LABEL
-          ? (form.recurringOther || "").trim() || undefined
-          : form.recurring || undefined,
-      notes: form.notes.trim() || undefined,
-      addedAt: new Date().toISOString(),
+    const sessionsVal = form.bioTreatmentSessions?.trim();
+    const buildLineOptional = (
+      treatment: string,
+      product: string | undefined,
+    ): Pick<
+      DiscussedItem,
+      | "brand"
+      | "region"
+      | "quantity"
+      | "bioTreatmentSessions"
+      | "treatmentInterval"
+      | "recurring"
+      | "notes"
+      | "addedAt"
+    > => {
+      const ctx = getQuantityContext(treatment, product, provider?.code);
+      let quantityForItem: string | undefined;
+      let bioSessionsItem: string | undefined;
+      if (ctx.sculptraSessions) {
+        const v = quantityVal || ctx.defaultQuantity;
+        const s =
+          sessionsVal || ctx.sculptraSessions.defaultSessions;
+        quantityForItem = v.trim() || undefined;
+        bioSessionsItem = s.trim() || undefined;
+      } else if (ctx.primaryDiscussedField === "bioTreatmentSessions") {
+        const s = sessionsVal || ctx.defaultQuantity;
+        bioSessionsItem = s.trim() || undefined;
+      } else {
+        quantityForItem =
+          quantityVal && quantityUnitVal && quantityUnitVal !== "Quantity"
+            ? `${quantityVal} ${quantityUnitVal}`
+            : quantityVal || undefined;
+      }
+      return {
+        brand,
+        region,
+        quantity: quantityForItem,
+        bioTreatmentSessions: bioSessionsItem,
+        treatmentInterval: resolveTreatmentIntervalForPlanItem(
+          ctx,
+          bioSessionsItem ?? quantityForItem,
+          form.treatmentInterval,
+        ),
+        recurring:
+          form.recurring === OTHER_RECURRING_LABEL
+            ? (form.recurringOther || "").trim() || undefined
+            : form.recurring || undefined,
+        notes: form.notes.trim() || undefined,
+        addedAt: new Date().toISOString(),
+      };
     };
     const newItems: DiscussedItem[] = [];
     for (const treatment of effectiveTreatments) {
@@ -1015,7 +1085,7 @@ export default function DiscussedTreatmentsModal({
             : {}),
           treatment,
           timeline: itemTimeline,
-          ...optional,
+          ...buildLineOptional(treatment, undefined),
         });
       } else {
         for (const product of products) {
@@ -1028,7 +1098,7 @@ export default function DiscussedTreatmentsModal({
             treatment,
             product,
             timeline: itemTimeline,
-            ...optional,
+            ...buildLineOptional(treatment, product),
           });
         }
       }
@@ -1063,6 +1133,8 @@ export default function DiscussedTreatmentsModal({
         region: "",
         timeline: "",
         quantity: "",
+        bioTreatmentSessions: "",
+        treatmentInterval: "",
         quantityUnit: "",
         recurring: "",
         recurringOther: "",
@@ -1109,6 +1181,8 @@ export default function DiscussedTreatmentsModal({
       region: "",
       timeline: "",
       quantity: "",
+      bioTreatmentSessions: "",
+      treatmentInterval: "",
       quantityUnit: "",
       recurring: "",
       recurringOther: "",
@@ -1180,9 +1254,17 @@ export default function DiscussedTreatmentsModal({
           },
           timeline: (prefilled.treatment?.trim() === "Skincare" ? TIMELINE_SKINCARE : prefilled.timeline) || "Wishlist",
           quantityUnit: treatment
-            ? getQuantityContext(treatment, prefilled.treatmentProduct ?? undefined).unitLabel
+            ? getQuantityContext(
+                treatment,
+                prefilled.treatmentProduct ?? undefined,
+                provider?.code,
+              ).unitLabel
             : f.quantityUnit,
           quantity: prefilled.quantity ?? f.quantity,
+          bioTreatmentSessions:
+            prefilled.bioTreatmentSessions ?? f.bioTreatmentSessions,
+          treatmentInterval:
+            prefilled.treatmentInterval ?? f.treatmentInterval,
           notes: prefilled.notes ?? f.notes,
           selectedFindingsByTreatment: {
             ...f.selectedFindingsByTreatment,
@@ -1248,9 +1330,17 @@ export default function DiscussedTreatmentsModal({
       },
       timeline: (prefilled.treatment?.trim() === "Skincare" ? TIMELINE_SKINCARE : prefilled.timeline) || "Wishlist",
       quantityUnit: treatment
-        ? getQuantityContext(treatment, prefilled.treatmentProduct ?? undefined).unitLabel
+        ? getQuantityContext(
+            treatment,
+            prefilled.treatmentProduct ?? undefined,
+            provider?.code,
+          ).unitLabel
         : f.quantityUnit,
       quantity: prefilled.quantity ?? f.quantity,
+      bioTreatmentSessions:
+        prefilled.bioTreatmentSessions ?? f.bioTreatmentSessions,
+      treatmentInterval:
+        prefilled.treatmentInterval ?? f.treatmentInterval,
       notes: prefilled.notes ?? f.notes,
       selectedFindingsByTreatment: {
         ...f.selectedFindingsByTreatment,
@@ -1291,6 +1381,7 @@ export default function DiscussedTreatmentsModal({
     const qtyCtx = getQuantityContext(
       item.treatment?.trim(),
       item.product ?? undefined,
+      provider?.code,
     );
     const parsed =
       /^(\d+)\s+(.+)$/.exec(qRaw) ||
@@ -1308,6 +1399,8 @@ export default function DiscussedTreatmentsModal({
       treatment: item.treatment?.trim() || "",
       product: item.product?.trim() || "",
       quantity,
+      bioTreatmentSessions: item.bioTreatmentSessions?.trim() || "",
+      treatmentInterval: item.treatmentInterval?.trim() || "",
       quantityUnit,
       brand: "",
       brandOther: "",
@@ -1316,6 +1409,11 @@ export default function DiscussedTreatmentsModal({
       timeline: TIMELINE_OPTIONS.includes(timeline) ? timeline : "",
       timelineOther: "",
       notes: item.notes?.trim() || "",
+      planQuoteLocked: item.planQuoteRole === "core",
+      surgeryAnesthesia: item.surgeryAnesthesia?.trim() || "",
+      surgeryFacilityLocation: item.surgeryFacilityLocation?.trim() || "",
+      surgeryProcedureTime: item.surgeryProcedureTime?.trim() || "",
+      surgeryAdditionalNotes: item.surgeryAdditionalNotes?.trim() || "",
     });
   }, [initialEditingItem]);
 
@@ -1364,6 +1462,7 @@ export default function DiscussedTreatmentsModal({
     const qtyCtx = getQuantityContext(
       item.treatment?.trim(),
       item.product ?? undefined,
+      provider?.code,
     );
     const parsed =
       /^(\d+)\s+(.+)$/.exec(qRaw) ||
@@ -1381,6 +1480,8 @@ export default function DiscussedTreatmentsModal({
       treatment: item.treatment?.trim() || "",
       product: item.product?.trim() || "",
       quantity,
+      bioTreatmentSessions: item.bioTreatmentSessions?.trim() || "",
+      treatmentInterval: item.treatmentInterval?.trim() || "",
       quantityUnit,
       brand: "",
       brandOther: "",
@@ -1389,6 +1490,11 @@ export default function DiscussedTreatmentsModal({
       timeline: TIMELINE_OPTIONS.includes(timeline) ? timeline : "",
       timelineOther: "",
       notes: item.notes?.trim() || "",
+      planQuoteLocked: item.planQuoteRole === "core",
+      surgeryAnesthesia: item.surgeryAnesthesia?.trim() || "",
+      surgeryFacilityLocation: item.surgeryFacilityLocation?.trim() || "",
+      surgeryProcedureTime: item.surgeryProcedureTime?.trim() || "",
+      surgeryAdditionalNotes: item.surgeryAdditionalNotes?.trim() || "",
     });
   };
 
@@ -1403,7 +1509,7 @@ export default function DiscussedTreatmentsModal({
     if (item.treatment?.trim() === "Skincare" && newSection !== SKINCARE_SECTION_LABEL) return;
     if (item.treatment?.trim() !== "Skincare" && newSection === SKINCARE_SECTION_LABEL) return;
     const nextItems = items.map((i) =>
-      i.id === itemId ? { ...i, timeline: newSection } : i
+      i.id === itemId ? mergeDiscussedItemPatch(i, { timeline: newSection }) : i,
     );
     setItems(nextItems);
     try {
@@ -1537,24 +1643,61 @@ export default function DiscussedTreatmentsModal({
     const timelineVal = editForm.timeline?.trim() || undefined;
     const quantityVal = editForm.quantity?.trim();
     const quantityUnitVal = editForm.quantityUnit?.trim();
-    const quantityForItem =
-      quantityVal && quantityUnitVal && quantityUnitVal !== "Quantity"
-        ? `${quantityVal} ${quantityUnitVal}`
-        : quantityVal || undefined;
+    const qtyCtx = getQuantityContext(
+      editForm.treatment.trim(),
+      editForm.product?.trim() || undefined,
+      provider?.code,
+    );
+    let quantityForItem: string | undefined;
+    let bioSessionsOut: string | undefined;
+    if (qtyCtx.sculptraSessions) {
+      quantityForItem = quantityVal || undefined;
+      bioSessionsOut = editForm.bioTreatmentSessions?.trim() || undefined;
+    } else if (qtyCtx.primaryDiscussedField === "bioTreatmentSessions") {
+      quantityForItem = undefined;
+      bioSessionsOut = editForm.bioTreatmentSessions?.trim() || undefined;
+    } else {
+      quantityForItem =
+        quantityVal && quantityUnitVal && quantityUnitVal !== "Quantity"
+          ? `${quantityVal} ${quantityUnitVal}`
+          : quantityVal || undefined;
+    }
     const existing = items.find((x) => x.id === editingId);
+    if (!existing) return;
     const isSkincare = editForm.treatment.trim() === "Skincare";
-    const updated: DiscussedItem = {
-      id: editingId,
-      ...(existing?.addedAt ? { addedAt: existing.addedAt } : {}),
+    const patch: Partial<DiscussedItem> = {
       interest: interest || undefined,
       treatment: editForm.treatment.trim(),
-      ...(productVal ? { product: productVal } : {}),
       brand: undefined,
       region: undefined,
       timeline: isSkincare ? TIMELINE_SKINCARE : (timelineVal || undefined),
       quantity: quantityForItem || undefined,
+      bioTreatmentSessions: bioSessionsOut,
+      treatmentInterval: resolveTreatmentIntervalForPlanItem(
+        qtyCtx,
+        bioSessionsOut ?? quantityForItem,
+        editForm.treatmentInterval,
+      ),
       notes: editForm.notes.trim() || undefined,
+      planQuoteRole: editForm.planQuoteLocked ? "core" : undefined,
     };
+    if (productVal) patch.product = productVal;
+    if (isJudgeMdSurgeryPlanCategory(editForm.treatment.trim())) {
+      patch.surgeryAnesthesia =
+        editForm.surgeryAnesthesia.trim() || undefined;
+      patch.surgeryFacilityLocation =
+        editForm.surgeryFacilityLocation.trim() || undefined;
+      patch.surgeryProcedureTime =
+        editForm.surgeryProcedureTime.trim() || undefined;
+      patch.surgeryAdditionalNotes =
+        editForm.surgeryAdditionalNotes.trim() || undefined;
+    } else {
+      patch.surgeryAnesthesia = undefined;
+      patch.surgeryFacilityLocation = undefined;
+      patch.surgeryProcedureTime = undefined;
+      patch.surgeryAdditionalNotes = undefined;
+    }
+    const updated = mergeDiscussedItemPatch(existing, patch);
     const nextItems = items.map((x) => (x.id === editingId ? updated : x));
     setItems(nextItems);
     setEditingId(null);
@@ -1585,6 +1728,7 @@ export default function DiscussedTreatmentsModal({
       >
         <DiscussedTreatmentsModalHeader
           clientName={client.name?.split(" ")[0] || "patient"}
+          planLastUpdatedShort={planLastUpdatedShort}
           showShare={items.length > 0}
           onShare={() =>
             isPostVisitBlueprintSender(provider)
@@ -1615,6 +1759,7 @@ export default function DiscussedTreatmentsModal({
             {items.length > 0 && (
               <PlanListColumn
                 clientName={client.name ?? ""}
+                planLastUpdatedShort={planLastUpdatedShort}
                 items={items}
                 itemsBySection={itemsBySection}
                 sectionLabels={sectionLabels}
@@ -1636,6 +1781,7 @@ export default function DiscussedTreatmentsModal({
                 onDragLeave={handleDragLeave}
                 onDrop={(e, sectionLabel) => handleDrop(e, sectionLabel)}
                 planPricingBadgeByItemId={planPricingBadgeByItemId}
+                showJudgeMdAddOnExample={isJudgeMdProviderCode(provider?.code)}
               />
             )}
             <div
@@ -1663,10 +1809,48 @@ export default function DiscussedTreatmentsModal({
                     Update the fields below, then save.
                   </p>
 
-                  <div className="discussed-treatments-add-form-body goal-flow-active">
+                    <div className="discussed-treatments-add-form-body goal-flow-active">
                     <div className="discussed-treatments-add-form-single-box">
-                      {/* Addressing (goal) – same chip row as add form */}
+                      {/* Addressing (goal) — for Wellnest peptides, free-text focus; else chip row as add form */}
                       <div className="discussed-treatments-goal-flow-box">
+                        {getWellnestOfferingByTreatmentName(
+                          editForm.treatment.trim(),
+                        ) ? (
+                          <>
+                            <h3 className="discussed-treatments-form-title discussed-treatments-form-title-step2">
+                              What we&apos;re treating
+                            </h3>
+                            <p className="discussed-treatments-form-hint">
+                              Optional — note what you&apos;re using this peptide
+                              for with this patient (e.g. sleep, recovery, lean
+                              mass). Catalog copy is a general indication only.
+                            </p>
+                            <div className="discussed-treatments-prefill-row">
+                              <label
+                                className="discussed-treatments-prefill-label"
+                                htmlFor="wellnest-edit-patient-focus"
+                              >
+                                Focus for this patient
+                              </label>
+                              <input
+                                id="wellnest-edit-patient-focus"
+                                type="text"
+                                className="discussed-treatments-other-treatment-by-tx-input"
+                                value={editForm.interest}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({
+                                    ...f,
+                                    interest: e.target.value,
+                                  }))
+                                }
+                                placeholder="e.g. Sleep support, lean mass, recovery, body composition"
+                                autoComplete="off"
+                                aria-label="What we are treating for this patient"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <>
                         <h3 className="discussed-treatments-form-title discussed-treatments-form-title-step2">
                           Patient&apos;s Treatment Interests
                         </h3>
@@ -1696,6 +1880,8 @@ export default function DiscussedTreatmentsModal({
                             </button>
                           ))}
                         </div>
+                          </>
+                        )}
                       </div>
 
                       {/* Treatment – same chip grid as add form (By Treatment) */}
@@ -2044,7 +2230,10 @@ export default function DiscussedTreatmentsModal({
                           <DiscussedTreatmentsQuantityFormRow
                             treatment={editForm.treatment}
                             product={editForm.product}
+                            providerCode={provider?.code}
                             quantity={editForm.quantity}
+                            bioTreatmentSessions={editForm.bioTreatmentSessions}
+                            treatmentInterval={editForm.treatmentInterval}
                             quantityUnit={editForm.quantityUnit}
                             onPatch={(patch) =>
                               setEditForm((f) => ({ ...f, ...patch }))
@@ -2053,6 +2242,135 @@ export default function DiscussedTreatmentsModal({
                           />
                         </div>
                       )}
+
+                      <div className="discussed-treatments-plan-quote-role-row">
+                        <label className="discussed-treatments-plan-quote-role-label">
+                          <input
+                            type="checkbox"
+                            checked={editForm.planQuoteLocked}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                planQuoteLocked: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="discussed-treatments-plan-quote-role-copy">
+                            <strong>Lock into patient plan quote</strong>
+                            <span className="discussed-treatments-plan-quote-role-hint">
+                              Recommended plan line: stays on the shared link and the
+                              patient cannot turn it off. Leave unchecked for optional add-ons.
+                              {isJudgeMdProviderCode(provider?.code) ? (
+                                <span className="discussed-treatments-plan-quote-role-example">
+                                  {" "}
+                                  JudgeMD example: lock in liposuction to abdomen
+                                  and flanks; add submental liposuction as a separate
+                                  line and leave it unlocked so it shows as an add-on the
+                                  patient can skip.
+                                </span>
+                              ) : null}
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+
+                      {isJudgeMdSurgeryPlanCategory(editForm.treatment.trim()) ? (
+                        <div className="discussed-treatments-surgery-logistics">
+                          <h4 className="discussed-treatments-surgery-logistics-title">
+                            Surgery logistics
+                          </h4>
+                          <p className="discussed-treatments-surgery-logistics-lead">
+                            Optional — appears under this line on the plan list and
+                            shared treatment plan.
+                          </p>
+                          <div className="discussed-treatments-prefill-rows">
+                            <div className="discussed-treatments-prefill-row">
+                              <label
+                                className="discussed-treatments-prefill-label"
+                                htmlFor="edit-surgery-anesthesia"
+                              >
+                                Anesthesia
+                              </label>
+                              <input
+                                id="edit-surgery-anesthesia"
+                                type="text"
+                                className="form-input-base"
+                                placeholder="e.g. General, IV sedation, MAC, local only"
+                                value={editForm.surgeryAnesthesia}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({
+                                    ...f,
+                                    surgeryAnesthesia: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="discussed-treatments-prefill-row">
+                              <label
+                                className="discussed-treatments-prefill-label"
+                                htmlFor="edit-surgery-location"
+                              >
+                                Facility / location
+                              </label>
+                              <input
+                                id="edit-surgery-location"
+                                type="text"
+                                className="form-input-base"
+                                placeholder="e.g. Main OR, ASC suite, office procedure room"
+                                value={editForm.surgeryFacilityLocation}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({
+                                    ...f,
+                                    surgeryFacilityLocation: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="discussed-treatments-prefill-row">
+                              <label
+                                className="discussed-treatments-prefill-label"
+                                htmlFor="edit-surgery-time"
+                              >
+                                Procedure time
+                              </label>
+                              <input
+                                id="edit-surgery-time"
+                                type="text"
+                                className="form-input-base"
+                                placeholder="e.g. 7:30 AM start, morning block, ~3 hr"
+                                value={editForm.surgeryProcedureTime}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({
+                                    ...f,
+                                    surgeryProcedureTime: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="discussed-treatments-prefill-row discussed-treatments-prefill-row--stack">
+                              <label
+                                className="discussed-treatments-prefill-label"
+                                htmlFor="edit-surgery-additional"
+                              >
+                                Additional details
+                              </label>
+                              <textarea
+                                id="edit-surgery-additional"
+                                className="form-input-base discussed-treatments-surgery-textarea"
+                                rows={3}
+                                placeholder="Positioning, implants/sizes, garments, drains, consent or clearance notes…"
+                                value={editForm.surgeryAdditionalNotes}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({
+                                    ...f,
+                                    surgeryAdditionalNotes: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
 
                       {/* Optional details – timeline, notes, and quantity when it does not drive pricing */}
                       {!editShowOptionalDetails ? (
@@ -2080,7 +2398,10 @@ export default function DiscussedTreatmentsModal({
                               <DiscussedTreatmentsQuantityFormRow
                                 treatment={editForm.treatment}
                                 product={editForm.product}
+                                providerCode={provider?.code}
                                 quantity={editForm.quantity}
+                                bioTreatmentSessions={editForm.bioTreatmentSessions}
+                                treatmentInterval={editForm.treatmentInterval}
                                 quantityUnit={editForm.quantityUnit}
                                 onPatch={(patch) =>
                                   setEditForm((f) => ({ ...f, ...patch }))
@@ -2349,6 +2670,62 @@ export default function DiscussedTreatmentsModal({
                                       </div>
                                     </div>
                                   </div>
+                                ) : null}
+
+                                {isJudgeMdSurgeryPlanCategory(sel.treatment) ? (
+                                  <>
+                                    {sel.surgeryAnesthesia?.trim() ? (
+                                      <div className="discussed-treatments-detail-field">
+                                        <div className="discussed-treatments-detail-field-label">
+                                          Anesthesia
+                                        </div>
+                                        <div className="discussed-treatments-detail-field-value">
+                                          {sel.surgeryAnesthesia.trim()}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    {sel.surgeryFacilityLocation?.trim() ? (
+                                      <div className="discussed-treatments-detail-field">
+                                        <div className="discussed-treatments-detail-field-label">
+                                          Facility / location
+                                        </div>
+                                        <div className="discussed-treatments-detail-field-value">
+                                          {sel.surgeryFacilityLocation.trim()}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    {sel.surgeryProcedureTime?.trim() ? (
+                                      <div className="discussed-treatments-detail-field">
+                                        <div className="discussed-treatments-detail-field-label">
+                                          Procedure time
+                                        </div>
+                                        <div className="discussed-treatments-detail-field-value">
+                                          {sel.surgeryProcedureTime.trim()}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    {sel.surgeryAdditionalNotes?.trim() ? (
+                                      <div className="discussed-treatments-detail-field discussed-treatments-detail-field-full">
+                                        <div className="discussed-treatments-detail-field-label">
+                                          Surgery details
+                                        </div>
+                                        <div className="discussed-treatments-detail-field-value discussed-treatments-detail-notes">
+                                          {sel.surgeryAdditionalNotes.trim()}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    {!formatSurgeryPlanLogisticsLine(sel) ? (
+                                      <div className="discussed-treatments-detail-field discussed-treatments-detail-field-full">
+                                        <div className="discussed-treatments-detail-field-label">
+                                          Surgery logistics
+                                        </div>
+                                        <div className="discussed-treatments-detail-field-value discussed-treatments-detail-muted">
+                                          None added — use Edit to add anesthesia, location,
+                                          or timing.
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </>
                                 ) : null}
                               </div>
                             </div>
@@ -2880,6 +3257,15 @@ export default function DiscussedTreatmentsModal({
                                       Select a {sectionTitle.toLowerCase()} if
                                       desired, or skip to add to plan.
                                     </p>
+                                    {treatment === "Skincare" && isJudgeMdProviderCode(provider?.code) && (
+                                      <button
+                                        type="button"
+                                        className="discussed-treatments-skin-quiz-btn"
+                                        onClick={() => setShowSkincareQuizInPlan(true)}
+                                      >
+                                        ✦ Run skin quiz to find products
+                                      </button>
+                                    )}
                                     <div className="discussed-treatments-product-inline discussed-treatments-product-inline-by-treatment">
                                       {treatment === "Skincare" ? (
                                         <div
@@ -5730,7 +6116,12 @@ export default function DiscussedTreatmentsModal({
                                   <DiscussedTreatmentsQuantityFormRow
                                     treatment={treatmentForQty ?? ""}
                                     product={productForQty}
+                                    providerCode={provider?.code}
                                     quantity={form.quantity ?? ""}
+                                    bioTreatmentSessions={
+                                      form.bioTreatmentSessions ?? ""
+                                    }
+                                    treatmentInterval={form.treatmentInterval ?? ""}
                                     quantityUnit={form.quantityUnit}
                                     onPatch={(patch) =>
                                       setForm((f) => ({ ...f, ...patch }))
@@ -5765,7 +6156,12 @@ export default function DiscussedTreatmentsModal({
                                       <DiscussedTreatmentsQuantityFormRow
                                         treatment={treatmentForQty ?? ""}
                                         product={productForQty}
+                                        providerCode={provider?.code}
                                         quantity={form.quantity ?? ""}
+                                        bioTreatmentSessions={
+                                          form.bioTreatmentSessions ?? ""
+                                        }
+                                        treatmentInterval={form.treatmentInterval ?? ""}
                                         quantityUnit={form.quantityUnit}
                                         onPatch={(patch) =>
                                           setForm((f) => ({ ...f, ...patch }))
@@ -6018,12 +6414,48 @@ export default function DiscussedTreatmentsModal({
                         );
                         return (
                           <>
+                            {getWellnestOfferingByTreatmentName(
+                              selectedTreatmentFirst,
+                            ) ? (
+                              <div className="discussed-treatments-prefill-row discussed-treatments-wellnest-focus">
+                                <span
+                                  className="discussed-treatments-prefill-label"
+                                  id="wellnest-add-patient-focus-label"
+                                >
+                                  What we&apos;re treating (this patient)
+                                </span>
+                                <input
+                                  type="text"
+                                  className="discussed-treatments-other-treatment-by-tx-input"
+                                  value={form.interest}
+                                  onChange={(e) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      interest: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="e.g. Sleep, recovery, lean mass, body composition (optional)"
+                                  autoComplete="off"
+                                  aria-labelledby="wellnest-add-patient-focus-label"
+                                />
+                                <p className="discussed-treatments-form-hint">
+                                  This peptide isn&apos;t limited to a single
+                                  use — add a short focus so the plan is clear
+                                  for this person.
+                                </p>
+                              </div>
+                            ) : null}
                             <div className="discussed-treatments-prefill-rows">
                               {prominent && (
                                 <DiscussedTreatmentsQuantityFormRow
                                   treatment={selectedTreatmentFirst}
                                   product={productForQty}
+                                  providerCode={provider?.code}
                                   quantity={form.quantity ?? ""}
+                                  bioTreatmentSessions={
+                                    form.bioTreatmentSessions ?? ""
+                                  }
+                                  treatmentInterval={form.treatmentInterval ?? ""}
                                   quantityUnit={form.quantityUnit}
                                   onPatch={(patch) =>
                                     setForm((f) => ({ ...f, ...patch }))
@@ -6058,7 +6490,12 @@ export default function DiscussedTreatmentsModal({
                                     <DiscussedTreatmentsQuantityFormRow
                                       treatment={selectedTreatmentFirst}
                                       product={productForQty}
+                                      providerCode={provider?.code}
                                       quantity={form.quantity ?? ""}
+                                      bioTreatmentSessions={
+                                        form.bioTreatmentSessions ?? ""
+                                      }
+                                      treatmentInterval={form.treatmentInterval ?? ""}
                                       quantityUnit={form.quantityUnit}
                                       onPatch={(patch) =>
                                         setForm((f) => ({ ...f, ...patch }))
@@ -6445,6 +6882,22 @@ export default function DiscussedTreatmentsModal({
             onUpdateDiscussedItem={handleShareLinkUpdateDiscussedItem}
           />
         )}
+      {showSkincareQuizInPlan && (
+        <SkinTypeQuizModal
+          client={client}
+          onClose={() => setShowSkincareQuizInPlan(false)}
+          onSuccess={() => setShowSkincareQuizInPlan(false)}
+          filterBrand="SkinCeuticals"
+          onAddToPlan={(prefill) => {
+            setShowSkincareQuizInPlan(false);
+            handleAddToPlanWithPrefill({
+              ...prefill,
+              treatment: "Skincare",
+              treatmentProduct: prefill.treatmentProduct,
+            });
+          }}
+        />
+      )}
       </div>
     </div>
   );

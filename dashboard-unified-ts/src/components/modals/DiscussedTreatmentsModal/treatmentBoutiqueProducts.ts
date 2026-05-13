@@ -75,6 +75,47 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/peel-off-face-mask-1.jpg?v=1762994015",
     price: "$40.00",
   },
+  /* VitaMedica */
+  {
+    name: "VitaMedica Recovery Support Program + Arnica Montana 30X HPUS",
+    productUrl:
+      "https://vitamedica.com/collections/recovery-solutions/products/recovery-support-program-arnica?selling_plan=5708808498",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/0769/3565/9826/files/Recovery_Support_Main.png?v=1720707203",
+    price: "$119.99",
+    description:
+      "Physician-formulated surgical recovery regimen with Bromelain with Quercetin, Clinical Support Formula, and Arnica Montana 30X rapid dissolve tablets.",
+  },
+  /* Surgical scar care */
+  {
+    name: "BIOCORNEUM SiliSilk Advanced Scar Gel, 30g",
+    productUrl:
+      "https://biocorneum.com/products/biocorneum-silisilk-advanced-scar-gel",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/3105/5300/files/SiliSilk6.jpg?v=1767026796",
+    price: "$84.95",
+    description:
+      "Professional-grade silicone scar gel for smooth, fast-drying post-surgical scar care.",
+  },
+  {
+    name: "Biodermis Epi-Derm Standard Sheet",
+    productUrl: "https://www.biodermis.com/products/sillicone-sheets-standard",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/0516/6143/9163/products/Epi-derm-Standard-Sheet-Biodermis-1097.jpg?v=1693265775",
+    price: "$58.95",
+    description:
+      "Medical-grade silicone gel sheet for medium scars from surgery or trauma.",
+  },
+  {
+    name: "Biodermis Epi-Derm Large Sheet",
+    productUrl:
+      "https://www.biodermis.com/products/silicone-sheets-for-scars-epi-derm-large-sheet",
+    imageUrl:
+      "https://cdn.shopify.com/s/files/1/0516/6143/9163/products/Epi-Derm-Large-Sheet-Biodermis-7879.jpg?v=1693257204",
+    price: "$163.95",
+    description:
+      "Medical-grade silicone gel sheet for larger surgical scars and body-area scar coverage.",
+  },
   /* SkinCeuticals — multi-product routines & bundles (shop.getthetreatment.com/collections/all-products) */
   {
     name: "Anti-Aging Routine | Firming, Brightening & Wrinkle-Smoothing Trio",
@@ -347,6 +388,12 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
     productUrl: "https://shop.getthetreatment.com/products/https-the-treatment-skin-boutique-myshopify-com-products-re-texturing-activator",
     imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/exfoliating-face-scrub.png?v=1762466886",
     price: "$100.00",
+  },
+  {
+    name: "SkinCeuticals Physical Fusion UV Defense SPF 50 | Lightweight Tinted Mineral Sunscreen for Daily Protection",
+    productUrl: "https://shop.getthetreatment.com/products/skinceuticals-physical-fusion-uv-defense-spf-50",
+    imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/physical-fusion-uv-defense.png?v=1762466886",
+    price: "$42.00",
   },
   {
     name: "SkinCeuticals Retinol 0.3% | Anti-Aging Serum for Wrinkles & Skin Renewal",

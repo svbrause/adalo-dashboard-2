@@ -4,7 +4,16 @@
  * Kept in sync with skin-type-react `wellnessQuiz.ts` treatment list and question flow.
  */
 
-import { isWellnestWellnessProviderCode } from "./wellnestOfferings";
+import {
+  getWellnestOfferingByTreatmentName,
+  isWellnestWellnessProviderCode,
+  WELLNEST_BROWSE_GROUP_LABELS,
+  WELLNEST_BROWSE_GROUP_ORDER,
+} from "./wellnestOfferings";
+import type { WellnessQuizCategoryScore, WellnessQuizData } from "../types";
+
+/** Stored quiz answers: single index, multi indices, or per-option severity maps. */
+export type WellnessQuizAnswersMap = WellnessQuizData["answers"];
 
 /** Set to true to show the Wellness Quiz section and modal in the client detail UI (all non-Wellnest providers). */
 export const WELLNESS_QUIZ_ENABLED = false;
@@ -50,9 +59,23 @@ export interface WellnessQuizQuestion {
   title: string;
   question: string;
   answers: WellnessQuizAnswer[];
+  /**
+   * When set, this step collects impact 0–4 per selected answer index of another question
+   * (e.g. after multi-select goals). Answers array is unused for this step.
+   */
+  severityForQuestionId?: string;
+  /** Render this question as a multi-select chip grid (vs. single-select button list). */
+  multiSelect?: boolean;
+  /**
+   * When set, this is a contraindication screening step.
+   * Value = index of the "None of these apply" answer (mutually exclusive with all others).
+   * A warning is shown in the UI if any non-none option is selected.
+   */
+  contraindicationNoneIndex?: number;
 }
 
-export interface WellnessQuizData {
+/** In-repo quiz definition (questions + treatment catalog). Not the Airtable JSON shape. */
+export interface WellnessQuizDefinition {
   questions: WellnessQuizQuestion[];
   treatments: WellnessTreatment[];
 }
@@ -110,6 +133,7 @@ export const WELLNESS_TREATMENTS: WellnessTreatment[] = [
   {
     id: "ipamorelin",
     name: "Ipamorelin",
+    /** Not sleep-only in clinical use; plan builder lets staff set per-patient focus via `interest`. */
     category: "Sleep and Muscle growth",
     whatItAddresses:
       "Selective ghrelin receptor agonist, natural GH release, minimal cortisol elevation, lean mass preservation",
@@ -264,7 +288,7 @@ export const WELLNESS_TREATMENTS: WellnessTreatment[] = [
     category: "Anti Aging",
     whatItAddresses: "Physiologic GH stimulation, anti-aging interest",
     summary:
-      "Stimulates the body’s own growth hormone release in a physiologic way. Used for anti-aging, recovery, and energy in adults 40+.",
+      "Stimulates the body's own growth hormone release in a physiologic way. Used for anti-aging, recovery, and energy in adults 40+.",
     idealDemographics: "Aged 40+",
     deliveryMethod: "SC injection",
     pricing: "$300–500",
@@ -335,224 +359,330 @@ export const WELLNESS_TREATMENTS: WellnessTreatment[] = [
   },
 ];
 
-/** Quiz questions: goals and age to suggest treatments. */
-export const WELLNESS_QUIZ: WellnessQuizData = {
+/** Quiz questions: domain-specific symptom questions that score treatments by severity. */
+export const WELLNESS_QUIZ: WellnessQuizDefinition = {
   treatments: WELLNESS_TREATMENTS,
   questions: [
+    // ── Q1: Age — gates minAge only, no scoring ───────────────────────────────
     {
       id: "age",
-      title: "Age range",
+      title: "About you",
       question: "What is your age range?",
       answers: [
         { label: "Under 30", scores: {} },
+        { label: "30–39", scores: {} },
+        { label: "40–49", scores: {} },
+        { label: "50–59", scores: {} },
+        { label: "60–64", scores: {} },
+        { label: "65+", scores: {} },
+      ],
+    },
+    // ── Q2: Physical activity ─────────────────────────────────────────────────
+    {
+      id: "activity",
+      title: "Physical Activity",
+      question: "How would you describe your typical physical activity level?",
+      answers: [
+        { label: "Mostly sedentary — desk work, minimal exercise", scores: {} },
         {
-          label: "30–39",
-          scores: {
-            "bpc-157": 1,
-            "tb-500": 1,
-            "cjc-1295": 1,
-            "semax": 1,
-            "selank": 1,
-            "melanotan-2": 1,
-            "aod-9604": 1,
-          },
+          label: "Light activity — walking, yoga, or casual movement most days",
+          scores: { "bpc-157": 1 },
         },
         {
-          label: "40–49",
-          scores: {
-            "bpc-157": 1,
-            "tb-500": 1,
-            "cjc-1295": 1,
-            "ipamorelin": 1,
-            "semax": 1,
-            "selank": 1,
-            "ghk-cu": 1,
-            "sermorelin": 1,
-            "tessamorelin": 1,
-            "epitalon": 1,
-            "aod-9604": 1,
-          },
+          label: "Moderately active — gym or cardio 3–4 times per week",
+          scores: { "bpc-157": 1, "tb-500": 1, "cjc-1295": 1 },
         },
         {
-          label: "50–59",
-          scores: {
-            "bpc-157": 1,
-            "tb-500": 1,
-            "cjc-1295": 1,
-            "ipamorelin": 1,
-            "semax": 1,
-            "selank": 1,
-            "ghrp-2-6": 1,
-            "igf-1-lr3": 1,
-            "ghk-cu": 1,
-            "sermorelin": 1,
-            "tessamorelin": 1,
-            "epitalon": 1,
-            "aod-9604": 1,
-            "cartalax": 1,
-          },
+          label: "Very active — intense daily training",
+          scores: { "bpc-157": 2, "tb-500": 2, "cjc-1295": 1 },
         },
         {
-          label: "60+",
-          scores: {
-            "bpc-157": 1,
-            "tb-500": 1,
-            "cjc-1295": 1,
-            "ipamorelin": 1,
-            "semax": 1,
-            "selank": 1,
-            "p21": 2,
-            "pinealon": 2,
-            "ghrp-2-6": 1,
-            "igf-1-lr3": 1,
-            "ghk-cu": 1,
-            "mk-677": 1,
-            "sermorelin": 1,
-            "tessamorelin": 1,
-            "epitalon": 1,
-            "cartalax": 1,
-          },
+          label: "High-performance or contact sports — extreme exertion, heavy impact",
+          scores: { "bpc-157": 3, "tb-500": 3, "cjc-1295": 2, "igf-1-lr3": 1 },
         },
       ],
     },
+    // ── Q3: Injury & tissue recovery ─────────────────────────────────────────
     {
-      id: "activity",
-      title: "Activity level",
-      question: "How would you describe your physical activity level?",
+      id: "injury",
+      title: "Injury & Tissue Recovery",
+      question: "How are you managing with injuries, tissue recovery, or chronic inflammation?",
       answers: [
-        { label: "Mostly sedentary or light activity", scores: {} },
+        { label: "No current injuries or recovery concerns", scores: {} },
         {
-          label: "Moderately active (exercise a few times a week)",
+          label: "Mild — occasional soreness or a mostly-healed past injury",
           scores: { "bpc-157": 1, "tb-500": 1 },
         },
         {
-          label: "Very active / athletic (frequent intense or contact sports, heavy training)",
-          scores: { "bpc-157": 2, "tb-500": 2 },
-        },
-      ],
-    },
-    {
-      id: "bodyComposition",
-      title: "Body composition",
-      question: "What best describes your body-composition goal?",
-      answers: [
-        { label: "No specific goal / general wellness", scores: {} },
-        {
-          label: "Weight or overall fat loss",
-          scores: { "aod-9604": 2, tessamorelin: 1, "cjc-1295": 1 } as Record<string, number>,
-        },
-        {
-          label: "Belly or midsection (visceral) fat",
-          scores: { tessamorelin: 2, "aod-9604": 1 } as Record<string, number>,
-        },
-        {
-          label: "Building or maintaining muscle",
-          scores: {
-            "cjc-1295": 2,
-            ipamorelin: 2,
-            "ghrp-2-6": 2,
-            "igf-1-lr3": 2,
-          },
-        },
-      ],
-    },
-    {
-      id: "skinInterest",
-      title: "Skin & appearance",
-      question: "Are you interested in peptide options for skin or appearance?",
-      answers: [
-        { label: "No / not a priority", scores: {} },
-        {
-          label: "Yes – skin firmness, elasticity, or anti-aging",
-          scores: { "ghk-cu": 2, sermorelin: 1 } as Record<string, number>,
-        },
-        {
-          label: "Yes – tanning or skin tone",
-          scores: { "melanotan-2": 2 },
-        },
-      ],
-    },
-    {
-      id: "goals",
-      title: "Primary goals",
-      question: "What are your main wellness goals? (Select all that apply)",
-      answers: [
-        {
-          label: "Injury or sports recovery",
+          label: "Moderate — recurring tendon, ligament, or soft-tissue inflammation",
           scores: { "bpc-157": 2, "tb-500": 2 },
         },
         {
-          label: "Muscle growth or toning",
-          scores: {
-            "cjc-1295": 2,
-            "ipamorelin": 2,
-            "ghrp-2-6": 2,
-            "igf-1-lr3": 2,
-          },
+          label: "Significant — active injury or post-surgical recovery in progress",
+          scores: { "bpc-157": 3, "tb-500": 3 },
         },
         {
-          label: "Energy and recovery",
-          scores: { "cjc-1295": 2, "ipamorelin": 1, "sermorelin": 1 },
-        },
-        {
-          label: "Sleep support",
-          scores: { ipamorelin: 2 } as Record<string, number>,
-        },
-        {
-          label: "Memory, focus, or brain fog",
-          scores: { semax: 2, selank: 1, "p21": 2, pinealon: 2 } as Record<string, number>,
-        },
-        {
-          label: "Anxiety, stress, or mood",
-          scores: { selank: 2 } as Record<string, number>,
-        },
-        {
-          label: "Skin health or anti-aging",
-          scores: { "ghk-cu": 2, sermorelin: 1, epitalon: 1 } as Record<string, number>,
-        },
-        {
-          label: "Fat loss or metabolism",
-          scores: {
-            "cjc-1295": 1,
-            tessamorelin: 2,
-            "aod-9604": 2,
-            epitalon: 1,
-          } as Record<string, number>,
-        },
-        {
-          label: "Bone or joint health",
-          scores: { "mk-677": 2, cartalax: 2 } as Record<string, number>,
-        },
-        {
-          label: "General anti-aging / longevity",
-          scores: { sermorelin: 2, epitalon: 2, "ghk-cu": 1 } as Record<string, number>,
+          label: "Chronic — persistent inflammation or soft-tissue issues limiting daily life",
+          scores: { "bpc-157": 3, "tb-500": 2 },
         },
       ],
     },
+    // ── Q4: Gut & digestive health ────────────────────────────────────────────
     {
-      id: "conditions",
-      title: "Conditions",
-      question: "Do any of these apply? (Select all that apply)",
+      id: "gut",
+      title: "Gut & Digestive Health",
+      question: "How would you describe your digestive health and gut comfort?",
       answers: [
+        { label: "Good — no significant gut or GI concerns", scores: {} },
         {
-          label: "GI or gut issues",
+          label: "Occasional — bloating or mild discomfort after certain foods",
+          scores: { "bpc-157": 1 },
+        },
+        {
+          label: "Frequent — regular bloating, gas, or GI discomfort",
           scores: { "bpc-157": 2 },
         },
         {
-          label: "Chronic inflammation or tendon/ligament issues",
-          scores: { "bpc-157": 2, "tb-500": 2 },
+          label: "Chronic — IBS symptoms, gut pain, or frequent GI flares",
+          scores: { "bpc-157": 3 },
         },
         {
-          label: "Osteoporosis or bone density concerns",
-          scores: { "mk-677": 2 },
+          label: "Significant — gut lining issues, inflammatory bowel, or post-antibiotic gut damage",
+          scores: { "bpc-157": 4 },
+        },
+      ],
+    },
+    // ── Q5: Energy & vitality ─────────────────────────────────────────────────
+    {
+      id: "energy",
+      title: "Energy & Vitality",
+      question: "How is your energy and drive throughout a typical day?",
+      answers: [
+        { label: "Consistent — strong energy from morning through evening", scores: {} },
+        {
+          label: "Mild dips — some afternoon fatigue, generally functional",
+          scores: { "cjc-1295": 1, "sermorelin": 1 },
         },
         {
-          label: "Osteoarthritis or cartilage wear",
-          scores: { "mk-677": 1, cartalax: 2 } as Record<string, number>,
+          label: "Regular fatigue — energy crashes most afternoons, often rely on caffeine",
+          scores: { "cjc-1295": 2, "sermorelin": 1, "selank": 1 },
         },
         {
-          label: "None of these",
+          label: "Low energy — tired much of the day, affects productivity",
+          scores: { "cjc-1295": 3, "sermorelin": 2, "selank": 1 },
+        },
+        {
+          label: "Exhausted — chronic fatigue is a primary daily concern",
+          scores: { "cjc-1295": 3, "sermorelin": 2, "selank": 2, "ipamorelin": 1 },
+        },
+      ],
+    },
+    // ── Q6: Sleep quality ─────────────────────────────────────────────────────
+    {
+      id: "sleep",
+      title: "Sleep Quality",
+      question: "How would you describe your sleep quality and how rested you feel on waking?",
+      answers: [
+        { label: "Good — fall asleep easily, sleep through the night, wake rested", scores: {} },
+        {
+          label: "Mild issues — occasionally slow to fall asleep or slight grogginess on waking",
+          scores: { "ipamorelin": 1 },
+        },
+        {
+          label: "Regular disruption — frequently wake during the night or struggle to fall asleep",
+          scores: { "ipamorelin": 2 },
+        },
+        {
+          label: "Poor — rarely feel rested; sleep quality is consistently compromised",
+          scores: { "ipamorelin": 3 },
+        },
+        {
+          label: "Significant insomnia — sleep disruption is a major daily health concern",
+          scores: { "ipamorelin": 4 },
+        },
+      ],
+    },
+    // ── Q7: Cognitive health ──────────────────────────────────────────────────
+    {
+      id: "cognitive",
+      title: "Cognitive Health",
+      question: "How would you rate your mental clarity, focus, and memory?",
+      answers: [
+        { label: "Sharp — clear thinking, good memory, strong focus", scores: {} },
+        {
+          label: "Occasional fog — some brain fog or forgetfulness, generally manageable",
+          scores: { "semax": 1, "selank": 1 },
+        },
+        {
+          label: "Frequent fog — brain fog regularly affecting work, decisions, or daily tasks",
+          scores: { "semax": 2, "selank": 1 },
+        },
+        {
+          label: "Noticeable decline — meaningful memory gaps or sustained poor concentration",
+          scores: { "semax": 3, "p21": 2, "pinealon": 2 },
+        },
+        {
+          label: "Significant concern — cognitive decline is a primary health priority",
+          scores: { "semax": 3, "p21": 3, "pinealon": 3 },
+        },
+      ],
+    },
+    // ── Q8: Mood & stress ─────────────────────────────────────────────────────
+    {
+      id: "mood",
+      title: "Mood & Stress",
+      question: "How does anxiety or chronic stress affect your daily life?",
+      answers: [
+        { label: "Well-managed — generally calm and resilient to stress", scores: {} },
+        {
+          label: "Mild — occasional anxiety or stress that passes relatively quickly",
+          scores: { "selank": 1 },
+        },
+        {
+          label: "Moderate — anxiety or stress regularly affecting mood or productivity",
+          scores: { "selank": 2 },
+        },
+        {
+          label: "Significant — chronic stress or anxiety meaningfully impacting daily quality of life",
+          scores: { "selank": 3 },
+        },
+        {
+          label: "Primary concern — mood and anxiety management is a top health priority",
+          scores: { "selank": 4 },
+        },
+      ],
+    },
+    // ── Q9: Body composition ──────────────────────────────────────────────────
+    {
+      id: "bodyComposition",
+      title: "Body Composition",
+      question: "What is your main body-composition challenge?",
+      answers: [
+        { label: "None — satisfied with current body composition", scores: {} },
+        {
+          label: "Mild stubborn fat — diet and exercise help but progress is slow",
+          scores: { "aod-9604": 1, "cjc-1295": 1 },
+        },
+        {
+          label:
+            "Belly or visceral fat — midsection fat that doesn’t respond well to standard effort",
+          scores: { "tessamorelin": 2, "aod-9604": 1, "cjc-1295": 1 } as Record<string, number>,
+        },
+        {
+          label: "Difficulty building or maintaining muscle despite training and adequate protein",
+          scores: {
+            "cjc-1295": 2,
+            "ipamorelin": 1,
+            "ghrp-2-6": 2,
+            "igf-1-lr3": 2,
+          },
+        },
+        {
+          label: "Both — struggling with fat loss and muscle retention simultaneously",
+          scores: {
+            "cjc-1295": 2,
+            "aod-9604": 2,
+            "tessamorelin": 1,
+            "ghrp-2-6": 1,
+          } as Record<string, number>,
+        },
+      ],
+    },
+    // ── Q10: Skin health ──────────────────────────────────────────────────────
+    {
+      id: "skin",
+      title: "Skin Health",
+      question: "How would you describe your current skin health and aging concerns?",
+      answers: [
+        { label: "No skin concerns — not a current focus", scores: {} },
+        {
+          label: "Early changes — some fine lines or mild elasticity changes beginning to appear",
+          scores: { "ghk-cu": 1, "sermorelin": 1 },
+        },
+        {
+          label: "Noticeable — visible loss of skin firmness, elasticity, or skin laxity",
+          scores: { "ghk-cu": 2, "sermorelin": 1, "epitalon": 1 },
+        },
+        {
+          label: "Significant — prominent sagging, substantial laxity, or advanced skin aging",
+          scores: { "ghk-cu": 3, "sermorelin": 1, "epitalon": 1 },
+        },
+      ],
+    },
+    // ── Q11: Tanning & libido ─────────────────────────────────────────────────
+    {
+      id: "appearance",
+      title: "Tanning & Libido",
+      question: "Do any of the following resonate with your personal wellness goals?",
+      answers: [
+        { label: "Neither — not relevant to my goals", scores: {} },
+        {
+          label: "Natural tanning — interested in melanin-based tanning support",
+          scores: { "melanotan-2": 3 },
+        },
+        {
+          label: "Libido support — interested in peptide support for libido",
+          scores: { "melanotan-2": 3 },
+        },
+        {
+          label: "Both — natural tanning and libido support are both goals",
+          scores: { "melanotan-2": 4 },
+        },
+      ],
+    },
+    // ── Q12: Bone & joint health ──────────────────────────────────────────────
+    {
+      id: "boneJoint",
+      title: "Bone & Joint Health",
+      question: "How are your joints, cartilage, and bone health?",
+      answers: [
+        { label: "No concerns — joints and bones feel healthy and functional", scores: {} },
+        {
+          label: "Mild — occasional stiffness or minor joint aches that pass on their own",
+          scores: { "cartalax": 1, "mk-677": 1 },
+        },
+        {
+          label: "Moderate — regular joint pain or stiffness that limits some activities",
+          scores: { "cartalax": 2, "mk-677": 1 },
+        },
+        {
+          label: "Significant — diagnosed osteoarthritis or notable cartilage wear",
+          scores: { "cartalax": 3, "mk-677": 2 },
+        },
+        {
+          label: "Bone density concern — osteoporosis or fracture risk is a health priority",
+          scores: { "mk-677": 3, "cartalax": 1 },
+        },
+      ],
+    },
+    // ── Q13: Longevity & anti-aging ───────────────────────────────────────────
+    {
+      id: "longevity",
+      title: "Longevity & Anti-Aging",
+      question: "How important is active aging and longevity to your wellness goals?",
+      answers: [
+        {
+          label: "Not a focus — addressing specific symptoms is my main goal right now",
           scores: {},
+        },
+        {
+          label: "Somewhat interested — healthy aging matters but isn’t a top priority",
+          scores: { "epitalon": 1, "sermorelin": 1 },
+        },
+        {
+          label:
+            "Actively interested — I take an intentional approach to slowing the aging process",
+          scores: { "epitalon": 2, "sermorelin": 2, "ghk-cu": 1 },
+        },
+        {
+          label: "Primary goal — longevity optimization is central to my health strategy",
+          scores: {
+            "epitalon": 3,
+            "sermorelin": 2,
+            "ghk-cu": 1,
+            "p21": 1,
+            "pinealon": 1,
+          } as Record<string, number>,
         },
       ],
     },
@@ -569,12 +699,14 @@ export function getWellnessTreatmentById(id: string): WellnessTreatment | undefi
  * Used to show "How this matches your answers" in the client detail wellness section.
  */
 export function getWellnessQuizMatchReasons(
-  answers: Record<string, number | number[]>,
-  treatmentId: string
+  answers: WellnessQuizAnswersMap,
+  treatmentId: string,
 ): string[] {
   const reasons: string[] = [];
   for (const q of WELLNESS_QUIZ.questions) {
+    if (q.severityForQuestionId || q.answers.length === 0) continue;
     const raw = answers[q.id];
+    if (raw != null && typeof raw === "object" && !Array.isArray(raw)) continue;
     const indices = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
     const labels: string[] = [];
     for (const idx of indices) {
@@ -596,7 +728,7 @@ export function getWellnessQuizMatchReasons(
  * if age is the only scoring driver, age labels are still returned.
  */
 export function getWellnessQuizMatchAnswerLabelsForTreatment(
-  answers: Record<string, number | number[]>,
+  answers: WellnessQuizAnswersMap,
   treatmentId: string,
   opts?: { skipQuestionIds?: readonly string[] },
 ): string[] {
@@ -604,8 +736,10 @@ export function getWellnessQuizMatchAnswerLabelsForTreatment(
     const out: string[] = [];
     const seen = new Set<string>();
     for (const q of WELLNESS_QUIZ.questions) {
+      if (q.severityForQuestionId || q.answers.length === 0) continue;
       if (skipQuestionIds.has(q.id)) continue;
       const raw = answers[q.id];
+      if (raw != null && typeof raw === "object" && !Array.isArray(raw)) continue;
       const indices = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
       for (const idx of indices) {
         if (typeof idx !== "number" || idx < 0 || idx >= q.answers.length) {
@@ -631,13 +765,51 @@ export function getWellnessQuizMatchAnswerLabelsForTreatment(
   return collect(new Set());
 }
 
+/** Severity 0–4 → multiplier on peptide row scores for that answer (degree, not binary). */
+export function wellnessSeverityMultiplier(severity: number | undefined): number {
+  if (severity == null || Number.isNaN(severity)) return 1;
+  const s = Math.min(4, Math.max(0, Math.round(severity)));
+  const table = [0.45, 0.78, 1, 1.32, 1.68];
+  return table[s] ?? 1;
+}
+
+export function getWellnessSeverityRecord(
+  answers: WellnessQuizAnswersMap,
+  severityQuestionId: string,
+): Record<string, number> {
+  const v = answers[severityQuestionId];
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out: Record<string, number> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === "number" && Number.isFinite(val)) out[k] = val;
+  }
+  return out;
+}
+
 /**
- * Compute suggested treatment IDs from quiz answers.
- * Multi-select: each question can have multiple answers (stored as array of answer indices).
- * We sum scores per treatment, filter by age (minAge), and return treatments with score >= threshold.
+ * Indices from the source multi-select that need an impact rating (skips options with no scoring weights, e.g. "None of these").
  */
-export function computeWellnessQuizResult(answersByQuestionId: Record<string, number | number[]>): string[] {
-  const treatmentScores: Record<string, number> = {};
+export function getWellnessSeveritySourceIndices(
+  severityQuestion: WellnessQuizQuestion,
+  answers: WellnessQuizAnswersMap,
+): number[] {
+  const sourceId = severityQuestion.severityForQuestionId;
+  if (!sourceId) return [];
+  const srcQ = WELLNESS_QUIZ.questions.find((q) => q.id === sourceId);
+  if (!srcQ) return [];
+  const raw = answers[sourceId];
+  const indices = Array.isArray(raw) ? raw : raw != null ? [raw as number] : [];
+  const out: number[] = [];
+  for (const idx of indices) {
+    if (typeof idx !== "number" || idx < 0 || idx >= srcQ.answers.length) continue;
+    const scores = srcQ.answers[idx]?.scores ?? {};
+    if (Object.keys(scores).length === 0) continue;
+    out.push(idx);
+  }
+  return out;
+}
+
+function wellnessQuizAgeNum(answersByQuestionId: WellnessQuizAnswersMap): number {
   const ageAnswer = answersByQuestionId["age"];
   const ageIndex = Array.isArray(ageAnswer) ? ageAnswer[0] : ageAnswer;
   const ageQuestion = WELLNESS_QUIZ.questions.find((q) => q.id === "age");
@@ -648,53 +820,142 @@ export function computeWellnessQuizResult(answersByQuestionId: Record<string, nu
     ageIndex < ageQuestion.answers.length
       ? ageQuestion.answers[ageIndex].label
       : "";
-  const ageNum = ageLabel.includes("60+")
-    ? 60
-    : ageLabel.includes("50")
-      ? 50
-      : ageLabel.includes("40")
-        ? 40
-        : ageLabel.includes("30")
-          ? 30
-          : 0;
+  if (ageLabel.startsWith("65")) return 65;
+  if (ageLabel.startsWith("60")) return 60;
+  if (ageLabel.startsWith("50")) return 50;
+  if (ageLabel.startsWith("40")) return 40;
+  if (ageLabel.startsWith("30")) return 30;
+  return 0;
+}
+
+/**
+ * Weighted peptide scores from all quiz steps.
+ */
+export function computeWellnessTreatmentScores(
+  answersByQuestionId: WellnessQuizAnswersMap,
+): Record<string, number> {
+  const treatmentScores: Record<string, number> = {};
+  const goalsSev = getWellnessSeverityRecord(answersByQuestionId, "goalsSeverity");
+  const condSev = getWellnessSeverityRecord(answersByQuestionId, "conditionsSeverity");
 
   for (const q of WELLNESS_QUIZ.questions) {
+    if (q.severityForQuestionId) continue;
     const raw = answersByQuestionId[q.id];
-    const indices = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+    if (raw != null && typeof raw === "object" && !Array.isArray(raw)) continue;
+    const indices = Array.isArray(raw) ? raw : raw != null ? [raw as number] : [];
     for (const idx of indices) {
       if (typeof idx !== "number" || idx < 0 || idx >= q.answers.length) continue;
       const answer = q.answers[idx];
+      const mult =
+        q.id === "goals"
+          ? wellnessSeverityMultiplier(goalsSev[String(idx)])
+          : q.id === "conditions"
+            ? wellnessSeverityMultiplier(condSev[String(idx)])
+            : 1;
       for (const [tid, weight] of Object.entries(answer.scores)) {
-        const w = weight ?? 0;
+        const w = (weight ?? 0) * mult;
         treatmentScores[tid] = (treatmentScores[tid] ?? 0) + w;
       }
     }
   }
+  return treatmentScores;
+}
 
+export function selectSuggestedTreatmentIdsFromScores(
+  treatmentScores: Record<string, number>,
+  answersByQuestionId: WellnessQuizAnswersMap,
+): string[] {
+  const ageNum = wellnessQuizAgeNum(answersByQuestionId);
   const threshold = 1;
-  const suggested = WELLNESS_TREATMENTS.filter((t) => {
+  return WELLNESS_TREATMENTS.filter((t) => {
     const score = treatmentScores[t.id] ?? 0;
     if (score < threshold) return false;
     if (t.minAge != null && ageNum > 0 && ageNum < t.minAge) return false;
     return true;
-  });
+  }).map((t) => t.id);
+}
 
-  return suggested.map((t) => t.id);
+export function aggregateWellnessCategoryScores(
+  treatmentScores: Record<string, number>,
+): WellnessQuizCategoryScore[] {
+  const byBucket: Record<string, number> = {};
+  for (const [tid, score] of Object.entries(treatmentScores)) {
+    if (score <= 0) continue;
+    const t = getWellnessTreatmentById(tid);
+    if (!t) continue;
+    const off = getWellnestOfferingByTreatmentName(t.name);
+    const bucket = off?.browseGroup;
+    if (!bucket) continue;
+    byBucket[bucket] = (byBucket[bucket] ?? 0) + score;
+  }
+  const max = Math.max(...Object.values(byBucket), 1);
+  const ordered: WellnessQuizCategoryScore[] = [];
+  for (const id of WELLNEST_BROWSE_GROUP_ORDER) {
+    const raw = byBucket[id] ?? 0;
+    if (raw <= 0) continue;
+    ordered.push({
+      id,
+      label: WELLNEST_BROWSE_GROUP_LABELS[id] ?? id,
+      raw,
+      percent: Math.round((raw / max) * 100),
+    });
+  }
+  for (const [id, raw] of Object.entries(byBucket)) {
+    if (raw <= 0) continue;
+    if ((WELLNEST_BROWSE_GROUP_ORDER as readonly string[]).includes(id)) continue;
+    ordered.push({
+      id,
+      label: WELLNEST_BROWSE_GROUP_LABELS[id] ?? id,
+      raw,
+      percent: Math.round((raw / max) * 100),
+    });
+  }
+  return ordered.sort((a, b) => b.raw - a.raw);
+}
+
+/**
+ * Compute suggested treatment IDs from quiz answers (legacy + v2 impact-weighted).
+ */
+export function computeWellnessQuizResult(
+  answersByQuestionId: WellnessQuizAnswersMap,
+): string[] {
+  const treatmentScores = computeWellnessTreatmentScores(answersByQuestionId);
+  return selectSuggestedTreatmentIdsFromScores(
+    treatmentScores,
+    answersByQuestionId,
+  );
+}
+
+/** Category bars for client UI — uses stored scores when present, else recomputes from answers. */
+export function getWellnessQuizDisplayCategoryScores(
+  quiz:
+    | Pick<WellnessQuizData, "answers" | "categoryScores">
+    | null
+    | undefined,
+): WellnessQuizCategoryScore[] {
+  if (!quiz?.answers) return [];
+  if (quiz.categoryScores && quiz.categoryScores.length > 0)
+    return quiz.categoryScores;
+  const treatmentScores = computeWellnessTreatmentScores(quiz.answers);
+  return aggregateWellnessCategoryScores(treatmentScores);
 }
 
 /** Build payload to store in Airtable (e.g. "Wellness Quiz" long text). */
-export function buildWellnessQuizPayload(answersByQuestionId: Record<string, number | number[]>): {
-  version: 1;
-  completedAt: string;
-  answers: Record<string, number | number[]>;
-  suggestedTreatmentIds: string[];
-} {
-  const suggestedTreatmentIds = computeWellnessQuizResult(answersByQuestionId);
+export function buildWellnessQuizPayload(
+  answersByQuestionId: WellnessQuizAnswersMap,
+): WellnessQuizData {
+  const treatmentScores = computeWellnessTreatmentScores(answersByQuestionId);
+  const suggestedTreatmentIds = selectSuggestedTreatmentIdsFromScores(
+    treatmentScores,
+    answersByQuestionId,
+  );
+  const categoryScores = aggregateWellnessCategoryScores(treatmentScores);
   return {
-    version: 1,
+    version: 2,
     completedAt: new Date().toISOString(),
     answers: { ...answersByQuestionId },
     suggestedTreatmentIds,
+    categoryScores,
   };
 }
 
@@ -725,4 +986,155 @@ export function getWellnessQuizResultsSMSMessage(quiz: {
   return intro + lines.join("\n\n");
 }
 
+/** Match intake wellness goal labels against peptide/education text (shared with plan builder). */
+export type IntakeGoalMatchResult = {
+  score: number;
+  matchedGoals: string[];
+};
+
+function normalizeWellnestGoalToken(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function expandWellnestGoalAliases(goal: string): string[] {
+  const g = normalizeWellnestGoalToken(goal);
+  const aliases: Record<string, string[]> = {
+    recovery: ["recovery", "injury", "muscle", "mobility", "training"],
+    "training support": ["training", "recovery", "muscle", "performance"],
+    energy: ["energy", "fatigue", "metabolic"],
+    sleep: ["sleep", "rest"],
+    focus: ["focus", "memory", "cognitive", "brain fog"],
+    longevity: ["longevity", "anti-aging", "cellular aging", "metabolism"],
+    "stress balance": ["stress", "anxiety", "mood"],
+    "body composition": ["body composition", "fat", "weight", "metabolic"],
+    "metabolic support": [
+      "metabolic",
+      "fat metabolism",
+      "weight",
+      "visceral fat",
+    ],
+    gut: ["gut", "gi", "inflammation"],
+    "gut comfort": ["gut", "gi", "inflammation"],
+  };
+  const mapped = aliases[g] ?? [];
+  return Array.from(new Set([g, ...mapped]));
+}
+
+/**
+ * Score how well intake wellness goals align with a treatment description corpus
+ * (summary, what-it-addresses, keywords, etc.).
+ */
+export function scoreIntakeGoalsAgainstWellnestCorpus(
+  goals: string[],
+  treatmentCorpus: string,
+  matchKeywords: string[],
+): IntakeGoalMatchResult {
+  const matchedGoals = new Set<string>();
+  const normalizedCorpus = normalizeWellnestGoalToken(treatmentCorpus);
+  const keywords = (matchKeywords ?? [])
+    .map((k) => normalizeWellnestGoalToken(k))
+    .filter((k) => k.length >= 3);
+  let score = 0;
+  for (const rawGoal of goals) {
+    const goal = rawGoal.trim();
+    const goalL = normalizeWellnestGoalToken(goal);
+    if (!goalL) continue;
+    const goalCandidates = expandWellnestGoalAliases(goal);
+    let matched = false;
+    for (const candidate of goalCandidates) {
+      if (candidate.length >= 3 && normalizedCorpus.includes(candidate)) {
+        score += 2;
+        matched = true;
+        break;
+      }
+      for (const kw of keywords) {
+        if (
+          candidate.includes(kw) ||
+          kw.includes(candidate) ||
+          candidate
+            .split(/\s+/)
+            .some((part) => part.length >= 3 && kw.includes(part))
+        ) {
+          score += 1;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) break;
+    }
+    if (matched) matchedGoals.add(goal);
+  }
+  return { score, matchedGoals: Array.from(matchedGoals) };
+}
+
 export const WELLNESS_QUIZ_FIELD_NAME = "Wellness Quiz";
+
+export interface WellnessQuizDomainBreakdownItem {
+  questionTitle: string;
+  answerLabel: string;
+  /** Total points this answer contributed to treatments in this domain. */
+  points: number;
+}
+
+/**
+ * For a given domain (browseGroup), returns the quiz answers that drove its score,
+ * sorted highest points first. Shows the patient WHY a domain ranks where it does.
+ */
+export function getWellnessQuizDomainBreakdown(
+  answers: WellnessQuizAnswersMap,
+  treatmentIdsInDomain: Set<string>,
+): WellnessQuizDomainBreakdownItem[] {
+  const items: WellnessQuizDomainBreakdownItem[] = [];
+  for (const q of WELLNESS_QUIZ.questions) {
+    if (q.severityForQuestionId || q.answers.length === 0 || q.id === "age") continue;
+    const raw = answers[q.id];
+    if (raw == null) continue;
+    if (typeof raw === "object" && !Array.isArray(raw)) continue;
+    const indices = Array.isArray(raw) ? (raw as number[]) : [raw as number];
+    for (const idx of indices) {
+      if (typeof idx !== "number" || idx < 0 || idx >= q.answers.length) continue;
+      const answer = q.answers[idx];
+      let domainPts = 0;
+      for (const [tid, pts] of Object.entries(answer.scores)) {
+        if (treatmentIdsInDomain.has(tid) && pts != null && pts > 0) {
+          domainPts += pts;
+        }
+      }
+      if (domainPts > 0) {
+        items.push({ questionTitle: q.title, answerLabel: answer.label, points: domainPts });
+      }
+    }
+  }
+  return items.sort((a, b) => b.points - a.points);
+}
+
+export interface WellnessQuizMatchBreakdownItem {
+  questionTitle: string;
+  answerLabel: string;
+  /** Raw score points this answer contributed to this treatment. */
+  points: number;
+}
+
+/** Per-question breakdown of why a treatment was scored, sorted highest points first. */
+export function getWellnessQuizMatchBreakdownForTreatment(
+  answers: WellnessQuizAnswersMap,
+  treatmentId: string,
+): WellnessQuizMatchBreakdownItem[] {
+  const items: WellnessQuizMatchBreakdownItem[] = [];
+  for (const q of WELLNESS_QUIZ.questions) {
+    if (q.severityForQuestionId || q.answers.length === 0 || q.id === "age") continue;
+    const raw = answers[q.id];
+    if (raw == null) continue;
+    if (typeof raw === "object" && !Array.isArray(raw)) continue;
+    const indices = Array.isArray(raw) ? (raw as number[]) : [raw as number];
+    for (const idx of indices) {
+      if (typeof idx !== "number" || idx < 0 || idx >= q.answers.length) continue;
+      const answer = q.answers[idx];
+      const pts = answer.scores[treatmentId];
+      if (pts != null && pts > 0) {
+        items.push({ questionTitle: q.title, answerLabel: answer.label, points: pts });
+      }
+    }
+  }
+  return items.sort((a, b) => b.points - a.points);
+}

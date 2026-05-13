@@ -32,6 +32,19 @@
  *   node scripts/seed-wellnest-demo-patients.mjs
  */
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+/** v2 wellness quiz payloads — shared with `src/debug/wellnestSampleClients.ts` */
+const WELLNEST_DEMO_WELLNESS_QUIZZES = JSON.parse(
+  readFileSync(
+    join(__dirname, "..", "src", "debug", "wellnestDemoWellnessQuizzes.json"),
+    "utf8",
+  ),
+);
+
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const WELLNEST_PROVIDER_ID = process.env.WELLNEST_PROVIDER_ID;
@@ -70,8 +83,6 @@ const AIRTABLE_API =
       )}`
     : "";
 
-const NOW = new Date().toISOString();
-
 function buildDemoPatients() {
   return [
     {
@@ -107,12 +118,7 @@ function buildDemoPatients() {
           quantity: "1",
         },
       ],
-      wellnessQuiz: {
-        version: 1,
-        completedAt: NOW,
-        answers: {},
-        suggestedTreatmentIds: ["bpc-157", "tb-500", "cjc-1295"],
-      },
+      wellnessQuiz: WELLNEST_DEMO_WELLNESS_QUIZZES.alex,
     },
     {
       name: "Jordan Lee",
@@ -146,12 +152,7 @@ function buildDemoPatients() {
           quantity: "1",
         },
       ],
-      wellnessQuiz: {
-        version: 1,
-        completedAt: NOW,
-        answers: {},
-        suggestedTreatmentIds: ["semax", "selank", "ipamorelin"],
-      },
+      wellnessQuiz: WELLNEST_DEMO_WELLNESS_QUIZZES.jordan,
     },
     {
       name: "Taylor Morgan",
@@ -193,12 +194,7 @@ function buildDemoPatients() {
           quantity: "1",
         },
       ],
-      wellnessQuiz: {
-        version: 1,
-        completedAt: NOW,
-        answers: {},
-        suggestedTreatmentIds: ["tesamorelin", "aod-9604", "cartalax", "mk-677"],
-      },
+      wellnessQuiz: WELLNEST_DEMO_WELLNESS_QUIZZES.taylor,
     },
   ];
 }

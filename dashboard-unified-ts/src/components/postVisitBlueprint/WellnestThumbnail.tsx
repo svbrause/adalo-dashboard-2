@@ -33,15 +33,7 @@ function ThumbnailByConfig({
     ? WELLNEST_VIAL_IMAGES[config.useVial]
     : WELLNEST_DR_REDDY_IMAGE;
 
-  const faceX = (() => {
-    const raw = config.faceX;
-    if (compact) return raw;
-    const match = raw.match(/^(\d+(?:\.\d+)?)%$/);
-    if (!match) return raw;
-    const pct = parseFloat(match[1]);
-    const nudged = Math.max(12, Math.min(75, pct - 16));
-    return `${nudged}%`;
-  })();
+  const faceX = config.faceX;
   const faceY = config.faceY;
 
   const baseProps = {
@@ -126,32 +118,81 @@ function ThumbnailByConfig({
 
   if (config.layout === "split-left" || config.layout === "split-right") {
     const isRight = config.layout === "split-right";
+    // Text lives on the "near" side; face is clipped to the "far" side.
+    // overflow:hidden on the face container is the hard guarantee — the image
+    // physically cannot render in the text zone regardless of scale or position.
+    const textSide = isRight ? "left" : "right";
+    const faceSide = isRight ? "right" : "left";
     return (
       <div className={`wellnest-thumb ${className ?? ""}`} style={containerStyle} {...baseProps}>
+        {/* Face — clipped to its own half, cannot bleed into text area */}
         <div
           style={{
             position: "absolute",
-            inset: 0,
-            background: isRight
-              ? "linear-gradient(90deg, #111 30%, transparent 80%)"
-              : "linear-gradient(270deg, #111 30%, transparent 80%)",
+            top: 0,
+            bottom: 0,
+            [faceSide]: 0,
+            [textSide]: "50%",
+            overflow: "hidden",
+            zIndex: 1,
+          }}
+        >
+          <img
+            src={imageSrc}
+            alt=""
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: `center ${faceY}`,
+              transform: `scale(${config.faceScale})`,
+              transformOrigin: `center ${faceY}`,
+            }}
+            onError={(e) => {
+              if (config.useVial) (e.target as HTMLImageElement).src = WELLNEST_DR_REDDY_IMAGE;
+            }}
+          />
+        </div>
+        {/* Solid dark panel covering the full text side — hard wall against face */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            [textSide]: 0,
+            width: "54%",
+            background: "#111",
             zIndex: 2,
           }}
         />
-        {faceImg}
+        {/* Gradient feathers the seam so the hard edge isn't visible */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            [textSide]: "46%",
+            width: "14%",
+            background: `linear-gradient(${isRight ? "90deg" : "270deg"}, #111, transparent)`,
+            zIndex: 3,
+          }}
+        />
+        {/* Text block */}
         <div
           style={{
             position: "absolute",
             top: "10%",
             bottom: "10%",
-            [isRight ? "left" : "right"]: "6%",
-            width: compact ? "42%" : "45%",
+            [textSide]: "6%",
+            width: compact ? "42%" : "44%",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
             alignItems: isRight ? "flex-start" : "flex-end",
             textAlign: isRight ? "left" : "right",
-            zIndex: 3,
+            zIndex: 4,
           }}
         >
           <TextBlock text={config.text1} highlight={config.highlightLine === 1} />

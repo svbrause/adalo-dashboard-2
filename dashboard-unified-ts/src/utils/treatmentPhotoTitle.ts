@@ -1,5 +1,8 @@
 import type { TreatmentPhoto } from "../types";
 
+/** Templated case labels (e.g. from older Judgemd demo rows) — ignore for display in favor of linked treatments/areas. */
+const PLACEHOLDER_BEFORE_AFTER_NAME = /^Before\s*&\s*after\s+\d+$/i;
+
 /** Area names for display: remove trailing " All" and omit standalone "All". */
 export function getTreatmentPhotoAreaDisplayList(areaNames: string[]): string[] {
   return areaNames
@@ -35,7 +38,8 @@ function buildTitleFromLinkedFields(photo: TreatmentPhoto): string {
  */
 export function getTreatmentPhotoDisplayTitle(photo: TreatmentPhoto): string {
   const fromLinks = buildTitleFromLinkedFields(photo);
-  const name = photo.name?.trim() ?? "";
+  const raw = photo.name?.trim() ?? "";
+  const name = PLACEHOLDER_BEFORE_AFTER_NAME.test(raw) ? "" : raw;
   const wordCount = name ? name.split(/\s+/).filter(Boolean).length : 0;
   const nameLooksLikeDump = name.length > 44 || wordCount >= 6;
 
@@ -45,6 +49,39 @@ export function getTreatmentPhotoDisplayTitle(photo: TreatmentPhoto): string {
   }
   if (name) return name;
   return "Treatment example";
+}
+
+/**
+ * One line under a Treatment Explorer grid thumbnail. Returns `null` to omit the row when
+ * the string would only repeat the selected treatment chip or the plan category the modal
+ * was opened for (e.g. Judgemd examples that only carry the category name). Keeps area
+ * lines (treatment – area), multiple linked tags (T1 · T2), and other non-redundant titles.
+ */
+export function getTreatmentPhotoExplorerGridLabel(
+  photo: TreatmentPhoto,
+  options: { filterTreatment?: string; openFromTreatment?: string },
+): string | null {
+  const line = getTreatmentPhotoDisplayTitle(photo).trim();
+  if (!line) {
+    return null;
+  }
+  if (line.includes("–") || line.includes("·")) {
+    return line;
+  }
+  if (getTreatmentPhotoAreaDisplayList(photo.areaNames).length > 0) {
+    return line;
+  }
+  const { filterTreatment = "", openFromTreatment = "" } = options;
+  const ft = filterTreatment.trim();
+  const op = openFromTreatment.trim();
+  const lower = line.toLowerCase();
+  if (ft && lower === ft.toLowerCase()) {
+    return null;
+  }
+  if (op && lower === op.toLowerCase() && !ft) {
+    return null;
+  }
+  return line;
 }
 
 /** Lowercase blob for filter / “exact match” scoring (name, linked treatments, areas). */

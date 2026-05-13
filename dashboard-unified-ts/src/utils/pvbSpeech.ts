@@ -39,13 +39,18 @@ export function cancelSpeech(): void {
 
 let cachedPreferredVoice: SpeechSynthesisVoice | null | undefined;
 
+const FEMALE_VOICE_NAME_RE =
+  /\bfemale\b|woman|martha|kate|serena|fiona|tessa|moira|sonia|libby|maisie|sophie|nancy|samantha|karen|victoria|allison|nicky|susan|flo|ava|zira|jenny|aria/i;
+const MALE_VOICE_NAME_RE =
+  /\bmale\b|man|arthur|daniel|oliver|thomas|ryan|aaron|david|mark|alex|george|fred|ralph|albert|eddy|reed|rocko|shelley/i;
+
 /** Reset when the browser’s voice list may have changed. */
 function clearPreferredVoiceCache(): void {
   cachedPreferredVoice = undefined;
 }
 
 /**
- * Pick a less-robotic English voice when the OS exposes several.
+ * Pick a clear British English voice when available, else high-quality en-* .
  * Quality varies by browser/OS; local / enhanced / neural-style voices score higher.
  */
 function pickPreferredEnglishVoice(
@@ -62,23 +67,38 @@ function pickPreferredEnglishVoice(
     const lang = (v.lang ?? "").toLowerCase();
     const name = (v.name ?? "").toLowerCase();
 
-    if (lang === "en-us") s += 6;
+    /** Prefer UK English for Post-Visit Blueprint narration. */
+    if (lang === "en-gb") s += 18;
+    else if (lang.startsWith("en-gb")) s += 16;
+    else if (lang === "en-us") s += 5;
     else if (lang.startsWith("en")) s += 4;
 
     if (v.localService) s += 5;
 
+    // If Google Cloud is not configured or reachable, the browser fallback should still
+    // avoid the common "Google UK English Male" / Daniel-style voices for patient narration.
+    if (FEMALE_VOICE_NAME_RE.test(name)) s += 30;
+    if (MALE_VOICE_NAME_RE.test(name)) s -= 24;
+
     if (/enhanced|premium|neural|natural|wavenet|neural2/i.test(name)) s += 10;
     if (
-      /samantha|daniel|karen|victoria|moira|fiona|tessa|allison|aaron|nicky|susan|flo|serena|ava|oliver|thomas/i.test(
+      /martha|kate|serena|fiona|tessa|moira|sonia|libby|maisie|sophie|nancy/i.test(
         name,
       )
     )
-      s += 7;
-    if (/google\s+(us|uk)\s+english|google\s+english/i.test(name)) s += 6;
+      s += 9;
+    if (
+      /samantha|karen|victoria|allison|nicky|susan|flo|ava/i.test(
+        name,
+      )
+    )
+      s += 5;
+    if (/google\s+uk\s+english|google\s+us\s+english|google\s+english/i.test(name))
+      s += lang.includes("gb") ? 10 : 6;
     if (/siri|alex/i.test(name)) s += 8;
 
     // Common Windows/macOS defaults — usable but often flatter than the above
-    if (/microsoft\s+(zira|david|mark|jenny|aria)/i.test(name)) s += 2;
+    if (/microsoft\s+(zira|david|mark|jenny|aria|sonia|libby)/i.test(name)) s += 2;
 
     // Deprioritize known compact / legacy bundled voices when alternatives exist
     if (/compact|legacy|novelty/i.test(name)) s -= 6;
@@ -139,6 +159,7 @@ function speakPlainTextBrowser(
   opts?: {
     rate?: number;
     pitch?: number;
+    onStart?: () => void;
     onEnd?: () => void;
     onError?: () => void;
   },
@@ -150,14 +171,15 @@ function speakPlainTextBrowser(
     const voice = getPreferredVoice();
     if (voice) {
       u.voice = voice;
-      u.lang = voice.lang || "en-US";
+      u.lang = voice.lang || "en-GB";
     } else {
-      u.lang = "en-US";
+      u.lang = "en-GB";
     }
     // Slightly slower than default — clearer; pitch near 1 avoids chipmunk/flat extremes
-    u.rate = opts?.rate ?? 0.94;
+    u.rate = opts?.rate ?? 0.92;
     u.pitch = opts?.pitch ?? 1;
     u.volume = 1;
+    u.onstart = () => opts?.onStart?.();
     u.onend = () => opts?.onEnd?.();
     u.onerror = () => opts?.onError?.();
     try {
@@ -180,6 +202,7 @@ export function speakPlainText(
   opts?: {
     rate?: number;
     pitch?: number;
+    onStart?: () => void;
     onEnd?: () => void;
     onError?: () => void;
   },

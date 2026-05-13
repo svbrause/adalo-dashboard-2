@@ -6,6 +6,7 @@
 import { ASSESSMENT_FINDINGS } from "../components/modals/DiscussedTreatmentsModal/constants";
 import { getGoalRegionTreatmentsForFinding } from "../components/modals/DiscussedTreatmentsModal/utils";
 import { SUGGESTION_TO_AREA } from "../components/modals/DiscussedTreatmentsModal/suggestionsMapping";
+import { isJudgeMdSurgeryPlanCategory } from "../data/judgeMdPricing2026";
 
 /** "What are you here for?" – Tox (neurotoxin) or Filler */
 export type HereForOption = "Tox" | "Filler";
@@ -263,6 +264,9 @@ export function filterTreatmentsByRegion(
     if (areas) areas.forEach((a) => areaSet.add(a));
   }
   return treatmentNames.filter((t) => {
+    // Surgery plan cards are a full catalog row per category; region chips are for
+    // facial-zone injectables/energy — do not hide breast/body/facial split rows.
+    if (isJudgeMdSurgeryPlanCategory(t)) return true;
     const areas = getAreasForTreatment(t);
     if (!areas || areas.length === 0) return true;
     return areas.some((a) => areaSet.has(a));

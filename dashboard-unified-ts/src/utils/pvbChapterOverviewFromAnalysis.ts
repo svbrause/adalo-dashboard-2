@@ -2,6 +2,7 @@ import { ENERGY_TREATMENT_CATEGORY } from "../components/modals/DiscussedTreatme
 import type { TreatmentChapter } from "./blueprintTreatmentChapters";
 import { chapterTreatmentNormKey } from "./pvbChapterSchedule";
 import { patientFacingSkincareShortName } from "./pvbSkincareDisplay";
+import { getWellnestOfferingByTreatmentName } from "../data/wellnestOfferings";
 import type {
   BlueprintAnalysisOverviewSnapshot,
   PlanTreatmentRow,
@@ -106,6 +107,77 @@ function dedupeStrings(items: string[]): string[] {
   return out;
 }
 
+type AreaConcernFamily =
+  | "forehead"
+  | "eyes"
+  | "neck"
+  | "lips"
+  | "cheeks"
+  | "jawline"
+  | "chin"
+  | "nose"
+  | "temples"
+  | "nasolabial"
+  | "marionette"
+  | "skin";
+
+const AREA_CONCERN_FAMILY_TESTS: Record<AreaConcernFamily, RegExp> = {
+  forehead: /\b(forehead|frown|glabella|brow|eyebrow|11'?s?|between\s+the\s+brows?)\b/i,
+  eyes: /\b(eye|eyes|under[\s-]?eye|tear[\s-]?trough|crow'?s?\s*feet|eyelid|periorbital|periocular)\b/i,
+  neck: /\b(neck|platysma|platysmal|nefertiti)\b/i,
+  lips: /\b(lip|lips|perioral|smoker'?s?\s*lines?|philtrum)\b/i,
+  cheeks: /\b(cheek|cheeks|midface|mid-face)\b/i,
+  jawline: /\b(jaw|jawline|jowl|jowls|prejowl|masseter)\b/i,
+  chin: /\b(chin|mentum|mental crease|submental)\b/i,
+  nose: /\b(nose|nasal|bunny)\b/i,
+  temples: /\b(temple|temples|temporal)\b/i,
+  nasolabial: /\b(nasolabial|smile lines?)\b/i,
+  marionette: /\b(marionette)\b/i,
+  skin: /\b(skin|texture|tone|pigment|redness|acne|pore|scar|sun|spot|melasma|hydration|barrier)\b/i,
+};
+
+function areaConcernFamiliesForText(text: string): Set<AreaConcernFamily> {
+  const families = new Set<AreaConcernFamily>();
+  for (const [family, test] of Object.entries(AREA_CONCERN_FAMILY_TESTS)) {
+    if (test.test(text)) families.add(family as AreaConcernFamily);
+  }
+  return families;
+}
+
+function chapterRequestedAreaFamilies(chapter: TreatmentChapter): Set<AreaConcernFamily> {
+  const areaText = [
+    chapter.displayArea ?? "",
+    ...chapter.planItems.map((item) => item.region ?? ""),
+  ]
+    .join(" | ")
+    .toLowerCase();
+  return areaConcernFamiliesForText(areaText);
+}
+
+function concernFitsChapterArea(
+  concern: string,
+  requestedFamilies: Set<AreaConcernFamily>,
+): boolean {
+  if (requestedFamilies.size === 0) return true;
+  const concernFamilies = areaConcernFamiliesForText(concern);
+  if (concernFamilies.size === 0) return true;
+  for (const family of concernFamilies) {
+    if (requestedFamilies.has(family)) return true;
+  }
+  return false;
+}
+
+function filterConcernsForChapterArea(
+  concerns: string[],
+  chapter: TreatmentChapter,
+): string[] {
+  const requestedFamilies = chapterRequestedAreaFamilies(chapter);
+  if (requestedFamilies.size === 0) return concerns;
+  return concerns.filter((concern) =>
+    concernFitsChapterArea(concern, requestedFamilies),
+  );
+}
+
 function formatEnglishList(items: string[]): string {
   const clean = items.map((s) => s.trim()).filter(Boolean);
   if (clean.length === 0) return "";
@@ -157,8 +229,19 @@ function treatmentInsightClosing(chapter: TreatmentChapter): string {
   if (t === "kybella") {
     return "Kybella targets stubborn fat under the chin—it’s best suited when refining your profile and contour is the main goal.";
   }
+  const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
+  if (wellnestOffering) {
+    const timeline = wellnestOffering.resultsTimeline?.trim();
+    return timeline
+      ? `Most people start to notice a difference within ${timeline}—consistency with the schedule your provider set is the most important factor.`
+      : `Your provider will review your response and adjust the plan as you progress.`;
+  }
   return `That’s the role ${chapter.displayName} plays in your plan.`;
 }
+
+/** Delivery method strings stored in DiscussedItem.product for Wellnest — not product names. */
+const DELIVERY_METHOD_RE =
+  /\b(sc|im|iv)\s*injection|nasal\s*spray|oral\s*(spray|capsule|tablet)|topical|peptide\s*cream|injection\s*(preferred|ideal|only)|spray\s*available/i;
 
 function productHintSentence(chapter: TreatmentChapter): string | null {
   const eb = chapterTreatmentNormKey(ENERGY_TREATMENT_CATEGORY);
@@ -175,7 +258,7 @@ function productHintSentence(chapter: TreatmentChapter): string | null {
   const isSkincare = chapter.treatment.trim().toLowerCase() === "skincare";
   const raw = chapter.planItems
     .map((i) => (i.product ?? "").trim())
-    .filter(Boolean);
+    .filter((p) => Boolean(p) && !DELIVERY_METHOD_RE.test(p));
   if (raw.length === 0) return null;
 
   const products = dedupeStrings(
@@ -226,7 +309,10 @@ export function getChapterOverviewMergedConcerns(
     ]);
   }
 
-  return dedupeStrings([...fromVisit, ...fromScan]).slice(0, 8);
+  return filterConcernsForChapterArea(
+    dedupeStrings([...fromVisit, ...fromScan]),
+    chapter,
+  ).slice(0, 8);
 }
 
 export type ChapterAnalysisParagraphOptions = {
@@ -247,7 +333,9 @@ export function buildChapterAnalysisParagraph(
     return treatmentInsightClosing(chapter);
   }
 
-  const productHint = productHintSentence(chapter);
+  const productHint = !paragraphOpts?.hadExplicitAddressingSentence
+    ? productHintSentence(chapter)
+    : null;
   if (productHint) {
     return `${productHint} ${treatmentInsightClosing(chapter)}`;
   }
@@ -257,6 +345,20 @@ export function buildChapterAnalysisParagraph(
       return treatmentInsightClosing(chapter);
     }
     return `Your plan applies this to ${chapter.displayArea}. ${treatmentInsightClosing(chapter)}`;
+  }
+
+  const wellnestOfferingFallback = getWellnestOfferingByTreatmentName(chapter.treatment);
+  if (wellnestOfferingFallback) {
+    const addressParts = wellnestOfferingFallback.addresses
+      .split(/[,;]/)
+      .map((s) =>
+        s.trim().replace(/\s+support$/i, "").replace(/\//g, " and ").toLowerCase(),
+      )
+      .filter((s) => s.length > 0)
+      .slice(0, 2);
+    if (addressParts.length > 0) {
+      return `Your provider matched ${chapter.displayName} to address ${formatEnglishList(addressParts)}—areas they identified as relevant during your visit. ${treatmentInsightClosing(chapter)}`;
+    }
   }
 
   return `Your provider matched ${chapter.displayName} to your goals and what was reviewed during your visit. ${treatmentInsightClosing(chapter)}`;
@@ -272,9 +374,12 @@ export function maybeAppendIntroScanBridge(
 ): string {
   const snapshot = options?.overviewSnapshot ?? null;
   if (!snapshot) return baseIntro;
-  const scan = filterLabelsForTreatment(
-    snapshot.detectedIssueLabels ?? [],
-    chapter.treatment,
+  const scan = filterConcernsForChapterArea(
+    filterLabelsForTreatment(
+      snapshot.detectedIssueLabels ?? [],
+      chapter.treatment,
+    ),
+    chapter,
   );
   if (scan.length === 0) return baseIntro;
   return `${baseIntro} Your scan also picked up on ${formatEnglishList(scan.slice(0, 3))}, which is part of why this was included in your plan.`;

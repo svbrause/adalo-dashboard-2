@@ -55,6 +55,7 @@ import type {
   TreatmentPlanAddDirectOptions,
   TreatmentPlanPrefill,
 } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
+import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import TreatmentRecommenderFilters from "./TreatmentRecommenderFilters";
 import { PlanQuantityStepperInput } from "./planQuantityStepper";
 import TreatmentPhotosModal from "../modals/TreatmentPhotosModal";
@@ -154,11 +155,15 @@ function getIssuesForSuggestion(suggestionName: string): string[] {
   return SUGGESTION_TO_ISSUES[suggestionName] ?? [];
 }
 
-function initialAddToPlanRowForSuggestion(suggestionName: string, what: string) {
+function initialAddToPlanRowForSuggestion(
+  suggestionName: string,
+  what: string,
+  providerCode?: string,
+) {
   const quantity =
     what === "Skincare"
       ? ""
-      : getQuantityContext(what, undefined).defaultQuantity;
+      : getQuantityContext(what, undefined, providerCode).defaultQuantity;
   return {
     suggestionName,
     what,
@@ -355,6 +360,7 @@ export default function TreatmentRecommenderBySuggestion({
     const qtyCtx = getQuantityContext(
       addToPlanForSuggestion.what,
       addToPlanForSuggestion.product?.trim() || undefined,
+      provider?.code,
     );
     if (qtyCtx.quantityControl === "text") return;
     const { options, defaultQuantity } = qtyCtx;
@@ -528,10 +534,12 @@ export default function TreatmentRecommenderBySuggestion({
   return (
     <div className="treatment-recommender-by-suggestion">
       <div className="treatment-recommender-by-suggestion__body">
-        <TreatmentRecommenderFilters
-          state={filterState}
-          onStateChange={(next) => setFilterState((s) => ({ ...s, ...next }))}
-        />
+        {!isWellnestWellnessProviderCode(provider?.code) ? (
+          <TreatmentRecommenderFilters
+            state={filterState}
+            onStateChange={(next) => setFilterState((s) => ({ ...s, ...next }))}
+          />
+        ) : null}
 
         {client.skincareQuiz && (
           <div className="treatment-recommender-skin-analysis">
@@ -707,25 +715,20 @@ export default function TreatmentRecommenderBySuggestion({
                   className="treatment-recommender-by-suggestion__card"
                 >
                   <div className="treatment-recommender-by-suggestion__card-top">
-                    <div className="treatment-recommender-by-suggestion__photo-wrap">
-                      {showPhoto ? (
+                    {showPhoto && cardPhotoUrl ? (
+                      <div className="treatment-recommender-by-suggestion__photo-wrap">
                         <img
                           src={cardPhotoUrl}
                           alt={client.name}
                           className="treatment-recommender-by-suggestion__photo"
                           onError={() =>
-                            cardPhotoUrl &&
                             setFailedPhotoUrls((prev) =>
                               new Set(prev).add(cardPhotoUrl),
                             )
                           }
                         />
-                      ) : (
-                        <div className="treatment-recommender-by-suggestion__photo-placeholder">
-                          No photo
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    ) : null}
                     <div className="treatment-recommender-by-suggestion__card-main">
                       <h2 className="treatment-recommender-by-suggestion__card-title">
                         {suggestionName}
@@ -879,6 +882,7 @@ export default function TreatmentRecommenderBySuggestion({
                                     addToPlanForSuggestion.what,
                                     addToPlanForSuggestion.product?.trim() ||
                                       undefined,
+                                    provider?.code,
                                   );
                                   return (
                                     <label className="treatment-recommender-by-suggestion__details-label treatment-recommender-by-suggestion__pricing-qty">
@@ -947,6 +951,7 @@ export default function TreatmentRecommenderBySuggestion({
                                           addToPlanForSuggestion.what,
                                           addToPlanForSuggestion.product?.trim() ||
                                             undefined,
+                                          provider?.code,
                                         );
                                         const oid = planOptDomIdSuffix(
                                           addToPlanForSuggestion.what,
@@ -1121,6 +1126,7 @@ export default function TreatmentRecommenderBySuggestion({
                                   initialAddToPlanRowForSuggestion(
                                     suggestionName,
                                     what,
+                                    provider?.code,
                                   ),
                                 );
                               }}

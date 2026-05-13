@@ -3,6 +3,7 @@ import type { Client, DiscussedItem } from "../types";
 import { useDashboard } from "../context/DashboardContext";
 import { persistClientDiscussedItems } from "../utils/wellnestDemoPlanPersistence";
 import { showError } from "../utils/toast";
+import { mergeDiscussedItemPatch } from "../components/modals/DiscussedTreatmentsModal/utils";
 
 type OnUpdate = () => void | Promise<void>;
 
@@ -112,7 +113,9 @@ export function useVisitModePlanSync({
       const isNowCompleted = (item.timeline ?? "").trim() === "Completed";
       const nextTimeline = isNowCompleted ? "Now" : "Completed";
       const nextItems = currentItems.map((it) =>
-        it.id === itemId ? { ...it, timeline: nextTimeline } : it,
+        it.id === itemId
+          ? mergeDiscussedItemPatch(it, { timeline: nextTimeline })
+          : it,
       );
 
       latestPlanItemsRef.current = nextItems;

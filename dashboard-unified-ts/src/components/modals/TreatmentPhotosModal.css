@@ -35,6 +35,18 @@
   overflow: hidden;
 }
 
+.treatment-photos-modal-content .treatment-photos-ba-disclaimer {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--theme-text-muted, #6b6b6b);
+}
+
+.treatment-photos-modal-content .treatment-photos-ba-disclaimer em {
+  font-style: italic;
+  font-synthesis: none;
+}
+
 @media (max-width: 768px) {
   .treatment-photos-modal-overlay {
     padding: 8px;

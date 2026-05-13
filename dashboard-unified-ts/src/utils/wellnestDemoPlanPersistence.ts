@@ -42,20 +42,23 @@ export async function persistClientDiscussedItems(
   client: Pick<Client, "id" | "tableSource"> & { source?: string | null },
   nextItems: DiscussedItem[],
 ): Promise<void> {
+  const touch = new Date().toISOString();
+  const stamped = nextItems.map((i) => ({ ...i, updatedAt: touch }));
+
   if (isWellnestDemoSampleClient(client)) {
     try {
-      sessionStorage.setItem(STORAGE_PREFIX + client.id, JSON.stringify(nextItems));
+      sessionStorage.setItem(STORAGE_PREFIX + client.id, JSON.stringify(stamped));
     } catch {
       /* quota / private mode */
     }
     return;
   }
-  const payload = nextItems.length > 0 ? JSON.stringify(nextItems) : "";
+  const payload = stamped.length > 0 ? JSON.stringify(stamped) : "";
   await updateLeadRecord(client.id, client.tableSource, {
     [AIRTABLE_FIELD]: payload,
   });
 
-  if (nextItems.length > 0 && isAddClientLead(client)) {
+  if (stamped.length > 0 && isAddClientLead(client)) {
     const key = `ph_acq_plan:${client.id}`;
     try {
       if (typeof localStorage !== "undefined" && localStorage.getItem(key) !== "1") {
@@ -63,7 +66,7 @@ export async function persistClientDiscussedItems(
         capturePatientAcquisitionFunnelEvent(
           "funnel_treatment_plan_built",
           client.id,
-          { plan_item_count: nextItems.length },
+          { plan_item_count: stamped.length },
         );
       }
     } catch {

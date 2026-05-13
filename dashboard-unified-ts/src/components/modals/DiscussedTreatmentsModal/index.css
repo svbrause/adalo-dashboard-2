@@ -221,10 +221,25 @@
   margin-bottom: 2px;
 }
 
-.discussed-treatments-master-list-header .discussed-treatments-list-title {
-  margin: 0;
+.discussed-treatments-master-list-header-titles {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.discussed-treatments-master-list-header .discussed-treatments-list-title {
+  margin: 0;
+}
+
+.discussed-treatments-list-last-updated,
+.discussed-treatments-modal-header-last-updated {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--theme-text-muted, #6b7280);
+}
+
+.discussed-treatments-record-checked-off {
+  font-size: 12px;
+  color: var(--theme-text-muted, #6b7280);
 }
 
 /* Plan sections: Now, Add next visit, Wishlist (Wishlist at bottom) */
@@ -882,6 +897,109 @@
 .discussed-treatments-remove-btn:hover {
   background: rgba(220, 38, 38, 0.1) !important;
   border-color: #b91c1c !important;
+}
+
+.discussed-treatments-plan-quote-role-row {
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(15, 118, 110, 0.06);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+}
+
+.discussed-treatments-plan-quote-role-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #0f172a;
+}
+
+.discussed-treatments-plan-quote-role-label input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.discussed-treatments-plan-quote-role-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.discussed-treatments-plan-quote-role-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.discussed-treatments-plan-quote-role-example {
+  display: block;
+  margin-top: 6px;
+  font-style: italic;
+  color: #64748b;
+}
+
+.discussed-treatments-list-hint-example {
+  font-style: italic;
+  color: #64748b;
+}
+
+.discussed-treatments-record-plan-role-pill {
+  margin-top: 6px;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.discussed-treatments-record-plan-role-pill--core {
+  background: rgba(15, 118, 110, 0.15);
+  color: #0f766e;
+}
+
+.discussed-treatments-surgery-logistics {
+  margin: 14px 0 4px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+}
+
+.discussed-treatments-surgery-logistics-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+
+.discussed-treatments-surgery-logistics-lead {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.discussed-treatments-prefill-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.discussed-treatments-surgery-textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+}
+
+.discussed-treatments-detail-muted {
+  font-size: 13px;
+  color: #94a3b8;
+  font-style: italic;
 }
 
 /* Stack columns on narrow viewports */
@@ -1874,6 +1992,27 @@
   font-size: 12px;
   color: var(--theme-text-secondary);
   margin: 0 0 10px 0; /* no negative top: avoids content being pulled up */
+}
+
+.discussed-treatments-skin-quiz-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(157, 214, 203, 0.2) 0%, rgba(99, 179, 167, 0.14) 100%);
+  border: 1px solid rgba(99, 179, 167, 0.45);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0a5c52;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.discussed-treatments-skin-quiz-btn:hover {
+  background: linear-gradient(135deg, rgba(157, 214, 203, 0.32) 0%, rgba(99, 179, 167, 0.24) 100%);
+  border-color: rgba(99, 179, 167, 0.7);
 }
 
 .discussed-treatments-treatments-subheading {
@@ -3397,7 +3536,7 @@
 
 .treatment-photos-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   padding: 16px 20px;
@@ -3405,11 +3544,31 @@
   flex-shrink: 0;
 }
 
+.treatment-photos-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
 .treatment-photos-title {
   font-size: 16px;
   font-weight: 600;
   color: var(--theme-text-primary);
   margin: 0;
+}
+
+.treatment-photos-gallery-source-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-accent, #2563eb);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.treatment-photos-gallery-source-link:hover {
+  color: var(--theme-accent-hover, #1d4ed8);
 }
 
 .treatment-photos-close-btn {
@@ -3865,6 +4024,21 @@
   display: block;
 }
 
+/* When there is no caption row, use the full card for the image: taller frame + show full image (no letterboxing crop) */
+.treatment-photo-card-wide.treatment-photo-card--no-subtitle .treatment-photo-image-wrap-wide {
+  height: 200px !important;
+  min-height: 200px !important;
+  flex: 0 0 200px !important;
+}
+
+.treatment-photo-card-wide.treatment-photo-card--no-subtitle .treatment-photo-image {
+  object-fit: contain;
+}
+
+.treatment-photo-card-wide.treatment-photo-card--no-subtitle {
+  min-height: 0;
+}
+
 /* Chips row at bottom of photo card */
 .treatment-photo-chips-row {
   padding: 8px 10px;
@@ -3975,6 +4149,18 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.treatment-photos-ba-disclaimer {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--theme-text-muted, #6b6b6b);
+}
+
+.treatment-photos-ba-disclaimer em {
+  font-style: italic;
+  font-synthesis: none;
 }
 
 .treatment-photos-section {
@@ -4525,6 +4711,14 @@
     min-height: 0 !important;
     flex: 0 0 auto !important;
     aspect-ratio: 16 / 9;
+  }
+
+  .treatment-photo-card-wide.treatment-photo-card--no-subtitle .treatment-photo-image-wrap-wide {
+    aspect-ratio: 3 / 4;
+  }
+
+  .treatment-photo-card-wide.treatment-photo-card--no-subtitle .treatment-photo-image {
+    object-fit: contain;
   }
 
   .treatment-photo-card-label {

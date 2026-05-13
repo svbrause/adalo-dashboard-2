@@ -1,3 +1,5 @@
+import type { DiscussedItem } from "../types";
+
 /** ISO calendar day YYYY-MM-DD for scheduled plan items (no time-of-day). */
 
 export function isValidPlanScheduledDateIso(s: string | undefined): boolean {
@@ -18,17 +20,11 @@ export function parsePlanScheduledDateLocal(iso: string): Date | null {
   return dt;
 }
 
+/** Scheduled calendar day on plan rows — month + day only (e.g. Jun 26). */
 export function formatPlanScheduledDateLabel(
   iso: string | undefined,
 ): string | null {
-  if (!isValidPlanScheduledDateIso(iso)) return null;
-  const d = parsePlanScheduledDateLocal(iso!);
-  if (!d) return null;
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(d);
+  return formatPlanScheduledDateShortNoYear(iso);
 }
 
 /** Full calendar date with long month (e.g. July 20, 2026) for patient-facing copy. */
@@ -56,4 +52,61 @@ export function formatPlanScheduledDateShortNoYear(
     month: "short",
     day: "numeric",
   }).format(d);
+}
+
+/** Format an ISO date-time (e.g. completedAt / updatedAt) as “Jun 26” in local time. */
+export function formatPlanActivityDateShort(
+  iso: string | undefined | null,
+): string | null {
+  if (!iso?.trim()) return null;
+  const d = new Date(iso.trim());
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  }).format(d);
+}
+
+/** Latest activity across plan rows for “Last updated …” (added, completed, or save). */
+export function planItemsLastActivityIso(
+  items: readonly DiscussedItem[] | undefined,
+): string | null {
+  if (!items?.length) return null;
+  let max = 0;
+  for (const i of items) {
+    for (const raw of [i.updatedAt, i.completedAt, i.addedAt]) {
+      if (!raw?.trim()) continue;
+      const t = Date.parse(raw);
+      if (!Number.isNaN(t) && t > max) max = t;
+    }
+  }
+  return max > 0 ? new Date(max).toISOString() : null;
+}
+
+export function planItemsLastUpdatedShortLabel(
+  items: readonly DiscussedItem[] | undefined,
+): string | null {
+  return formatPlanActivityDateShort(planItemsLastActivityIso(items));
+}
+
+/**
+ * Distinct scheduled calendar days across plan rows — long month + year (patient blueprint).
+ * Example: `Planned for July 20, 2026` or `Planned for July 20, 2026 · Aug 1, 2026`.
+ */
+export function blueprintPlannedForDatesSummaryLine(
+  items: readonly DiscussedItem[],
+): string | null {
+  const byIso = new Map<string, string>();
+  for (const item of items) {
+    const iso = item.scheduledDate?.trim();
+    if (!isValidPlanScheduledDateIso(iso)) continue;
+    const long = formatPlanScheduledDateLongLabel(iso);
+    if (long) byIso.set(iso!, long);
+  }
+  if (byIso.size === 0) return null;
+  const dates = [...byIso.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, long]) => long);
+  if (dates.length === 1) return `Planned for ${dates[0]}`;
+  return `Planned for ${dates.join(" · ")}`;
 }

@@ -77,6 +77,11 @@
   max-height: 48px;
 }
 
+.pvb-brand-logo--judgemd {
+  max-width: min(320px, calc(100vw - 140px));
+  max-height: 52px;
+}
+
 .pvb-brand-name-text {
   font-size: 18px;
   font-weight: 600;
@@ -2043,6 +2048,47 @@
   padding-top: 32px;
 }
 
+/* Plan section headers (Now / Next Visit / Wishlist / Skincare) */
+.pvb-plan-section {
+  margin-bottom: 4px;
+}
+
+.pvb-plan-section-title {
+  display: inline-block;
+  margin: 20px 12px 22px;
+  padding: 8px 22px;
+  background: #1e293b;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.pvb-plan-section:first-child .pvb-plan-section-title {
+  margin-top: 0;
+}
+
+/* TOC section header rows */
+.pvb-toc-section-header {
+  counter-increment: none;
+  padding: 14px 0 4px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #64748b;
+  list-style: none;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 4px;
+}
+
+.pvb-toc-section-header:first-child {
+  padding-top: 0;
+  border-top: none;
+  margin-top: 0;
+}
+
 /* ── CLOSING ── */
 .pvb-closing {
   background: #ffffff;
@@ -2207,6 +2253,13 @@
   line-height: 1.52;
 }
 
+.pvb-drawer-intro--judgemd-example {
+  margin-top: -10px;
+  margin-bottom: 18px;
+  font-style: italic;
+  color: #94a3b8;
+}
+
 /* ── Quote inside drawer ── */
 .pvb-quote {
   border: 1px solid #e2e8f0;
@@ -2368,9 +2421,49 @@
 }
 
 .pvb-quote-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   color: #334155;
   font-size: 0.92rem;
   font-weight: 500;
+}
+
+.pvb-quote-core-pill,
+.pvb-quote-addon-pill,
+.pvb-quote-timing-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pvb-quote-core-pill {
+  background: rgba(15, 118, 110, 0.18);
+  color: #0f766e;
+}
+
+.pvb-quote-addon-pill {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.pvb-quote-timing-pill {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.pvb-quote-row--core {
+  background: rgba(15, 118, 110, 0.04);
+}
+
+.pvb-quote-row--core input[type="checkbox"]:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 
 .pvb-quote-row-sched {
@@ -2378,6 +2471,12 @@
   font-weight: 600;
   color: #0f766e;
   line-height: 1.25;
+}
+
+.pvb-quote-row-sched--meta {
+  font-weight: 500;
+  color: #475569;
+  white-space: normal;
 }
 
 .pvb-quote-row strong {
@@ -2683,6 +2782,20 @@
   font-size: 0.82rem;
   color: #64748b;
   line-height: 1.45;
+}
+
+.pvb-case-source {
+  margin: -6px 20px 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f766e;
+  line-height: 1.4;
+}
+
+.pvb-case-source a {
+  color: #0f766e;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .pvb-case-block {
