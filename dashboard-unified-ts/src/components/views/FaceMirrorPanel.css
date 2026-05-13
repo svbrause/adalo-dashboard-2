@@ -256,7 +256,7 @@
   cursor: pointer;
 }
 
-/* Photo angle picker — sits below the image in .fmp-photo-tray */
+/* Photo angle picker (Front / Side) */
 .fmp-angle-bar {
   display: flex;
   flex-wrap: wrap;
@@ -265,6 +265,14 @@
   border: none;
   background: transparent;
   flex-shrink: 0;
+}
+
+.fmp-angle-bar--under-photo {
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 0 4px;
 }
 
 .fmp-angle-tab {
@@ -352,6 +360,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
   overflow: hidden;
 }
 
@@ -359,7 +369,7 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  z-index: 4;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -373,6 +383,19 @@
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+  isolation: isolate;
+}
+
+.fmp-gallery-expand-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
+  /* PNG is white on transparent; invert(1) breaks alpha in some engines — force black glyph */
+  filter: brightness(0);
+  opacity: 0.88;
+  pointer-events: none;
 }
 
 .fmp-gallery-expand:hover {

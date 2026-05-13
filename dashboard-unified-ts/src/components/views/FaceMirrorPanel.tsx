@@ -121,7 +121,6 @@ export default function FaceMirrorPanel({
   const has3D = Boolean(videoUrl);
   const hasPhoto = Boolean(activePhotoUrl);
   const showAnglePicker = mode === "photo" && simplifiedSlots.length > 1;
-  const showPhotoTray = mode === "photo" && showAnglePicker;
   const showFsAnalysisOverview = Boolean(
     viewportExpanded && analysisOverviewClient,
   );
@@ -248,9 +247,12 @@ export default function FaceMirrorPanel({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     aria-hidden="true"
                   >
-                    <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                    {/* Corners → center (pairing with corner-bracket expand) */}
+                    <path d="M5 5 12 12M19 5 12 12M19 19 12 12M5 19 12 12" />
                   </svg>
                   Exit expanded
                 </>
@@ -263,9 +265,15 @@ export default function FaceMirrorPanel({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     aria-hidden="true"
                   >
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                    {/* Four corner brackets — expand to fill window */}
+                    <path d="M15 3h6v6" />
+                    <path d="M9 21H3v-6" />
+                    <path d="M21 15v6h-6" />
+                    <path d="M3 9V3h6" />
                   </svg>
                   Expand
                 </>
@@ -328,23 +336,35 @@ export default function FaceMirrorPanel({
                         aria-label="Open all photos and originals"
                         title="All photos and originals"
                       >
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="M15 3h6v6" />
-                          <path d="M9 21H3v-6" />
-                          <path d="M21 15v6h-6" />
-                          <path d="M3 9V3h6" />
-                        </svg>
+                        <img
+                          className="fmp-gallery-expand-icon"
+                          src={`${import.meta.env.BASE_URL}expand.png`}
+                          alt=""
+                          width={18}
+                          height={18}
+                          draggable={false}
+                        />
                       </button>
+                    )}
+                    {showAnglePicker && (
+                      <div
+                        className="fmp-angle-bar fmp-angle-bar--under-photo"
+                        role="tablist"
+                        aria-label="Photo angle"
+                      >
+                        {simplifiedSlots.map((slot, i) => (
+                          <button
+                            key={`${slot.url}-${i}`}
+                            type="button"
+                            role="tab"
+                            aria-selected={i === angleIdx}
+                            className={`fmp-angle-tab${i === angleIdx ? " fmp-angle-tab--active" : ""}`}
+                            onClick={() => setAngleIdx(i)}
+                          >
+                            {slot.label}
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -370,24 +390,6 @@ export default function FaceMirrorPanel({
               )}
             </div>
 
-            {showPhotoTray && (
-              <div className="fmp-photo-tray">
-                <div className="fmp-angle-bar" role="tablist" aria-label="Photo angle">
-                  {simplifiedSlots.map((slot, i) => (
-                    <button
-                      key={`${slot.url}-${i}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={i === angleIdx}
-                      className={`fmp-angle-tab${i === angleIdx ? " fmp-angle-tab--active" : ""}`}
-                      onClick={() => setAngleIdx(i)}
-                    >
-                      {slot.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
