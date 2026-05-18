@@ -34,6 +34,10 @@ function angleToFrameIdx(angle: number, frameCount: number): number {
   return Math.floor((((angle / 360) * frameCount + frameCount) % frameCount)) % frameCount;
 }
 
+function angleToTime(angle: number, duration: number): number {
+  return (((angle / 360) * duration + duration) % duration);
+}
+
 function waitForVideoEvent(video: HTMLVideoElement, eventName: keyof HTMLMediaElementEventMap): Promise<void> {
   return new Promise<void>((resolve) => {
     video.addEventListener(eventName, () => resolve(), { once: true });
@@ -626,6 +630,8 @@ export default function Face3DViewer({
     let rafId: number;
     let lastTs = 0;
     let lastFrameIdx = -1;
+    let lastFallbackFrameIdx = -1;
+    let fallbackSeekInFlight = false;
 
     function drawFrame() {
       const frames = framesRef.current;
@@ -671,10 +677,22 @@ export default function Face3DViewer({
       if (framesRef.current) {
         // Fast path: GPU bitmap copy, no decode.
         drawFrame();
+      } else {
+        // Fallback while frames are still extracting: seek the display video to
+        // the current angle.  This is now safe — extraction uses its own
+        // off-screen video element, so there is no seek race with the display.
+        const video = videoRef.current;
+        if (video && video.readyState >= 2 && video.duration) {
+          const fallbackIdx = angleToFrameIdx(angle, 36);
+          if (!fallbackSeekInFlight && fallbackIdx !== lastFallbackFrameIdx) {
+            fallbackSeekInFlight = true;
+            lastFallbackFrameIdx = fallbackIdx;
+            seekVideo(video, angleToTime(angle, video.duration))
+              .catch(() => undefined)
+              .finally(() => { fallbackSeekInFlight = false; });
+          }
+        }
       }
-      // While frames are still extracting, the display video element plays
-      // back naturally (autoPlay + loop set on the element).  No seeking here —
-      // extraction now uses its own off-screen video so there is no seek race.
 
       rafId = requestAnimationFrame(tick);
     }
@@ -761,8 +779,6 @@ export default function Face3DViewer({
             preload="auto"
             muted
             playsInline
-            autoPlay={!framesReady}
-            loop
             className={`face3d-display${framesReady ? " face3d-display--hidden" : ""}`}
           />
           <canvas
