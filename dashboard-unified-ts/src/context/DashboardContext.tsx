@@ -83,6 +83,7 @@ const PATIENTS_LIST_FIELDS: string[] = [
   "Last Contact",
   "Contacted",
   "Record ID (from Providers)",
+  "Turntable Video URL",
 ];
 
 const WEB_POPUP_LEADS_LIST_FIELDS: string[] = [
