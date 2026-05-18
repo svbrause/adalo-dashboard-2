@@ -292,7 +292,7 @@ function renderAnnotationOverlay(
       if (poly.length < 1) continue;
       const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;
       const cy = poly.reduce((s, p) => s + p.y, 0) / poly.length;
-      const side = cx < w / 2 ? "left" : "right";
+      const side = cx < w / 2 ? "right" : "left";
       const tw = ctx.measureText(label).width;
       const bw = tw + 16, bh = fs + 10, mg = 8;
       const bx = side === "left" ? mg : w - bw - mg;
