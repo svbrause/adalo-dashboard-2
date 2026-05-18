@@ -25,7 +25,7 @@ import "./ProviderLoginScreen.css";
 
 // Import images - Vite will process these and provide correct paths
 import bannerImage from "../../assets/images/c7b64b22c326934b039cd1c199e0440201e31414fc13b0918fe293b61feb63dc.jpg";
-import ponceLogo from "../../assets/images/ponce logo.png";
+import ponceLogo from "../../assets/images/Group611.png";
 
 /** Custom claim `admin: true` — user can pick any practice when `practiceIds` is missing. */
 function idTokenClaimsAreAdmin(claims: Record<string, unknown>): boolean {

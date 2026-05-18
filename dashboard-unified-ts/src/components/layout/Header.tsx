@@ -11,6 +11,7 @@ import {
 } from "../../utils/providerHelpers";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { showToast } from "../../utils/toast";
+import ponceAILogo from "../../assets/images/Group611.png";
 import "./Header.css";
 
 /** URL-encoded filename (spaces break some static hosts). */
@@ -114,6 +115,11 @@ export default function Header({ onLogout }: HeaderProps) {
     <>
       <header className="main-header">
         <div className="header-left">
+          <img
+            src={ponceAILogo}
+            alt="Ponce AI"
+            className="header-ponce-logo"
+          />
           {mobileLogoUrl && (
             <img
               src={mobileLogoUrl}

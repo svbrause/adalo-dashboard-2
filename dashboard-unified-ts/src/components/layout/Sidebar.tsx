@@ -11,6 +11,7 @@ import {
   DASHBOARD_OPEN_HELP_REQUEST_EVENT,
   type DashboardOpenHelpRequestDetail,
 } from "../../utils/dashboardHelpEvents";
+import ponceAILogo from "../../assets/images/Group611.png";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -85,6 +86,30 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
     {mobileOpen && <div className="sidebar-backdrop" onClick={onMobileClose} />}
     <aside className={`sidebar ${collapsed ? "sidebar--collapsed" : ""} ${mobileOpen ? "sidebar--mobile-open" : ""}`}>
       <div className="sidebar-header">
+        <div className="sidebar-header-top">
+          <img src={ponceAILogo} alt="Ponce AI" className="sidebar-ponce-logo" />
+          {onToggleCollapse && (
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={onToggleCollapse}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? (
+                <svg className="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 8 L14 12 L10 16" />
+                  <line x1="18" y1="4" x2="18" y2="20" />
+                </svg>
+              ) : (
+                <svg className="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 8 L10 12 L14 16" />
+                  <line x1="18" y1="4" x2="18" y2="20" />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
         <div className="logo">
           {logoUrl ? (
             <img
@@ -93,9 +118,7 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
               className="logo-image"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
-                // Show fallback when image fails to load
-                const logoContainer = (e.target as HTMLImageElement)
-                  .parentElement;
+                const logoContainer = (e.target as HTMLImageElement).parentElement;
                 if (logoContainer) {
                   const fallback = document.createElement("div");
                   fallback.className = "logo-fallback";
@@ -110,29 +133,6 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
             </div>
           )}
         </div>
-        {onToggleCollapse && (
-          <button
-            type="button"
-            className="sidebar-toggle"
-            onClick={onToggleCollapse}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? (
-              <svg className="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                {/* >| expand */}
-                <path d="M10 8 L14 12 L10 16" />
-                <line x1="18" y1="4" x2="18" y2="20" />
-              </svg>
-            ) : (
-              <svg className="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                {/* <| collapse */}
-                <path d="M14 8 L10 12 L14 16" />
-                <line x1="18" y1="4" x2="18" y2="20" />
-              </svg>
-            )}
-          </button>
-        )}
       </div>
 
       <nav className="sidebar-nav">
