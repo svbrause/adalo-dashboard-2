@@ -525,6 +525,10 @@ export default function Face3DViewer({
       extractVid.muted = true;
       extractVid.playsInline = true;
       extractVid.preload = "auto";
+      // crossOrigin must be set before src so the browser sends Origin + expects CORS headers.
+      // Without it the canvas is tainted and createImageBitmap rejects, leaving framesRef empty
+      // and landmark detection (annotations) unable to run.
+      extractVid.crossOrigin = "anonymous";
       extractVid.src = videoUrl;
 
       if (extractVid.readyState < 1) {
@@ -540,39 +544,87 @@ export default function Face3DViewer({
       extractingRef.current = true;
 
       const N = Math.min(Math.max(Math.round(dur * 30), 48), MAX_CACHED_FRAMES);
-      const bitmaps: ImageBitmap[] = [];
+      const bitmaps: (ImageBitmap | null)[] = new Array(N).fill(null);
 
       const tmpC = document.createElement("canvas");
       tmpC.width = targetSize.w;
       tmpC.height = targetSize.h;
       const tmpCtx = tmpC.getContext("2d")!;
 
-      for (let i = 0; i < N; i++) {
-        if (cancelled) { bitmaps.forEach((b) => b.close()); extractVid.src = ""; return; }
-        await seekVideo(extractVid, (i / N) * dur);
-        if (cancelled) { bitmaps.forEach((b) => b.close()); extractVid.src = ""; return; }
-        try {
-          tmpCtx.drawImage(extractVid, 0, 0, targetSize.w, targetSize.h);
-          bitmaps.push(await createImageBitmap(tmpC));
-        } catch {
-          // skip unreadable frames
+      // Playback-based extraction: play at 2× speed and capture frames as they pass.
+      // Avoids all seeking, so GCS videos without faststart MOOV don't stall for minutes.
+      extractVid.playbackRate = 2;
+      await new Promise<void>((resolve, reject) => {
+        let nextFrameIdx = 0;
+        let pendingBitmaps = 0;
+        let rafId = 0;
+        let resolved = false;
+
+        function finish() {
+          if (resolved) return;
+          resolved = true;
+          cancelAnimationFrame(rafId);
+          extractVid.pause();
+          resolve();
         }
 
-        // Enable the fast path as soon as we have basic coverage.
-        if (!framesRef.current && bitmaps.length >= MIN_EARLY_FRAMES) {
-          framesRef.current = [...bitmaps];
-          setFramesReady(true);
+        function tick() {
+          if (cancelled) { finish(); return; }
+
+          const t = extractVid.currentTime;
+
+          // Capture all frames whose target time we have now passed.
+          while (nextFrameIdx < N && (nextFrameIdx / N) * dur <= t) {
+            const idx = nextFrameIdx++;
+            try {
+              tmpCtx.drawImage(extractVid, 0, 0, targetSize.w, targetSize.h);
+              // createImageBitmap snapshots the canvas pixel data synchronously at call
+              // time — safe to reuse tmpC immediately even though the promise resolves later.
+              pendingBitmaps++;
+              createImageBitmap(tmpC).then((bmp) => {
+                bitmaps[idx] = bmp;
+                pendingBitmaps--;
+
+                // Enable fast canvas path as soon as we have basic coverage.
+                const filled = bitmaps.filter(Boolean) as ImageBitmap[];
+                if (!framesRef.current && filled.length >= MIN_EARLY_FRAMES) {
+                  framesRef.current = filled;
+                  setFramesReady(true);
+                }
+
+                // All frames captured and all bitmaps resolved — done.
+                if (nextFrameIdx >= N && pendingBitmaps === 0) finish();
+              }).catch(() => {
+                pendingBitmaps--;
+                if (nextFrameIdx >= N && pendingBitmaps === 0) finish();
+              });
+            } catch {
+              // drawImage failed (video not decoded yet) — skip this slot
+            }
+          }
+
+          if (nextFrameIdx >= N) {
+            // Captured all frames; wait for pending bitmap promises then wrap up.
+            if (pendingBitmaps === 0) finish();
+            // else finish() is called from the last createImageBitmap .then()
+            return;
+          }
+
+          rafId = requestAnimationFrame(tick);
         }
 
-        // Yield every 4 frames so pointer events and paint aren't starved.
-        // setTimeout(0) is enough — the old idle() waited up to 80ms per frame,
-        // stretching extraction to 12+ seconds and keeping the fallback active far too long.
-        if (i % 4 === 0) await new Promise<void>((r) => setTimeout(r, 0));
-      }
+        extractVid.addEventListener("ended", finish, { once: true });
+        extractVid.addEventListener("error", () => reject(new Error("extractVid error")), { once: true });
+
+        extractVid.play().then(() => {
+          rafId = requestAnimationFrame(tick);
+        }).catch(reject);
+      });
 
       extractVid.src = "";
-      if (cancelled) { bitmaps.forEach((b) => b.close()); return; }
-      framesRef.current = bitmaps;
+      if (cancelled) { bitmaps.forEach((b) => b?.close()); return; }
+      const finalBitmaps = bitmaps.filter(Boolean) as ImageBitmap[];
+      framesRef.current = finalBitmaps;
       setFramesReady(true);
       extractingRef.current = false;
     }
