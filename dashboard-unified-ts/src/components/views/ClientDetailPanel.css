@@ -111,6 +111,16 @@
   width: 100%;
 }
 
+.cdp-ponce-logo {
+  height: 22px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  object-position: left center;
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .client-detail-panel-header-info {
   flex: 1;
   display: flex;

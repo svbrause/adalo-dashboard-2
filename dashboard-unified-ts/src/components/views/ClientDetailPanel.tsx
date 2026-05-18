@@ -135,6 +135,7 @@ import { createPortal } from "react-dom";
 import FaceMirrorPanel from "./FaceMirrorPanel";
 import { clientHas3DModel, getClientGlbUrl, setGeneratedClientGlbUrl } from "../../utils/client3dConfig";
 import { loadClientGalleryPhotoSlots } from "../../utils/clientGalleryPhotos";
+import ponceAILogo from "../../assets/images/Group611.png";
 import "./ClientDetailPanel.css";
 
 interface ClientDetailPanelProps {
@@ -751,6 +752,7 @@ export default function ClientDetailPanel({
       {createPortal(
         <div className={`client-detail-panel${is3DSplit ? " client-detail-panel--3d-split" : ""}`} ref={panelRef}>
           <div className="client-detail-panel-header">
+            <img src={ponceAILogo} alt="Ponce AI" className="cdp-ponce-logo" />
             <div className="client-detail-panel-header-info">
               <div className="client-detail-panel-header-name-row">
                 <h2 className="client-detail-panel-title">{client.name}</h2>

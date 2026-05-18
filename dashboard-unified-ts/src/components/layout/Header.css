@@ -89,12 +89,7 @@
   display: none;
 }
 
-/* Ponce AI logo: hidden on desktop (lives in sidebar), shown on mobile */
-.header-ponce-logo {
-  display: none;
-}
-
-/* Provider logo: hidden on desktop (it lives in sidebar) */
+/* Logo: hidden on desktop (it lives in sidebar) */
 .header-mobile-logo {
   display: none;
 }
@@ -119,16 +114,6 @@
     display: flex;
     align-items: center;
     gap: 0;
-  }
-
-  .header-ponce-logo {
-    display: block;
-    height: 26px;
-    width: auto;
-    max-width: 130px;
-    object-fit: contain;
-    object-position: left center;
-    flex-shrink: 0;
   }
 
   .header-mobile-logo {
