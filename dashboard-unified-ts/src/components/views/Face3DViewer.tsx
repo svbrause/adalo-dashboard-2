@@ -29,10 +29,6 @@ interface Face3DViewerProps {
   highlightedAnnotationRegionIds?: string[];
 }
 
-function angleToTime(angle: number, duration: number): number {
-  return (((angle / 360) * duration + duration) % duration);
-}
-
 /** Map an angle to a pre-extracted frame index. */
 function angleToFrameIdx(angle: number, frameCount: number): number {
   return Math.floor((((angle / 360) * frameCount + frameCount) % frameCount)) % frameCount;
@@ -500,11 +496,12 @@ export default function Face3DViewer({
   // Seeks through the video once at load time and snapshots every frame into
   // an ImageBitmap array.  After this, rotation is just ctx.drawImage(frame)
   // which is GPU-accelerated and takes <0.1ms — no more per-frame video seeks.
+  //
+  // A dedicated off-screen video element is used for seeking/extraction so it
+  // never races with the display video element.  Both were sharing the same
+  // element before, causing the seeked event to resolve the wrong awaiter and
+  // extraction to capture frames at incorrect positions → glitchy rotation.
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    // Release any previously cached frames.
     if (framesRef.current) {
       framesRef.current.forEach((b) => b.close());
       framesRef.current = null;
@@ -519,52 +516,57 @@ export default function Face3DViewer({
     let cancelled = false;
 
     async function extract() {
-      if (!video) return;
-      if (video.readyState < 1) {
-        await waitForVideoEvent(video, "loadedmetadata");
+      // Off-screen video dedicated to seeking — never touches videoRef.current.
+      const extractVid = document.createElement("video");
+      extractVid.muted = true;
+      extractVid.playsInline = true;
+      extractVid.preload = "auto";
+      extractVid.src = videoUrl;
+
+      if (extractVid.readyState < 1) {
+        await waitForVideoEvent(extractVid, "loadedmetadata");
       }
-      if (cancelled) return;
+      if (cancelled) { extractVid.src = ""; return; }
 
-      const dur = video.duration;
-      if (!dur || !isFinite(dur) || dur <= 0) return;
+      const dur = extractVid.duration;
+      if (!dur || !isFinite(dur) || dur <= 0) { extractVid.src = ""; return; }
 
-      const targetSize = fitDisplaySize(video);
+      const targetSize = fitDisplaySize(extractVid);
       setDisplaySize(targetSize);
       extractingRef.current = true;
 
-      // Keep the cache bounded. The turntable is user-driven, so stable scrub
-      // latency matters more than preserving every encoded frame.
       const N = Math.min(Math.max(Math.round(dur * 30), 48), MAX_CACHED_FRAMES);
       const bitmaps: ImageBitmap[] = [];
 
-      // One reusable canvas downscales every frame before creating the bitmap.
       const tmpC = document.createElement("canvas");
       tmpC.width = targetSize.w;
       tmpC.height = targetSize.h;
       const tmpCtx = tmpC.getContext("2d")!;
 
       for (let i = 0; i < N; i++) {
-        if (cancelled) { bitmaps.forEach((b) => b.close()); return; }
-        await seekVideo(video, (i / N) * dur);
-        if (cancelled) { bitmaps.forEach((b) => b.close()); return; }
+        if (cancelled) { bitmaps.forEach((b) => b.close()); extractVid.src = ""; return; }
+        await seekVideo(extractVid, (i / N) * dur);
+        if (cancelled) { bitmaps.forEach((b) => b.close()); extractVid.src = ""; return; }
         try {
-          tmpCtx.drawImage(video, 0, 0, targetSize.w, targetSize.h);
+          tmpCtx.drawImage(extractVid, 0, 0, targetSize.w, targetSize.h);
           bitmaps.push(await createImageBitmap(tmpC));
         } catch {
           // skip unreadable frames
         }
 
-        // Enable the fast path as soon as we have basic coverage — don't wait for all frames.
+        // Enable the fast path as soon as we have basic coverage.
         if (!framesRef.current && bitmaps.length >= MIN_EARLY_FRAMES) {
           framesRef.current = [...bitmaps];
           setFramesReady(true);
         }
 
-        // Yield between decode/bitmap work so pointer input and paint are not
-        // starved on high-bitrate generated scans.
-        await idle();
+        // Yield every 4 frames so pointer events and paint aren't starved.
+        // setTimeout(0) is enough — the old idle() waited up to 80ms per frame,
+        // stretching extraction to 12+ seconds and keeping the fallback active far too long.
+        if (i % 4 === 0) await new Promise<void>((r) => setTimeout(r, 0));
       }
 
+      extractVid.src = "";
       if (cancelled) { bitmaps.forEach((b) => b.close()); return; }
       framesRef.current = bitmaps;
       setFramesReady(true);
@@ -624,8 +626,6 @@ export default function Face3DViewer({
     let rafId: number;
     let lastTs = 0;
     let lastFrameIdx = -1;
-    let lastFallbackFrameIdx = -1;
-    let fallbackSeekInFlight = false;
 
     function drawFrame() {
       const frames = framesRef.current;
@@ -671,22 +671,10 @@ export default function Face3DViewer({
       if (framesRef.current) {
         // Fast path: GPU bitmap copy, no decode.
         drawFrame();
-      } else {
-        // Fallback while frames are still extracting. Seek only when the target
-        // coarse frame changes; seeking every RAF makes high-res mp4 rotation
-        // feel sticky.
-        const video = videoRef.current;
-        if (video && video.readyState >= 1 && video.duration) {
-          const fallbackIdx = angleToFrameIdx(angle, 36);
-          if (!fallbackSeekInFlight && fallbackIdx !== lastFallbackFrameIdx) {
-            fallbackSeekInFlight = true;
-            lastFallbackFrameIdx = fallbackIdx;
-            seekVideo(video, angleToTime(angle, video.duration))
-              .catch(() => undefined)
-              .finally(() => { fallbackSeekInFlight = false; });
-          }
-        }
       }
+      // While frames are still extracting, the display video element plays
+      // back naturally (autoPlay + loop set on the element).  No seeking here —
+      // extraction now uses its own off-screen video so there is no seek race.
 
       rafId = requestAnimationFrame(tick);
     }
@@ -773,6 +761,8 @@ export default function Face3DViewer({
             preload="auto"
             muted
             playsInline
+            autoPlay={!framesReady}
+            loop
             className={`face3d-display${framesReady ? " face3d-display--hidden" : ""}`}
           />
           <canvas
