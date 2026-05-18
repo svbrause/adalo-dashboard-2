@@ -354,7 +354,7 @@ export default function FaceMirrorPanel({
   const [scanState, setScanState] = useState<ScanState>({ phase: "idle" });
   const [scanQuality, setScanQuality] = useState<ScanQuality>("standard");
   const [overrideGlbUrl, setOverrideGlbUrl] = useState<string | null>(null);
-  const sseRef = useRef<EventSource | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // The effective video URL: override (from a just-completed generation) wins over the prop
   const effectiveVideoUrl = overrideGlbUrl ?? videoUrlProp ?? null;
@@ -423,7 +423,18 @@ export default function FaceMirrorPanel({
 
   // --- Scan generation flow ---
 
-  /** Submit photos to /api/scan/submit, then start polling status via SSE. */
+  // In production VITE_SCAN_API_URL = "https://ponce-patient-backend.vercel.app"
+  // In local dev leave it unset — the Vite proxy forwards /api/* to server.py on port 8787
+  const SCAN_API = (import.meta.env.VITE_SCAN_API_URL as string | undefined) ?? "";
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current !== null) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  /** Submit photos to /api/scan/submit, then poll /api/scan/status/:jobId for progress. */
   const startScan = useCallback(async () => {
     setScanState({ phase: "submitting" });
 
@@ -436,7 +447,7 @@ export default function FaceMirrorPanel({
     let jobId: string;
     let estimatedSeconds: number;
     try {
-      const res = await fetch("/api/scan/submit", {
+      const res = await fetch(`${SCAN_API}/api/scan/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -459,63 +470,63 @@ export default function FaceMirrorPanel({
 
     setScanState({ phase: "running", jobId, progress: 0.01, message: "Starting…", remaining: estimatedSeconds });
 
-    // Open SSE stream for progress
-    const es = new EventSource(`/api/scan/status/${jobId}`);
-    sseRef.current = es;
-
-    es.onmessage = (event) => {
+    // Poll for progress every 2.5 s (works with both local server.py and Modal via backend)
+    stopPolling();
+    pollRef.current = setInterval(async () => {
       type ProgressEvent = {
         status: string;
         progress?: number;
         message?: string;
         remaining?: number;
         videoUrl?: string;
+        videoBase64?: string;
         error?: string;
       };
-      const d = JSON.parse(event.data) as ProgressEvent;
-      if (d.status === "done" && d.videoUrl) {
-        es.close();
-        sseRef.current = null;
-        setOverrideGlbUrl(d.videoUrl);
-        setScanState({ phase: "done", videoUrl: d.videoUrl });
-        setMode("3d");
-        onScanGenerated?.(d.videoUrl);
-      } else if (d.status === "error") {
-        es.close();
-        sseRef.current = null;
-        setScanState({ phase: "error", message: d.error ?? "Unknown error" });
-      } else {
-        setScanState({
-          phase: "running",
-          jobId,
-          progress: d.progress ?? 0,
-          message: d.message ?? "Working…",
-          remaining: d.remaining ?? 0,
-        });
+      try {
+        const r = await fetch(`${SCAN_API}/api/scan/status/${jobId}`);
+        const d = await r.json() as ProgressEvent;
+
+        if (d.status === "done") {
+          stopPolling();
+          // Local server.py returns videoUrl; Modal endpoint returns videoBase64
+          let videoUrl = d.videoUrl;
+          if (!videoUrl && d.videoBase64) {
+            const bytes = Uint8Array.from(atob(d.videoBase64), (c) => c.charCodeAt(0));
+            videoUrl = URL.createObjectURL(new Blob([bytes], { type: "video/mp4" }));
+          }
+          if (videoUrl) {
+            setOverrideGlbUrl(videoUrl);
+            setScanState({ phase: "done", videoUrl });
+            setMode("3d");
+            onScanGenerated?.(videoUrl);
+          }
+        } else if (d.status === "error") {
+          stopPolling();
+          setScanState({ phase: "error", message: d.error ?? "Unknown error" });
+        } else {
+          setScanState({
+            phase: "running",
+            jobId,
+            progress: d.progress ?? 0,
+            message: d.message ?? "Working…",
+            remaining: d.remaining ?? 0,
+          });
+        }
+      } catch {
+        // transient network error — keep polling
       }
-    };
+    }, 2500);
+  }, [angleSlots, patientName, scanQuality, onScanGenerated, SCAN_API, stopPolling]);
 
-    es.onerror = () => {
-      es.close();
-      sseRef.current = null;
-      setScanState((prev) =>
-        prev.phase === "running"
-          ? { phase: "error", message: "Lost connection to scan server." }
-          : prev,
-      );
-    };
-  }, [angleSlots, patientName, scanQuality, onScanGenerated]);
-
-  // Cancel / cleanup SSE on unmount
+  // Cleanup poll on unmount
   useEffect(() => {
-    return () => { sseRef.current?.close(); };
-  }, []);
+    return () => stopPolling();
+  }, [stopPolling]);
 
   const cancelScan = useCallback(() => {
-    sseRef.current?.close();
-    sseRef.current = null;
+    stopPolling();
     setScanState({ phase: "idle" });
-  }, []);
+  }, [stopPolling]);
 
   // --- Toolbar rendering helper ---
 
