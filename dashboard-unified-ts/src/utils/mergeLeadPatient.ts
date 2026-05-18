@@ -52,6 +52,7 @@ function mergeLeadAndPatient(lead: Client, patient: Client): Client {
     frontPhoto: patient.frontPhoto ?? lead.frontPhoto,
     skincareQuiz: patient.skincareQuiz ?? lead.skincareQuiz ?? undefined,
     wellnessQuiz: patient.wellnessQuiz ?? lead.wellnessQuiz ?? undefined,
+    turntableVideoUrl: patient.turntableVideoUrl || null,
     lastContact: pickLatestIsoDate(lead.lastContact, patient.lastContact),
   };
 }

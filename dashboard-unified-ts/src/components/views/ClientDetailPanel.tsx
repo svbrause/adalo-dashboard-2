@@ -725,7 +725,7 @@ export default function ClientDetailPanel({
   useAddClientAcquisitionFunnelScan(client, Boolean(facialAnalysisFormHasData));
 
   // 3D face mirror — Airtable persistent URL wins, then localStorage cache, then null
-  const glbUrl = client.turntableVideoUrl ?? getClientGlbUrl(client.name);
+  const glbUrl = client.turntableVideoUrl || getClientGlbUrl(client.name) || null;
   const photoUrlForMirrorCheck = frontPhotoUrl ?? (typeof client.frontPhoto === "string" ? client.frontPhoto : null);
   const is3DSplit = (Boolean(glbUrl) || clientHas3DModel(client.name) || faceMirrorPhotoSlots.length > 0 || Boolean(photoUrlForMirrorCheck)) && !recommenderMode;
   const faceMirrorHighlightTerms = useMemo(() => {

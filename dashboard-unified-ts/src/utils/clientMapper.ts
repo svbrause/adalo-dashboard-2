@@ -662,7 +662,7 @@ export function mapRecordToClient(
     ),
     turntableVideoUrl:
       tableName === "Patients"
-        ? (fields["Turntable Video URL"] as string | null | undefined) ?? null
+        ? ((fields["Turntable Video URL"] as string | null | undefined) || null)
         : null,
   };
 
