@@ -319,6 +319,10 @@ interface FaceMirrorPanelProps {
   glbUrl?: string | null;
   highlightTerms?: string[];
   patientName?: string;
+  /** Airtable record ID — used to persist the generated turntable URL back to Airtable via /api/scan/save-video. */
+  airtableRecordId?: string;
+  /** Airtable table name for the patient record (e.g. "Patients"). */
+  airtableTableName?: string;
   onOpenPatientPhotos?: (initialTab: "front" | "side") => void;
   showPatientPhotoGallery?: boolean;
   analysisOverviewClient?: Client | null;
@@ -336,6 +340,8 @@ export default function FaceMirrorPanel({
   glbUrl: videoUrlProp,
   highlightTerms = [],
   patientName = "Patient",
+  airtableRecordId,
+  airtableTableName,
   onOpenPatientPhotos,
   showPatientPhotoGallery = false,
   analysisOverviewClient = null,
@@ -499,6 +505,22 @@ export default function FaceMirrorPanel({
             setScanState({ phase: "done", videoUrl });
             setMode("3d");
             onScanGenerated?.(videoUrl);
+            // Persist to GCS + Airtable so the scan survives page reloads and works across devices
+            if (airtableRecordId && airtableTableName && airtableTableName === "Patients") {
+              fetch(`${SCAN_API}/api/scan/save-video`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ jobId, recordId: airtableRecordId, tableName: airtableTableName }),
+              })
+                .then((r) => r.json())
+                .then((saved: { videoUrl?: string }) => {
+                  if (saved.videoUrl) {
+                    setOverrideGlbUrl(saved.videoUrl);
+                    onScanGenerated?.(saved.videoUrl);
+                  }
+                })
+                .catch(() => { /* non-fatal — blob URL still works locally */ });
+            }
           }
         } else if (d.status === "error") {
           stopPolling();

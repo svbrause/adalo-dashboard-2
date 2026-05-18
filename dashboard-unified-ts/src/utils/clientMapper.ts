@@ -660,6 +660,10 @@ export function mapRecordToClient(
     severityScoresFromAnalyses: parseSeverityScoresFromFields(
       fields as Record<string, unknown>,
     ),
+    turntableVideoUrl:
+      tableName === "Patients"
+        ? (fields["Turntable Video URL"] as string | null | undefined) ?? null
+        : null,
   };
 
   return client;

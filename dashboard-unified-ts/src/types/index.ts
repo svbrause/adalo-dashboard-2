@@ -209,6 +209,8 @@ export interface Client {
    * Used by admin demos without Airtable; otherwise filled via {@link loadClientGalleryPhotoSlots}.
    */
   galleryPhotoSlots?: ClientPhotoSlot[];
+  /** GCS URL of the patient's 3D turntable video (from "Turntable Video URL" Airtable field). Persists across devices. */
+  turntableVideoUrl?: string | null;
 }
 
 /** One selectable photo angle in the client detail face mirror. */

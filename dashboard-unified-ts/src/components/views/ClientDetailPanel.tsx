@@ -724,8 +724,8 @@ export default function ClientDetailPanel({
 
   useAddClientAcquisitionFunnelScan(client, Boolean(facialAnalysisFormHasData));
 
-  // 3D face mirror — available for clients with a 3D model OR any front photo
-  const glbUrl = getClientGlbUrl(client.name);
+  // 3D face mirror — Airtable persistent URL wins, then localStorage cache, then null
+  const glbUrl = client.turntableVideoUrl ?? getClientGlbUrl(client.name);
   const photoUrlForMirrorCheck = frontPhotoUrl ?? (typeof client.frontPhoto === "string" ? client.frontPhoto : null);
   const is3DSplit = (clientHas3DModel(client.name) || faceMirrorPhotoSlots.length > 0 || Boolean(photoUrlForMirrorCheck)) && !recommenderMode;
   const faceMirrorHighlightTerms = useMemo(() => {
@@ -791,6 +791,8 @@ export default function ClientDetailPanel({
                 glbUrl={glbUrl}
                 highlightTerms={faceMirrorHighlightTerms}
                 patientName={client.name}
+                airtableRecordId={client.id}
+                airtableTableName={client.tableSource}
                 onOpenPatientPhotos={openPatientPhotosFromFaceMirror}
                 showPatientPhotoGallery={
                   (client.tableSource === "Patients" ||
