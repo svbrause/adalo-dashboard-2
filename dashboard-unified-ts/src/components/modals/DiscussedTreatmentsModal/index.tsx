@@ -3346,6 +3346,7 @@ export default function DiscussedTreatmentsModal({
                                                           alt=""
                                                           loading="lazy"
                                                           className="discussed-treatments-product-carousel-img"
+                                                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                                         />
                                                       ) : null}
                                                     </div>
@@ -4344,6 +4345,7 @@ export default function DiscussedTreatmentsModal({
                                                                     alt=""
                                                                     loading="lazy"
                                                                     className="discussed-treatments-product-carousel-img"
+                                                                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                                                   />
                                                                 ) : null}
                                                               </div>
@@ -5196,6 +5198,7 @@ export default function DiscussedTreatmentsModal({
                                                                 alt=""
                                                                 loading="lazy"
                                                                 className="discussed-treatments-product-carousel-img"
+                                                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                                               />
                                                             ) : null}
                                                           </div>

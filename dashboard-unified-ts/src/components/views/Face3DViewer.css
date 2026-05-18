@@ -17,19 +17,44 @@
   overflow: hidden;
   flex-shrink: 0;
   box-sizing: border-box;
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.face3d-video {
+/* Zoom/pan layer sits inside the viewer, transforms applied here */
+.face3d-zoom-layer {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* Shared styles for the video (fallback during extraction) and display canvas */
+.face3d-display {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: fill;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
   /* Avoid sub-pixel blur from odd fractional layout sizes */
   transform: translateZ(0);
+}
+
+.face3d-display--hidden {
+  display: none;
+}
+
+/* Annotation canvas: overlaid on the video, pointer-events off so drag still works */
+.face3d-annotation-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Pixel-crisp rendering at the video's natural resolution */
+  image-rendering: crisp-edges;
 }
 
 .face3d-hint {
@@ -42,4 +67,7 @@
   border-top: 1px solid var(--theme-border, #e2e8f0);
   background: var(--theme-bg-card, #fff);
   box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

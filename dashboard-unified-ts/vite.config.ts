@@ -55,7 +55,16 @@ export default defineConfig(({ mode }) => {
   const elevenLabsKey = env.VITE_ELEVENLABS_API_KEY?.trim() ?? ''
   const geminiKey = env.VITE_GEMINI_API_KEY?.trim() ?? ''
 
+  /** Proxy /api/* to the local FastAPI scan server (server.py, port 8787). */
+  const scanServerProxy = {
+    '/api': {
+      target: 'http://localhost:8787',
+      changeOrigin: true,
+    },
+  } as const
+
   const devProxy = {
+    ...scanServerProxy,
     ...(elevenLabsKey ? elevenLabsDevProxy(elevenLabsKey) : {}),
     ...(geminiKey ? geminiDevProxy(geminiKey) : {}),
   }

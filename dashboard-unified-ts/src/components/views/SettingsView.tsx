@@ -274,6 +274,7 @@ function SettingsSkincareProductCard({
             alt={product.displayName}
             className="settings-skincare-card-img"
             loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         ) : (
           <div className="settings-skincare-card-img-placeholder" aria-hidden />

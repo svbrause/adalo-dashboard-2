@@ -392,7 +392,7 @@ export const TREATMENT_BOUTIQUE_SKINCARE: TreatmentBoutiqueProduct[] = [
   {
     name: "SkinCeuticals Physical Fusion UV Defense SPF 50 | Lightweight Tinted Mineral Sunscreen for Daily Protection",
     productUrl: "https://shop.getthetreatment.com/products/skinceuticals-physical-fusion-uv-defense-spf-50",
-    imageUrl: "https://cdn.shopify.com/s/files/1/2640/6190/files/physical-fusion-uv-defense.png?v=1762466886",
+    imageUrl: undefined,
     price: "$42.00",
   },
   {

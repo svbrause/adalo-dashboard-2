@@ -292,6 +292,121 @@
   cursor: pointer;
 }
 
+.fmp-annotation-regions {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.fmp-annotation-regions > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-muted, #64748b);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  list-style: none;
+}
+
+.fmp-annotation-regions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fmp-annotation-regions > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.fmp-annotation-regions[open] > summary {
+  border-color: rgba(92, 107, 192, 0.45);
+  background: rgba(92, 107, 192, 0.08);
+  color: #3f4a8a;
+}
+
+.fmp-annotation-regions[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.fmp-annotation-regions__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: min(280px, calc(100vw - 28px));
+  padding: 10px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+  box-sizing: border-box;
+}
+
+.fmp-annotation-regions__actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.fmp-annotation-regions__actions button {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 7px;
+  background: var(--theme-bg-surface, #f8fafc);
+  color: var(--theme-text-muted, #64748b);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fmp-annotation-regions__actions button:hover {
+  border-color: rgba(92, 107, 192, 0.45);
+  color: #3f4a8a;
+}
+
+.fmp-annotation-regions__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.fmp-annotation-regions__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--theme-text-primary, #1e293b);
+  font-size: 12px;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.fmp-annotation-regions__item input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--theme-primary, #5c6bc0);
+  flex-shrink: 0;
+}
+
+.fmp-annotation-regions__item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Photo angle picker (Front / Side) */
 .fmp-angle-bar {
   display: flex;
@@ -480,3 +595,220 @@
   color: var(--theme-text-muted, #94a3b8);
 }
 
+/* ── Generate 3D scan button (in toolbar, when no glbUrl) ─────────────── */
+.fmp-generate-3d-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid rgba(92, 107, 192, 0.55);
+  border-radius: 8px;
+  background: rgba(92, 107, 192, 0.09);
+  color: #3f4a8a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.fmp-generate-3d-btn:hover {
+  background: rgba(92, 107, 192, 0.18);
+  border-color: rgba(92, 107, 192, 0.8);
+}
+
+.fmp-regenerate-3d-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--theme-text-muted, #64748b);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.fmp-regenerate-3d-btn:hover {
+  background: rgba(92, 107, 192, 0.07);
+  border-color: rgba(92, 107, 192, 0.4);
+  color: #3f4a8a;
+}
+
+/* ── Scan progress bar (in toolbar, while running) ────────────────────── */
+.fmp-scan-progress-bar-wrap {
+  flex: 1;
+  min-width: 0;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fmp-scan-progress-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #5c6bc0, #818cf8);
+  transition: width 0.8s ease;
+  min-width: 4px;
+  max-width: 100%;
+}
+
+.fmp-scan-progress-label {
+  font-size: 10px;
+  color: var(--theme-text-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Error / retry inline label ───────────────────────────────────────── */
+.fmp-scan-error-label {
+  font-size: 11px;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fmp-scan-retry-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Config panel (between toolbar and body) ──────────────────────────── */
+.fmp-scan-config {
+  border-bottom: 1px solid var(--theme-border, #e2e8f0);
+  background: var(--theme-bg-surface, #f8fafc);
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.fmp-scan-config-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.fmp-scan-config-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.fmp-scan-config-label {
+  flex-shrink: 0;
+  width: 60px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--theme-text-muted, #64748b);
+  padding-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fmp-scan-config-value {
+  font-size: 11px;
+  color: var(--theme-text-muted, #64748b);
+  padding-top: 4px;
+}
+
+.fmp-scan-quality-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fmp-scan-quality-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 10px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-width: 68px;
+}
+
+.fmp-scan-quality-option input {
+  display: none;
+}
+
+.fmp-scan-quality-option--active {
+  border-color: rgba(92, 107, 192, 0.7);
+  background: rgba(92, 107, 192, 0.08);
+}
+
+.fmp-scan-quality-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.fmp-scan-quality-time {
+  font-size: 10px;
+  color: var(--theme-text-muted, #94a3b8);
+}
+
+.fmp-scan-config-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.fmp-scan-cancel-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-muted, #64748b);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.fmp-scan-cancel-btn:hover {
+  border-color: #94a3b8;
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.fmp-scan-start-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #5c6bc0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fmp-scan-start-btn:hover:not(:disabled) {
+  background: #4f5ead;
+}
+
+.fmp-scan-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

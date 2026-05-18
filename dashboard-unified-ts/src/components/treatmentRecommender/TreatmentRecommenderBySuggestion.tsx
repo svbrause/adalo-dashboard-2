@@ -624,6 +624,7 @@ export default function TreatmentRecommenderBySuggestion({
                               src={p.imageUrl}
                               alt=""
                               className="treatment-recommender-skin-analysis__chip-thumb"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                             />
                           ) : (
                             <span className="treatment-recommender-skin-analysis__chip-placeholder">

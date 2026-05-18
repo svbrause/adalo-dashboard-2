@@ -1218,6 +1218,7 @@ function TreatmentRecommenderSkincareSelectChip({
           alt=""
           loading="lazy"
           className="skin-analysis-product-chip-thumb"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
       ) : (
         <span className="skin-analysis-product-chip-placeholder">◆</span>

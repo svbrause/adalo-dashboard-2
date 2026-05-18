@@ -872,6 +872,7 @@ export function TreatmentChapterView({
                         className="tc-skincare-products__thumb"
                         loading="lazy"
                         decoding="async"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                     ) : (
                       <div

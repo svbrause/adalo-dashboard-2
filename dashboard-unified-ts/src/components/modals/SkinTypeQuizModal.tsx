@@ -325,7 +325,7 @@ export default function SkinTypeQuizModal({
                                     onClick={() => setSelectedProduct(p)}
                                   >
                                     {p.imageUrl ? (
-                                      <img src={p.imageUrl} alt="" className="skin-type-quiz-routine-product-thumb" />
+                                      <img src={p.imageUrl} alt="" className="skin-type-quiz-routine-product-thumb" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                     ) : (
                                       <span className="skin-type-quiz-routine-product-placeholder">◆</span>
                                     )}
@@ -370,7 +370,7 @@ export default function SkinTypeQuizModal({
                                     onClick={() => setSelectedProduct(p)}
                                   >
                                     {p.imageUrl ? (
-                                      <img src={p.imageUrl} alt="" className="skin-type-quiz-routine-product-thumb" />
+                                      <img src={p.imageUrl} alt="" className="skin-type-quiz-routine-product-thumb" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                     ) : (
                                       <span className="skin-type-quiz-routine-product-placeholder">◆</span>
                                     )}
@@ -410,7 +410,7 @@ export default function SkinTypeQuizModal({
                               onClick={() => setSelectedProduct(product)}
                             >
                               {item.imageUrl ? (
-                                <img src={item.imageUrl} alt="" className="skin-type-quiz-routine-product-thumb" />
+                                <img src={item.imageUrl} alt="" className="skin-type-quiz-routine-product-thumb" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                               ) : (
                                 <span className="skin-type-quiz-routine-product-placeholder">◆</span>
                               )}
@@ -439,6 +439,7 @@ export default function SkinTypeQuizModal({
                               src={product.imageUrl}
                               alt=""
                               className="skin-type-quiz-product-card-image"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                             />
                           ) : (
                             <div className="skin-type-quiz-product-card-placeholder">

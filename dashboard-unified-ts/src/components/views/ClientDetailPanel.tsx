@@ -133,7 +133,7 @@ import { useVisitModePlanSync } from "../../hooks/useVisitModePlanSync";
 import { useAddClientAcquisitionFunnelScan } from "../../hooks/useAddClientAcquisitionFunnelScan";
 import { createPortal } from "react-dom";
 import FaceMirrorPanel from "./FaceMirrorPanel";
-import { clientHas3DModel, getClientGlbUrl } from "../../utils/client3dConfig";
+import { clientHas3DModel, getClientGlbUrl, setGeneratedClientGlbUrl } from "../../utils/client3dConfig";
 import { loadClientGalleryPhotoSlots } from "../../utils/clientGalleryPhotos";
 import "./ClientDetailPanel.css";
 
@@ -290,7 +290,13 @@ export default function ClientDetailPanel({
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!client || !clientHas3DModel(client.name) || recommenderMode) {
+    // Load photo slots for 3D-model clients AND for any client with a front photo,
+    // so FaceMirrorPanel can show the annotated photo + "Generate 3D Scan" button.
+    const hasFrontPhoto = Boolean(
+      frontPhotoUrl ||
+      (typeof client?.frontPhoto === "string" && client.frontPhoto.trim()),
+    );
+    if (!client || recommenderMode || (!clientHas3DModel(client.name) && !hasFrontPhoto)) {
       setFaceMirrorPhotoSlots([]);
       return;
     }
@@ -306,6 +312,7 @@ export default function ClientDetailPanel({
     client?.id,
     client?.galleryPhotoSlots,
     recommenderMode,
+    frontPhotoUrl,
   ]);
 
   const openPatientPhotosFromFaceMirror = useCallback((initialTab: "front" | "side") => {
@@ -691,28 +698,6 @@ export default function ClientDetailPanel({
   const hasWebPopupForm = client.tableSource === "Web Popup Leads";
   const hasFacialAnalysisForm = client.tableSource === "Patients";
 
-  const webPopupFormHasData =
-    hasWebPopupForm &&
-    (client.ageRange ||
-      client.skinType ||
-      client.skinTone ||
-      client.ethnicBackground ||
-      (typeof client.concerns === "string" && client.concerns.trim()) ||
-      (Array.isArray(client.concerns) && client.concerns.length > 0) ||
-      (client.areas && client.areas.length > 0) ||
-      (client.aestheticGoals &&
-        (typeof client.aestheticGoals === "string"
-          ? client.aestheticGoals.trim()
-          : String(client.aestheticGoals).trim())) ||
-      (client.concernsExplored &&
-        (Array.isArray(client.concernsExplored) &&
-        client.concernsExplored.length > 0
-          ? client.concernsExplored.join(", ")
-          : typeof client.concernsExplored === "string"
-            ? (client.concernsExplored as string).trim()
-            : String(client.concernsExplored || ""))) ||
-      client.offerClaimed);
-
   const facialAnalysisFormHasData =
     hasFacialAnalysisForm &&
     ((client.aestheticGoals &&
@@ -729,40 +714,20 @@ export default function ClientDetailPanel({
       client.allIssues ||
       intakeFacialInterests.length > 0);
 
-  const showTreatmentRecommenderShortcut =
-    wellnestReplacesSkinQuizWithWellness ||
-    facialAnalysisFormHasData ||
-    webPopupFormHasData ||
-    intakeWellnessInterests.length > 0 ||
-    wellnessPlanItems.length > 0;
-
   const treatmentPlanSubheading = useMemo(() => {
-    const lockMsg = showTreatmentRecommenderShortcut
-      ? ""
-      : hasFacialAnalysisForm
-        ? "Scan patient before building a plan"
-        : hasWebPopupForm
-          ? "Complete intake before building a plan"
-          : "";
     const planLast = planItemsLastUpdatedShortLabel(client.discussedItems);
     if (planLast && (client.discussedItems?.length ?? 0) > 0) {
-      return lockMsg
-        ? `${lockMsg} · Last updated ${planLast}`
-        : `Last updated ${planLast}`;
+      return `Last updated ${planLast}`;
     }
-    return lockMsg;
-  }, [
-    showTreatmentRecommenderShortcut,
-    hasFacialAnalysisForm,
-    hasWebPopupForm,
-    client.discussedItems,
-  ]);
+    return "";
+  }, [client.discussedItems]);
 
   useAddClientAcquisitionFunnelScan(client, Boolean(facialAnalysisFormHasData));
 
-  // 3D face mirror — available for clients that have a GLB model mapped in client3dConfig
+  // 3D face mirror — available for clients with a 3D model OR any front photo
   const glbUrl = getClientGlbUrl(client.name);
-  const is3DSplit = clientHas3DModel(client.name) && !recommenderMode;
+  const photoUrlForMirrorCheck = frontPhotoUrl ?? (typeof client.frontPhoto === "string" ? client.frontPhoto : null);
+  const is3DSplit = (clientHas3DModel(client.name) || faceMirrorPhotoSlots.length > 0 || Boolean(photoUrlForMirrorCheck)) && !recommenderMode;
   const faceMirrorHighlightTerms = useMemo(() => {
     const raw = client.interestedIssues;
     if (!raw) return [];
@@ -775,6 +740,11 @@ export default function ClientDetailPanel({
   const photoUrlForMirror = frontPhotoUrl ?? (
     typeof client.frontPhoto === "string" ? client.frontPhoto : null
   );
+
+  const handleScanGenerated = useCallback((videoUrl: string) => {
+    setGeneratedClientGlbUrl(client.name, videoUrl);
+    onUpdate();
+  }, [client.name, onUpdate]);
 
   return (
     <>
@@ -829,6 +799,7 @@ export default function ClientDetailPanel({
                 }
                 analysisOverviewClient={client}
                 analysisOverviewOnAddToPlanDirect={appendDiscussedItemFromPrefill}
+                onScanGenerated={handleScanGenerated}
               />
             </div>
           )}
@@ -1500,31 +1471,12 @@ export default function ClientDetailPanel({
                       <div className="detail-actions-inline">
                         <button
                           type="button"
-                          className={`btn-secondary btn-sm${!showTreatmentRecommenderShortcut ? " btn-secondary--locked" : ""}`}
-                          disabled={!showTreatmentRecommenderShortcut}
-                          title={
-                            !showTreatmentRecommenderShortcut
-                              ? hasFacialAnalysisForm
-                                ? "Scan patient before building a plan"
-                                : hasWebPopupForm
-                                  ? "Complete intake before building a plan"
-                                  : "Add visit or intake data to use the plan builder"
-                              : undefined
-                          }
+                          className="btn-secondary btn-sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!showTreatmentRecommenderShortcut) return;
                             setRecommenderMode("by-treatment");
                           }}
                         >
-                          {!showTreatmentRecommenderShortcut && (
-                            <span
-                              aria-hidden="true"
-                              style={{ fontSize: "12px", opacity: 0.7 }}
-                            >
-                              🔒
-                            </span>
-                          )}
                           Build Plan
                         </button>
                         {client.discussedItems &&
@@ -1647,24 +1599,8 @@ export default function ClientDetailPanel({
                                         <button
                                           type="button"
                                           className="plan-pricing-fix-action-btn"
-                                          disabled={
-                                            !showTreatmentRecommenderShortcut
-                                          }
-                                          title={
-                                            !showTreatmentRecommenderShortcut
-                                              ? hasFacialAnalysisForm
-                                                ? "Scan patient before building a plan"
-                                                : hasWebPopupForm
-                                                  ? "Complete intake before building a plan"
-                                                  : "Add visit or intake data to use the plan builder"
-                                              : undefined
-                                          }
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            if (
-                                              !showTreatmentRecommenderShortcut
-                                            )
-                                              return;
                                             openPlanBuilderForDiscussedItem(
                                               item.id,
                                             );
@@ -2306,6 +2242,7 @@ export default function ClientDetailPanel({
                                                   src={p.imageUrl}
                                                   alt=""
                                                   className="skin-analysis-product-chip-thumb"
+                                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                                 />
                                               ) : (
                                                 <span className="skin-analysis-product-chip-placeholder">

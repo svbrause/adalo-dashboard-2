@@ -604,25 +604,6 @@ export default function ClientDetailModal({
   const hasWebPopupForm = client.tableSource === "Web Popup Leads";
   const hasFacialAnalysisForm = client.tableSource === "Patients";
 
-  const webPopupFormHasData =
-    hasWebPopupForm &&
-    (client.ageRange ||
-      client.skinType ||
-      client.skinTone ||
-      client.ethnicBackground ||
-      (typeof client.concerns === "string" && client.concerns.trim()) ||
-      (Array.isArray(client.concerns) && client.concerns.length > 0) ||
-      (client.areas && client.areas.length > 0) ||
-      (client.aestheticGoals &&
-        (typeof client.aestheticGoals === "string"
-          ? client.aestheticGoals.trim()
-          : String(client.aestheticGoals).trim())) ||
-      (client.concernsExplored &&
-        (Array.isArray(client.concernsExplored)
-          ? client.concernsExplored.length > 0
-          : client.concernsExplored)) ||
-      client.offerClaimed);
-
   const facialAnalysisFormHasData =
     hasFacialAnalysisForm &&
     ((client.aestheticGoals &&
@@ -639,34 +620,13 @@ export default function ClientDetailModal({
       client.allIssues ||
       intakeFacialInterests.length > 0);
 
-  const showTreatmentRecommenderShortcut =
-    wellnestReplacesSkinQuizWithWellness ||
-    facialAnalysisFormHasData ||
-    webPopupFormHasData ||
-    intakeWellnessInterests.length > 0 ||
-    wellnessPlanItems.length > 0;
-
   const treatmentPlanSubheading = useMemo(() => {
-    const lockMsg = showTreatmentRecommenderShortcut
-      ? ""
-      : hasFacialAnalysisForm
-        ? "Scan patient before building a plan"
-        : hasWebPopupForm
-          ? "Complete intake before building a plan"
-          : "";
     const planLast = planItemsLastUpdatedShortLabel(client.discussedItems);
     if (planLast && (client.discussedItems?.length ?? 0) > 0) {
-      return lockMsg
-        ? `${lockMsg} · Last updated ${planLast}`
-        : `Last updated ${planLast}`;
+      return `Last updated ${planLast}`;
     }
-    return lockMsg;
-  }, [
-    showTreatmentRecommenderShortcut,
-    hasFacialAnalysisForm,
-    hasWebPopupForm,
-    client.discussedItems,
-  ]);
+    return "";
+  }, [client.discussedItems]);
 
   useAddClientAcquisitionFunnelScan(client, Boolean(facialAnalysisFormHasData));
 
@@ -1296,19 +1256,8 @@ export default function ClientDetailModal({
                     <button
                       type="button"
                       className="btn-secondary btn-sm"
-                      disabled={!showTreatmentRecommenderShortcut}
-                      title={
-                        !showTreatmentRecommenderShortcut
-                          ? hasFacialAnalysisForm
-                            ? "Scan patient before building a plan"
-                            : hasWebPopupForm
-                              ? "Complete intake before building a plan"
-                              : "Add visit or intake data to use the plan builder"
-                          : undefined
-                      }
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!showTreatmentRecommenderShortcut) return;
                         setRecommenderMode("by-treatment");
                       }}
                     >
@@ -1430,22 +1379,8 @@ export default function ClientDetailModal({
                                     <button
                                       type="button"
                                       className="plan-pricing-fix-action-btn"
-                                      disabled={
-                                        !showTreatmentRecommenderShortcut
-                                      }
-                                      title={
-                                        !showTreatmentRecommenderShortcut
-                                          ? hasFacialAnalysisForm
-                                            ? "Scan patient before building a plan"
-                                            : hasWebPopupForm
-                                              ? "Complete intake before building a plan"
-                                              : "Add visit or intake data to use the plan builder"
-                                          : undefined
-                                      }
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (!showTreatmentRecommenderShortcut)
-                                          return;
                                         openPlanBuilderForDiscussedItem(
                                           item.id,
                                         );
@@ -2071,6 +2006,7 @@ export default function ClientDetailModal({
                                               src={p.imageUrl}
                                               alt=""
                                               className="skin-analysis-product-chip-thumb"
+                                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                             />
                                           ) : (
                                             <span className="skin-analysis-product-chip-placeholder">
