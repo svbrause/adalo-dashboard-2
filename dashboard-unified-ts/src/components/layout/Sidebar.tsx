@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import { ViewType } from "../../types";
-import { formatProviderDisplayName } from "../../utils/providerHelpers";
 import { providerHasSmsAndSettingsAccess } from "../../utils/providerPrivileges";
-import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import HelpRequestModal from "../modals/HelpRequestModal";
 import {
   DASHBOARD_OPEN_HELP_REQUEST_EVENT,
   type DashboardOpenHelpRequestDetail,
 } from "../../utils/dashboardHelpEvents";
+import ponceAILogo from "../../assets/images/Group611.png";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -49,35 +48,6 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
       );
   }, []);
 
-  const getLogoUrl = (): string | null => {
-    if (!provider) return null;
-    if (isWellnestWellnessProviderCode(provider.code)) {
-      return "https://wellnestmd.com/wp-content/uploads/2024/12/nav-logo-5.svg";
-    }
-
-    const logo = provider.logo || provider.Logo;
-    if (!logo) return null;
-
-    if (Array.isArray(logo) && logo.length > 0) {
-      return (
-        logo[0].url ||
-        logo[0].thumbnails?.large?.url ||
-        logo[0].thumbnails?.full?.url ||
-        null
-      );
-    }
-    if (typeof logo === "string") {
-      return logo;
-    }
-    if (logo.url) {
-      return logo.url;
-    }
-    return null;
-  };
-
-  const logoUrl = getLogoUrl();
-  const displayName = formatProviderDisplayName(provider?.name);
-  const providerInitial = displayName?.charAt(0).toUpperCase() || "P";
   const canSmsAndSettings = providerHasSmsAndSettingsAccess(provider);
 
   return (
@@ -86,29 +56,7 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
     <aside className={`sidebar ${collapsed ? "sidebar--collapsed" : ""} ${mobileOpen ? "sidebar--mobile-open" : ""}`}>
       <div className="sidebar-header">
         <div className="logo">
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={`${displayName || "Provider"} Logo`}
-              className="logo-image"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-                // Show fallback when image fails to load
-                const logoContainer = (e.target as HTMLImageElement)
-                  .parentElement;
-                if (logoContainer) {
-                  const fallback = document.createElement("div");
-                  fallback.className = "logo-fallback";
-                  fallback.innerHTML = `<span class="logo-icon">${providerInitial}</span>`;
-                  logoContainer.appendChild(fallback);
-                }
-              }}
-            />
-          ) : (
-            <div className="logo-fallback">
-              <span className="logo-icon">{providerInitial}</span>
-            </div>
-          )}
+          <img src={ponceAILogo} alt="Ponce AI" className="logo-image" />
         </div>
         {onToggleCollapse && (
           <button

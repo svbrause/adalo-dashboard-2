@@ -97,9 +97,9 @@
 /* Panel header */
 .client-detail-panel-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding: 24px 32px;
+  padding: 14px 32px;
   border-bottom: 1px solid var(--theme-border);
   background: var(--theme-bg-card);
   flex-shrink: 0;
@@ -119,6 +119,14 @@
   object-position: left center;
   flex-shrink: 0;
   align-self: center;
+}
+
+.cdp-client-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .client-detail-panel-header-info {

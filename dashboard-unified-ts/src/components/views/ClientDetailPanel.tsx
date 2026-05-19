@@ -753,26 +753,6 @@ export default function ClientDetailPanel({
         <div className={`client-detail-panel${is3DSplit ? " client-detail-panel--3d-split" : ""}`} ref={panelRef}>
           <div className="client-detail-panel-header">
             <img src={ponceAILogo} alt="Ponce AI" className="cdp-ponce-logo" />
-            <div className="client-detail-panel-header-info">
-              <div className="client-detail-panel-header-name-row">
-                <h2 className="client-detail-panel-title">{client.name}</h2>
-                {recommenderMode && (
-                  <span className="client-detail-panel-header-subtitle">
-                    Plan Builder
-                  </span>
-                )}
-                {!recommenderMode && (
-                  <div className="modal-header-activity-badge client-detail-panel-activity-inline">
-                    <span className="modal-header-activity-label">
-                      Last Activity:
-                    </span>
-                    <span className="modal-header-activity-value">
-                      {lastActivityRelative}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
             <button
               className="client-detail-panel-close"
               onClick={
@@ -994,6 +974,17 @@ export default function ClientDetailPanel({
                         </div>
                       )}
                     <div className="detail-section-relative">
+                      <div className="cdp-client-name-row">
+                        <h2 className="client-detail-panel-title">{client.name}</h2>
+                        {recommenderMode ? (
+                          <span className="client-detail-panel-header-subtitle">Plan Builder</span>
+                        ) : (
+                          <div className="modal-header-activity-badge client-detail-panel-activity-inline">
+                            <span className="modal-header-activity-label">Last Activity:</span>
+                            <span className="modal-header-activity-value">{lastActivityRelative}</span>
+                          </div>
+                        )}
+                      </div>
                       {!isEditMode && (
                         <div className="modal-contact-edit-toolbar">
                           <button
