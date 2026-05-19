@@ -984,9 +984,7 @@ export default function ClientDetailPanel({
                             <span className="modal-header-activity-value">{lastActivityRelative}</span>
                           </div>
                         )}
-                      </div>
-                      {!isEditMode && (
-                        <div className="modal-contact-edit-toolbar">
+                        {!isEditMode && (
                           <button
                             type="button"
                             className="edit-toggle-btn"
@@ -1005,8 +1003,8 @@ export default function ClientDetailPanel({
                               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                       <div className="contact-info-with-actions">
                         <div className="detail-grid">
                           <div className="detail-item">
