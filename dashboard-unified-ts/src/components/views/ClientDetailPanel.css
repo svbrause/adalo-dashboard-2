@@ -112,9 +112,10 @@
 }
 
 .cdp-ponce-logo {
-  height: 22px;
-  width: auto;
   max-width: 120px;
+  max-height: 60px;
+  width: auto;
+  height: auto;
   object-fit: contain;
   object-position: left center;
   flex-shrink: 0;
