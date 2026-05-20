@@ -149,7 +149,7 @@ export default function ClientDetailPanel({
   onClose,
   onUpdate,
 }: ClientDetailPanelProps) {
-  const { provider } = useDashboard();
+  const { provider, darkMode } = useDashboard();
   const effectivePriceList = useMemo(
     () =>
       getEffectivePriceList(
@@ -750,7 +750,7 @@ export default function ClientDetailPanel({
   return (
     <>
       {createPortal(
-        <div className={`client-detail-panel${is3DSplit ? " client-detail-panel--3d-split" : ""}`} ref={panelRef}>
+        <div className={`client-detail-panel${is3DSplit ? " client-detail-panel--3d-split" : ""}${darkMode ? " cdp-dark" : ""}`} ref={panelRef}>
           <div className="client-detail-panel-header">
             <img src={ponceAILogo} alt="Ponce AI" className="cdp-ponce-logo" />
             <button
@@ -1978,9 +1978,11 @@ export default function ClientDetailPanel({
 
                   {/* Facial Analysis Section */}
                   <div className="detail-section detail-section-facial-analysis">
-                    <div className="detail-section-header-flex">
-                      <div className="detail-section-title detail-section-title-inline detail-section-header-title-group">
-                        <span>Facial Analysis</span>
+                    <div className="detail-section-header-flex detail-section-facial-analysis-header">
+                      <div className="detail-section-facial-analysis-header__primary">
+                        <span className="detail-section-title detail-section-facial-analysis-header__title">
+                          Facial Analysis
+                        </span>
                         <FacialAnalysisStatusPill
                           client={client}
                           providerCode={provider?.code}
@@ -1988,20 +1990,31 @@ export default function ClientDetailPanel({
                             facialAnalysisFormHasData,
                           )}
                         />
+                        {client.tableSource === "Patients" &&
+                          facialAnalysisFormHasData &&
+                          client.createdAt && (
+                            <span
+                              className="facial-analysis-date-meta facial-analysis-date-meta--inline"
+                              title={`Analysis date: ${formatDate(client.createdAt)}`}
+                            >
+                              {formatDate(client.createdAt)}
+                            </span>
+                          )}
                       </div>
-                      <div className="detail-actions-inline">
+                      <div className="detail-actions-inline detail-section-facial-analysis-header__actions">
                         {facialAnalysisFormHasData && (
                           <>
                             {treatmentPreviewUiEnabled && (
                               <button
                                 type="button"
                                 className="btn-secondary btn-sm"
+                                title="Explore Analysis Overview"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setShowAnalysisOverview(true);
                                 }}
                               >
-                                Explore Analysis Overview
+                                Overview
                               </button>
                             )}
                             <button
@@ -2059,13 +2072,6 @@ export default function ClientDetailPanel({
                         )}
                       </div>
                     </div>
-                    {client.tableSource === "Patients" &&
-                      facialAnalysisFormHasData &&
-                      client.createdAt && (
-                        <p className="facial-analysis-date-meta">
-                          Analysis date: {formatDate(client.createdAt)}
-                        </p>
-                      )}
                     {facialAnalysisFormHasData ? (
                       <AnalysisResultsSection
                         client={client}

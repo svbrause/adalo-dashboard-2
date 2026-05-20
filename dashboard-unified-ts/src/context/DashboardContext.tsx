@@ -175,6 +175,8 @@ function applyPendingTimelineOverrides(
 }
 
 interface DashboardContextType {
+  darkMode: boolean;
+  setDarkMode: (v: boolean) => void;
   provider: Provider | null;
   setProvider: (provider: Provider | null) => void;
   /** Resolved provider ID(s) used for fetching (e.g. [250, 447] when either code logs in). Use for photo preload. */
@@ -231,6 +233,23 @@ interface DashboardProviderProps {
 }
 
 export function DashboardProvider({ children }: DashboardProviderProps) {
+  const [darkMode, setDarkModeState] = useState<boolean>(
+    () => localStorage.getItem("dashboardDarkMode") === "true",
+  );
+
+  const setDarkMode = useCallback((v: boolean) => {
+    setDarkModeState(v);
+    localStorage.setItem("dashboardDarkMode", String(v));
+  }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+    }
+  }, [darkMode]);
+
   const [provider, setProvider] = useState<Provider | null>(null);
   const [effectiveProviderIds, setEffectiveProviderIds] = useState<string[]>(
     [],
@@ -489,6 +508,8 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
   return (
     <DashboardContext.Provider
       value={{
+        darkMode,
+        setDarkMode,
         provider,
         setProvider,
         effectiveProviderIds,

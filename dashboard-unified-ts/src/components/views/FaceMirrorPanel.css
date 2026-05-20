@@ -266,7 +266,8 @@
   color: var(--theme-text-primary, #1e293b);
 }
 
-.fmp-fullscreen-btn[aria-pressed="true"] {
+.fmp-fullscreen-btn[aria-pressed="true"],
+.fmp-fullscreen-btn--active {
   background: rgba(92, 107, 192, 0.12);
   border-color: rgba(92, 107, 192, 0.45);
   color: #3f4a8a;
@@ -497,12 +498,10 @@
   padding: 0;
 }
 
-/* 3D: horizontally center native-resolution viewer; scroll vertically if needed */
+/* 3D mode: same overflow/padding as default canvas area */
 .fmp-canvas-area--3d {
-  overflow: auto;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 12px 14px;
+  overflow: hidden;
+  padding: 0;
 }
 
 .fmp-photo-stage {
@@ -574,9 +573,26 @@
   height: auto;
 }
 
-/* 3D mode: viewer sits at natural aspect-ratio size */
+/* 3D mode: match photo container — natural width-driven height, rounded corners */
 .fmp-canvas-area .face3d-wrap {
-  border-radius: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  margin-inline: 0;
+  flex-shrink: 0;
+}
+
+.fmp-canvas-area .face3d-viewer {
+  /* Fill width; let inline aspect-ratio (real video dims) set height naturally */
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.fmp-canvas-area .face3d-hint {
+  flex-shrink: 0;
+  max-width: 100%;
 }
 
 .fmp-placeholder {

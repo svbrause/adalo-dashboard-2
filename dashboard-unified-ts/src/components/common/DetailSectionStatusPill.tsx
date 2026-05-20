@@ -1,7 +1,6 @@
 import type { Client } from "../../types";
 import {
   formatFacialStatusForDisplay,
-  getFacialStatusColorForDisplay,
   hasFacialInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { WEB_POPUP_LEAD_NO_ANALYSIS_STATUS } from "../../utils/clientMapper";
@@ -51,18 +50,12 @@ export function FacialAnalysisStatusPill({
     hasFacialInterestedTreatments(client),
     providerCode,
   );
-  const bg = getFacialStatusColorForDisplay(
-    statusForDisplay,
-    hasFacialInterestedTreatments(client),
-    providerCode,
-  );
   const kind = getAnalysisSectionIconKindFromDisplayLabel(label);
   const aria = `Analysis: ${label}`;
 
   return (
     <div
       className={`detail-section-status-pill detail-section-status-pill--facial ${facialToneClass(kind)}`}
-      style={{ backgroundColor: bg }}
       title={label}
     >
       <DashboardAnalysisIconByKind

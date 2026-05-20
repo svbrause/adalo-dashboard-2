@@ -96,7 +96,7 @@
 }
 
 .leads-table thead {
-  background: rgba(0, 0, 0, 0.02);
+  background: var(--theme-bg-subtle, rgba(0, 0, 0, 0.02));
 }
 
 .leads-table th {
@@ -118,7 +118,7 @@
 }
 
 .leads-table tbody tr:hover {
-  background: rgba(0, 0, 0, 0.02);
+  background: var(--theme-nav-hover-bg, rgba(0, 0, 0, 0.02));
 }
 
 .leads-table tbody tr:last-child td {

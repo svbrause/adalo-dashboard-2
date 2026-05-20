@@ -1,0 +1,918 @@
+/**
+ * Global dark mode — activated by adding "dark-mode" class to <body>.
+ * Overrides all --theme-* CSS variables so variable-based components
+ * auto-darken. Explicit rules below patch any hardcoded light colors.
+ */
+
+body.dark-mode,
+body.dark-mode.pastel-teal-theme {
+  --theme-bg-gradient: #111111;
+  --theme-bg-card: #111111;
+  --theme-bg-surface: #1a1a1a;
+  --theme-bg-subtle: #1f1f1f;
+  --theme-bg-hover: #222222;
+  --theme-bg-elevated: #1c1c1c;
+  --theme-text-primary: #efefef;
+  --theme-text-secondary: #c0c0c0;
+  --theme-text-muted: #8a8a8a;
+  --theme-border: rgba(255, 255, 255, 0.10);
+  --theme-shadow: rgba(0, 0, 0, 0.5);
+  --theme-shadow-hover: rgba(0, 0, 0, 0.7);
+  --theme-nav-active-bg: rgba(54, 117, 136, 0.20);
+  --theme-nav-hover-bg: rgba(255, 255, 255, 0.05);
+  --plan-quote-surface-bg: #1a1a1a;
+  --plan-quote-section-header-bg: #151515;
+  --plan-quote-subtotal-bg: #161616;
+  --plan-quote-border: rgba(255, 255, 255, 0.04);
+  --plan-quote-row-divider: rgba(255, 255, 255, 0.05);
+  background: #111111;
+  color: #efefef;
+}
+
+/* ── Layout shell ────────────────────────────────────────────────────────── */
+
+body.dark-mode .dashboard-wrapper {
+  background: #111111 !important; /* overrides mobile hardcoded #fff */
+}
+
+body.dark-mode .main-content {
+  background: #111111;
+}
+
+body.dark-mode .dashboard-views-wrap {
+  background: #111111;
+}
+
+/* ── View controls bar (search + filter row) ─────────────────────────────── */
+
+/* ViewControls.css line 9 has `background: white` hardcoded — direct override */
+body.dark-mode .view-controls-container {
+  background: #161616 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* View-type toggle pill (List / Kanban / etc.) */
+body.dark-mode .view-toggle-buttons {
+  background: #222 !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+body.dark-mode .view-toggle-btn {
+  color: #c0c0c0 !important;
+}
+
+body.dark-mode .view-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #efefef !important;
+}
+
+/* Filter / Sort / Refresh toggle buttons */
+body.dark-mode .control-toggle-btn {
+  background: #222 !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #c0c0c0 !important;
+}
+
+body.dark-mode .control-toggle-btn:hover {
+  background: #2a2a2a !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #efefef !important;
+}
+
+/* Expanded filter / sort panel */
+body.dark-mode .control-content {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+/* Search input */
+body.dark-mode .search-input-main {
+  background: #222 !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #efefef !important;
+}
+
+body.dark-mode .search-input-main:focus {
+  border-color: var(--theme-accent) !important;
+}
+
+body.dark-mode .search-input-main::placeholder {
+  color: #666 !important;
+}
+
+body.dark-mode .search-box-main > svg {
+  color: #666 !important;
+}
+
+/* Filter selects */
+body.dark-mode .filter-select,
+body.dark-mode .filter-input {
+  background: #222 !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #efefef !important;
+}
+
+body.dark-mode .filter-select-custom-menu {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.dark-mode .filter-select-custom-option--default {
+  background: #1a1a1a !important;
+  color: #efefef !important;
+}
+
+body.dark-mode .filter-select-custom-option--default:hover {
+  background: #252525 !important;
+}
+
+/* ── List view table ─────────────────────────────────────────────────────── */
+
+/* Mobile list background is hardcoded #fff */
+body.dark-mode .list-view {
+  background: #111111 !important;
+}
+
+/* Table card wrapper — subtle edge, no bright ring */
+body.dark-mode .leads-table-container {
+  background: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Table header */
+body.dark-mode .leads-table thead {
+  background: var(--theme-bg-subtle, #1f1f1f) !important;
+}
+
+body.dark-mode .leads-table th {
+  background: var(--theme-bg-subtle, #1f1f1f) !important;
+  color: #a8a8a8 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Table cells */
+body.dark-mode .leads-table td {
+  color: #efefef !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Row hover */
+body.dark-mode .leads-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Mobile row divider: hardcoded #c6c6c8 */
+body.dark-mode .leads-table tbody tr {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Mobile name + email: hardcoded #000 / #8e8e93 */
+body.dark-mode .table-lead-name {
+  color: #efefef !important;
+}
+
+body.dark-mode .table-lead-email {
+  color: #8a8a8a !important;
+}
+
+/* Mobile last-activity column */
+body.dark-mode .leads-table td:nth-child(5) {
+  color: #8a8a8a !important;
+}
+
+/* Mobile active tap highlight */
+body.dark-mode .leads-table tbody tr:active {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Interest tags: light purple hardcoded */
+body.dark-mode .interest-tag {
+  background: rgba(206, 147, 216, 0.12) !important;
+  color: #c084cf !important;
+  border-color: rgba(206, 147, 216, 0.2) !important;
+}
+
+@media (max-width: 768px) {
+  body.dark-mode .interest-tag {
+    background: rgba(206, 147, 216, 0.12) !important;
+    color: #c084cf !important;
+  }
+}
+
+/* ── Plan / Analysis / Quiz status icon pills ────────────────────────────── */
+/* DashboardSectionIcons.css has fully hardcoded light-mode colors */
+
+body.dark-mode .dashboard-section-icon {
+  color: #8a8a8a !important;
+}
+
+/* Muted / not started: light gray → dark gray */
+body.dark-mode .dashboard-section-icon--muted {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #606060 !important;
+}
+
+/* Pending: light yellow → dark amber */
+body.dark-mode .dashboard-section-icon--pending {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  color: #fbbf24 !important;
+}
+
+/* On / complete: light green → dark emerald */
+body.dark-mode .dashboard-section-icon--on {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  color: #34d399 !important;
+}
+
+/* ── Kanban view ─────────────────────────────────────────────────────────── */
+
+/* .client-card has hardcoded `background: white` */
+body.dark-mode .client-card {
+  background: #1a1a1a !important;
+}
+
+/* ── Filter / sort bottom sheet (mobile portal) ──────────────────────────── */
+
+body.dark-mode .mobile-sheet-panel {
+  background: #1a1a1a !important;
+  color: #efefef;
+}
+
+body.dark-mode .mobile-sheet-handle {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .mobile-sheet-panel .filter-group label {
+  color: #8a8a8a;
+}
+
+body.dark-mode .mobile-sheet-panel .filter-select,
+body.dark-mode .mobile-sheet-panel .filter-input {
+  background: rgba(255, 255, 255, 0.06);
+  color: #efefef;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+body.dark-mode .mobile-sheet-panel .filter-clear-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ff6b6b;
+}
+
+/* Filter select colored state tints: mute them in dark mode */
+body.dark-mode .filter-select-custom-option--muted {
+  background: rgba(255, 255, 255, 0.05);
+  color: #c0c0c0;
+}
+
+body.dark-mode .filter-select-custom-option--analysis-pending,
+body.dark-mode .filter-select-custom-option--pending {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+}
+
+body.dark-mode .filter-select-custom-option--analysis-ready {
+  background: rgba(14, 165, 233, 0.12);
+  color: #38bdf8;
+}
+
+body.dark-mode .filter-select-custom-option--analysis-reviewed,
+body.dark-mode .filter-select-custom-option--complete {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+/* Desktop header — Header.css uses var(--theme-bg-card) but add explicit override */
+body.dark-mode .main-header {
+  background: #161616 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-mode .main-header .page-title {
+  color: #efefef !important;
+}
+
+body.dark-mode .main-header .btn-secondary,
+body.dark-mode .main-header .scan-client-btn {
+  background: #222 !important;
+  color: #efefef !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.dark-mode .main-header .btn-secondary:hover,
+body.dark-mode .main-header .scan-client-btn:hover {
+  background: #2a2a2a !important;
+}
+
+/* Scan dropdown: hardcoded white in Header.css */
+body.dark-mode .main-header .scan-client-dropdown-menu {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .main-header .scan-client-option {
+  background: #1a1a1a;
+  color: #efefef;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .main-header .scan-client-option:hover {
+  background: #252525;
+  transform: none;
+}
+
+/* Mobile header */
+@media (max-width: 768px) {
+  body.dark-mode .main-header {
+    background: #111111 !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  body.dark-mode .header-right .btn-secondary,
+  body.dark-mode .header-right .scan-client-btn {
+    background: #1a1a1a !important;
+    color: #efefef !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  body.dark-mode .header-right .btn-secondary:active,
+  body.dark-mode .header-right .scan-client-btn:active {
+    background: #252525 !important;
+  }
+
+  body.dark-mode .header-logout-mobile {
+    background: #1a1a1a !important;
+    color: #efefef !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  body.dark-mode .header-logout-mobile:active {
+    background: #252525 !important;
+  }
+}
+
+/* ── Buttons (global) ────────────────────────────────────────────────────── */
+
+body.dark-mode .btn-secondary {
+  background: #1c1c1c;
+  color: #efefef;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .btn-secondary:hover {
+  background: #252525;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+
+body.dark-mode .sidebar {
+  background: #111111;
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .sidebar-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .nav-item {
+  color: #c0c0c0;
+}
+
+body.dark-mode .nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #efefef;
+}
+
+body.dark-mode .nav-item.active,
+body.dark-mode .nav-item[aria-current] {
+  background: rgba(54, 117, 136, 0.20);
+  color: #efefef;
+}
+
+body.dark-mode .sidebar-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .sidebar-logout-btn {
+  color: #8a8a8a;
+}
+
+body.dark-mode .sidebar-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #efefef;
+}
+
+/* ── View controls bar ───────────────────────────────────────────────────── */
+
+body.dark-mode .view-controls {
+  background: #111111;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .view-btn {
+  color: #8a8a8a;
+}
+
+body.dark-mode .view-btn:hover,
+body.dark-mode .view-btn.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: #efefef;
+}
+
+body.dark-mode .search-input,
+body.dark-mode .filter-select,
+body.dark-mode input[type="text"],
+body.dark-mode input[type="search"],
+body.dark-mode select {
+  background: #1c1c1c;
+  color: #efefef;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .search-input::placeholder,
+body.dark-mode input::placeholder {
+  color: #666;
+}
+
+/* ── Client cards / list rows ────────────────────────────────────────────── */
+
+body.dark-mode .client-card,
+body.dark-mode .client-row,
+body.dark-mode .client-list-item {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .client-card:hover,
+body.dark-mode .client-row:hover {
+  background: #202020;
+}
+
+body.dark-mode .client-name,
+body.dark-mode .client-email,
+body.dark-mode .client-phone {
+  color: #efefef;
+}
+
+/* ── Modals ──────────────────────────────────────────────────────────────── */
+
+body.dark-mode .modal-overlay {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+body.dark-mode .modal-content,
+body.dark-mode .modal-card {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #efefef;
+}
+
+body.dark-mode .modal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: #1a1a1a;
+}
+
+body.dark-mode .modal-title {
+  color: #efefef !important;
+}
+
+body.dark-mode .modal-subtitle {
+  color: #8a8a8a;
+}
+
+body.dark-mode .modal-close {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #a8a8a8 !important;
+}
+
+body.dark-mode .modal-close:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #efefef !important;
+}
+
+body.dark-mode .modal-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
+  background: #161616;
+}
+
+/* Variant close buttons used on a few modals */
+body.dark-mode .patient-issues-modal-header {
+  background: #1a1a1a;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .patient-issues-modal-header h2 {
+  color: #efefef;
+}
+
+body.dark-mode .patient-issues-modal-close {
+  color: #a8a8a8;
+}
+
+body.dark-mode .patient-issues-modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #efefef;
+}
+
+body.dark-mode .treatment-plan-checkout-modal-close {
+  color: #a8a8a8;
+}
+
+body.dark-mode .treatment-plan-checkout-modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #efefef;
+}
+
+body.dark-mode .skin-quiz-product-modal-close {
+  color: #a8a8a8;
+}
+
+body.dark-mode .skin-quiz-product-modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #efefef;
+}
+
+/* ── Forms ───────────────────────────────────────────────────────────────── */
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: #1c1c1c;
+  color: #efefef;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #666;
+}
+
+body.dark-mode label {
+  color: #c0c0c0;
+}
+
+/* ── Dark mode toggle button ─────────────────────────────────────────────── */
+
+.dark-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border);
+  background: transparent;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.dark-mode-toggle:hover {
+  background: var(--theme-nav-hover-bg, rgba(0, 0, 0, 0.08));
+  color: var(--theme-text-primary);
+}
+
+body.dark-mode .dark-mode-toggle {
+  color: #c8a800;
+}
+
+/* ── Facial status pills (client detail + elsewhere) ─────────────────────── */
+
+body.dark-mode .detail-section-status-pill--facial.detail-section-status-pill--tone-muted {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #a0aec0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .detail-section-status-pill--facial.detail-section-status-pill--tone-pending {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+body.dark-mode .detail-section-status-pill--facial.detail-section-status-pill--tone-ready {
+  background: rgba(6, 95, 70, 0.25) !important;
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.25);
+}
+
+body.dark-mode .detail-section-status-pill--facial.detail-section-status-pill--tone-reviewed {
+  background: rgba(6, 95, 70, 0.25) !important;
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.25);
+}
+
+/* ── Cards view (Facial Analysis tab) ────────────────────────────────────── */
+
+body.dark-mode .facial-analysis-card {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .facial-card-section-title {
+  color: #8a8a8a;
+}
+
+body.dark-mode .facial-tag {
+  background: rgba(255, 255, 255, 0.06);
+  color: #c8c8c8;
+}
+
+body.dark-mode .facial-tag.interest {
+  background: rgba(206, 147, 216, 0.12);
+  color: #c084cf;
+  border-color: rgba(206, 147, 216, 0.2);
+}
+
+body.dark-mode .facial-card-expanded {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .facial-card-photo-placeholder {
+  background: linear-gradient(135deg, #2a2418 0%, #1a2830 100%);
+  color: #c8c8c8;
+}
+
+body.dark-mode .facial-card-text-italic {
+  color: #8a8a8a;
+}
+
+body.dark-mode .facial-card-status .status-badge-base {
+  color: inherit;
+}
+
+/* Cards tab status badges (inline light pastels → dark tints) */
+body.dark-mode .facial-card-status .status-badge-base[style*="background: rgb(209, 236, 241)"],
+body.dark-mode .facial-card-status .status-badge-base[style*="#D1ECF1"],
+body.dark-mode .facial-card-status .status-badge-base[style*="#d1ecf1"] {
+  background: rgba(6, 95, 70, 0.25) !important;
+  color: #6ee7b7 !important;
+}
+
+body.dark-mode .facial-card-status .status-badge-base[style*="background: rgb(255, 243, 205)"],
+body.dark-mode .facial-card-status .status-badge-base[style*="#FFF3CD"],
+body.dark-mode .facial-card-status .status-badge-base[style*="#fff3cd"] {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #fbbf24 !important;
+}
+
+body.dark-mode .facial-card-status .status-badge-base[style*="background: rgb(212, 237, 218)"],
+body.dark-mode .facial-card-status .status-badge-base[style*="#D4EDDA"],
+body.dark-mode .facial-card-status .status-badge-base[style*="#d4edda"] {
+  background: rgba(6, 95, 70, 0.25) !important;
+  color: #6ee7b7 !important;
+}
+
+body.dark-mode .facial-card-status .status-badge-base[style*="background: rgb(224, 224, 224)"],
+body.dark-mode .facial-card-status .status-badge-base[style*="#E0E0E0"],
+body.dark-mode .facial-card-status .status-badge-base[style*="#e0e0e0"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #a0aec0 !important;
+}
+
+/* ── Plan builder left column (treatment recommender) ──────────────────────── */
+
+body.dark-mode .treatment-recommender-by-treatment {
+  background: #111111;
+}
+
+body.dark-mode .treatment-recommender-by-treatment__client-column {
+  background: #161616 !important;
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .treatment-recommender-by-treatment__client-toggle {
+  background: #1c1c1c;
+  color: #c0c0c0;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .treatment-recommender-by-treatment__client-toggle--active,
+body.dark-mode .treatment-recommender-by-treatment__client-toggle:hover:not(:disabled) {
+  background: #252525;
+  color: #efefef;
+}
+
+body.dark-mode .treatment-recommender-by-treatment__plan-section {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .treatment-recommender-by-treatment__plan-actions {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .treatment-recommender-by-treatment__plan-calendar-subview-toggle {
+  background: #1c1c1c;
+}
+
+body.dark-mode .treatment-recommender-by-treatment__plan-calendar-cell {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #c8c8c8;
+}
+
+/* ── Analysis results (Interested Treatments box) ─────────────────────────── */
+
+body.dark-mode .analysis-results-section,
+body.dark-mode .analysis-results-empty {
+  background: #1c1c1c !important;
+  color: #c8c8c8;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .analysis-section-title,
+body.dark-mode .analysis-section-title-focus {
+  color: #8a8a8a;
+}
+
+body.dark-mode .analysis-tag {
+  background: rgba(206, 147, 216, 0.12);
+  color: #c084cf;
+  border-color: rgba(206, 147, 216, 0.2);
+}
+
+body.dark-mode .analysis-area-card {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .analysis-area-title,
+body.dark-mode .analysis-area-title-text,
+body.dark-mode .analysis-issue-name {
+  color: #efefef;
+}
+
+body.dark-mode .analysis-area-all-clear,
+body.dark-mode .analysis-region-grade-legend,
+body.dark-mode .analysis-treatments-label,
+body.dark-mode .analysis-text-italic,
+body.dark-mode .analysis-text-italic-sm,
+body.dark-mode .analysis-empty-state {
+  color: #8a8a8a;
+}
+
+body.dark-mode .analysis-interested-badge,
+body.dark-mode .analysis-treatment-tag {
+  background: rgba(206, 147, 216, 0.12);
+  color: #c084cf;
+  border-color: rgba(206, 147, 216, 0.2);
+}
+
+body.dark-mode .analysis-tag-clickable:hover {
+  background: rgba(206, 147, 216, 0.22);
+  border-color: rgba(206, 147, 216, 0.35);
+}
+
+body.dark-mode .analysis-area-grade {
+  color: #6ee7b7;
+  background: rgba(6, 95, 70, 0.25);
+  border-color: rgba(110, 231, 183, 0.25);
+}
+
+body.dark-mode .analysis-view-examples-btn {
+  --analysis-view-examples-color: #a5b4fc;
+  --analysis-view-examples-bg: rgba(99, 102, 241, 0.15);
+  --analysis-view-examples-border: rgba(129, 140, 248, 0.35);
+  --analysis-view-examples-bg-hover: rgba(99, 102, 241, 0.25);
+  --analysis-view-examples-border-hover: rgba(129, 140, 248, 0.5);
+  --analysis-view-examples-color-hover: #c7d2fe;
+}
+
+body.dark-mode .analysis-focus-areas-text {
+  color: #6ee7d9;
+}
+
+/* ── Share modals (outer shell + panels) ───────────────────────────────────── */
+
+body.dark-mode .share-treatment-plan-link-overlay,
+body.dark-mode .share-analysis-modal-overlay,
+body.dark-mode .modal-overlay:has(.share-treatment-plan-modal-content),
+body.dark-mode .modal-overlay:has(.share-treatment-plan-link-dialog) {
+  background: rgba(0, 0, 0, 0.78) !important;
+}
+
+body.dark-mode .share-tp-link-dialog-header-text .share-tp-link-dialog-title {
+  color: #efefef;
+}
+
+body.dark-mode .share-tp-sms-completed-hint {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .share-tp-sms-completed-hint__label {
+  color: #efefef;
+}
+
+body.dark-mode .share-tp-sms-completed-hint__note {
+  color: #8a8a8a;
+}
+
+body.dark-mode .share-treatment-plan-link-dialog,
+body.dark-mode .share-treatment-plan-modal-content,
+body.dark-mode .share-analysis-modal-content {
+  background: #1a1a1a;
+  color: #efefef;
+}
+
+body.dark-mode .share-treatment-plan-link-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Analysis overview modal (hero + upper section) ────────────────────────── */
+
+body.dark-mode .analysis-overview-modal,
+body.dark-mode .analysis-overview-modal__embedded-root {
+  background: #1a1a1a;
+}
+
+body.dark-mode .analysis-overview-modal__header {
+  background: #1a1a1a;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .analysis-overview-modal__title {
+  color: #efefef;
+}
+
+body.dark-mode .analysis-overview-modal__maximize:hover,
+body.dark-mode .analysis-overview-modal__close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #efefef;
+}
+
+body.dark-mode .ao-hero {
+  background: linear-gradient(135deg, #1a1a1a 0%, #1e1a28 50%, #1a2228 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .ao-hero__photo {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .ao-hero__ai-text {
+  color: #c0c0c0;
+}
+
+body.dark-mode .ao-ai-summary__shimmer {
+  background: linear-gradient(90deg, #252030 25%, #2a2835 50%, #252030 75%);
+}
+
+body.dark-mode .ao-modal-gauge__value {
+  color: #efefef;
+}
+
+body.dark-mode .ao-modal-gauge__label {
+  color: #8a8a8a;
+}
+
+body.dark-mode .ao-score-bar__label,
+body.dark-mode .ao-score-bar__score {
+  color: #c0c0c0;
+}
+
+body.dark-mode .share-tp-link-dialog-footer {
+  background: #1a1a1a !important;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .edit-toggle-btn {
+  color: #c8c8c8;
+}
+
+body.dark-mode .edit-toggle-btn:hover {
+  color: #efefef;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── AI Mirror loading screen ────────────────────────────────────────────── */
+
+body.dark-mode .ai-mirror-canvas-wrap {
+  background: #1a1a1a;
+}
+
+body.dark-mode .ai-mirror-loading {
+  background: rgba(17, 17, 17, 0.94);
+  color: #6ee7b7;
+}
+
+body.dark-mode .ai-mirror-loading-dot {
+  background: #34d399;
+}
+
+body.dark-mode .ai-mirror-unavailable {
+  background: #1a1a1a;
+  color: #c0c0c0;
+}
+
+body.dark-mode .ai-mirror-unavailable strong {
+  color: #efefef;
+}

@@ -27,6 +27,9 @@ interface Face3DViewerProps {
   showAnnotations?: boolean;
   highlightTerms?: string[];
   highlightedAnnotationRegionIds?: string[];
+  /** When true: play video forward → reverse → forward in a simple loop.
+   *  Skips frame extraction; drag-to-rotate is not available. */
+  pingPongLoop?: boolean;
 }
 
 /** Map an angle to a pre-extracted frame index. */
@@ -34,24 +37,10 @@ function angleToFrameIdx(angle: number, frameCount: number): number {
   return Math.floor((((angle / 360) * frameCount + frameCount) % frameCount)) % frameCount;
 }
 
-function angleToTime(angle: number, duration: number): number {
-  return (((angle / 360) * duration + duration) % duration);
-}
-
 function waitForVideoEvent(video: HTMLVideoElement, eventName: keyof HTMLMediaElementEventMap): Promise<void> {
   return new Promise<void>((resolve) => {
     video.addEventListener(eventName, () => resolve(), { once: true });
   });
-}
-
-function seekVideo(video: HTMLVideoElement, time: number): Promise<void> {
-  const clamped = Math.max(0, Math.min(time, Number.isFinite(video.duration) ? video.duration : time));
-  if ("fastSeek" in video && typeof video.fastSeek === "function") {
-    video.fastSeek(clamped);
-  } else {
-    video.currentTime = clamped;
-  }
-  return waitForVideoEvent(video, "seeked");
 }
 
 function idle(): Promise<void> {
@@ -326,6 +315,7 @@ export default function Face3DViewer({
   showAnnotations = false,
   highlightTerms = [],
   highlightedAnnotationRegionIds = [],
+  pingPongLoop = false,
 }: Face3DViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const zoomLayerRef = useRef<HTMLDivElement>(null);
@@ -345,6 +335,9 @@ export default function Face3DViewer({
   const extractingRef = useRef(false);
 
   const autoRotateRef = useRef(autoRotate);
+  const pingPongLoopRef = useRef(pingPongLoop);
+  // Set when the user is dragging in ping-pong mode so the ping-pong loop pauses.
+  const pingPongDraggingRef = useRef(false);
   const highlightTermsRef = useRef(highlightTerms);
   const showAnnotationsRef = useRef(showAnnotations);
   const highlightedAnnotationRegionIdsRef = useRef(highlightedAnnotationRegionIds);
@@ -358,6 +351,7 @@ export default function Face3DViewer({
   const [overlaySize, setOverlaySize] = useState({ w: DEFAULT_VIDEO_W, h: DEFAULT_VIDEO_H });
 
   useEffect(() => { autoRotateRef.current = autoRotate; }, [autoRotate]);
+  useEffect(() => { pingPongLoopRef.current = pingPongLoop; }, [pingPongLoop]);
   useEffect(() => {
     highlightTermsRef.current = highlightTerms;
     if (showAnnotationsRef.current && overlayRef.current) {
@@ -497,14 +491,10 @@ export default function Face3DViewer({
   }, []);
 
   // ── Frame extraction ──────────────────────────────────────────────────────
-  // Seeks through the video once at load time and snapshots every frame into
-  // an ImageBitmap array.  After this, rotation is just ctx.drawImage(frame)
-  // which is GPU-accelerated and takes <0.1ms — no more per-frame video seeks.
-  //
-  // A dedicated off-screen video element is used for seeking/extraction so it
-  // never races with the display video element.  Both were sharing the same
-  // element before, causing the seeked event to resolve the wrong awaiter and
-  // extraction to capture frames at incorrect positions → glitchy rotation.
+  // Plays the display video at 2× speed and snapshots frames via RAF.
+  // After extraction, rotation is ctx.drawImage(bitmap) — GPU-accelerated,
+  // <0.1ms each.  Using the display video (not a separate element) means only
+  // one GCS request and the user sees the face playing immediately.
   useEffect(() => {
     if (framesRef.current) {
       framesRef.current.forEach((b) => b.close());
@@ -517,29 +507,28 @@ export default function Face3DViewer({
     clearAnnotationOverlay(overlayRef.current);
     setFramesReady(false);
 
+    // In ping-pong mode the video plays raw — no frame extraction needed.
+    if (pingPongLoop) return;
+
     let cancelled = false;
 
     async function extract() {
-      // Off-screen video dedicated to seeking — never touches videoRef.current.
-      const extractVid = document.createElement("video");
-      extractVid.muted = true;
-      extractVid.playsInline = true;
-      extractVid.preload = "auto";
-      // crossOrigin must be set before src so the browser sends Origin + expects CORS headers.
-      // Without it the canvas is tainted and createImageBitmap rejects, leaving framesRef empty
-      // and landmark detection (annotations) unable to run.
-      extractVid.crossOrigin = "anonymous";
-      extractVid.src = videoUrl;
+      // Use the display video element for extraction — it's already loading the URL
+      // so there is no second GCS request and playback starts immediately.
+      // crossOrigin="anonymous" is set in JSX so the canvas draw is untainted.
+      // Non-null assertion: effect only runs after mount so ref is always set.
+      if (!videoRef.current) return;
+      const video = videoRef.current as HTMLVideoElement;
 
-      if (extractVid.readyState < 1) {
-        await waitForVideoEvent(extractVid, "loadedmetadata");
+      if (video.readyState < 1) {
+        await waitForVideoEvent(video, "loadedmetadata");
       }
-      if (cancelled) { extractVid.src = ""; return; }
+      if (cancelled) return;
 
-      const dur = extractVid.duration;
-      if (!dur || !isFinite(dur) || dur <= 0) { extractVid.src = ""; return; }
+      const dur = video.duration;
+      if (!dur || !isFinite(dur) || dur <= 0) return;
 
-      const targetSize = fitDisplaySize(extractVid);
+      const targetSize = fitDisplaySize(video);
       setDisplaySize(targetSize);
       extractingRef.current = true;
 
@@ -551,9 +540,10 @@ export default function Face3DViewer({
       tmpC.height = targetSize.h;
       const tmpCtx = tmpC.getContext("2d")!;
 
-      // Playback-based extraction: play at 2× speed and capture frames as they pass.
-      // Avoids all seeking, so GCS videos without faststart MOOV don't stall for minutes.
-      extractVid.playbackRate = 2;
+      // Play the display video at 2× speed and capture frames as they pass.
+      // The video element is visible during extraction so the user sees it playing
+      // immediately — no blank/stalled state while frames are loaded.
+      video.playbackRate = 2;
       await new Promise<void>((resolve, reject) => {
         let nextFrameIdx = 0;
         let pendingBitmaps = 0;
@@ -564,20 +554,20 @@ export default function Face3DViewer({
           if (resolved) return;
           resolved = true;
           cancelAnimationFrame(rafId);
-          extractVid.pause();
+          video.pause();
           resolve();
         }
 
         function tick() {
           if (cancelled) { finish(); return; }
 
-          const t = extractVid.currentTime;
+          const t = video.currentTime;
 
           // Capture all frames whose target time we have now passed.
           while (nextFrameIdx < N && (nextFrameIdx / N) * dur <= t) {
             const idx = nextFrameIdx++;
             try {
-              tmpCtx.drawImage(extractVid, 0, 0, targetSize.w, targetSize.h);
+              tmpCtx.drawImage(video, 0, 0, targetSize.w, targetSize.h);
               // createImageBitmap snapshots the canvas pixel data synchronously at call
               // time — safe to reuse tmpC immediately even though the promise resolves later.
               pendingBitmaps++;
@@ -613,15 +603,14 @@ export default function Face3DViewer({
           rafId = requestAnimationFrame(tick);
         }
 
-        extractVid.addEventListener("ended", finish, { once: true });
-        extractVid.addEventListener("error", () => reject(new Error("extractVid error")), { once: true });
+        video.addEventListener("ended", finish, { once: true });
+        video.addEventListener("error", () => reject(new Error("video error")), { once: true });
 
-        extractVid.play().then(() => {
+        video.play().then(() => {
           rafId = requestAnimationFrame(tick);
         }).catch(reject);
       });
 
-      extractVid.src = "";
       if (cancelled) { bitmaps.forEach((b) => b?.close()); return; }
       const finalBitmaps = bitmaps.filter(Boolean) as ImageBitmap[];
       framesRef.current = finalBitmaps;
@@ -633,8 +622,77 @@ export default function Face3DViewer({
     return () => {
       cancelled = true;
       extractingRef.current = false;
+      videoRef.current?.pause();
     };
-  }, [videoUrl]);
+  }, [videoUrl, pingPongLoop]);
+
+  // ── Ping-pong playback (used for black-bg test video) ────────────────────
+  // Plays the video forward at 1× speed, then manually steps currentTime
+  // backward each RAF frame, then plays forward again — no frame extraction.
+  // During a drag gesture, the ping-pong loop pauses so the pointer handler
+  // can scrub currentTime directly.
+  useEffect(() => {
+    if (!pingPongLoop) return;
+    if (!videoRef.current) return;
+    const video = videoRef.current as HTMLVideoElement;
+
+    let dir: 1 | -1 = 1;
+    let rafId: number;
+    let lastTs: number | null = null;
+    let cancelled = false;
+
+    function tick(ts: number) {
+      if (cancelled) return;
+
+      // While the user is dragging, let the pointer handler control currentTime.
+      if (pingPongDraggingRef.current) {
+        lastTs = null; // reset dt so there's no jump when drag ends
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+
+      const dt = lastTs !== null ? (ts - lastTs) / 1000 : 0;
+      lastTs = ts;
+
+      if (dir === 1) {
+        if (isFinite(video.duration) && video.currentTime >= video.duration - 0.08) {
+          video.pause();
+          dir = -1;
+        }
+      } else {
+        const next = video.currentTime - dt;
+        if (next <= 0.04) {
+          video.currentTime = 0;
+          dir = 1;
+          video.play().catch(() => undefined);
+        } else {
+          video.currentTime = next;
+        }
+      }
+
+      rafId = requestAnimationFrame(tick);
+    }
+
+    async function start() {
+      if (video.readyState < 1) {
+        await waitForVideoEvent(video, "loadedmetadata");
+      }
+      if (cancelled) return;
+      video.playbackRate = 1;
+      video.currentTime = 0;
+      video.play()
+        .then(() => { if (!cancelled) rafId = requestAnimationFrame(tick); })
+        .catch(() => undefined);
+    }
+
+    start();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      video.pause();
+    };
+  }, [pingPongLoop, videoUrl]);
 
   // ── Wheel-to-zoom ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -677,13 +735,10 @@ export default function Face3DViewer({
     let angle = 0;
     let autoDir = 1;
     let dragging = false;
-    let dragStartX = 0, dragStartY = 0, dragStartAngle = 0;
-    let dragStartPanX = 0, dragStartPanY = 0;
+    let dragStartX = 0, dragStartAngle = 0;
     let rafId: number;
     let lastTs = 0;
     let lastFrameIdx = -1;
-    let lastFallbackFrameIdx = -1;
-    let fallbackSeekInFlight = false;
 
     function drawFrame() {
       const frames = framesRef.current;
@@ -720,7 +775,7 @@ export default function Face3DViewer({
       const dt = lastTs ? (now - lastTs) / 1000 : 0;
       lastTs = now;
 
-      if (!dragging && autoRotateRef.current && zoomRef.current <= 1) {
+      if (!dragging && autoRotateRef.current) {
         angle += AUTO_SPEED * dt * autoDir;
         if (angle >= MAX_ANGLE)       { angle = MAX_ANGLE;  autoDir = -1; }
         else if (angle <= -MAX_ANGLE) { angle = -MAX_ANGLE; autoDir = 1; }
@@ -729,22 +784,9 @@ export default function Face3DViewer({
       if (framesRef.current) {
         // Fast path: GPU bitmap copy, no decode.
         drawFrame();
-      } else {
-        // Fallback while frames are still extracting: seek the display video to
-        // the current angle.  This is now safe — extraction uses its own
-        // off-screen video element, so there is no seek race with the display.
-        const video = videoRef.current;
-        if (video && video.readyState >= 2 && video.duration) {
-          const fallbackIdx = angleToFrameIdx(angle, 36);
-          if (!fallbackSeekInFlight && fallbackIdx !== lastFallbackFrameIdx) {
-            fallbackSeekInFlight = true;
-            lastFallbackFrameIdx = fallbackIdx;
-            seekVideo(video, angleToTime(angle, video.duration))
-              .catch(() => undefined)
-              .finally(() => { fallbackSeekInFlight = false; });
-          }
-        }
       }
+      // While frames are still extracting the display video is playing live —
+      // no seeking needed; the browser updates the video element each frame.
 
       rafId = requestAnimationFrame(tick);
     }
@@ -753,22 +795,28 @@ export default function Face3DViewer({
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       dragging = true;
-      dragStartX = e.clientX; dragStartY = e.clientY;
+      dragStartX = e.clientX;
       dragStartAngle = angle;
-      dragStartPanX = panXRef.current; dragStartPanY = panYRef.current;
       viewer!.style.cursor = "grabbing";
+      if (pingPongLoopRef.current) {
+        pingPongDraggingRef.current = true;
+        videoRef.current?.pause();
+      }
     }
 
     function onPointerMove(e: PointerEvent) {
       if (!dragging) return;
       const dx = e.clientX - dragStartX;
-      const dy = e.clientY - dragStartY;
-      if (zoomRef.current > 1) {
-        panXRef.current = dragStartPanX + dx;
-        panYRef.current = dragStartPanY + dy;
-        applyTransform(panXRef.current, panYRef.current, zoomRef.current);
-      } else {
-        angle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, dragStartAngle - dx * DEG_PER_PX));
+      // Always rotate regardless of zoom level — mirrors GLB viewer behavior.
+      angle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, dragStartAngle - dx * DEG_PER_PX));
+
+      // In ping-pong mode there are no extracted frames — scrub the video directly.
+      if (pingPongLoopRef.current && videoRef.current) {
+        const video = videoRef.current as HTMLVideoElement;
+        if (isFinite(video.duration) && video.duration > 0) {
+          const t = ((angle + MAX_ANGLE) / (2 * MAX_ANGLE)) * video.duration;
+          video.currentTime = Math.max(0, Math.min(video.duration, t));
+        }
       }
     }
 
@@ -777,6 +825,11 @@ export default function Face3DViewer({
       dragging = false;
       viewer!.style.cursor = "";
       autoDir = angle >= 0 ? 1 : -1;
+      if (pingPongLoopRef.current) {
+        pingPongDraggingRef.current = false;
+        // Resume ping-pong playback from wherever drag left off.
+        videoRef.current?.play().catch(() => undefined);
+      }
     }
 
     viewer.addEventListener("pointerdown", onPointerDown);
@@ -831,6 +884,7 @@ export default function Face3DViewer({
             preload="auto"
             muted
             playsInline
+            crossOrigin="anonymous"
             className={`face3d-display${framesReady ? " face3d-display--hidden" : ""}`}
           />
           <canvas
@@ -851,9 +905,11 @@ export default function Face3DViewer({
         </div>
       </div>
       <p className="face3d-hint">
-        {zoom > 1
-          ? "Drag to pan · Scroll to zoom · Double-click to reset"
-          : "Drag to rotate · Scroll to zoom"}
+        {pingPongLoop
+          ? "Auto-playing forward / reverse loop · Scroll to zoom"
+          : zoom > 1
+            ? "Drag to rotate · Scroll to zoom · Double-click to reset zoom"
+            : "Drag to rotate · Scroll to zoom"}
       </p>
     </div>
   );

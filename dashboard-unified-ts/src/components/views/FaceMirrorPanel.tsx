@@ -11,6 +11,7 @@ import {
   AI_MIRROR_REGIONS,
 } from "../postVisitBlueprint/aiMirrorRegions";
 import Face3DViewer from "./Face3DViewer";
+import blackBgVideoUrl from "../../assets/images/turntable_2048_black.mp4";
 import "./FaceMirrorPanel.css";
 
 // ---------------------------------------------------------------------------
@@ -361,9 +362,12 @@ export default function FaceMirrorPanel({
   const [scanQuality, setScanQuality] = useState<ScanQuality>("standard");
   const [overrideGlbUrl, setOverrideGlbUrl] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Test toggle: swap the normal video for the black-bg version to preview dark mode
+  const [useBlackBgVideo, setUseBlackBgVideo] = useState(false);
 
   // The effective video URL: override (from a just-completed generation) wins over the prop
-  const effectiveVideoUrl = overrideGlbUrl ?? videoUrlProp ?? null;
+  const baseVideoUrl = overrideGlbUrl ?? videoUrlProp ?? null;
+  const effectiveVideoUrl = useBlackBgVideo && baseVideoUrl ? blackBgVideoUrl : baseVideoUrl;
   const has3D = Boolean(effectiveVideoUrl);
 
   const angleSlots = useMemo((): ClientPhotoSlot[] => {
@@ -662,6 +666,14 @@ export default function FaceMirrorPanel({
               <input type="checkbox" checked={show3DAnnotations} onChange={(e) => setShow3DAnnotations(e.target.checked)} />
               <span>Annotate</span>
             </label>
+            <button
+              type="button"
+              className={`fmp-fullscreen-btn${useBlackBgVideo ? " fmp-fullscreen-btn--active" : ""}`}
+              onClick={() => setUseBlackBgVideo((v) => !v)}
+              title={useBlackBgVideo ? "Switch to normal video" : "Switch to black-bg video"}
+            >
+              {useBlackBgVideo ? "⬛ Black bg" : "⬜ Black bg"}
+            </button>
             {show3DAnnotations && (
               <details className="fmp-annotation-regions">
                 <summary>Highlight</summary>
@@ -755,6 +767,7 @@ export default function FaceMirrorPanel({
       showAnnotations={show3DAnnotations}
       highlightTerms={highlightTerms}
       highlightedAnnotationRegionIds={debugHighlighted3DRegionIds}
+      pingPongLoop={useBlackBgVideo}
     />
   ) : null;
 

@@ -125,9 +125,27 @@
 .cdp-client-name-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
   margin-bottom: 12px;
+  min-width: 0;
+}
+
+.cdp-client-name-row .client-detail-panel-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.cdp-client-name-row .modal-header-activity-badge {
+  flex-shrink: 0;
+}
+
+.cdp-client-name-row .edit-toggle-btn {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .client-detail-panel-header-info {
@@ -1298,4 +1316,502 @@
 .discussed-treatments-record-checked-off {
   font-size: 12px;
   color: var(--theme-text-muted, #6b7280);
+}
+
+/* ── Dark mode toggle button ─────────────────────────────────────────────── */
+.cdp-dark-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.cdp-dark-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--theme-text-primary);
+}
+.cdp-dark .cdp-dark-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Dark mode overrides (temporary — for testing black-bg 3D scan) ──────── */
+.cdp-dark {
+  /* Re-map all theme variables to dark equivalents */
+  --theme-bg-card:       #111111;
+  --theme-bg-surface:    #1c1c1c;
+  --theme-text-primary:  #efefef;
+  --theme-text-secondary: #c0c0c0;
+  --theme-text-muted:    #8a8a8a;
+  --theme-border:        rgba(255, 255, 255, 0.10);
+  --theme-shadow:        rgba(0, 0, 0, 0.5);
+  --theme-shadow-hover:  rgba(0, 0, 0, 0.7);
+  background: #111111;
+  color: #efefef;
+}
+
+/* Face mirror column: fully black so the turntable blends seamlessly */
+.cdp-dark .cdp-face-col {
+  background: #000;
+}
+.cdp-dark .fmp-root {
+  background: #000;
+  border-right-color: rgba(255, 255, 255, 0.07);
+}
+.cdp-dark .fmp-canvas-area,
+.cdp-dark .fmp-photo-stage,
+.cdp-dark .fmp-body {
+  background: #000;
+}
+
+/* 3D viewer: black bg so turntable bg is seamless */
+.cdp-dark .face3d-viewer {
+  background: #000;
+}
+.cdp-dark .face3d-wrap {
+  background: #000;
+}
+.cdp-dark .face3d-hint {
+  background: #111;
+  border-top-color: rgba(255, 255, 255, 0.07);
+  color: #666;
+}
+
+/* Photo canvas wrap + loading overlay */
+.cdp-dark .ai-mirror-canvas-wrap {
+  background: #1a1a1a;
+}
+
+.cdp-dark .ai-mirror-loading {
+  background: rgba(17, 17, 17, 0.94);
+  color: #6ee7b7;
+}
+
+.cdp-dark .ai-mirror-loading-dot {
+  background: #34d399;
+}
+
+.cdp-dark .ai-mirror-unavailable {
+  background: #1a1a1a;
+  color: #c0c0c0;
+}
+
+.cdp-dark .ai-mirror-unavailable strong {
+  color: #efefef;
+}
+
+/* Toolbar + tabs */
+.cdp-dark .fmp-toolbar {
+  background: #111;
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+.cdp-dark .fmp-mode-tabs {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.cdp-dark .fmp-tab {
+  color: #8a8a8a;
+}
+.cdp-dark .fmp-tab--active {
+  background: #1c1c1c;
+  color: #efefef;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.cdp-dark .fmp-tab:hover:not(.fmp-tab--active) {
+  color: #ccc;
+}
+.cdp-dark .fmp-fullscreen-btn {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #8a8a8a;
+}
+.cdp-dark .fmp-fullscreen-btn:hover {
+  color: #efefef;
+}
+.cdp-dark .fmp-auto-rotate {
+  color: #8a8a8a;
+}
+
+/* Right-column scroll + body */
+.cdp-dark .client-detail-panel-scroll {
+  background: #111111;
+}
+.cdp-dark .client-detail-panel-body {
+  background: #111111;
+}
+
+/* Header */
+.cdp-dark .client-detail-panel-header {
+  background: #111111;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+.cdp-dark .client-detail-panel-close {
+  color: #8a8a8a;
+}
+.cdp-dark .client-detail-panel-close:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* Section backgrounds and cards in right column */
+.cdp-dark .detail-section,
+.cdp-dark .detail-card,
+.cdp-dark .modal-section {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.cdp-dark .detail-section-header,
+.cdp-dark .modal-section-header {
+  background: #111111;
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Contact section ─────────────────────────────────────────────────────── */
+.cdp-dark .detail-label,
+.cdp-dark .detail-label-small,
+.cdp-dark .contact-actions-label,
+.cdp-dark .contact-actions-heading {
+  color: #8a8a8a;
+}
+.cdp-dark .detail-value,
+.cdp-dark .detail-value-small {
+  color: #efefef;
+}
+.cdp-dark .detail-value-muted {
+  color: #8a8a8a;
+}
+.cdp-dark .detail-value-empty {
+  color: #555;
+}
+.cdp-dark .detail-goals-box {
+  background: #1c1c1c;
+  border-left-color: rgba(255, 255, 255, 0.2);
+  color: #c8c8c8;
+}
+.cdp-dark .contact-actions-bar {
+  border-top-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.cdp-dark .cdp-client-name-row .edit-toggle-btn,
+.cdp-dark .modal-contact-section .edit-toggle-btn {
+  color: #c8c8c8;
+}
+
+.cdp-dark .cdp-client-name-row .edit-toggle-btn:hover,
+.cdp-dark .modal-contact-section .edit-toggle-btn:hover {
+  color: #efefef;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Analysis results (Interested Treatments inner box) */
+.cdp-dark .analysis-results-section,
+.cdp-dark .analysis-results-empty {
+  background: #1c1c1c !important;
+  color: #c8c8c8;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cdp-dark .analysis-section-title,
+.cdp-dark .analysis-section-title-focus {
+  color: #8a8a8a;
+}
+
+.cdp-dark .analysis-tag {
+  background: rgba(206, 147, 216, 0.12);
+  color: #c084cf;
+  border-color: rgba(206, 147, 216, 0.2);
+}
+
+.cdp-dark .analysis-focus-areas-text {
+  color: #6ee7d9;
+}
+
+.cdp-dark .analysis-area-card {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.cdp-dark .analysis-area-title,
+.cdp-dark .analysis-area-title-text,
+.cdp-dark .analysis-issue-name {
+  color: #efefef;
+}
+
+.cdp-dark .analysis-area-all-clear,
+.cdp-dark .analysis-region-grade-legend,
+.cdp-dark .analysis-treatments-label,
+.cdp-dark .analysis-text-italic,
+.cdp-dark .analysis-text-italic-sm,
+.cdp-dark .analysis-empty-state,
+.cdp-dark .analysis-results-empty-secondary,
+.cdp-dark .analysis-results-empty-lead {
+  color: #8a8a8a;
+}
+
+.cdp-dark .analysis-interested-badge {
+  background: rgba(206, 147, 216, 0.12);
+  color: #c084cf;
+  border-color: rgba(206, 147, 216, 0.2);
+}
+
+.cdp-dark .analysis-treatment-tag {
+  background: rgba(206, 147, 216, 0.12);
+  color: #c084cf;
+  border-color: rgba(206, 147, 216, 0.2);
+}
+
+.cdp-dark .analysis-tag-clickable:hover {
+  background: rgba(206, 147, 216, 0.22);
+  border-color: rgba(206, 147, 216, 0.35);
+}
+
+.cdp-dark .analysis-area-grade {
+  color: #6ee7b7;
+  background: rgba(6, 95, 70, 0.25);
+  border-color: rgba(110, 231, 183, 0.25);
+}
+
+.cdp-dark .analysis-view-examples-btn {
+  --analysis-view-examples-color: #a5b4fc;
+  --analysis-view-examples-bg: rgba(99, 102, 241, 0.15);
+  --analysis-view-examples-border: rgba(129, 140, 248, 0.35);
+  --analysis-view-examples-bg-hover: rgba(99, 102, 241, 0.25);
+  --analysis-view-examples-border-hover: rgba(129, 140, 248, 0.5);
+  --analysis-view-examples-color-hover: #c7d2fe;
+}
+
+/* ── Last Activity badge ─────────────────────────────────────────────────── */
+.cdp-dark .modal-header-activity-badge {
+  background: rgba(255, 255, 255, 0.06);
+}
+.cdp-dark .modal-header-activity-label {
+  color: #8a8a8a;
+}
+.cdp-dark .modal-header-activity-value {
+  color: #efefef;
+}
+
+/* ── Tag chips (Interested Treatments / Focus Areas) ─────────────────────── */
+.cdp-dark .detail-tag {
+  background: rgba(206, 147, 216, 0.12);
+  color: #c084cf;
+  border-color: rgba(206, 147, 216, 0.2);
+}
+.cdp-dark .detail-tags-container {
+  gap: 6px;
+}
+
+/* ── Status pills (Facial Analysis, Plan, Quiz) ──────────────────────────── */
+.cdp-dark .detail-section-status-pill--positive {
+  background: rgba(6, 95, 70, 0.25);
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.25);
+}
+.cdp-dark .detail-section-status-pill--muted {
+  background: rgba(255, 255, 255, 0.06);
+  color: #a0aec0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.cdp-dark .detail-section-status-pill--facial.detail-section-status-pill--tone-muted {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #a0aec0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.cdp-dark .detail-section-status-pill--facial.detail-section-status-pill--tone-pending {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.25);
+}
+.cdp-dark .detail-section-status-pill--facial.detail-section-status-pill--tone-ready {
+  background: rgba(6, 95, 70, 0.25) !important;
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.25);
+}
+.cdp-dark .detail-section-status-pill--facial.detail-section-status-pill--tone-reviewed {
+  background: rgba(6, 95, 70, 0.25) !important;
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.25);
+}
+.cdp-dark .detail-section-status-pill--plan-active {
+  background: rgba(6, 95, 70, 0.25);
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.25);
+}
+
+/* ── Treatment Plan rows ─────────────────────────────────────────────────── */
+.cdp-dark .discussed-treatments-record-row,
+.cdp-dark .discussed-treatments-record-row-outer {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+.cdp-dark .discussed-treatments-record-row:hover,
+.cdp-dark .discussed-treatments-record-row-outer:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.cdp-dark .discussed-treatments-record-row.selected,
+.cdp-dark .discussed-treatments-record-row-outer.selected {
+  background: rgba(79, 70, 229, 0.2);
+}
+.cdp-dark .discussed-treatments-record-primary,
+.cdp-dark .discussed-treatments-record-name {
+  color: #efefef;
+}
+.cdp-dark .discussed-treatments-record-area,
+.cdp-dark .discussed-treatments-record-timeline,
+.cdp-dark .discussed-treatments-record-area-subheading {
+  color: #8a8a8a;
+}
+.cdp-dark .discussed-treatments-record-price {
+  color: #c8c8c8;
+}
+.cdp-dark .discussed-treatments-plan-subtotal-row,
+.cdp-dark .discussed-treatments-plan-total-row {
+  color: #efefef;
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+.cdp-dark .discussed-treatments-plan-sections-outer {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Treatment Plan quote surfaces (planQuoteSurfaces.css vars) ──────────── */
+.cdp-dark {
+  --plan-quote-surface-bg: #1a1a1a;
+  --plan-quote-section-header-bg: #151515;
+  --plan-quote-subtotal-bg: #161616;
+  /* Override the section-card border to near-invisible in dark mode */
+  --plan-quote-border: rgba(255, 255, 255, 0.04);
+  --plan-quote-row-divider: rgba(255, 255, 255, 0.05);
+}
+.cdp-dark .share-tp-link-quote {
+  border-color: transparent;
+}
+.cdp-dark .share-tp-link-quote-section,
+.cdp-dark .share-tp-link-quote-footer {
+  border-color: rgba(255, 255, 255, 0.04) !important;
+}
+.cdp-dark .share-tp-link-quote-rows li {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+.cdp-dark .share-tp-link-quote-row-text,
+.cdp-dark .share-tp-link-quote-row-name {
+  color: #efefef;
+}
+.cdp-dark .share-tp-link-quote-row-price {
+  color: #c8c8c8;
+}
+.cdp-dark .share-tp-link-quote-subtotal {
+  color: #efefef;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+.cdp-dark .share-tp-link-quote-section-title {
+  color: #8a8a8a;
+}
+
+/* ── Section titles ──────────────────────────────────────────────────────── */
+.cdp-dark .detail-section-title,
+.cdp-dark .detail-section-title-flex,
+.cdp-dark .treatment-plan-section-subtitle,
+.cdp-dark .section-title {
+  color: #efefef;
+}
+.cdp-dark .treatment-plan-section-subtitle {
+  color: #8a8a8a;
+}
+
+/* ── Inputs and selects ──────────────────────────────────────────────────── */
+.cdp-dark input,
+.cdp-dark select,
+.cdp-dark textarea {
+  background: #1c1c1c;
+  color: #efefef;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.cdp-dark input::placeholder,
+.cdp-dark textarea::placeholder {
+  color: #555;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.cdp-dark .btn-secondary,
+.cdp-dark .btn-sm {
+  background: #1c1c1c;
+  color: #c8c8c8;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.cdp-dark .btn-secondary:hover,
+.cdp-dark .btn-sm:hover {
+  background: #2a2a2a;
+  color: #efefef;
+}
+
+/* ── Analysis sections (facial, skin, wellness) — hardcoded #fafafa bg ───── */
+.cdp-dark .detail-section-facial-analysis,
+.cdp-dark .detail-section-skin-analysis,
+.cdp-dark .detail-section-wellness-quiz,
+.cdp-dark .detail-section-with-border {
+  background: #1a1a1a;
+  border-left-color: rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+.cdp-dark .skin-analysis-description,
+.cdp-dark .skin-analysis-result-badge,
+.cdp-dark .wellness-quiz-summary {
+  color: #c8c8c8;
+}
+.cdp-dark .wellness-quiz-summary-label {
+  color: #8a8a8a;
+}
+/* Analysis status/date text */
+.cdp-dark .detail-section-date,
+.cdp-dark .detail-value-date {
+  color: #8a8a8a;
+}
+
+/* ── Contact history section and entries — hardcoded white/fafafa bg ─────── */
+.cdp-dark .detail-section-contact-history {
+  background: #1a1a1a;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+.cdp-dark .contact-history-section {
+  background: #1a1a1a;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+.cdp-dark .add-contact-log-form {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+/* contact-entry has background: white !important — need !important to override */
+.cdp-dark .contact-entry {
+  background: #1c1c1c !important;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: rgba(255, 255, 255, 0.25);
+}
+.cdp-dark .contact-entry:hover {
+  background: #232323 !important;
+}
+.cdp-dark .contact-type {
+  color: #efefef;
+}
+.cdp-dark .contact-date {
+  color: #8a8a8a;
+}
+.cdp-dark .contact-outcome {
+  color: #c8c8c8;
+}
+.cdp-dark .contact-notes {
+  color: #a0a0a0;
+}
+
+/* ── Archive section ─────────────────────────────────────────────────────── */
+.cdp-dark .detail-section-archive {
+  background: rgba(244, 67, 54, 0.08);
+  border-left-color: rgba(244, 67, 54, 0.5);
+  border-top-color: rgba(255, 255, 255, 0.06);
 }

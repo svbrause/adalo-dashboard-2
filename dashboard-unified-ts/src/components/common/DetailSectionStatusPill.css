@@ -51,19 +51,27 @@
 }
 
 .detail-section-status-pill--facial.detail-section-status-pill--tone-muted {
+  background: #f1f5f9;
   color: #475569;
+  border-color: #e2e8f0;
 }
 
 .detail-section-status-pill--facial.detail-section-status-pill--tone-pending {
+  background: #fff3cd;
   color: #78350f;
+  border-color: #ffecb3;
 }
 
 .detail-section-status-pill--facial.detail-section-status-pill--tone-ready {
-  color: #0c5460;
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
 }
 
 .detail-section-status-pill--facial.detail-section-status-pill--tone-reviewed {
+  background: #d4edda;
   color: #14532d;
+  border-color: #c3e6cb;
 }
 
 .detail-wellness-quiz-heading-stack {

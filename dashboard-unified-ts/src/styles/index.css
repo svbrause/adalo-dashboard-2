@@ -2,6 +2,7 @@
 @import "./utilities.css";
 @import "./forms.css";
 @import "./pastel-teal-theme.css";
+@import "./dark-theme.css";
 @import "./plan-add-form.css";
 @import "../components/modals/planQuoteSurfaces.css";
 @import "../components/modals/ShareTreatmentPlanLinkModal.css";
@@ -24,6 +25,8 @@ html {
   /* Lakeshore Theme - Warm Neutrals */
   --theme-bg-gradient: linear-gradient(180deg, #f7f4f1 0%, #ffffff 100%);
   --theme-bg-card: #ffffff;
+  --theme-bg-subtle: #f5f5f5;
+  --theme-bg-hover: #f8f8f8;
   --theme-text-primary: #222222;
   --theme-text-secondary: #222222;
   --theme-text-muted: #666666;
@@ -1097,13 +1100,13 @@ body.theme-warm .kanban-cards.drag-over {
 }
 
 .leads-table-container {
-  background: white;
+  background: var(--theme-bg-card, #ffffff);
   border-radius: 16px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--theme-border, #e8e8e8);
   /* allow horizontal scroll when table is wider than viewport */
   overflow-x: auto;
   overflow-y: visible;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px var(--theme-shadow, rgba(0, 0, 0, 0.05));
 }
 
 .leads-table {
@@ -1116,18 +1119,18 @@ body.theme-warm .kanban-cards.drag-over {
   text-align: left;
   font-size: 12px;
   font-weight: 600;
-  color: #666;
+  color: var(--theme-text-muted, #666666);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background: #f3f3f3;
-  border-bottom: 1px solid #e8e8e8;
+  background: var(--theme-bg-subtle, #f3f3f3);
+  border-bottom: 1px solid var(--theme-border, #e8e8e8);
 }
 
 .leads-table td {
   padding: 16px 20px;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--theme-border, #e8e8e8);
   font-size: 14px;
-  color: #424242;
+  color: var(--theme-text-primary, #424242);
 }
 
 .leads-table tbody tr {
@@ -1135,7 +1138,7 @@ body.theme-warm .kanban-cards.drag-over {
 }
 
 .leads-table tbody tr:hover {
-  background: rgba(250, 215, 162, 0.1);
+  background: var(--theme-nav-hover-bg, rgba(250, 215, 162, 0.1));
 }
 
 .leads-table tbody tr:last-child td {
@@ -1144,12 +1147,12 @@ body.theme-warm .kanban-cards.drag-over {
 
 .table-lead-name {
   font-weight: 600;
-  color: #212121;
+  color: var(--theme-text-primary, #212121);
 }
 
 .table-lead-email {
   font-size: 12px;
-  color: #666;
+  color: var(--theme-text-muted, #666666);
   margin-top: 2px;
 }
 
@@ -1192,7 +1195,7 @@ body.theme-warm .kanban-cards.drag-over {
   color: #00695c;
 }
 
-/* Analysis date for Facial Analysis — below section header, above body (modal + panel) */
+/* Analysis date for Facial Analysis — inline in compact header (modal + panel) */
 .detail-section-facial-analysis .facial-analysis-date-meta {
   margin: 0 0 14px;
   padding: 0;
@@ -1200,6 +1203,65 @@ body.theme-warm .kanban-cards.drag-over {
   font-weight: 400;
   line-height: 1.4;
   color: var(--theme-text-muted);
+}
+
+/* Compact facial analysis header: title + status + date on one row; actions on the right */
+.detail-section-header-flex.detail-section-facial-analysis-header {
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 12px;
+}
+
+.detail-section-facial-analysis-header__primary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.detail-section-facial-analysis-header__title {
+  margin: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.detail-section-facial-analysis-header__primary .detail-section-status-pill {
+  padding: 4px 10px;
+  font-size: 12px;
+  max-width: min(100%, 280px);
+}
+
+.detail-section-facial-analysis .facial-analysis-date-meta--inline {
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--theme-text-muted);
+  white-space: nowrap;
+}
+
+.detail-section-facial-analysis .facial-analysis-date-meta--inline::before {
+  content: "·";
+  margin-right: 6px;
+  opacity: 0.55;
+}
+
+.detail-section-facial-analysis-header__actions {
+  margin-left: auto;
+  flex: 0 1 auto;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 520px) {
+  .detail-section-facial-analysis-header__actions .btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
 }
 
 /* Treatments discussed in clinic – inside Facial Analysis section (panel + modal) */
@@ -2090,16 +2152,17 @@ body.theme-warm .kanban-cards.drag-over {
 }
 
 .modal-content {
-  background: white;
+  background: var(--theme-bg-card, #ffffff);
   border-radius: 20px;
   max-width: 800px;
   width: 100%;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px var(--theme-shadow-hover, rgba(0, 0, 0, 0.2));
   animation: fadeInUp 0.3s ease;
   overflow: hidden;
+  color: var(--theme-text-primary, #212121);
 }
 
 @keyframes fadeInUp {
@@ -2118,10 +2181,10 @@ body.theme-warm .kanban-cards.drag-over {
   justify-content: space-between;
   align-items: center;
   padding: 24px;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--theme-border, #e8e8e8);
   position: sticky;
   top: 0;
-  background: white;
+  background: var(--theme-bg-card, #ffffff);
   z-index: 10;
   flex-shrink: 0;
 }
@@ -2140,27 +2203,30 @@ body.theme-warm .kanban-cards.drag-over {
 .modal-title {
   font-size: 22px;
   font-weight: 700;
-  color: #212121;
+  color: var(--theme-text-primary, #212121);
 }
 
 .modal-close {
   width: 36px;
   height: 36px;
   border: none;
-  background: #f3f3f3;
+  background: var(--theme-bg-subtle, #f3f3f3);
   border-radius: 12px;
   font-size: 24px;
-  color: #666;
+  line-height: 1;
+  color: var(--theme-text-muted, #666666);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .modal-close:hover {
-  background: #e8e8e8;
-  color: #212121;
+  background: var(--theme-bg-hover, #e8e8e8);
+  color: var(--theme-text-primary, #212121);
 }
 
 .modal-body {
@@ -2250,8 +2316,8 @@ body.theme-warm .kanban-cards.drag-over {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-top: 1px solid #e8e8e8;
-  background: #f9f9f9;
+  border-top: 1px solid var(--theme-border, #e8e8e8);
+  background: var(--theme-bg-subtle, #f9f9f9);
   border-radius: 0 0 20px 20px;
   flex-shrink: 0;
   position: sticky;
