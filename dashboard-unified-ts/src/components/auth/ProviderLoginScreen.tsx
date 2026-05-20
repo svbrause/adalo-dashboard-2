@@ -25,7 +25,7 @@ import "./ProviderLoginScreen.css";
 
 // Import images - Vite will process these and provide correct paths
 import bannerImage from "../../assets/images/c7b64b22c326934b039cd1c199e0440201e31414fc13b0918fe293b61feb63dc.jpg";
-import ponceLogo from "../../assets/images/Group611.png";
+import { ponceLogoSrc } from "../../utils/ponceBrand";
 
 /** Custom claim `admin: true` — user can pick any practice when `practiceIds` is missing. */
 function idTokenClaimsAreAdmin(claims: Record<string, unknown>): boolean {
@@ -33,7 +33,7 @@ function idTokenClaimsAreAdmin(claims: Record<string, unknown>): boolean {
 }
 
 export default function ProviderLoginScreen() {
-  const { setProvider } = useDashboard();
+  const { setProvider, darkMode } = useDashboard();
   const { user: firebaseUser, loading: firebaseAuthLoading } = useFirebaseAuth();
   const [providerCode, setProviderCode] = useState("");
   const [error, setError] = useState("");
@@ -228,7 +228,7 @@ export default function ProviderLoginScreen() {
                 <div className="welcome-title">
                   <span className="welcome-text">Welcome to </span>
                   <img
-                    src={ponceLogo}
+                    src={ponceLogoSrc(darkMode)}
                     alt="Ponce Logo"
                     className="welcome-logo"
                     onError={(e) => {

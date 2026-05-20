@@ -1,7 +1,8 @@
 // Welcome Modal Component
 
 import { useEffect } from "react";
-import ponceLogo from "../../assets/images/ponce logo.png";
+import { useDashboard } from "../../context/DashboardContext";
+import { ponceLogoSrc } from "../../utils/ponceBrand";
 import "./WelcomeModal.css";
 
 interface WelcomeModalProps {
@@ -9,6 +10,8 @@ interface WelcomeModalProps {
 }
 
 export default function WelcomeModal({ onClose }: WelcomeModalProps) {
+  const { darkMode } = useDashboard();
+
   // Handle Escape key to close modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -41,7 +44,7 @@ export default function WelcomeModal({ onClose }: WelcomeModalProps) {
               id="welcome-logo-container"
             >
               <img
-                src={ponceLogo}
+                src={ponceLogoSrc(darkMode)}
                 alt="Ponce Logo"
                 className="img-logo"
                 onError={(e) => {

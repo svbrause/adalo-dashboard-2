@@ -9,7 +9,7 @@ import {
   DASHBOARD_OPEN_HELP_REQUEST_EVENT,
   type DashboardOpenHelpRequestDetail,
 } from "../../utils/dashboardHelpEvents";
-import ponceAILogo from "../../assets/images/Group611.png";
+import { ponceLogoSrc } from "../../utils/ponceBrand";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -21,7 +21,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse, mobileOpen = false, onMobileClose }: SidebarProps) {
-  const { provider, currentView, setCurrentView } = useDashboard();
+  const { provider, currentView, setCurrentView, darkMode } = useDashboard();
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpModalInitialMessage, setHelpModalInitialMessage] = useState("");
 
@@ -56,7 +56,11 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
     <aside className={`sidebar ${collapsed ? "sidebar--collapsed" : ""} ${mobileOpen ? "sidebar--mobile-open" : ""}`}>
       <div className="sidebar-header">
         <div className="logo">
-          <img src={ponceAILogo} alt="Ponce AI" className="logo-image" />
+          <img
+            src={ponceLogoSrc(darkMode)}
+            alt="Ponce AI"
+            className="logo-image"
+          />
         </div>
         {onToggleCollapse && (
           <button
