@@ -658,7 +658,7 @@ export default function FaceMirrorPanel({
   }, []);
 
   const viewportOverlayProps = {
-    showAutoRotate: mode === "3d" && has3D,
+    showAutoRotate: mode === "3d" && has3D && !useAuraScan,
     autoRotate: autoRotate3d,
     onToggleAutoRotate: toggleAutoRotate3d,
     showHighlightPicker: hasPhoto || has3D,

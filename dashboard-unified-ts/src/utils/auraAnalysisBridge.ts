@@ -12,9 +12,9 @@ export const AURA_OVERVIEW_TABS: {
   label: string;
   accent: string;
 }[] = [
-  { key: "skinHealth", label: "Skin Surface", accent: "#a7f36d" },
+  { key: "skinHealth", label: "Skin", accent: "#d4a06a" },
   { key: "volumeLoss", label: "Volume", accent: "#60a5fa" },
-  { key: "proportions", label: "Proportions", accent: "#c4b5fd" },
+  { key: "proportions", label: "Structure", accent: "#c4b5fd" },
 ];
 
 export function auraTabLabelForCategoryKey(key: string): string {

@@ -10,7 +10,7 @@
   --avf-text:        rgba(255 255 255 / 0.88);
   --avf-muted:       rgba(255 255 255 / 0.38);
   --avf-topbar-h:    52px;
-  --avf-leftnav-w:   56px;
+  --avf-leftnav-w:   64px;
   --avf-rightnav-w:  56px;
 }
 
@@ -36,7 +36,7 @@
 /* Embedded in client-detail 3D column */
 .avf-root--embedded {
   --avf-topbar-h: 44px;
-  --avf-leftnav-w: 56px;
+  --avf-leftnav-w: 60px;
   --avf-rightnav-w: 44px;
   border-radius: 0;
 }
@@ -44,17 +44,6 @@
 .avf-root--turntable-only.avf-root--embedded {
   height: 100%;
   min-height: 0;
-}
-
-.avf-angle-btn--3d .avf-angle-btn__3d-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1;
-}
-
-.avf-angle-btn--3d.avf-angle-btn--active .avf-angle-btn__3d-label {
-  color: #0a0a0a;
 }
 
 .avf-3d-frame--turntable-only {
@@ -182,11 +171,6 @@
   gap: 6px;
 }
 
-.avf-root--turntable-only.avf-root--embedded .avf-angle-btn--3d {
-  width: 48px;
-  height: 40px;
-}
-
 .avf-root--turntable-only .avf-tool-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
@@ -211,14 +195,20 @@
 }
 
 .avf-root--embedded .avf-angle-btn {
-  width: 48px;
+  width: 52px;
   height: 52px;
-  border-radius: 10px;
+  border-radius: 50%;
+}
+
+.avf-root--turntable-only.avf-root--embedded .avf-angle-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
 }
 
 .avf-root--embedded .avf-angle-icon {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
 }
 
 .avf-root--embedded .avf-tool-btn {
@@ -288,14 +278,21 @@
   line-height: 1;
 }
 
-.avf-pill:hover {
-  color: var(--avf-text);
+.avf-pill:hover:not(.avf-pill--active) {
+  color: rgba(255 255 255 / 0.9);
+  background: rgba(255 255 255 / 0.1);
 }
 
-.avf-pill--active {
-  background: #ffffff;
-  color: #0a0a0a;
+.avf-pill--active,
+.avf-pill--active:hover {
+  background: rgba(255 255 255 / 0.94);
+  color: #141414;
   font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(255 255 255 / 0.35);
+}
+
+.avf-pill--active:hover {
+  background: #ffffff;
 }
 
 /* Edit landmarks button — right-anchored */
@@ -334,8 +331,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
+  width: 54px;
+  height: 54px;
   aspect-ratio: 1;
   border: none;
   border-radius: 50%;
@@ -348,8 +345,8 @@
 }
 
 .avf-angle-icon {
-  width: 38px;
-  height: 38px;
+  width: 46px;
+  height: 46px;
   object-fit: contain;
   display: block;
   border-radius: 50%;
@@ -381,6 +378,28 @@
 .avf-angle-btn--active .avf-angle-icon {
   opacity: 1;
   filter: grayscale(1) brightness(1.85) drop-shadow(0 0 8px rgba(255 255 255 / 0.72));
+}
+
+.avf-angle-icon--3d {
+  width: 34px;
+  height: 34px;
+  opacity: 0.32;
+  filter: grayscale(1) brightness(1.05);
+}
+
+.avf-angle-btn:hover .avf-angle-icon--3d {
+  opacity: 0.52;
+  filter: grayscale(1) brightness(1.2);
+}
+
+.avf-angle-btn--active .avf-angle-icon--3d {
+  opacity: 0.78;
+  filter: grayscale(1) brightness(1.45);
+}
+
+.avf-root--embedded .avf-angle-icon--3d {
+  width: 30px;
+  height: 30px;
 }
 
 .avf-angle-icon--photo {
@@ -531,18 +550,37 @@
   stroke-opacity: 0.7;
 }
 
-.avf-diagnostic-overlay--brown-spots {
-  mix-blend-mode: multiply;
-  opacity: 0.86;
+/* UV / Brown-Spots mode — desaturate face so vivid spots pop against gray */
+.avf-3d-frame .face3d-display,
+.avf-3d-frame .face3d-frame-cache-layer,
+.avf-3d-frame .avf-angle-photo-layer img,
+.avf-3d-frame .avf-static-photo__img,
+.avf-3d-frame .ai-mirror-canvas,
+.avf-3d-frame .ai-mirror-fallback-img {
+  transition: filter 0.32s ease;
 }
 
-.avf-diagnostic-overlay--pores {
-  mix-blend-mode: screen;
+.avf-3d-frame--uv .face3d-display,
+.avf-3d-frame--uv .face3d-frame-cache-layer,
+.avf-3d-frame--uv .avf-angle-photo-layer img,
+.avf-3d-frame--uv .avf-static-photo__img,
+.avf-3d-frame--uv .ai-mirror-canvas,
+.avf-3d-frame--uv .ai-mirror-fallback-img {
+  filter: grayscale(0.9) contrast(1.18) brightness(1.06);
 }
 
-.avf-diagnostic-overlay--wrinkles {
+.avf-diagnostic-overlay--structure {
   mix-blend-mode: screen;
   opacity: 0.88;
+}
+
+.avf-diagnostic-overlay--volume {
+  mix-blend-mode: screen;
+}
+
+.avf-diagnostic-overlay--skin {
+  mix-blend-mode: normal;
+  opacity: 0.95;
 }
 
 .avf-face-img {
@@ -668,6 +706,44 @@
   border-radius: 2px;
   opacity: 0.75;
   transition: width 0.3s ease;
+}
+
+/* ── No-issues badge ──────────────────────────────────────────────────────── */
+
+.avf-no-issues {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px 7px 10px;
+  background: rgba(20, 20, 20, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255 255 255 / 0.10);
+  border-radius: 20px;
+  color: rgba(255 255 255 / 0.82);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  animation: avf-no-issues-in 0.22s ease both;
+}
+
+@keyframes avf-no-issues-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.avf-no-issues__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #6ee396;
 }
 
 /* ── Subject toggle (bottom-center of viewport) ───────────────────────────── */

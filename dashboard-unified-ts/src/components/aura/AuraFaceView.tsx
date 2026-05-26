@@ -6,6 +6,7 @@ import aura45LeftIcon from "../../assets/images/aura-45degrees-left.png";
 import auraFrontIcon from "../../assets/images/aura-facing-ahead.png";
 import aura45RightIcon from "../../assets/images/aura-45degrees-right.png";
 import aura90RightIcon from "../../assets/images/aura-90degrees-right.png";
+import aura3dTurntableIcon from "../../assets/images/aura-3d-turntable.svg";
 import {
   TANYA_TAN_LEFT_NAV_ORDER,
   TANYA_TAN_STUDIO_ANGLE_ASSETS,
@@ -19,15 +20,13 @@ import { useMirrorViewportZoom } from "../../hooks/useMirrorViewportZoom";
 import { AiMirrorCanvas, hasMirrorAnnotationHighlights } from "../postVisitBlueprint/AiMirrorCanvas";
 import "./AuraFaceView.css";
 
-type AnalysisTab = "wrinkles" | "volume" | "red-areas" | "brown-spots" | "pores";
+type AnalysisTab = "skin" | "volume" | "structure";
 type ViewAngle = "profile-left" | "three-quarter-left" | "front" | "three-quarter-right" | "profile-right";
 
 const ANALYSIS_TABS: { id: AnalysisTab; label: string }[] = [
-  { id: "wrinkles", label: "Wrinkles" },
+  { id: "skin", label: "Skin" },
   { id: "volume", label: "Volume" },
-  { id: "red-areas", label: "Red Areas" },
-  { id: "brown-spots", label: "Brown Spots" },
-  { id: "pores", label: "Pores" },
+  { id: "structure", label: "Structure" },
 ];
 
 const ANGLE_CONTROLS: { id: ViewAngle; label: string; timeRatio: number }[] = [
@@ -55,36 +54,47 @@ const ANGLE_ICON_SRC: Record<ViewAngle, string> = {
   "profile-right": aura90RightIcon,
 };
 
+const TAB_NO_ISSUES: Partial<Record<AnalysisTab, string>> = {
+  volume: "No volume loss detected",
+  structure: "No significant structural changes detected",
+};
+
 const TAB_COLORS: Record<AnalysisTab, string> = {
-  wrinkles: "#a7f36d",
+  skin: "#ff5535",
   volume: "#60a5fa",
-  "red-areas": "#ff6b6b",
-  "brown-spots": "#d4a06a",
-  pores: "#a78bfa",
+  structure: "#a7f36d",
 };
 
 const RADAR_DATA: { label: string; value: number }[] = [
   { label: "Texture", value: 1.3 },
-  { label: "Wrinkles", value: 1.2 },
-  { label: "Brown Spots", value: 1.9 },
-  { label: "Red Areas", value: 1.7 },
-  { label: "Pores", value: 1.7 },
+  { label: "Volume", value: 1.4 },
+  { label: "Structure", value: 1.2 },
+  { label: "Tone", value: 1.7 },
+  { label: "Pores", value: 1.5 },
 ];
 
 const TAB_SCORES: Record<AnalysisTab, { label: string; val: number }[]> = {
-  wrinkles: [{ label: "Forehead", val: 72 }, { label: "Periocular", val: 58 }, { label: "Lower face", val: 44 }],
-  volume: [{ label: "Midface", val: 61 }, { label: "Temples", val: 49 }, { label: "Jawline", val: 38 }],
-  "red-areas": [{ label: "Nose", val: 65 }, { label: "Perioral", val: 24 }, { label: "Forehead", val: 15 }],
-  "brown-spots": [{ label: "Periocular", val: 100 }, { label: "Dark circles", val: 67 }],
-  pores: [{ label: "T-zone", val: 74 }, { label: "Cheeks", val: 52 }, { label: "Chin", val: 47 }],
+  skin: [
+    { label: "Tone", val: 65 },
+    { label: "Texture", val: 52 },
+    { label: "Pores", val: 47 },
+  ],
+  volume: [
+    { label: "Midface", val: 61 },
+    { label: "Temples", val: 49 },
+    { label: "Jawline", val: 38 },
+  ],
+  structure: [
+    { label: "Forehead", val: 72 },
+    { label: "Periocular", val: 58 },
+    { label: "Lower face", val: 44 },
+  ],
 };
 
 const MINIMAP_REGION_IDS: Record<AnalysisTab, string[]> = {
-  wrinkles: ["rForehead", "rLeftEye", "rRightEye"],
+  skin: ["rNose", "rLeftCheek", "rRightCheek", "rChin"],
   volume: ["rLeftCheek", "rRightCheek", "rLowerFace"],
-  "red-areas": ["rNose", "rLeftCheek", "rRightCheek"],
-  "brown-spots": ["rForehead", "rLeftCheek", "rRightCheek"],
-  pores: ["rNose", "rLeftCheek", "rRightCheek", "rChin"],
+  structure: ["rForehead", "rLeftEye", "rRightEye"],
 };
 
 type DarkSpot = { cx: number; cy: number; rx: number; ry: number; intensity: number };
@@ -130,16 +140,17 @@ const AURA_CV_ANNOTATIONS: {
     "M 40.25 64.85 Q 49.5 61.9 59.55 64.8 Q 55.55 69.4 44.3 69.2 Z",
   ],
   darkSpots: [
-    { cx: 38.9, cy: 56.6, rx: 0.52, ry: 0.52, intensity: 0.62 },
-    { cx: 41.8, cy: 58.2, rx: 0.44, ry: 0.44, intensity: 0.5 },
-    { cx: 44.6, cy: 63.2, rx: 0.38, ry: 0.38, intensity: 0.42 },
-    { cx: 56.8, cy: 56.1, rx: 0.48, ry: 0.48, intensity: 0.56 },
-    { cx: 60.8, cy: 57.8, rx: 0.54, ry: 0.54, intensity: 0.6 },
-    { cx: 57.8, cy: 64.4, rx: 0.38, ry: 0.38, intensity: 0.4 },
-    { cx: 47.4, cy: 35.7, rx: 0.34, ry: 0.34, intensity: 0.32 },
-    { cx: 53.1, cy: 35.6, rx: 0.34, ry: 0.34, intensity: 0.34 },
-    { cx: 48.4, cy: 70.8, rx: 0.36, ry: 0.36, intensity: 0.35 },
-    { cx: 52.2, cy: 70.2, rx: 0.34, ry: 0.34, intensity: 0.36 },
+    // Person's LEFT cheek (right side of image, cx > 50%) — more affected side
+    { cx: 63.5, cy: 50.0, rx: 0.65, ry: 0.65, intensity: 0.68 },
+    { cx: 65.8, cy: 52.0, rx: 0.62, ry: 0.62, intensity: 0.72 },
+    { cx: 61.0, cy: 53.5, rx: 0.68, ry: 0.68, intensity: 0.70 },
+    { cx: 64.5, cy: 55.5, rx: 0.75, ry: 0.75, intensity: 0.75 },
+    { cx: 67.5, cy: 54.0, rx: 0.55, ry: 0.55, intensity: 0.65 },
+    { cx: 62.0, cy: 58.0, rx: 0.62, ry: 0.62, intensity: 0.68 },
+    // Person's RIGHT cheek (left side of image, cx < 50%)
+    { cx: 38.5, cy: 51.0, rx: 0.62, ry: 0.62, intensity: 0.62 },
+    { cx: 36.0, cy: 54.0, rx: 0.55, ry: 0.55, intensity: 0.58 },
+    { cx: 39.5, cy: 57.0, rx: 0.58, ry: 0.58, intensity: 0.60 },
   ],
   pores: [
     { cx: 47.5, cy: 43.9, r: 0.28 },
@@ -323,7 +334,7 @@ function AuraAnglePhotoLayer({
   turntableRatio: number;
   photoTransition: PhotoTransition | null;
 }) {
-  const useWrinklePlate = activeTab === "wrinkles" && showAnnotations;
+  const useWrinklePlate = activeTab === "structure" && showAnnotations;
 
   return (
     <div className="avf-angle-photo-layer" aria-hidden>
@@ -377,7 +388,8 @@ function AuraAnnotationOverlay({
   const color = TAB_COLORS[activeTab];
   const displayAngle = fixedAngle ?? displayAngleFromRatio(turntableRatio);
   const side = displayAngle === "profile-left" || displayAngle === "three-quarter-left" ? "left" : "right";
-  const isVisibleForAngle = (x: number) => displayAngle === "front" || (side === "left" ? x <= 53 : x >= 47);
+  const isVisibleForAngle = (x: number) =>
+    displayAngle === "front" || (side === "left" ? x <= 53 : x >= 47);
 
   return (
     <svg
@@ -396,12 +408,12 @@ function AuraAnnotationOverlay({
           </feMerge>
         </filter>
         <radialGradient id="avf_diag_spot">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="0.72" />
-          <stop offset="72%" stopColor="currentColor" stopOpacity="0.18" />
+          <stop offset="0%" stopColor="currentColor" stopOpacity="1" />
+          <stop offset="45%" stopColor="currentColor" stopOpacity="0.62" />
           <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </radialGradient>
       </defs>
-      {activeTab === "wrinkles" && includeWrinkles ? (
+      {activeTab === "structure" && includeWrinkles ? (
         <g transform={angleOverlayTransform(displayAngle)} filter="url(#avf_diag_glow)">
           <g className="avf-diagnostic-overlay__wrinkles">
             {AURA_CV_ANNOTATIONS.wrinkles.map((d, index) => (
@@ -410,46 +422,47 @@ function AuraAnnotationOverlay({
           </g>
         </g>
       ) : null}
-      {activeTab !== "wrinkles" ? (
+      {activeTab === "volume" ? (
         <g transform={angleOverlayTransform(displayAngle)} filter="url(#avf_diag_glow)">
-          {activeTab === "volume" ? (
-            <g className="avf-diagnostic-overlay__volume">
-              {AURA_CV_ANNOTATIONS.volume.map((d, index) => (
-                <path key={index} d={d} />
-              ))}
-            </g>
-          ) : null}
-
-          {activeTab === "red-areas" ? (
-            <g className="avf-diagnostic-overlay__areas">
-              {AURA_CV_ANNOTATIONS.redAreas.map((d, index) => (
-                <path key={index} d={d} />
-              ))}
-            </g>
-          ) : null}
-
-          {activeTab === "brown-spots" ? (
-            <g className="avf-diagnostic-overlay__spots">
-              {AURA_CV_ANNOTATIONS.darkSpots.map((spot, index) => (
-                isVisibleForAngle(spot.cx) ? (
-                  <ellipse key={index} cx={spot.cx} cy={spot.cy} rx={spot.rx * 2.6} ry={spot.ry * 2.6} fill="url(#avf_diag_spot)" opacity={spot.intensity} />
-                ) : null
-              ))}
-            </g>
-          ) : null}
-
-          {activeTab === "pores" ? (
-            <g className="avf-diagnostic-overlay__pores">
-              {AURA_CV_ANNOTATIONS.pores.map((pore, index) => (
-                isVisibleForAngle(pore.cx) ? (
-                  <circle key={index} cx={pore.cx} cy={pore.cy} r={pore.r} />
-                ) : null
-              ))}
-            </g>
-          ) : null}
+          <g className="avf-diagnostic-overlay__volume">
+            {AURA_CV_ANNOTATIONS.volume.map((d, index) => (
+              <path key={index} d={d} />
+            ))}
+          </g>
+        </g>
+      ) : null}
+      {activeTab === "skin" ? (
+        <g transform={angleOverlayTransform(displayAngle)}>
+          <g className="avf-diagnostic-overlay__spots">
+            {AURA_CV_ANNOTATIONS.darkSpots.map((spot, index) =>
+              isVisibleForAngle(spot.cx) ? (
+                <ellipse
+                  key={index}
+                  cx={spot.cx}
+                  cy={spot.cy}
+                  rx={spot.rx * 4.5}
+                  ry={spot.ry * 4.5}
+                  fill="url(#avf_diag_spot)"
+                  opacity={spot.intensity}
+                />
+              ) : null,
+            )}
+          </g>
         </g>
       ) : null}
     </svg>
+  );
+}
+
+function NoIssuesMessage({ message }: { message: string }) {
+  return (
+    <div className="avf-no-issues" aria-live="polite">
+      <svg className="avf-no-issues__icon" viewBox="0 0 20 20" fill="none" aria-hidden>
+        <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M6.5 10.2l2.3 2.3 4.7-4.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span>{message}</span>
+    </div>
   );
 }
 
@@ -528,9 +541,9 @@ function RadarChart() {
   );
 }
 
-function MinimapPanel({ activeTab }: { activeTab: AnalysisTab }) {
+function MinimapPanel({ activeTab, suppressed = false }: { activeTab: AnalysisTab; suppressed?: boolean }) {
   const color = TAB_COLORS[activeTab];
-  const scores = TAB_SCORES[activeTab];
+  const scores = suppressed ? [] : TAB_SCORES[activeTab];
 
   return (
     <div className="avf-minimap">
@@ -540,7 +553,7 @@ function MinimapPanel({ activeTab }: { activeTab: AnalysisTab }) {
       <div className="avf-minimap-face">
         <svg viewBox="0 0 60 72" fill="none" aria-hidden>
           <path d="M30 5C20 5 13 11 13 20v26c0 11 8 21 17 21s17-10 17-21V20C47 11 40 5 30 5Z" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.18)" strokeWidth="0.7" />
-          {MINIMAP_REGION_IDS[activeTab].map((id) => {
+          {(!suppressed ? MINIMAP_REGION_IDS[activeTab] : []).map((id) => {
             const zones: Record<string, { cx: number; cy: number; rx: number; ry: number }> = {
               rForehead: { cx: 30, cy: 18, rx: 12, ry: 4 },
               rLeftEye: { cx: 22, cy: 29, rx: 5, ry: 3 },
@@ -607,15 +620,13 @@ export default function AuraFaceView({
     highlightTerms,
     highlightedRegionIds,
   );
-  const [activeTab, setActiveTab] = useState<AnalysisTab>("wrinkles");
+  const [activeTab, setActiveTab] = useState<AnalysisTab>("skin");
   const [viewAngle, setViewAngle] = useState<ViewAngle>("front");
   const [faceSource, setFaceSource] = useState<FaceSource>(
     turntableOnly ? "turntable" : "front",
   );
   const [radarMode, setRadarMode] = useState(showRadar);
-  const [showAnnotations, setShowAnnotations] = useState(
-    turntableOnly ? false : !embedded,
-  );
+  const [showAnnotations, setShowAnnotations] = useState(true);
   const [autoRotate, setAutoRotate] = useState(turntableOnly);
   const [blendRatio, setBlendRatio] = useState(0.5);
   const [photoTransition, setPhotoTransition] = useState<PhotoTransition | null>(null);
@@ -631,7 +642,9 @@ export default function AuraFaceView({
   const activeTimeRatio = turntableOnly
     ? tanAssetsForView(activePhotoAngle, true, viewerAngleAssets).timeRatio
     : activeAngleMeta.timeRatio;
-  const usePhotoNavThumbs = turntableOnly;
+  const noIssuesMessage = TAB_NO_ISSUES[activeTab] ?? null;
+  const annotationsActive = showAnnotations && !noIssuesMessage;
+  const uvMode = activeTab === "skin" && annotationsActive;
 
   const selectTurntable = useCallback(() => {
     setFaceSource("turntable");
@@ -750,7 +763,12 @@ export default function AuraFaceView({
             aria-label="3D turntable"
             title="3D turntable"
           >
-            <span className="avf-angle-btn__3d-label">3D</span>
+            <img
+              src={aura3dTurntableIcon}
+              alt=""
+              className="avf-angle-icon avf-angle-icon--3d"
+              draggable={false}
+            />
           </button>
         ) : null}
         {(turntableOnly ? LEFT_NAV_ANGLE_ORDER : ANGLE_CONTROLS.map((a) => a.id)).map((angleId) => {
@@ -776,13 +794,9 @@ export default function AuraFaceView({
               title={viewerAngleAssets[angleId]?.label ?? meta.label}
             >
               <img
-                src={
-                  usePhotoNavThumbs
-                    ? viewerAngleAssets[angleId].src
-                    : (turntableOnly ? VIEWER_ANGLE_ICON_SRC : ANGLE_ICON_SRC)[angleId]
-                }
+                src={(turntableOnly ? VIEWER_ANGLE_ICON_SRC : ANGLE_ICON_SRC)[angleId]}
                 alt=""
-                className={`avf-angle-icon${usePhotoNavThumbs ? " avf-angle-icon--photo" : ""}`}
+                className="avf-angle-icon"
                 draggable={false}
               />
             </button>
@@ -799,7 +813,11 @@ export default function AuraFaceView({
           <>
             <div className="avf-3d-stage">
               <div
-                className={`avf-3d-frame${turntableOnly ? " avf-3d-frame--turntable-only" : ""}`}
+                className={[
+                  "avf-3d-frame",
+                  turntableOnly ? "avf-3d-frame--turntable-only" : "",
+                  uvMode ? "avf-3d-frame--uv" : "",
+                ].filter(Boolean).join(" ")}
               >
                 {isTurntableView ? (
                   <Face3DViewer
@@ -822,7 +840,7 @@ export default function AuraFaceView({
                         {!turntableOnly ? (
                           <AuraAnglePhotoLayer
                             activeTab={activeTab}
-                            showAnnotations={showAnnotations}
+                            showAnnotations={annotationsActive}
                             turntableRatio={blendRatio}
                             photoTransition={photoTransition}
                           />
@@ -831,8 +849,8 @@ export default function AuraFaceView({
                           activeTab={activeTab}
                           turntableRatio={blendRatio}
                           visible={
-                            showAnnotations &&
-                            (turntableOnly || (activeTab !== "wrinkles" && !autoRotate))
+                            annotationsActive &&
+                            (turntableOnly || (activeTab !== "structure" && !autoRotate))
                           }
                           includeWrinkles={turntableOnly}
                         />
@@ -844,7 +862,7 @@ export default function AuraFaceView({
                     key={faceSource}
                     angle={faceSource}
                     activeTab={activeTab}
-                    showAuraDiagnostics={showAnnotations}
+                    showAuraDiagnostics={annotationsActive}
                     showMirrorAnnotations={showMirrorAnnotations}
                     highlightTerms={highlightTerms}
                     highlightedRegionIds={highlightedRegionIds}
@@ -853,7 +871,8 @@ export default function AuraFaceView({
                 )}
               </div>
             </div>
-            <MinimapPanel activeTab={activeTab} />
+            {noIssuesMessage ? <NoIssuesMessage message={noIssuesMessage} /> : null}
+            <MinimapPanel activeTab={activeTab} suppressed={!!noIssuesMessage} />
             {!embedded ? (
               <>
                 <div className="avf-subject-toggle">
