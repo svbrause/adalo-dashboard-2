@@ -18,6 +18,7 @@ import {
   parsePostVisitBlueprintPayload,
   parsePostVisitBlueprintTokenFromUrl,
   resolveHeroPhotoDisplayUrl,
+  resolveBlueprintTurntableVideoUrl,
   trackPostVisitBlueprintEvent,
   filterDiscussedItemsForPostVisitBlueprint,
   isPlanQuoteCoreDiscussedItem,
@@ -37,7 +38,7 @@ import {
 import { isJudgeMdProviderCode } from "../../data/judgeMdPricing2026";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { buildWellnestBlueprintCasePhotos } from "../../utils/wellnestBlueprintCases";
-import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
+import PvbHeroMedia from "../postVisitBlueprint/PvbHeroMedia";
 import { PvbNarrativeAudioControls } from "../postVisitBlueprint/PvbNarrativeAudioControls";
 import { PvbOverviewSectionsSequentialTypewriter } from "../postVisitBlueprint/PvbTypewriterParagraphs";
 import { TreatmentChapterView } from "../postVisitBlueprint/TreatmentChapter";
@@ -1172,6 +1173,11 @@ export default function PostVisitBlueprintPage() {
 
   const heroPills = visibleHotspots.slice(0, 8);
 
+  const heroTurntableVideoUrl = useMemo(
+    () => resolveBlueprintTurntableVideoUrl(blueprint.patient),
+    [blueprint.patient],
+  );
+
   const lineItems = blueprint.quote.lineItems;
   const { skincare: skincareQuoteIdxs, treatment: treatmentQuoteIdxs } =
     quotePartition;
@@ -1239,16 +1245,12 @@ export default function PostVisitBlueprintPage() {
 
         {/* ═══ 1. HERO: Mirror + Welcome ═══ */}
         <section className="pvb-hero">
-          {heroPhotoUrl ? (
-            <div className="pvb-hero-mirror">
-              <AiMirrorCanvas
-                imageUrl={heroPhotoUrl}
-                alt="Your facial analysis"
-                showAnnotations={false}
-              />
-              <div className="pvb-hero-gradient" />
-            </div>
-          ) : null}
+          <PvbHeroMedia
+            turntableVideoUrl={heroTurntableVideoUrl}
+            heroPhotoUrl={heroPhotoUrl}
+            recommenderFocusRegions={blueprint.recommenderFocusRegions}
+            patientFirstName={patientFirst}
+          />
 
           <div className="pvb-hero-welcome">
             <h1 className="pvb-hero-title">Hi {patientFirst}</h1>

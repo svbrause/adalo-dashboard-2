@@ -19,7 +19,7 @@
 .form-label {
   font-size: 13px;
   font-weight: 600;
-  color: #666;
+  color: var(--color-text-label);
   margin-bottom: 8px;
   display: block;
 }
@@ -50,7 +50,7 @@
 }
 
 .character-count-normal {
-  color: #666;
+  color: var(--theme-text-muted);
 }
 
 .character-count-warning {

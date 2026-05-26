@@ -1,0 +1,860 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   AuraFaceView — replication of Aura Reality's annotated face interface
+   Pure black, pill nav, face-angle selectors, green annotation paths.
+───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --avf-bg:          #000;
+  --avf-surface:     rgba(255 255 255 / 0.05);
+  --avf-border:      rgba(255 255 255 / 0.07);
+  --avf-text:        rgba(255 255 255 / 0.88);
+  --avf-muted:       rgba(255 255 255 / 0.38);
+  --avf-topbar-h:    52px;
+  --avf-leftnav-w:   56px;
+  --avf-rightnav-w:  56px;
+}
+
+/* ── Root ──────────────────────────────────────────────────────────────────── */
+
+.avf-root {
+  display: grid;
+  grid-template-rows: var(--avf-topbar-h) 1fr;
+  grid-template-columns: var(--avf-leftnav-w) 1fr var(--avf-rightnav-w);
+  grid-template-areas:
+    "topbar  topbar   topbar"
+    "leftnav viewport rightnav";
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--avf-bg);
+  color: var(--avf-text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Embedded in client-detail 3D column */
+.avf-root--embedded {
+  --avf-topbar-h: 44px;
+  --avf-leftnav-w: 56px;
+  --avf-rightnav-w: 44px;
+  border-radius: 0;
+}
+
+.avf-root--turntable-only.avf-root--embedded {
+  height: 100%;
+  min-height: 0;
+}
+
+.avf-angle-btn--3d .avf-angle-btn__3d-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.avf-angle-btn--3d.avf-angle-btn--active .avf-angle-btn__3d-label {
+  color: #0a0a0a;
+}
+
+.avf-3d-frame--turntable-only {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  min-height: 0;
+}
+
+.avf-static-photo,
+.avf-zoom-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  background: #000;
+  overflow: hidden;
+  touch-action: none;
+  cursor: default;
+}
+
+.avf-zoom-viewport[style*="title"] {
+  cursor: zoom-in;
+}
+
+/* Same zoom/pan as Face3DViewer so stills match the live turntable. */
+.avf-static-photo__zoom {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.avf-photo-align {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+}
+
+.avf-static-photo__img,
+.avf-photo-align > img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  z-index: 0;
+}
+
+.avf-static-photo .ai-mirror-canvas-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  border-radius: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avf-static-photo .ai-mirror-canvas,
+.avf-static-photo .ai-mirror-fallback-img {
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.avf-zoom-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 4;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255 255 255 / 0.75);
+  background: rgba(0 0 0 / 0.55);
+  pointer-events: none;
+}
+
+.avf-angle-photo-layer__plate {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.avf-angle-photo-layer__plate .avf-photo-align {
+  width: 100%;
+  height: 100%;
+}
+
+.avf-angle-photo-layer__plate img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.avf-static-photo__zoom .avf-diagnostic-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.avf-root--turntable-only .avf-leftnav {
+  justify-content: flex-start;
+  padding-top: 12px;
+  gap: 6px;
+}
+
+.avf-root--turntable-only.avf-root--embedded .avf-angle-btn--3d {
+  width: 48px;
+  height: 40px;
+}
+
+.avf-root--turntable-only .avf-tool-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.avf-root--embedded .avf-pills {
+  padding: 3px;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.avf-root--embedded .avf-pill {
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.avf-root--embedded .avf-minimap {
+  bottom: 12px;
+  left: 10px;
+  width: 96px;
+  padding: 8px;
+}
+
+.avf-root--embedded .avf-angle-btn {
+  width: 48px;
+  height: 52px;
+  border-radius: 10px;
+}
+
+.avf-root--embedded .avf-angle-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.avf-root--embedded .avf-tool-btn {
+  width: 32px;
+  height: 32px;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────────── */
+
+.avf-topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  gap: 10px;
+  position: relative;
+  z-index: 10;
+}
+
+/* Gear / settings button — left-anchored */
+.avf-gear-btn {
+  position: absolute;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--avf-border);
+  border-radius: 50%;
+  background: var(--avf-surface);
+  color: var(--avf-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.avf-gear-btn:hover,
+.avf-gear-btn--active {
+  color: var(--avf-text);
+  border-color: rgba(255 255 255 / 0.2);
+  background: rgba(255 255 255 / 0.08);
+}
+
+/* Pill navigation */
+.avf-pills {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255 255 255 / 0.06);
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.avf-pill {
+  background: none;
+  border: none;
+  color: var(--avf-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.avf-pill:hover {
+  color: var(--avf-text);
+}
+
+.avf-pill--active {
+  background: #ffffff;
+  color: #0a0a0a;
+  font-weight: 600;
+}
+
+/* Edit landmarks button — right-anchored */
+.avf-edit-btn {
+  position: absolute;
+  right: 16px;
+  background: rgba(255 255 255 / 0.08);
+  border: 1px solid rgba(255 255 255 / 0.12);
+  border-radius: 20px;
+  color: var(--avf-text);
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.avf-edit-btn:hover {
+  background: rgba(255 255 255 / 0.13);
+}
+
+/* ── Left nav — face angle selectors ──────────────────────────────────────── */
+
+.avf-leftnav {
+  grid-area: leftnav;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 0;
+}
+
+.avf-angle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--avf-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
+  padding: 2px;
+  position: relative;
+}
+
+.avf-angle-icon {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  display: block;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  opacity: 0.46;
+  filter: grayscale(1) brightness(1.15);
+  transition: opacity 0.15s, filter 0.15s, transform 0.15s;
+}
+
+.avf-angle-btn:hover {
+  color: rgba(255 255 255 / 0.78);
+  background: rgba(255 255 255 / 0.06);
+  transform: translateX(1px);
+}
+
+.avf-angle-btn--active {
+  color: #ffffff;
+  background: radial-gradient(circle at 50% 50%, rgba(255 255 255 / 0.22), rgba(255 255 255 / 0.09) 42%, rgba(255 255 255 / 0.02) 67%, transparent 74%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255 255 255 / 0.18),
+    0 0 22px rgba(255 255 255 / 0.22);
+}
+
+.avf-angle-btn:hover .avf-angle-icon {
+  opacity: 0.72;
+  filter: grayscale(1) brightness(1.45);
+}
+
+.avf-angle-btn--active .avf-angle-icon {
+  opacity: 1;
+  filter: grayscale(1) brightness(1.85) drop-shadow(0 0 8px rgba(255 255 255 / 0.72));
+}
+
+.avf-angle-icon--photo {
+  width: 40px;
+  height: 50px;
+  border-radius: 8px;
+  object-fit: cover;
+  object-position: center 20%;
+  mix-blend-mode: normal;
+  opacity: 0.78;
+  filter: none;
+  background: #111;
+}
+
+.avf-angle-btn:hover .avf-angle-icon--photo {
+  opacity: 0.92;
+  filter: none;
+}
+
+.avf-angle-btn--active .avf-angle-icon--photo {
+  opacity: 1;
+  filter: none;
+  box-shadow: 0 0 0 1px rgba(255 255 255 / 0.4);
+}
+
+.avf-root--embedded .avf-angle-icon--photo {
+  width: 42px;
+  height: 52px;
+  border-radius: 8px;
+}
+
+/* ── Viewport ──────────────────────────────────────────────────────────────── */
+
+.avf-viewport {
+  grid-area: viewport;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.avf-3d-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 0;
+}
+
+.avf-3d-frame {
+  position: relative;
+  width: min(100%, calc(100dvh * 1.18));
+  max-width: 100%;
+}
+
+.avf-3d-stage .face3d-wrap {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  justify-content: center;
+}
+
+.avf-3d-stage .face3d-viewer {
+  width: 100%;
+  max-width: none;
+  background: #000;
+  border: 0;
+}
+
+.avf-3d-stage .face3d-display,
+.avf-3d-stage .face3d-frame-cache-layer {
+  object-fit: contain;
+}
+
+.avf-angle-photo-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.avf-angle-photo-layer img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.avf-diagnostic-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.92;
+}
+
+.avf-diagnostic-overlay__strokes path,
+.avf-diagnostic-overlay__strokes polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 0.22;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.avf-diagnostic-overlay__volume path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 0.55;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.avf-diagnostic-overlay__volume path:first-child,
+.avf-diagnostic-overlay__volume path:nth-child(2),
+.avf-diagnostic-overlay__areas path {
+  fill: currentColor;
+  fill-opacity: 0.24;
+  stroke: currentColor;
+  stroke-width: 0.28;
+  stroke-opacity: 0.62;
+  stroke-linejoin: round;
+}
+
+.avf-diagnostic-overlay__volume path:last-child {
+  stroke-width: 0.72;
+  opacity: 0.82;
+}
+
+.avf-diagnostic-overlay__pores circle {
+  fill: currentColor;
+  fill-opacity: 0.6;
+  stroke: currentColor;
+  stroke-width: 0.08;
+  stroke-opacity: 0.7;
+}
+
+.avf-diagnostic-overlay--brown-spots {
+  mix-blend-mode: multiply;
+  opacity: 0.86;
+}
+
+.avf-diagnostic-overlay--pores {
+  mix-blend-mode: screen;
+}
+
+.avf-diagnostic-overlay--wrinkles {
+  mix-blend-mode: screen;
+  opacity: 0.88;
+}
+
+.avf-face-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 15%;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: contrast(1.06) brightness(0.9) saturate(0.82);
+}
+
+/* Edge vignette */
+.avf-viewport::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 70% 80% at 50% 45%,
+    transparent 50%,
+    rgba(0 0 0 / 0.65) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.avf-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.2s;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 2px rgba(255 255 255 / 0.12));
+}
+
+/* ── Minimap panel (bottom left) ──────────────────────────────────────────── */
+
+.avf-minimap {
+  position: absolute;
+  bottom: 24px;
+  left: 16px;
+  width: 110px;
+  background: rgba(14 14 14 / 0.92);
+  border: 1px solid rgba(255 255 255 / 0.1);
+  border-radius: 12px;
+  padding: 10px 10px 10px;
+  z-index: 3;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.avf-minimap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.avf-minimap-title {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--avf-muted);
+}
+
+.avf-minimap-stars {
+  font-size: 8px;
+  color: rgba(255 200 50 / 0.7);
+  letter-spacing: -1px;
+}
+
+.avf-minimap-face {
+  width: 100%;
+}
+
+.avf-minimap-face svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.avf-minimap-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.avf-minimap-score-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.avf-minimap-score-label {
+  font-size: 8px;
+  color: var(--avf-muted);
+  flex-shrink: 0;
+  width: 46px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avf-minimap-score-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255 255 255 / 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.avf-minimap-score-fill {
+  height: 100%;
+  border-radius: 2px;
+  opacity: 0.75;
+  transition: width 0.3s ease;
+}
+
+/* ── Subject toggle (bottom-center of viewport) ───────────────────────────── */
+
+.avf-subject-toggle {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 3;
+  background: rgba(0 0 0 / 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255 255 255 / 0.1);
+  border-radius: 999px;
+  padding: 5px 8px;
+}
+
+.avf-subject-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255 255 255 / 0.18);
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+  flex-shrink: 0;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.avf-subject-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+  display: block;
+}
+
+.avf-subject-btn span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: rgba(255 255 255 / 0.88);
+  background: linear-gradient(145deg, rgba(255 255 255 / 0.18), rgba(255 255 255 / 0.06));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.avf-subject-btn:hover {
+  border-color: rgba(255 255 255 / 0.5);
+  transform: scale(1.08);
+}
+
+.avf-subject-btn--active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255 255 255 / 0.25);
+}
+
+/* ── Wordmark ──────────────────────────────────────────────────────────────── */
+
+.avf-wordmark {
+  position: absolute;
+  bottom: 18px;
+  right: 14px;
+  font-size: 13px;
+  font-weight: 300;
+  font-style: italic;
+  letter-spacing: 0.12em;
+  color: rgba(255 255 255 / 0.25);
+  z-index: 3;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ── Radar chart view ──────────────────────────────────────────────────────── */
+
+.avf-radar-wrap {
+  width: min(520px, 90%);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.avf-radar-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Right nav — circular tool buttons ────────────────────────────────────── */
+
+.avf-rightnav {
+  grid-area: rightnav;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 0;
+}
+
+.avf-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255 255 255 / 0.09);
+  border-radius: 50%;
+  background: rgba(255 255 255 / 0.05);
+  color: var(--avf-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.avf-tool-btn:hover {
+  color: var(--avf-text);
+  background: rgba(255 255 255 / 0.1);
+  border-color: rgba(255 255 255 / 0.18);
+}
+
+.avf-tool-btn--active {
+  color: var(--avf-text);
+  background: rgba(255 255 255 / 0.12);
+  border-color: rgba(255 255 255 / 0.3);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Responsive
+───────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .avf-edit-btn  { display: none; }
+  .avf-pill      { padding: 5px 10px; font-size: 11.5px; }
+}
+
+@media (max-width: 540px) {
+  :root {
+    --avf-leftnav-w: 0px;
+    --avf-rightnav-w: 0px;
+    --avf-topbar-h: 48px;
+  }
+
+  .avf-root {
+    grid-template-rows: var(--avf-topbar-h) 1fr 52px;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "topbar"
+      "viewport"
+      "leftnav";
+  }
+
+  .avf-leftnav {
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 0 12px;
+    border-top: 1px solid var(--avf-border);
+    height: 52px;
+    width: 100%;
+  }
+
+  .avf-rightnav { display: none; }
+
+  .avf-angle-btn {
+    width: 42px;
+    height: 46px;
+  }
+
+  .avf-3d-frame {
+    width: min(100%, calc(100dvh * 0.92));
+  }
+
+  .avf-pills {
+    gap: 2px;
+    padding: 3px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .avf-pills::-webkit-scrollbar { display: none; }
+
+  .avf-gear-btn { left: 10px; }
+}

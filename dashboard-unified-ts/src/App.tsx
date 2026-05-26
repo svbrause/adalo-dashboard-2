@@ -24,7 +24,13 @@ import { isPostVisitBlueprintPath } from "./utils/postVisitBlueprint";
 import FirebaseAdminPage from "./components/pages/FirebaseAdminPage";
 import StaffForgotPasswordPage from "./components/auth/StaffForgotPasswordPage";
 import AuthActionPage from "./components/auth/AuthActionPage";
+import AuraPage from "./components/aura/AuraPage";
 import "./styles/index.css";
+
+function isAuraPath(): boolean {
+  const path = window.location.pathname.replace(/\/$/, "") || "/";
+  return path === "/aura" || path === "/aura/face";
+}
 
 /** Detect debug route from pathname or ?debug= (no provider required). */
 function getDebugRoute():
@@ -142,6 +148,10 @@ function AppContent() {
 
   if (isAuthActionPath()) {
     return <AuthActionPage />;
+  }
+
+  if (isAuraPath()) {
+    return <AuraPage />;
   }
 
   if (isStaffForgotPasswordPath()) {

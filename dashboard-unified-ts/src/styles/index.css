@@ -1,8 +1,11 @@
 /* Dashboard Styles - Aligned with STYLE_GUIDE.md */
+@import "./theme-tokens.css";
 @import "./utilities.css";
 @import "./forms.css";
 @import "./pastel-teal-theme.css";
+@import "./theme-dark-vars.css";
 @import "./dark-theme.css";
+@import "./dashboard-tablet-touch.css";
 @import "./plan-add-form.css";
 @import "../components/modals/planQuoteSurfaces.css";
 @import "../components/modals/ShareTreatmentPlanLinkModal.css";
@@ -19,26 +22,8 @@ html {
   text-size-adjust: 100%;
 }
 
-/* CSS Variables for Lakeshore Skin + Body */
-/* Warm, refined color palette from LAKESHORE_STYLE_GUIDE.md */
+/* Design scale (colors live in theme-tokens.css — see src/styles/THEME.md) */
 :root {
-  /* Lakeshore Theme - Warm Neutrals */
-  --theme-bg-gradient: linear-gradient(180deg, #f7f4f1 0%, #ffffff 100%);
-  --theme-bg-card: #ffffff;
-  --theme-bg-subtle: #f5f5f5;
-  --theme-bg-hover: #f8f8f8;
-  --theme-text-primary: #222222;
-  --theme-text-secondary: #222222;
-  --theme-text-muted: #666666;
-  --theme-border: #e9d7d0;
-  --theme-accent: #d9c8bd;
-  --theme-accent-hover: #c9b8ad;
-  --theme-primary-btn: #000000;
-  --theme-primary-btn-hover: #222222;
-  --theme-shadow: rgba(0, 0, 0, 0.05);
-  --theme-shadow-hover: rgba(0, 0, 0, 0.1);
-  --theme-heading-font: "Montserrat", sans-serif;
-
   /* ── Design scale tokens ──────────────────────────────────────────────── */
   /* Border radius */
   --radius-sm: 8px;
@@ -60,16 +45,6 @@ html {
   --font-base: 0.9rem;  /* ~14.4px — body text */
   --font-md: 1rem;      /* ~16px  — card titles, section headers */
   --font-lg: 1.05rem;   /* ~16.8px — modal titles, prominent labels */
-
-  /* Plan pricing warnings + “Fix in plan” CTAs (recommender, share link, client detail) */
-  --plan-pricing-warning-fg: #b45309;
-  --plan-pricing-warning-bg: #fffbeb;
-  --plan-pricing-warning-border: #fde68a;
-  --plan-pricing-warning-stripe: #f59e0b;
-  --plan-pricing-fix-fg: #0f766e;
-  --plan-pricing-fix-bg: #ecfdf5;
-  --plan-pricing-fix-border: #0d9488;
-  --plan-pricing-fix-bg-hover: #d1fae5;
 }
 
 body {
@@ -377,21 +352,36 @@ h3,
 }
 
 .sidebar-header {
-  padding: 24px 20px;
+  padding: 0 12px 0 20px;
+  height: var(--dashboard-chrome-header-height, 72px);
+  min-height: var(--dashboard-chrome-header-height, 72px);
+  max-height: var(--dashboard-chrome-header-height, 72px);
   border-bottom: 1px solid var(--theme-border);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
   transition: border-color 0.3s ease;
 }
 
 .logo {
   width: 100%;
   height: auto;
-  min-height: 80px;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Dashboard sidebar: compact logo row aligned with main header title */
+.dashboard-wrapper .sidebar .logo {
+  width: auto;
+  min-height: 0;
+}
+
+.dashboard-wrapper .sidebar .logo-image {
+  max-width: 140px;
+  max-height: 44px;
 }
 
 .logo-image {
@@ -515,7 +505,10 @@ h3,
 /* Header */
 .main-header {
   background: var(--theme-bg-card);
-  padding: 20px 32px;
+  padding: 0 32px;
+  height: var(--dashboard-chrome-header-height, 72px);
+  min-height: var(--dashboard-chrome-header-height, 72px);
+  max-height: var(--dashboard-chrome-header-height, 72px);
   border-bottom: 1px solid var(--theme-border);
   display: flex;
   justify-content: space-between;
@@ -523,6 +516,7 @@ h3,
   position: sticky;
   top: 0;
   z-index: 5;
+  box-sizing: border-box;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
@@ -530,7 +524,8 @@ h3,
   font-size: 24px;
   font-weight: 700;
   color: var(--theme-text-primary);
-  margin-bottom: 4px;
+  margin: 0;
+  line-height: 1.2;
   transition: color 0.3s ease;
 }
 
@@ -1205,9 +1200,10 @@ body.theme-warm .kanban-cards.drag-over {
   color: var(--theme-text-muted);
 }
 
-/* Compact facial analysis header: title + status + date on one row; actions on the right */
+/* Compact facial analysis header: title + date + status on one row; actions on the right */
 .detail-section-header-flex.detail-section-facial-analysis-header {
   align-items: center;
+  flex-wrap: nowrap;
   gap: 8px 10px;
   margin-bottom: 12px;
 }
@@ -1215,12 +1211,22 @@ body.theme-warm .kanban-cards.drag-over {
 .detail-section-facial-analysis-header__primary {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
-  flex: 1 1 12rem;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
+.detail-section-facial-analysis-header__heading {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: 0;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.detail-section-facial-analysis-header__heading .detail-section-title,
 .detail-section-facial-analysis-header__title {
   margin: 0;
   flex-shrink: 0;
@@ -1230,7 +1236,15 @@ body.theme-warm .kanban-cards.drag-over {
 .detail-section-facial-analysis-header__primary .detail-section-status-pill {
   padding: 4px 10px;
   font-size: 12px;
-  max-width: min(100%, 280px);
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 14rem;
+}
+
+.detail-section-facial-analysis-header__primary .detail-section-status-pill-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-section-facial-analysis .facial-analysis-date-meta--inline {
@@ -1255,6 +1269,18 @@ body.theme-warm .kanban-cards.drag-over {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .detail-section-header-flex.detail-section-facial-analysis-header {
+    flex-wrap: wrap;
+  }
+
+  .detail-section-facial-analysis-header__actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 520px) {
@@ -2766,15 +2792,14 @@ body.theme-warm .kanban-cards.drag-over {
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
-  .sidebar {
-    width: 200px;
-  }
-
+/* ≤768px: overlay nav + full-width main — see Sidebar.css & dashboard-tablet-touch.css */
+@media (max-width: 768px) {
   .main-content {
-    margin-left: 200px;
+    margin-left: 0;
   }
+}
 
+@media (max-width: 1024px) {
   .kanban-column {
     min-width: 260px;
   }
@@ -2793,6 +2818,9 @@ body.theme-warm .kanban-cards.drag-over {
     justify-content: space-between;
     gap: 8px;
     padding: 12px 12px;
+    height: auto;
+    min-height: auto;
+    max-height: none;
   }
 
   .header-right {

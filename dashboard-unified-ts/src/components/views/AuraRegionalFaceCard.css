@@ -1,0 +1,125 @@
+.aura-regional-card {
+  --aura-regional-bg: #2a2a2a;
+  --aura-regional-muted: rgba(255, 255, 255, 0.45);
+  --aura-regional-toggle-active: rgba(255, 255, 255, 0.14);
+
+  border-radius: 14px;
+  background: var(--aura-regional-bg);
+  color: #f2f2f2;
+  padding: 10px;
+  margin-bottom: 14px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.aura-regional-card__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+}
+
+.aura-regional-card__face-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.aura-regional-card__viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #1a1a1a;
+}
+
+.aura-regional-card__media {
+  position: relative;
+  width: 100%;
+  will-change: transform;
+}
+
+.aura-regional-card__photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+}
+
+.aura-regional-card__overlay-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.aura-regional-card__overlay-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.aura-regional-card__zone-score {
+  font-size: 7px;
+  font-weight: 700;
+  fill: #0a0a0a;
+  paint-order: stroke fill;
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 2.5px;
+}
+
+.aura-regional-card__cv-status {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+
+.aura-regional-card__no-data {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--aura-regional-muted);
+}
+
+.aura-regional-card__mode-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.aura-regional-card__mode-btn {
+  min-width: 32px;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--aura-regional-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.aura-regional-card__mode-btn--active {
+  background: var(--aura-regional-toggle-active);
+  color: #fff;
+}
+
+.cdp-dark .aura-regional-card {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}

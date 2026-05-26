@@ -1873,7 +1873,10 @@ export default function TreatmentRecommenderByTreatment({
           fields["Front photo"] ??
           fields["frontPhoto"];
         if (front && Array.isArray(front) && front.length > 0) {
-          setFrontPhotoUrl((prev) => prev ?? getUrl(front[0]) ?? null);
+          const fresh = getClientFrontPhotoDisplayUrl(front, {
+            allowExpiringAirtableCdn: true,
+          });
+          setFrontPhotoUrl((prev) => prev ?? fresh);
         }
         const side =
           fields["Side Photo"] ?? fields["Side photo"] ?? fields["sidePhoto"];

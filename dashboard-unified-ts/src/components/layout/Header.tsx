@@ -59,9 +59,18 @@ function getMobileLogoUrl(provider: any): string | null {
 
 interface HeaderProps {
   onLogout?: () => void;
+  /** Slide-out nav (phone-width viewport only). */
+  showNavMenu?: boolean;
+  navMenuOpen?: boolean;
+  onToggleNav?: () => void;
 }
 
-export default function Header({ onLogout }: HeaderProps) {
+export default function Header({
+  onLogout,
+  showNavMenu = false,
+  navMenuOpen = false,
+  onToggleNav,
+}: HeaderProps) {
   const { provider, refreshClients, currentView, darkMode, setDarkMode } = useDashboard();
   const [showAddClient, setShowAddClient] = useState(false);
   const [showScanDropdown, setShowScanDropdown] = useState(false);
@@ -114,6 +123,48 @@ export default function Header({ onLogout }: HeaderProps) {
     <>
       <header className="main-header">
         <div className="header-left">
+          {showNavMenu && onToggleNav && (
+            <button
+              type="button"
+              className={`header-nav-menu-btn${navMenuOpen ? " header-nav-menu-btn--open" : ""}`}
+              onClick={onToggleNav}
+              aria-label={navMenuOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={navMenuOpen}
+              title={navMenuOpen ? "Close menu" : "Menu"}
+            >
+              {navMenuOpen ? (
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden
+                >
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                </svg>
+              ) : (
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="4" y="5" width="16" height="14" rx="2" />
+                  <line x1="8" y1="9" x2="16" y2="9" />
+                  <line x1="8" y1="13" x2="13" y2="13" />
+                </svg>
+              )}
+            </button>
+          )}
           {mobileLogoUrl && (
             <img
               src={mobileLogoUrl}

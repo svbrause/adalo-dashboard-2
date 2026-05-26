@@ -354,21 +354,23 @@
 
 /* Form Info Boxes */
 .form-info-box {
-  background: #f5f5f5;
+  background: var(--theme-bg-inset);
+  border: 1px solid var(--theme-border-subtle);
   padding: 12px;
   border-radius: 8px;
   margin-top: 16px;
 }
 
 .form-info-label {
+  display: block;
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-label);
   margin-bottom: 4px;
 }
 
 .form-info-value {
   font-size: 13px;
-  color: #212121;
+  color: var(--color-text-body);
   font-weight: 500;
 }
 

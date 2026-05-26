@@ -1,0 +1,136 @@
+/**
+ * Dark mode token remaps — import AFTER pastel-teal-theme.css so light
+ * brand overrides cannot replace these on <body>.
+ */
+
+body.dark-mode,
+body.dark-mode.pastel-teal-theme,
+.cdp-dark {
+  --theme-bg-page: #111111;
+  --theme-bg-gradient: #111111;
+  --theme-bg-card: #1a1a1a;
+  --theme-bg-surface: #1a1a1a;
+  --theme-bg-subtle: #1f1f1f;
+  --theme-bg-hover: #252525;
+  --theme-bg-elevated: #1c1c1c;
+  --theme-bg-inset: #1c1c1c;
+  --theme-bg-overlay: rgba(0, 0, 0, 0.75);
+
+  --theme-text-primary: #efefef;
+  --theme-text-secondary: #c0c0c0;
+  --theme-text-muted: #8a8a8a;
+  --theme-text-inverse: #111111;
+  --theme-text-link: #93c5fd;
+  --theme-text-link-hover: #bfdbfe;
+
+  --color-text-heading: #efefef;
+  --color-text-body: #efefef;
+  --color-text-secondary: #c0c0c0;
+  --color-text-label: #8a8a8a;
+  --color-text-caption: #8a8a8a;
+  --color-text-link: #93c5fd;
+
+  --theme-border: rgba(255, 255, 255, 0.1);
+  --theme-border-subtle: rgba(255, 255, 255, 0.06);
+  --theme-border-strong: rgba(255, 255, 255, 0.18);
+  --theme-shadow: rgba(0, 0, 0, 0.5);
+  --theme-shadow-hover: rgba(0, 0, 0, 0.7);
+  --theme-shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --theme-accent: #4a8a9a;
+  --theme-accent-hover: #5a9aab;
+  --theme-primary-btn: #367588;
+  --theme-primary-btn-hover: #2c5f6b;
+
+  --theme-nav-active-bg: rgba(54, 117, 136, 0.2);
+  --theme-nav-active-border: transparent;
+  --theme-nav-hover-bg: rgba(255, 255, 255, 0.05);
+
+  --theme-input-bg: #1c1c1c;
+  --theme-input-border: rgba(255, 255, 255, 0.15);
+  --theme-input-text: #efefef;
+  --theme-input-placeholder: #666666;
+
+  --theme-btn-secondary-bg: #1c1c1c;
+  --theme-btn-secondary-border: rgba(255, 255, 255, 0.15);
+  --theme-btn-secondary-text: #c8c8c8;
+  --theme-btn-secondary-hover-bg: #252525;
+
+  --theme-table-header-bg: #1f1f1f;
+  --theme-table-header-text: #a8a8a8;
+  --theme-table-row-hover: rgba(255, 255, 255, 0.04);
+  --theme-table-border: rgba(255, 255, 255, 0.06);
+
+  --theme-status-success-bg: rgba(6, 95, 70, 0.25);
+  --theme-status-success-fg: #6ee7b7;
+  --theme-status-success-border: rgba(110, 231, 183, 0.25);
+
+  --theme-status-warning-bg: rgba(245, 158, 11, 0.12);
+  --theme-status-warning-fg: #fbbf24;
+  --theme-status-warning-border: rgba(251, 191, 36, 0.25);
+
+  --theme-status-danger-bg: rgba(239, 68, 68, 0.15);
+  --theme-status-danger-fg: #fca5a5;
+  --theme-status-danger-border: rgba(248, 113, 113, 0.25);
+
+  --theme-status-info-bg: rgba(14, 165, 233, 0.12);
+  --theme-status-info-fg: #38bdf8;
+  --theme-status-info-border: rgba(56, 189, 248, 0.25);
+
+  --theme-status-muted-bg: rgba(255, 255, 255, 0.06);
+  --theme-status-muted-fg: #a0aec0;
+  --theme-status-muted-border: rgba(255, 255, 255, 0.1);
+
+  --theme-chip-bg: rgba(206, 147, 216, 0.12);
+  --theme-chip-fg: #c084cf;
+  --theme-chip-border: rgba(206, 147, 216, 0.2);
+
+  --theme-accent-soft: #6eb8c4;
+  --theme-accent-soft-fg: #b8e8e0;
+  --theme-accent-soft-bg: rgba(54, 117, 136, 0.22);
+  --theme-accent-soft-bg-hover: rgba(54, 117, 136, 0.32);
+  --theme-accent-soft-bg-active: rgba(54, 117, 136, 0.28);
+  --theme-accent-soft-border: rgba(90, 154, 171, 0.5);
+  --theme-accent-soft-border-hover: rgba(125, 211, 192, 0.65);
+  --theme-accent-soft-solid: #5a9aab;
+  --theme-accent-soft-solid-hover: #6eb8c4;
+  --theme-accent-soft-on-solid: #ffffff;
+
+  --theme-accent-indigo: #a5b4fc;
+  --theme-accent-indigo-fg: #e8eaf6;
+  --theme-accent-indigo-bg: rgba(129, 140, 248, 0.24);
+  --theme-accent-indigo-bg-hover: rgba(129, 140, 248, 0.38);
+  --theme-accent-indigo-bg-active: rgba(129, 140, 248, 0.32);
+  --theme-accent-indigo-border: rgba(165, 180, 252, 0.55);
+  --theme-accent-indigo-border-strong: rgba(165, 180, 252, 0.7);
+  --theme-accent-indigo-border-hover: rgba(199, 210, 254, 0.85);
+  --theme-accent-indigo-solid: #6366f1;
+  --theme-accent-indigo-solid-hover: #818cf8;
+  --theme-accent-indigo-on-solid: #ffffff;
+  --theme-accent-indigo-gradient-start: #818cf8;
+  --theme-accent-indigo-gradient-end: #a5b4fc;
+
+  --plan-quote-surface-bg: #1a1a1a;
+  --plan-quote-section-header-bg: #151515;
+  --plan-quote-subtotal-bg: #161616;
+  --plan-quote-border: rgba(255, 255, 255, 0.04);
+  --plan-quote-row-divider: rgba(255, 255, 255, 0.05);
+
+  --plan-pricing-warning-fg: #fbbf24;
+  --plan-pricing-warning-bg: rgba(245, 158, 11, 0.12);
+  --plan-pricing-warning-border: rgba(251, 191, 36, 0.25);
+  --plan-pricing-warning-stripe: #f59e0b;
+  --plan-pricing-fix-fg: #6ee7b7;
+  --plan-pricing-fix-bg: rgba(6, 95, 70, 0.2);
+  --plan-pricing-fix-border: rgba(110, 231, 183, 0.3);
+  --plan-pricing-fix-bg-hover: rgba(6, 95, 70, 0.35);
+
+  --ao-radar-grid-stroke: rgba(255, 255, 255, 0.14);
+  --ao-radar-axis-stroke: rgba(255, 255, 255, 0.2);
+  --ao-radar-data-fill: rgba(96, 165, 250, 0.22);
+  --ao-radar-data-stroke: #60a5fa;
+  --ao-radar-point-fill: #60a5fa;
+
+  background: var(--theme-bg-page);
+  color: var(--theme-text-primary);
+}

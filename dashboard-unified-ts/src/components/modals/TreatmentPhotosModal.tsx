@@ -5,6 +5,7 @@ import TreatmentPhotos, {
   type TreatmentPlanAddDirectOptions,
   type TreatmentPlanPrefill,
 } from "./DiscussedTreatmentsModal/TreatmentPhotos";
+import "./DiscussedTreatmentsModal/index.css";
 import "./TreatmentPhotosModal.css";
 
 export interface TreatmentPhotosModalProps {

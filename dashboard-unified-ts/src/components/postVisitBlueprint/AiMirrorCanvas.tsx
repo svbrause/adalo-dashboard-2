@@ -2,27 +2,34 @@ import { useEffect, useRef, useState } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
   AI_MIRROR_REGIONS,
+  cheekRegionPolygon,
+  foreheadRegionPolygon,
   polygonFromLandmarkIndices,
 } from "./aiMirrorRegions";
+import {
+  isExpiringAirtableAttachmentUrl,
+  isPhotoDisplayUrlFailed,
+  markPhotoDisplayUrlFailed,
+  sanitizePhotoDisplayUrl,
+} from "../../utils/photoLoading";
+import {
+  avoidMirrorViewportOverlay,
+  MIRROR_ANNOTATION_THEME,
+  mirrorViewportOverlaySafeBottom,
+} from "../../constants/mirrorAnnotationTheme";
+import {
+  mirrorRegionLabelFont,
+  mirrorRegionLabelFontSize,
+  prepareMirrorAnnotationCanvas,
+  snapMirrorLabelTextPosition,
+} from "../../utils/mirrorAnnotationCanvas";
 import "./AiMirrorCanvas.css";
 
-/** Keep in sync with `package.json` dependency for WASM layout compatibility. */
-const MEDIAPIPE_TASKS_VISION_VERSION = "0.10.21";
-const WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_TASKS_VISION_VERSION}/wasm`;
-const FACE_LANDMARKER_MODEL =
-  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
-const MEDIAPIPE_LOG_FILTER_PATTERNS = [
-  "face_landmarker_graph.cc",
-  "gl_context.cc",
-  "inference_feedback_manager.cc",
-  "Sets FaceBlendshapesGraph acceleration to xnnpack",
-  "Graph successfully started running",
-  "Created TensorFlow Lite XNNPACK delegate",
-  "Feedback manager requires a model with a single signature inference",
-];
+import { getFaceLandmarker } from "../../utils/faceLandmarker";
+
+export { getFaceLandmarker } from "../../utils/faceLandmarker";
 
 type MirrorStatus = "loading" | "ready" | "error";
-type RegionTone = "highlight" | "base";
 type MirrorRegion = { id: string; indices: number[] };
 // Temporary QA: set true to highlight every mapped region for shape QA.
 const DEBUG_HIGHLIGHT_ALL_AREAS = false;
@@ -75,64 +82,6 @@ const GRANULAR_MIRROR_REGIONS: MirrorRegion[] = [
     indices: [205, 187, 147, 123, 116, 117, 93, 132, 58, 172, 136, 150, 149, 148, 152, 176, 378, 365, 288, 397, 361, 340, 346, 347, 376, 411, 425, 280],
   },
 ];
-
-let faceLandmarkerPromise: Promise<
-  import("@mediapipe/tasks-vision").FaceLandmarker
-> | null = null;
-let mediaPipeLogFilterInstalled = false;
-
-function installMediaPipeLogFilter() {
-  if (!import.meta.env.DEV || mediaPipeLogFilterInstalled) return;
-  mediaPipeLogFilterInstalled = true;
-
-  const shouldHideMediaPipeLog = (args: unknown[]) =>
-    args.some((arg) => {
-      const message = typeof arg === "string" ? arg : "";
-      return MEDIAPIPE_LOG_FILTER_PATTERNS.some((pattern) =>
-        message.includes(pattern),
-      );
-    });
-
-  const levels: Array<"debug" | "error" | "info" | "log" | "warn"> = [
-    "debug",
-    "error",
-    "info",
-    "log",
-    "warn",
-  ];
-
-  levels.forEach((level) => {
-    const original = console[level].bind(console) as (...args: unknown[]) => void;
-    console[level] = ((...args: unknown[]) => {
-      if (shouldHideMediaPipeLog(args)) return;
-      original(...args);
-    }) as Console[typeof level];
-  });
-}
-
-export function getFaceLandmarker() {
-  if (!faceLandmarkerPromise) {
-    faceLandmarkerPromise = (async () => {
-      installMediaPipeLogFilter();
-      const { FaceLandmarker, FilesetResolver } =
-        await import("@mediapipe/tasks-vision");
-      const wasm = await FilesetResolver.forVisionTasks(WASM_BASE);
-      return FaceLandmarker.createFromOptions(wasm, {
-        baseOptions: {
-          modelAssetPath: FACE_LANDMARKER_MODEL,
-          delegate: "CPU",
-        },
-        runningMode: "IMAGE",
-        numFaces: 1,
-        minFaceDetectionConfidence: 0.4,
-        minFacePresenceConfidence: 0.4,
-        outputFaceBlendshapes: false,
-        outputFacialTransformationMatrixes: false,
-      });
-    })();
-  }
-  return faceLandmarkerPromise;
-}
 
 function loadImage(url: string, useCors = true): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -215,6 +164,24 @@ export function getHighlightedRegionIds(highlightTerms: string[]): Set<string> {
   return highlighted;
 }
 
+/** Terms + manually selected regions (2D/3D shared). */
+export function getEffectiveHighlightedRegionIds(
+  highlightTerms: string[],
+  manualRegionIds: string[] = [],
+): Set<string> {
+  const highlighted = getHighlightedRegionIds(highlightTerms);
+  for (const id of manualRegionIds) highlighted.add(id);
+  return highlighted;
+}
+
+/** True when highlight terms or manual region ids map to at least one region. */
+export function hasMirrorAnnotationHighlights(
+  highlightTerms: string[],
+  manualRegionIds: string[] = [],
+): boolean {
+  return getEffectiveHighlightedRegionIds(highlightTerms, manualRegionIds).size > 0;
+}
+
 function polygonCentroid(points: { x: number; y: number }[]): {
   x: number;
   y: number;
@@ -249,23 +216,6 @@ function getPointsByIndices(
     .map((i) => landmarks[i])
     .filter(Boolean)
     .map((lm) => ({ x: lm.x * width, y: lm.y * height }));
-}
-
-function ovalPoints(
-  center: { x: number; y: number },
-  rx: number,
-  ry: number,
-  steps = 24,
-): { x: number; y: number }[] {
-  const points: { x: number; y: number }[] = [];
-  for (let i = 0; i < steps; i++) {
-    const t = (i / steps) * Math.PI * 2;
-    points.push({
-      x: center.x + Math.cos(t) * rx,
-      y: center.y + Math.sin(t) * ry,
-    });
-  }
-  return points;
 }
 
 function faceScalePixels(
@@ -462,9 +412,9 @@ function drawSoftFeatureRegion(
   ctx.rotate(rotation);
 
   const gradient = ctx.createRadialGradient(0, 0, 1, 0, 0, Math.max(rx, ry));
-  gradient.addColorStop(0, "rgba(59, 130, 246, 0.24)");
-  gradient.addColorStop(0.58, "rgba(96, 165, 250, 0.12)");
-  gradient.addColorStop(1, "rgba(96, 165, 250, 0)");
+  gradient.addColorStop(0, MIRROR_ANNOTATION_THEME.softFillStart);
+  gradient.addColorStop(0.58, MIRROR_ANNOTATION_THEME.softFillMid);
+  gradient.addColorStop(1, MIRROR_ANNOTATION_THEME.softFillEnd);
 
   ctx.beginPath();
   ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
@@ -473,7 +423,7 @@ function drawSoftFeatureRegion(
 
   ctx.beginPath();
   ctx.ellipse(0, 0, rx * 0.72, ry * 0.72, 0, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(147, 197, 253, 0.35)";
+  ctx.strokeStyle = MIRROR_ANNOTATION_THEME.softStroke;
   ctx.lineWidth = Math.max(1, base * 0.0014);
   ctx.stroke();
 
@@ -513,87 +463,14 @@ function getRenderRegionPolygon(
   }
 
   if (regionId === "rLeftCheek") {
-    const cheek = getPointsByIndices(
-      landmarks,
-      [50, 101, 205, 187, 147, 123, 116, 117],
-      width,
-      height,
-    );
-    if (cheek.length >= 4) {
-      const center = averagePoint(cheek);
-      const xSpread = Math.abs(
-        (cheek.find((p) => p.x === Math.max(...cheek.map((q) => q.x)))?.x ??
-          center.x) -
-          (cheek.find((p) => p.x === Math.min(...cheek.map((q) => q.x)))?.x ??
-            center.x),
-      );
-      const ySpread = Math.abs(
-        (cheek.find((p) => p.y === Math.max(...cheek.map((q) => q.y)))?.y ??
-          center.y) -
-          (cheek.find((p) => p.y === Math.min(...cheek.map((q) => q.y)))?.y ??
-            center.y),
-      );
-      return ovalPoints(
-        center,
-        Math.max(10, xSpread * 0.34),
-        Math.max(10, ySpread * 0.42),
-      );
-    }
+    return cheekRegionPolygon(landmarks, width, height, "left");
   }
-
   if (regionId === "rRightCheek") {
-    const cheek = getPointsByIndices(
-      landmarks,
-      [330, 425, 411, 376, 352, 346, 347, 280],
-      width,
-      height,
-    );
-    if (cheek.length >= 4) {
-      const center = averagePoint(cheek);
-      const xSpread = Math.abs(
-        (cheek.find((p) => p.x === Math.max(...cheek.map((q) => q.x)))?.x ??
-          center.x) -
-          (cheek.find((p) => p.x === Math.min(...cheek.map((q) => q.x)))?.x ??
-            center.x),
-      );
-      const ySpread = Math.abs(
-        (cheek.find((p) => p.y === Math.max(...cheek.map((q) => q.y)))?.y ??
-          center.y) -
-          (cheek.find((p) => p.y === Math.min(...cheek.map((q) => q.y)))?.y ??
-            center.y),
-      );
-      return ovalPoints(
-        center,
-        Math.max(10, xSpread * 0.34),
-        Math.max(10, ySpread * 0.42),
-      );
-    }
+    return cheekRegionPolygon(landmarks, width, height, "right");
   }
 
   if (regionId === "rForehead") {
-    const raw = polygonFromLandmarkIndices(
-      landmarks,
-      fallbackIndices,
-      width,
-      height,
-    );
-    const browPts = getPointsByIndices(
-      landmarks,
-      [70, 63, 105, 66, 107, 336, 296, 334, 293, 300],
-      width,
-      height,
-    );
-    if (raw.length >= 3 && browPts.length >= 4) {
-      const browY = browPts.reduce((s, p) => s + p.y, 0) / browPts.length;
-      const topOnly = raw
-        .filter((p) => p.y <= browY + height * 0.025)
-        .sort((a, b) => a.x - b.x);
-      const browLine = [...browPts].sort((a, b) => b.x - a.x);
-      if (topOnly.length >= 3) {
-        return [...topOnly, ...browLine];
-      }
-    }
-    return raw;
+    return foreheadRegionPolygon(landmarks, width, height);
   }
 
   return polygonFromLandmarkIndices(landmarks, fallbackIndices, width, height);
@@ -603,21 +480,26 @@ function drawAnnotatedFace(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   landmarks: NormalizedLandmark[],
-  FaceLandmarker: typeof import("@mediapipe/tasks-vision").FaceLandmarker,
-  DrawingUtils: typeof import("@mediapipe/tasks-vision").DrawingUtils,
   highlightTerms: string[],
+  manualRegionIds: string[],
+  logicalWidth: number,
+  logicalHeight: number,
 ): void {
-  const cw = ctx.canvas.width;
-  const ch = ctx.canvas.height;
+  const cw = logicalWidth;
+  const ch = logicalHeight;
   ctx.clearRect(0, 0, cw, ch);
   ctx.drawImage(img, 0, 0, cw, ch);
 
-  const du = new DrawingUtils(ctx);
-  const highlightedRegions = getHighlightedRegionIds(highlightTerms);
+  const highlightedRegions = getEffectiveHighlightedRegionIds(
+    highlightTerms,
+    manualRegionIds,
+  );
+  if (highlightedRegions.size === 0) return;
+
   const regionLabels: Array<{ label: string; x: number; y: number }> = [];
 
   const renderRegions: MirrorRegion[] = [
-    ...AI_MIRROR_REGIONS,
+    ...AI_MIRROR_REGIONS.filter((r) => highlightedRegions.has(r.id)),
     ...GRANULAR_MIRROR_REGIONS.filter((r) => highlightedRegions.has(r.id)),
   ];
 
@@ -637,56 +519,30 @@ function drawAnnotatedFace(
 
     const poly = getRenderRegionPolygon(id, landmarks, cw, ch, indices);
     if (poly.length < 3) continue;
-    const tone: RegionTone = highlightedRegions.has(id) ? "highlight" : "base";
 
     ctx.beginPath();
     ctx.moveTo(poly[0].x, poly[0].y);
     for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
     ctx.closePath();
-    ctx.fillStyle =
-      tone === "highlight"
-        ? "rgba(59, 130, 246, 0.26)"
-        : "rgba(99, 102, 241, 0.05)";
+    ctx.fillStyle = MIRROR_ANNOTATION_THEME.regionFill;
     ctx.fill();
-    ctx.strokeStyle =
-      tone === "highlight"
-        ? "rgba(37, 99, 235, 0.95)"
-        : "rgba(99, 102, 241, 0.18)";
-    ctx.lineWidth =
-      tone === "highlight"
-        ? Math.max(1.3, Math.min(cw, ch) * 0.0022)
-        : Math.max(0.8, Math.min(cw, ch) * 0.0012);
+    ctx.strokeStyle = MIRROR_ANNOTATION_THEME.regionStroke;
+    ctx.lineWidth = Math.max(1.3, Math.min(cw, ch) * 0.0022);
     ctx.stroke();
 
-    if (tone === "highlight") {
-      const center = polygonCentroid(poly);
-      regionLabels.push({
-        label: REGION_DISPLAY_LABEL[id] ?? "Focus Area",
-        x: center.x,
-        y: center.y,
-      });
-    }
+    const center = polygonCentroid(poly);
+    regionLabels.push({
+      label: REGION_DISPLAY_LABEL[id] ?? "Focus Area",
+      x: center.x,
+      y: center.y,
+    });
   }
-
-  const lineOval = Math.max(1, Math.min(cw, ch) * 0.0018);
-  const lineContour = Math.max(0.7, Math.min(cw, ch) * 0.0013);
-
-  ctx.save();
-  ctx.globalAlpha = 0.7;
-  du.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_FACE_OVAL, {
-    color: "#4f46e5",
-    lineWidth: lineOval,
-  });
-  du.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_CONTOURS, {
-    color: "#9dd6cbaa",
-    lineWidth: lineContour,
-  });
-  ctx.restore();
 
   if (regionLabels.length > 0) {
     ctx.save();
-    const fs = Math.max(11, Math.min(14, Math.round(Math.min(cw, ch) * 0.025)));
-    ctx.font = `600 ${fs}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+    const minDim = Math.min(cw, ch);
+    const fs = mirrorRegionLabelFontSize(minDim);
+    ctx.font = mirrorRegionLabelFont(minDim);
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
 
@@ -713,35 +569,46 @@ function drawAnnotatedFace(
       const boxW = textW + padX * 2;
       const boxH = fs + padY * 2;
       const margin = 10;
+      const overlaySafeBottom = mirrorViewportOverlaySafeBottom();
       const calloutX = side === "left" ? margin : cw - boxW - margin;
-      const yMin = margin;
+      const yMin = side === "left" ? Math.max(margin, overlaySafeBottom) : margin;
       const yMax = ch - boxH - margin;
       const targetY =
         slotCount <= 1
           ? row.y - boxH / 2
           : yMin + (slotIndex / Math.max(1, slotCount - 1)) * (yMax - yMin);
-      const calloutY = Math.max(yMin, Math.min(yMax, targetY));
-      const anchorX = side === "left" ? calloutX + boxW : calloutX;
+      let calloutY = Math.max(yMin, Math.min(yMax, targetY));
+      let resolvedX = calloutX;
+      ({ x: resolvedX, y: calloutY } = avoidMirrorViewportOverlay(
+        side,
+        resolvedX,
+        calloutY,
+        boxW,
+        boxH,
+        ch,
+      ));
+      const anchorX = side === "left" ? resolvedX + boxW : resolvedX;
       const anchorY = calloutY + boxH / 2;
 
       // Connector line from label box to highlighted region center.
-      ctx.strokeStyle = "rgba(30, 64, 175, 0.75)";
+      ctx.strokeStyle = MIRROR_ANNOTATION_THEME.connector;
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(anchorX, anchorY);
       ctx.lineTo(row.x, row.y);
       ctx.stroke();
 
-      ctx.fillStyle = "rgba(30, 64, 175, 0.9)";
-      ctx.strokeStyle = "rgba(191, 219, 254, 0.95)";
+      ctx.fillStyle = MIRROR_ANNOTATION_THEME.labelFill;
+      ctx.strokeStyle = MIRROR_ANNOTATION_THEME.labelStroke;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(calloutX, calloutY, boxW, boxH, 999);
+      ctx.roundRect(resolvedX, calloutY, boxW, boxH, 999);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = "#eef2ff";
-      ctx.fillText(row.label, calloutX + padX, calloutY + boxH / 2 + 0.5);
+      ctx.fillStyle = MIRROR_ANNOTATION_THEME.labelText;
+      const textPos = snapMirrorLabelTextPosition(resolvedX + padX, calloutY + boxH / 2);
+      ctx.fillText(row.label, textPos.x, textPos.y);
     };
 
     leftRows.forEach((row, i) =>
@@ -754,10 +621,16 @@ function drawAnnotatedFace(
   }
 }
 
+function highlightedRegionIdsFingerprint(ids: readonly string[] | undefined): string {
+  return [...(ids ?? [])].sort().join("\u0001");
+}
+
 export interface AiMirrorCanvasProps {
   imageUrl: string;
   alt?: string;
   highlightTerms?: string[];
+  /** Manually selected regions — shared with 3D turntable. */
+  highlightedRegionIds?: string[];
   showAnnotations?: boolean;
 }
 
@@ -769,6 +642,7 @@ export function AiMirrorCanvas({
   imageUrl,
   alt = "Your facial analysis",
   highlightTerms = [],
+  highlightedRegionIds = [],
   showAnnotations = true,
 }: AiMirrorCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -777,6 +651,7 @@ export function AiMirrorCanvas({
   const [fallbackImageUrl, setFallbackImageUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const highlightFingerprint = highlightTermsFingerprint(highlightTerms);
+  const manualRegionsFingerprint = highlightedRegionIdsFingerprint(highlightedRegionIds);
 
   useEffect(() => {
     let cancelled = false;
@@ -788,9 +663,20 @@ export function AiMirrorCanvas({
     setFallbackImageUrl(null);
     setErrorMessage("");
 
+    const displayUrl = sanitizePhotoDisplayUrl(imageUrl, {
+      allowExpiringAirtableCdn: true,
+    });
+    if (!displayUrl || isPhotoDisplayUrlFailed(imageUrl)) {
+      setErrorMessage(
+        "This analysis photo is no longer available. Please request a new blueprint link from your clinic.",
+      );
+      setStatus("error");
+      return undefined;
+    }
+
     (async () => {
       try {
-        const img = await loadImage(imageUrl, true);
+        const img = await loadImage(displayUrl, true);
         if (cancelled) return;
 
         const maxW = Math.max(280, wrap.clientWidth || 560);
@@ -798,14 +684,11 @@ export function AiMirrorCanvas({
         const cw = Math.max(1, Math.round(img.naturalWidth * scale));
         const ch = Math.max(1, Math.round(img.naturalHeight * scale));
 
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        const ctx = prepareMirrorAnnotationCanvas(canvas, cw, ch);
         if (!ctx) {
           if (!cancelled) setStatus("error");
           return;
         }
-
-        canvas.width = cw;
-        canvas.height = ch;
 
         if (!showAnnotations) {
           ctx.drawImage(img, 0, 0, cw, ch);
@@ -813,8 +696,6 @@ export function AiMirrorCanvas({
           return;
         }
 
-        const { FaceLandmarker, DrawingUtils } =
-          await import("@mediapipe/tasks-vision");
         const landmarker = await getFaceLandmarker();
         if (cancelled) return;
 
@@ -828,18 +709,28 @@ export function AiMirrorCanvas({
             ctx,
             img,
             landmarks,
-            FaceLandmarker,
-            DrawingUtils,
             highlightTerms,
+            highlightedRegionIds,
+            cw,
+            ch,
           );
         }
         if (!cancelled) setStatus("ready");
       } catch {
-        // Common failure cases:
-        // - Expired / bad URL (410, 404)
-        // - Detect/draw failed even after a successful load (e.g. strict WASM + tainted image)
+        markPhotoDisplayUrlFailed(displayUrl);
+        // Expired Airtable CDN (410) — do not retry the same URL without CORS
+        if (isExpiringAirtableAttachmentUrl(displayUrl)) {
+          if (!cancelled) {
+            setFallbackImageUrl(null);
+            setErrorMessage(
+              "This analysis photo is no longer available. Please request a new blueprint link from your clinic.",
+            );
+            setStatus("error");
+          }
+          return;
+        }
         try {
-          const plainImg = await loadImage(imageUrl, false);
+          const plainImg = await loadImage(displayUrl, false);
           if (cancelled) return;
           setFallbackImageUrl(plainImg.src);
           setStatus("error");
@@ -860,7 +751,7 @@ export function AiMirrorCanvas({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- highlightTerms omitted on purpose:
     // compare via highlightFingerprint so new array refs from parents do not re-run MediaPipe.
-  }, [imageUrl, highlightFingerprint, showAnnotations]);
+  }, [imageUrl, highlightFingerprint, manualRegionsFingerprint, showAnnotations]);
 
   return (
     <div

@@ -81,6 +81,12 @@ interface ImportMetaEnv {
    * Omit or `false`: use Firebase client `sendPasswordResetEmail` (Firebase templates).
    */
   readonly VITE_PASSWORD_RESET_VIA_BACKEND?: string;
+  /**
+   * Base origin for `/api/scan/*` (no trailing slash). Unset in dev → Vercel backend.
+   * @see getScanApiBaseUrl in `src/utils/scanApi.ts`
+   */
+  readonly VITE_SCAN_API_URL?: string;
+  readonly VITE_BACKEND_API_URL?: string;
 }
 
 interface ImportMeta {
@@ -103,6 +109,11 @@ declare module '*.png' {
 }
 
 declare module '*.jpg' {
+  const content: string;
+  export default content;
+}
+
+declare module '*.JPG' {
   const content: string;
   export default content;
 }

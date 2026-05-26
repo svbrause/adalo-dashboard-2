@@ -1,3 +1,5 @@
+import { getAuraScanVideoUrl } from "./auraScanConfig";
+
 /**
  * Maps client display names to their 3D turntable video URLs.
  * Static entries (demo clients) live here; dynamically generated models
@@ -47,7 +49,12 @@ export function clearGeneratedClientGlbUrl(clientName: string): void {
 export function getClientGlbUrl(clientName: string | null | undefined): string | null {
   if (!clientName) return null;
   const name = clientName.trim();
-  return CLIENT_3D_VIDEO_MAP[name] ?? getDynamicMap()[name] ?? null;
+  return CLIENT_3D_VIDEO_MAP[name] ?? getDynamicMap()[name] ?? getAuraScanVideoUrl(name);
+}
+
+export function getClientsWith3DModels(): { name: string; videoUrl: string }[] {
+  const merged = { ...CLIENT_3D_VIDEO_MAP, ...getDynamicMap() };
+  return Object.entries(merged).map(([name, videoUrl]) => ({ name, videoUrl }));
 }
 
 /** True when this client should use the FaceMirrorPanel split layout. */

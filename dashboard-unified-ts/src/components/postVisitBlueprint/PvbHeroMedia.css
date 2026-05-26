@@ -1,0 +1,16 @@
+/* 3D turntable in blueprint hero (dark band matches existing hero) */
+.pvb-hero-mirror--3d .face3d-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  border-radius: 0;
+}
+
+.pvb-hero-mirror--3d .face3d-viewer {
+  width: 100%;
+  background: var(--pvb-hero-dark, #1a1f24);
+}
+
+.pvb-hero-mirror--3d .face3d-display {
+  object-fit: contain;
+}

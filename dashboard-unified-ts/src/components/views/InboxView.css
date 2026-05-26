@@ -49,6 +49,29 @@
   color: var(--theme-accent, #0d9488);
 }
 
+@media (max-width: 1024px) {
+  .inbox-view {
+    padding: var(--dashboard-content-pad-tablet, 20px);
+    padding-bottom: max(var(--dashboard-content-pad-tablet, 20px), env(safe-area-inset-bottom));
+  }
+
+  .inbox-refresh-btn,
+  .inbox-retry-btn {
+    min-height: 44px;
+    padding: 12px 18px;
+    font-size: 15px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .inbox-refresh-btn:active,
+  .inbox-retry-btn:active {
+    background: var(--theme-bg-hover, #f5f5f5);
+    border-color: var(--theme-accent, #0d9488);
+    color: var(--theme-accent, #0d9488);
+  }
+}
+
 .inbox-list {
   display: flex;
   flex-direction: column;

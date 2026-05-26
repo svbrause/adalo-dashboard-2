@@ -141,12 +141,12 @@ export default function ViewControls() {
 
   const [isMobileLayout, setIsMobileLayout] = useState(() =>
     typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 768px)").matches
+      ? window.matchMedia("(max-width: 1024px)").matches
       : false,
   );
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px)");
+    const mq = window.matchMedia("(max-width: 1024px)");
     const sync = () => setIsMobileLayout(mq.matches);
     sync();
     mq.addEventListener("change", sync);

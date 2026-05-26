@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import uuid
 from pathlib import Path
 from typing import Any
@@ -127,17 +129,27 @@ def _run_modal_job(
         q = QUALITY_PRESETS.get(quality, QUALITY_PRESETS["standard"])
         _jobs[job_id]["status"] = "running"
 
-        # Reference the deployed function by name — works from any Python process
-        # as long as `modal deploy scripts/modal_facelift.py` has been run once.
-        fn = _modal.Function.from_name(_MODAL_APP_NAME, _MODAL_FN_NAME)
-        result: dict[str, bytes] = fn.remote(
-            photos,
-            step_2d=q["step_2d"],
-        )
+        # Step 1: reconstruct — returns gaussians.ply + raw turntable (white bg)
+        fn_reconstruct = _modal.Function.from_name(_MODAL_APP_NAME, _MODAL_FN_NAME)
+        result: dict[str, bytes] = fn_reconstruct.remote(photos, step_2d=q["step_2d"])
 
-        if "turntable.mp4" not in result:
+        # Step 2: if PLY is available, apply face crop + black-background rerender
+        # to match the production Modal path (render_turntable_black, 130° sweep).
+        ply_bytes = result.get("gaussians.ply")
+        if ply_bytes:
+            fn_crop   = _modal.Function.from_name(_MODAL_APP_NAME, "_crop_ply")
+            fn_render = _modal.Function.from_name(_MODAL_APP_NAME, "render_turntable_black")
+            cropped_ply = fn_crop.remote(ply_bytes)
+            video_bytes = fn_render.remote(
+                cropped_ply, resolution=2048, num_views=120, fps=30, sweep_deg=130,
+            )
+        elif "turntable.mp4" in result:
+            # Fallback: use raw white-bg turntable (crop unavailable)
+            video_bytes = result["turntable.mp4"]
+        else:
             raise RuntimeError(
-                f"FaceLift did not produce turntable.mp4. Got: {list(result.keys())}"
+                f"FaceLift produced neither gaussians.ply nor turntable.mp4. "
+                f"Got: {list(result.keys())}"
             )
 
         safe = (
@@ -147,7 +159,7 @@ def _run_modal_job(
             .replace(".", "")
         )
         out_path = PUBLIC_3D / f"{safe}-turntable.mp4"
-        out_path.write_bytes(result["turntable.mp4"])
+        out_path.write_bytes(video_bytes)
         seek_path = PUBLIC_3D / f"{safe}-turntable-seek.mp4"
         video_path = seek_path if _make_seek_friendly_turntable(out_path, seek_path) else out_path
 
@@ -288,6 +300,138 @@ async def list_jobs() -> dict:
         jid: {k: v for k, v in info.items() if k != "photos"}
         for jid, info in _jobs.items()
     }
+
+
+# ---------------------------------------------------------------------------
+# GCS + Airtable helpers for /api/scan/save-video
+# ---------------------------------------------------------------------------
+
+def _upload_to_gcs(local_path: Path, blob_name: str) -> str | None:
+    """Upload a file to GCS and return its public URL, or None if not configured.
+
+    Required env vars:
+        GCS_TURNTABLE_BUCKET  — GCS bucket name (e.g. "my-app-turntables")
+        GCS_SERVICE_ACCOUNT_JSON — full service-account JSON string
+    """
+    bucket_name = os.environ.get("GCS_TURNTABLE_BUCKET", "").strip()
+    sa_json_str = os.environ.get("GCS_SERVICE_ACCOUNT_JSON", "").strip()
+
+    if not bucket_name or not sa_json_str:
+        print("[server] GCS_TURNTABLE_BUCKET or GCS_SERVICE_ACCOUNT_JSON not set — skipping upload")
+        return None
+
+    try:
+        from google.cloud import storage as gcs_storage  # type: ignore
+        from google.oauth2 import service_account as gcs_sa  # type: ignore
+
+        sa_info = json.loads(sa_json_str)
+        creds = gcs_sa.Credentials.from_service_account_info(
+            sa_info,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        client = gcs_storage.Client(credentials=creds, project=sa_info.get("project_id"))
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        blob.upload_from_filename(str(local_path), content_type="video/mp4")
+        blob.make_public()
+        url = f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
+        print(f"[server] GCS upload OK → {url}")
+        return url
+    except ImportError:
+        print("[server] google-cloud-storage not installed — run: pip install google-cloud-storage google-auth")
+        return None
+    except Exception as exc:
+        print(f"[server] GCS upload failed: {exc}")
+        return None
+
+
+def _update_airtable_turntable_url(record_id: str, table_name: str, video_url: str) -> bool:
+    """PATCH the 'Turntable Video URL' field on an Airtable record.
+
+    Required env vars:
+        AIRTABLE_API_TOKEN  — personal access token (patXXX...)
+        AIRTABLE_BASE_ID    — base ID (appXXX...)
+    """
+    api_token = os.environ.get("AIRTABLE_API_TOKEN", "").strip()
+    base_id = os.environ.get("AIRTABLE_BASE_ID", "").strip()
+
+    if not api_token or not base_id:
+        print("[server] AIRTABLE_API_TOKEN or AIRTABLE_BASE_ID not set — skipping Airtable update")
+        return False
+
+    if httpx is None:
+        print("[server] httpx not available — cannot update Airtable")
+        return False
+
+    try:
+        encoded_table = urllib.parse.quote(table_name, safe="")
+        url = f"https://api.airtable.com/v0/{base_id}/{encoded_table}/{record_id}"
+        r = httpx.patch(
+            url,
+            json={"fields": {"Turntable Video URL": video_url}},
+            headers={
+                "Authorization": f"Bearer {api_token}",
+                "Content-Type": "application/json",
+            },
+            timeout=15,
+            follow_redirects=True,
+        )
+        r.raise_for_status()
+        print(f"[server] Airtable record {record_id} updated with turntable URL")
+        return True
+    except Exception as exc:
+        print(f"[server] Airtable update failed: {exc}")
+        return False
+
+
+@app.post("/api/scan/save-video")
+async def save_video(body: dict) -> dict:
+    """Upload the finished turntable to GCS and persist the URL in Airtable.
+
+    Body JSON:
+        jobId:     str   — job ID returned by /api/scan/submit
+        recordId:  str   — Airtable record ID (recXXX...)
+        tableName: str   — Airtable table name (e.g. "Patients")
+
+    Returns:
+        { videoUrl: str, persisted: bool }
+        videoUrl  — GCS URL if upload succeeded, otherwise the local /demo-3d path
+        persisted — true if Airtable was also updated
+    """
+    job_id: str = body.get("jobId", "")
+    record_id: str = body.get("recordId", "")
+    table_name: str = body.get("tableName", "Patients")
+
+    if not job_id or not record_id:
+        raise HTTPException(400, "jobId and recordId are required")
+
+    job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, f"Job {job_id!r} not found")
+    if job.get("status") != "done":
+        raise HTTPException(400, f"Job {job_id!r} is not done (status: {job.get('status')!r})")
+
+    local_url: str = job.get("video_url", "")
+    if not local_url:
+        raise HTTPException(500, "Job has no video_url — reconstruction may have failed")
+
+    # Resolve local filesystem path from the /demo-3d/… URL stored in the job
+    local_path = PUBLIC_3D / Path(local_url).name
+    if not local_path.exists():
+        raise HTTPException(404, f"Video file not found on disk: {local_path}")
+
+    # Derive a stable GCS blob name from the filename so re-runs overwrite rather than accumulate
+    blob_name = f"turntables/{local_path.name}"
+
+    gcs_url = await asyncio.to_thread(_upload_to_gcs, local_path, blob_name)
+
+    if not gcs_url:
+        # GCS not configured or failed — return the local URL so the viewer still works
+        # this session, but Airtable is not updated.
+        return {"videoUrl": local_url, "persisted": False}
+
+    persisted = await asyncio.to_thread(_update_airtable_turntable_url, record_id, table_name, gcs_url)
+    return {"videoUrl": gcs_url, "persisted": persisted}
 
 
 if __name__ == "__main__":

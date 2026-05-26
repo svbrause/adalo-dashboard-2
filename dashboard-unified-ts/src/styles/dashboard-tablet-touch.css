@@ -1,0 +1,330 @@
+/**
+ * iPad / tablet browser + touch-first dashboard polish.
+ * Complements component CSS; uses coarse-pointer rules for iPad landscape (width > 1024).
+ */
+
+:root {
+  --dashboard-compact-max: 1024px;
+  --dashboard-touch-target: 44px;
+  --dashboard-touch-target-lg: 48px;
+  --dashboard-content-pad-tablet: 20px;
+  --dashboard-content-pad-phone: 16px;
+}
+
+/* ── Shell: overlay nav (phones only — sidebar stays visible on iPad) ─────── */
+
+@media (max-width: 768px) {
+  .dashboard-wrapper {
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .dashboard-wrapper--sidebar-collapsed .main-content {
+    margin-left: 0 !important;
+  }
+
+  .main-content > .main-header,
+  .main-content > .view-controls-container {
+    flex-shrink: 0;
+  }
+
+  .dashboard-views-wrap {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ── Tablet / iPad: touch targets + padding (persistent sidebar) ─────────── */
+
+@media (max-width: 1024px) {
+  .main-header {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    min-height: var(--dashboard-touch-target);
+    height: auto;
+    max-height: none;
+    gap: 10px;
+  }
+
+  .page-title {
+    font-size: clamp(17px, 2.2vw, 20px);
+    line-height: 1.25;
+  }
+
+  .header-right {
+    gap: 10px;
+  }
+
+  .header-right .btn-secondary,
+  .header-right .scan-client-btn,
+  .header-nav-menu-btn,
+  .dark-mode-toggle {
+    min-height: var(--dashboard-touch-target);
+    min-width: var(--dashboard-touch-target);
+    padding: 10px 14px;
+    font-size: 15px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .main-header .scan-client-option {
+    min-height: var(--dashboard-touch-target-lg);
+    padding: 14px 20px;
+    font-size: 16px;
+  }
+
+  .main-header .scan-client-option:active,
+  .header-right .btn-secondary:active,
+  .header-right .scan-client-btn:active {
+    opacity: 0.72;
+    transform: none;
+  }
+
+  .view-controls-container {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .dashboard-views-wrap {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ── Client detail panel (full-screen on iPad) ───────────────────────────── */
+
+@media (max-width: 1024px) {
+  .client-detail-panel {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .client-detail-panel-header {
+    padding: 12px max(16px, env(safe-area-inset-right)) 12px
+      max(16px, env(safe-area-inset-left));
+    max-width: none;
+    min-height: var(--dashboard-touch-target);
+  }
+
+  .client-detail-panel-close {
+    width: var(--dashboard-touch-target);
+    height: var(--dashboard-touch-target);
+    min-width: var(--dashboard-touch-target);
+    min-height: var(--dashboard-touch-target);
+    font-size: 28px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .client-detail-panel-close:active {
+    background: var(--theme-bg-hover);
+  }
+
+  .client-detail-panel-body {
+    padding: var(--dashboard-content-pad-tablet);
+  }
+
+  .client-detail-panel--3d-split .client-detail-panel-body {
+    padding: var(--dashboard-content-pad-tablet);
+  }
+
+  .cdp-dark-toggle,
+  .cdp-client-name-row .edit-toggle-btn,
+  .modal-contact-section .edit-toggle-btn {
+    min-width: var(--dashboard-touch-target);
+    min-height: var(--dashboard-touch-target);
+    touch-action: manipulation;
+  }
+
+  /* Keep side-by-side on tablet landscape when wide enough */
+  @media (min-width: 901px) {
+    .client-detail-panel--3d-split {
+      grid-template-columns: minmax(300px, 64%) minmax(220px, 36%);
+      grid-template-rows: auto 1fr;
+    }
+
+    .client-detail-panel--3d-split .client-detail-panel-header {
+      grid-column: 1 / -1;
+    }
+
+    .cdp-face-col {
+      grid-row: 2;
+      grid-column: 1;
+      height: auto;
+      min-height: 0;
+    }
+
+    .client-detail-panel--3d-split .client-detail-panel-scroll {
+      grid-row: 2;
+      grid-column: 2;
+      border-left: 1px solid var(--theme-border);
+      border-top: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .client-detail-panel--3d-split {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .cdp-face-col {
+      height: clamp(280px, 42vh, 420px);
+    }
+  }
+
+  .detail-section-header,
+  .modal-section-header {
+    min-height: var(--dashboard-touch-target);
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .discussed-treatments-record-row,
+  .discussed-treatments-record-row-outer {
+    min-height: var(--dashboard-touch-target-lg);
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .client-detail-panel-body {
+    padding: var(--dashboard-content-pad-phone);
+  }
+}
+
+/* ── List / kanban / inbox ───────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .list-view,
+  .list-view-content {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+
+  .list-view-content {
+    padding: var(--dashboard-content-pad-tablet);
+    padding-bottom: max(var(--dashboard-content-pad-tablet), env(safe-area-inset-bottom));
+  }
+
+  .kanban-view,
+  .kanban-board {
+    padding-left: max(var(--dashboard-content-pad-tablet), env(safe-area-inset-left));
+    padding-right: max(var(--dashboard-content-pad-tablet), env(safe-area-inset-right));
+  }
+
+  .kanban-column {
+    min-width: 280px;
+  }
+
+  .inbox-view {
+    padding: var(--dashboard-content-pad-tablet);
+    padding-bottom: max(var(--dashboard-content-pad-tablet), env(safe-area-inset-bottom));
+  }
+
+  .inbox-refresh-btn,
+  .inbox-retry-btn {
+    min-height: var(--dashboard-touch-target);
+    padding: 12px 18px;
+    font-size: 15px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .inbox-refresh-btn:active,
+  .inbox-retry-btn:active {
+    background: var(--theme-bg-hover);
+    border-color: var(--theme-accent);
+  }
+
+  .inbox-card {
+    padding: 18px;
+  }
+}
+
+/* ── Touch devices (incl. iPad Pro landscape): 44px targets on desktop width ─ */
+
+@media (pointer: coarse) {
+  .dashboard-wrapper .nav-item {
+    min-height: var(--dashboard-touch-target-lg);
+    padding: 14px 20px;
+    touch-action: manipulation;
+  }
+
+  .dashboard-wrapper .sidebar-toggle {
+    min-width: var(--dashboard-touch-target);
+    min-height: var(--dashboard-touch-target);
+  }
+
+  .main-header .btn-secondary,
+  .main-header .scan-client-btn,
+  .dark-mode-toggle,
+  .header-nav-menu-btn {
+    min-height: var(--dashboard-touch-target);
+    touch-action: manipulation;
+  }
+
+  .client-detail-panel-close,
+  .edit-toggle-btn,
+  .cdp-dark-toggle {
+    min-width: var(--dashboard-touch-target);
+    min-height: var(--dashboard-touch-target);
+  }
+
+  .list-view-table tbody tr,
+  .client-card {
+    touch-action: manipulation;
+  }
+
+  .list-view-table tbody tr:active,
+  .client-card:active {
+    background: var(--theme-bg-hover);
+  }
+
+  .kanban-column .client-card:hover {
+    transform: none;
+  }
+
+  .kanban-column .client-card:active {
+    box-shadow: 0 2px 8px var(--theme-shadow);
+    background: var(--theme-bg-hover);
+  }
+
+  .pagination button,
+  .pagination .page-btn {
+    min-width: var(--dashboard-touch-target);
+    min-height: var(--dashboard-touch-target);
+  }
+}
+
+/* Prefer :active over sticky :hover on touch hardware */
+@media (hover: none) {
+  .inbox-refresh-btn:hover {
+    background: var(--theme-bg-card);
+    border-color: var(--theme-border);
+    color: var(--theme-text-secondary);
+  }
+
+  .main-header .scan-client-option:hover {
+    transform: none;
+    background: var(--theme-bg-card);
+  }
+}

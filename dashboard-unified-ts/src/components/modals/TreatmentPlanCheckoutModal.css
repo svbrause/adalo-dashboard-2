@@ -371,15 +371,15 @@
   padding: 18px;
 }
 
-.treatment-plan-checkout-blueprint-compose-modal h3 {
+.treatment-plan-checkout-blueprint-compose-modal:not(.share-treatment-plan-link-dialog) h3 {
   margin: 0;
   font-size: 18px;
-  color: #0f172a;
+  color: var(--color-text-heading, var(--theme-text-primary, #0f172a));
 }
 
-.treatment-plan-checkout-blueprint-compose-modal p {
+.treatment-plan-checkout-blueprint-compose-modal:not(.share-treatment-plan-link-dialog) p {
   margin: 8px 0 12px;
-  color: #475569;
+  color: var(--theme-text-secondary, #475569);
   font-size: 14px;
 }
 

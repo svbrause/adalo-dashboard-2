@@ -121,9 +121,12 @@ import {
   parseDateOfBirthForForm,
 } from "../../utils/formMapping";
 import {
-  shouldLoadPhotoForClient,
   fetchClientFrontPhoto,
+  clientNeedsFreshFrontPhotoUrl,
   getClientFrontPhotoDisplayUrl,
+  markPhotoDisplayUrlFailed,
+  preloadClientFrontPhotoImage,
+  resolveClientFrontPhotoDisplayUrl,
 } from "../../utils/photoLoading";
 import { formatZipCodeInput } from "../../utils/validation";
 import { useDashboard } from "../../context/DashboardContext";
@@ -323,22 +326,25 @@ export default function ClientDetailModal({
       });
       setStatus(client.status);
 
-      // Load front photo: inline URL string, Airtable attachment array, or fetch on demand
-      const resolved = getClientFrontPhotoDisplayUrl(client.frontPhoto);
+      const resolved = resolveClientFrontPhotoDisplayUrl(client);
       if (resolved) {
+        preloadClientFrontPhotoImage(resolved, "high");
+        client.frontPhotoLoaded = true;
         setFrontPhotoUrl(resolved);
         setPhotoLoading(false);
-      } else if (
-        client.tableSource === "Patients" &&
-        !client.frontPhotoLoaded &&
-        shouldLoadPhotoForClient(client)
-      ) {
+      } else if (clientNeedsFreshFrontPhotoUrl(client)) {
         setFrontPhotoUrl(null);
         setPhotoLoading(true);
         fetchClientFrontPhoto(client.id)
           .then((photo) => {
-            const url = getClientFrontPhotoDisplayUrl(photo);
-            if (url) setFrontPhotoUrl(url);
+            const url = getClientFrontPhotoDisplayUrl(photo, {
+              allowExpiringAirtableCdn: true,
+            });
+            if (url) {
+              client.frontPhoto = (photo ?? url) as Client["frontPhoto"];
+              client.frontPhotoLoaded = true;
+              setFrontPhotoUrl(url);
+            }
             setPhotoLoading(false);
           })
           .catch(() => {
@@ -753,6 +759,25 @@ export default function ClientDetailModal({
                       alt={client.name}
                       className="modal-photo"
                       loading="eager"
+                      onError={() => {
+                        if (!frontPhotoUrl || !client) return;
+                        markPhotoDisplayUrlFailed(frontPhotoUrl);
+                        setFrontPhotoUrl(null);
+                        setPhotoLoading(true);
+                        fetchClientFrontPhoto(client.id)
+                          .then((photo) => {
+                            const url = getClientFrontPhotoDisplayUrl(photo, {
+                              allowExpiringAirtableCdn: true,
+                            });
+                            if (url) {
+                              client.frontPhoto = (photo ?? url) as Client["frontPhoto"];
+                              client.frontPhotoLoaded = true;
+                              setFrontPhotoUrl(url);
+                            }
+                            setPhotoLoading(false);
+                          })
+                          .catch(() => setPhotoLoading(false));
+                      }}
                     />
                     <div className="modal-photo-overlay">Click to view</div>
                   </div>
@@ -1743,8 +1768,20 @@ export default function ClientDetailModal({
               <div className="detail-section detail-section-facial-analysis">
                 <div className="detail-section-header-flex detail-section-facial-analysis-header">
                   <div className="detail-section-facial-analysis-header__primary">
-                    <span className="detail-section-title detail-section-facial-analysis-header__title">
-                      Facial Analysis
+                    <span className="detail-section-facial-analysis-header__heading">
+                      <span className="detail-section-title detail-section-facial-analysis-header__title">
+                        Facial Analysis
+                      </span>
+                      {client.tableSource === "Patients" &&
+                        facialAnalysisFormHasData &&
+                        client.createdAt && (
+                          <span
+                            className="facial-analysis-date-meta facial-analysis-date-meta--inline"
+                            title={`Analysis date: ${formatDate(client.createdAt)}`}
+                          >
+                            {formatDate(client.createdAt)}
+                          </span>
+                        )}
                     </span>
                     <FacialAnalysisStatusPill
                       client={client}
@@ -1753,16 +1790,6 @@ export default function ClientDetailModal({
                         facialAnalysisFormHasData,
                       )}
                     />
-                    {client.tableSource === "Patients" &&
-                      facialAnalysisFormHasData &&
-                      client.createdAt && (
-                        <span
-                          className="facial-analysis-date-meta facial-analysis-date-meta--inline"
-                          title={`Analysis date: ${formatDate(client.createdAt)}`}
-                        >
-                          {formatDate(client.createdAt)}
-                        </span>
-                      )}
                   </div>
                   <div className="detail-actions-inline detail-section-facial-analysis-header__actions">
                     {facialAnalysisFormHasData && (
@@ -1771,13 +1798,13 @@ export default function ClientDetailModal({
                           <button
                             type="button"
                             className="btn-secondary btn-sm"
-                            title="Explore Analysis Overview"
+                            title="View facial analysis"
                             onClick={(e) => {
                               e.stopPropagation();
                               setShowAnalysisOverview(true);
                             }}
                           >
-                            Overview
+                            View
                           </button>
                         )}
                         <button

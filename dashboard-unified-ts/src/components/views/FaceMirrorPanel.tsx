@@ -1,17 +1,42 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { Client, ClientPhotoSlot, DiscussedItem } from "../../types";
 import type {
   TreatmentPlanAddDirectOptions,
   TreatmentPlanPrefill,
 } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import AnalysisOverviewModal from "../modals/AnalysisOverviewModal";
-import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
+import {
+  AiMirrorCanvas,
+  hasMirrorAnnotationHighlights,
+} from "../postVisitBlueprint/AiMirrorCanvas";
 import {
   ADDITIONAL_AI_MIRROR_REGIONS,
   AI_MIRROR_REGIONS,
 } from "../postVisitBlueprint/aiMirrorRegions";
 import Face3DViewer from "./Face3DViewer";
-import blackBgVideoUrl from "../../assets/images/turntable_2048_black.mp4";
+import AuraFaceView from "../aura/AuraFaceView";
+import { clientUsesAuraScan } from "../../utils/auraScanConfig";
+import { TANYA_TAN_VIEWER_ANGLE_ASSETS } from "../../utils/auraTanAnglePhotos";
+import {
+  AURA_OVERVIEW_TABS,
+  issueToMirrorHighlightTerm,
+  type AuraOverviewCategoryKey,
+} from "../../utils/auraAnalysisBridge";
+import type { AuraMirrorHighlightBridge } from "./AuraEmbeddedAnalysisPanel";
+import {
+  faceMirrorHighlightStorageKey,
+  loadFaceMirrorHighlightedRegions,
+  saveFaceMirrorHighlightedRegions,
+} from "../../utils/faceMirrorHighlightStorage";
+import { getScanApiBaseUrl } from "../../utils/scanApi";
 import "./FaceMirrorPanel.css";
 
 // ---------------------------------------------------------------------------
@@ -33,6 +58,43 @@ type ScanState =
   | { phase: "running"; jobId: string; progress: number; message: string; remaining: number }
   | { phase: "done"; videoUrl: string }
   | { phase: "error"; message: string };
+
+// ---------------------------------------------------------------------------
+// Scan-job localStorage persistence (survives page navigations)
+// ---------------------------------------------------------------------------
+type PersistedScanJob = {
+  jobId: string;
+  quality: ScanQuality;
+  estimatedSeconds: number;
+  startedAt: number; // Date.now()
+};
+
+const SCAN_JOB_MAX_AGE_MS = 30 * 60 * 1000; // 30 min — abandon stale jobs
+
+function scanJobKey(recordId: string): string {
+  return `fmp-scan-job:${recordId}`;
+}
+
+function savePersistedJob(recordId: string, job: PersistedScanJob): void {
+  try { localStorage.setItem(scanJobKey(recordId), JSON.stringify(job)); } catch { /* storage full */ }
+}
+
+function loadPersistedJob(recordId: string): PersistedScanJob | null {
+  try {
+    const raw = localStorage.getItem(scanJobKey(recordId));
+    if (!raw) return null;
+    const job = JSON.parse(raw) as PersistedScanJob;
+    if (Date.now() - job.startedAt > SCAN_JOB_MAX_AGE_MS) {
+      localStorage.removeItem(scanJobKey(recordId));
+      return null;
+    }
+    return job;
+  } catch { return null; }
+}
+
+function clearPersistedJob(recordId: string): void {
+  try { localStorage.removeItem(scanJobKey(recordId)); } catch { /* ignore */ }
+}
 
 // ---------------------------------------------------------------------------
 // Photo slot → Modal photo-key mapping
@@ -112,12 +174,12 @@ const ANNOTATION_REGION_LABELS: Record<string, string> = {
   rLowerFace: "Lower face",
 };
 
-const DEBUG_ANNOTATION_REGIONS = [
+const MIRROR_ANNOTATION_REGIONS = [
   ...AI_MIRROR_REGIONS,
   ...ADDITIONAL_AI_MIRROR_REGIONS,
 ];
 
-const ALL_ANNOTATION_REGION_IDS = DEBUG_ANNOTATION_REGIONS.map((region) => region.id);
+const ALL_ANNOTATION_REGION_IDS = MIRROR_ANNOTATION_REGIONS.map((region) => region.id);
 
 function isIntakeOrFormSlot(s: ClientPhotoSlot): boolean {
   const id = s.id.toLowerCase();
@@ -163,6 +225,8 @@ function FaceMirrorPhotoStage({
   activePhotoUrl,
   patientName,
   highlightTerms,
+  highlightedRegionIds,
+  showAnnotations,
   showPatientPhotoGallery,
   onOpenPatientPhotos,
   openPatientPhotosSafe,
@@ -176,6 +240,8 @@ function FaceMirrorPhotoStage({
   activePhotoUrl: string;
   patientName: string;
   highlightTerms: string[];
+  highlightedRegionIds: string[];
+  showAnnotations: boolean;
   showPatientPhotoGallery: boolean;
   onOpenPatientPhotos?: (initialTab: "front" | "side") => void;
   openPatientPhotosSafe: (initialTab: "front" | "side") => void;
@@ -192,7 +258,8 @@ function FaceMirrorPhotoStage({
         imageUrl={activePhotoUrl}
         alt={`${patientName} facial analysis`}
         highlightTerms={highlightTerms}
-        showAnnotations={true}
+        highlightedRegionIds={highlightedRegionIds}
+        showAnnotations={showAnnotations}
       />
       {showPatientPhotoGallery && onOpenPatientPhotos && (
         <button
@@ -232,6 +299,88 @@ function FaceMirrorPhotoStage({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Overlay controls (auto-rotate, highlight) on photo / 3D viewport
+// ---------------------------------------------------------------------------
+function FaceMirrorViewportShell({
+  children,
+  showAutoRotate,
+  autoRotate,
+  onToggleAutoRotate,
+  showHighlightPicker,
+  manualHighlightedRegionIds,
+  onSetManualHighlightedRegionIds,
+  onToggleAnnotationRegionHighlight,
+}: {
+  children: ReactNode;
+  showAutoRotate: boolean;
+  autoRotate: boolean;
+  onToggleAutoRotate: () => void;
+  showHighlightPicker: boolean;
+  manualHighlightedRegionIds: string[];
+  onSetManualHighlightedRegionIds: (ids: string[]) => void;
+  onToggleAnnotationRegionHighlight: (regionId: string) => void;
+}) {
+  const showOverlays = showAutoRotate || showHighlightPicker;
+  if (!showOverlays) return <>{children}</>;
+
+  return (
+    <div className="fmp-viewport">
+      {children}
+      <div className="fmp-viewport-overlays" aria-label="View controls">
+        {showAutoRotate && (
+          <button
+            type="button"
+            className={`fmp-overlay-btn${autoRotate ? " fmp-overlay-btn--active" : ""}`}
+            onClick={onToggleAutoRotate}
+            aria-pressed={autoRotate}
+            title={autoRotate ? "Pause auto-rotate" : "Auto-rotate"}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M21 12a9 9 0 1 1-3-6.7" />
+              <polyline points="21 3 21 9 15 9" />
+            </svg>
+            <span className="fmp-overlay-btn__label">Rotate</span>
+          </button>
+        )}
+        {showHighlightPicker && (
+          <details className="fmp-annotation-regions fmp-annotation-regions--overlay">
+            <summary>Regions</summary>
+            <div className="fmp-annotation-regions__panel">
+              <div className="fmp-annotation-regions__actions">
+                <button
+                  type="button"
+                  onClick={() => onSetManualHighlightedRegionIds(ALL_ANNOTATION_REGION_IDS)}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSetManualHighlightedRegionIds([])}
+                >
+                  None
+                </button>
+              </div>
+              <div className="fmp-annotation-regions__grid">
+                {MIRROR_ANNOTATION_REGIONS.map((region) => (
+                  <label key={region.id} className="fmp-annotation-regions__item">
+                    <input
+                      type="checkbox"
+                      checked={manualHighlightedRegionIds.includes(region.id)}
+                      onChange={() => onToggleAnnotationRegionHighlight(region.id)}
+                    />
+                    <span>{ANNOTATION_REGION_LABELS[region.id] ?? region.id}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </details>
+        )}
+      </div>
     </div>
   );
 }
@@ -352,23 +501,109 @@ export default function FaceMirrorPanel({
   // --- Existing state ---
   const [mode, setMode] = useState<ViewMode>("photo");
   const [autoRotate3d, setAutoRotate3d] = useState(true);
-  const [show3DAnnotations, setShow3DAnnotations] = useState(false);
-  const [debugHighlighted3DRegionIds, setDebugHighlighted3DRegionIds] = useState<string[]>([]);
+  const highlightStorageKey = faceMirrorHighlightStorageKey(
+    airtableRecordId,
+    patientName,
+  );
+  const [manualHighlightedRegionIds, setManualHighlightedRegionIds] = useState<string[]>(
+    () => loadFaceMirrorHighlightedRegions(highlightStorageKey, ALL_ANNOTATION_REGION_IDS),
+  );
   const [angleIdx, setAngleIdx] = useState(0);
   const [viewportExpanded, setViewportExpanded] = useState(false);
+  const [auraPanelCollapsed, setAuraPanelCollapsed] = useState(false);
+  const [auraActiveCategory, setAuraActiveCategory] =
+    useState<AuraOverviewCategoryKey>("volumeLoss");
+  const [auraIssueHighlights, setAuraIssueHighlights] = useState<string[]>([]);
 
   // --- Scan generation state ---
   const [scanState, setScanState] = useState<ScanState>({ phase: "idle" });
   const [scanQuality, setScanQuality] = useState<ScanQuality>("standard");
   const [overrideGlbUrl, setOverrideGlbUrl] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Test toggle: swap the normal video for the black-bg version to preview dark mode
-  const [useBlackBgVideo, setUseBlackBgVideo] = useState(false);
 
-  // The effective video URL: override (from a just-completed generation) wins over the prop
-  const baseVideoUrl = overrideGlbUrl ?? videoUrlProp ?? null;
-  const effectiveVideoUrl = useBlackBgVideo && baseVideoUrl ? blackBgVideoUrl : baseVideoUrl;
+  const effectiveVideoUrl = overrideGlbUrl ?? videoUrlProp ?? null;
   const has3D = Boolean(effectiveVideoUrl);
+  const useAuraScan = clientUsesAuraScan(patientName) && Boolean(effectiveVideoUrl);
+
+  useEffect(() => {
+    setManualHighlightedRegionIds(
+      loadFaceMirrorHighlightedRegions(highlightStorageKey, ALL_ANNOTATION_REGION_IDS),
+    );
+  }, [highlightStorageKey]);
+
+  useEffect(() => {
+    saveFaceMirrorHighlightedRegions(highlightStorageKey, manualHighlightedRegionIds);
+  }, [highlightStorageKey, manualHighlightedRegionIds]);
+
+  const useAuraExpandedAnalysis = Boolean(
+    viewportExpanded && analysisOverviewClient,
+  );
+  const auraMirrorHighlightsActive = useAuraExpandedAnalysis && !useAuraScan;
+
+  const auraHighlightTermsForView = useMemo(() => {
+    if (!auraMirrorHighlightsActive) return [];
+    return auraIssueHighlights;
+  }, [auraMirrorHighlightsActive, auraIssueHighlights]);
+
+  /**
+   * Collapsed split: manual regions only (no bulk interested-issues overlay).
+   * Expanded: Aura issue highlights or parent terms.
+   * Single term from analysis row click works in both layouts.
+   */
+  const highlightTermsForView = useMemo(() => {
+    if (auraMirrorHighlightsActive) return auraHighlightTermsForView;
+    if (viewportExpanded) return highlightTerms;
+    return highlightTerms.length === 1 ? highlightTerms : [];
+  }, [
+    auraMirrorHighlightsActive,
+    auraHighlightTermsForView,
+    viewportExpanded,
+    highlightTerms,
+  ]);
+
+  /** Manual region picker (photo + 3D + Aura) in split and expanded views. */
+  const manualRegionsForView = manualHighlightedRegionIds;
+
+  const hasAnnotations = useMemo(
+    () => hasMirrorAnnotationHighlights(highlightTermsForView, manualRegionsForView),
+    [highlightTermsForView, manualRegionsForView],
+  );
+
+  const toggleAuraIssueHighlight = useCallback((issueName: string, enabled: boolean) => {
+    const term = issueToMirrorHighlightTerm(issueName);
+    const lower = term.toLowerCase();
+    setAuraIssueHighlights((current) => {
+      if (enabled) {
+        if (current.some((t) => t.toLowerCase() === lower)) return current;
+        return [...current, term];
+      }
+      return current.filter((t) => t.toLowerCase() !== lower);
+    });
+  }, []);
+
+  const clearAuraIssueHighlights = useCallback(() => {
+    setAuraIssueHighlights([]);
+  }, []);
+
+  const auraBridge = useMemo((): AuraMirrorHighlightBridge | undefined => {
+    if (!useAuraExpandedAnalysis) return undefined;
+    return {
+      highlightTerms: auraIssueHighlights,
+      onToggleIssueHighlight: toggleAuraIssueHighlight,
+      onClearIssueHighlights: clearAuraIssueHighlights,
+      activeCategory: auraActiveCategory,
+      onActiveCategoryChange: setAuraActiveCategory,
+      panelCollapsed: auraPanelCollapsed,
+      onPanelCollapsedChange: setAuraPanelCollapsed,
+    };
+  }, [
+    useAuraExpandedAnalysis,
+    auraIssueHighlights,
+    auraActiveCategory,
+    auraPanelCollapsed,
+    toggleAuraIssueHighlight,
+    clearAuraIssueHighlights,
+  ]);
 
   const angleSlots = useMemo((): ClientPhotoSlot[] => {
     if (photoSlots.length > 0) return photoSlots;
@@ -384,6 +619,10 @@ export default function FaceMirrorPanel({
   );
 
   useEffect(() => { setAngleIdx(0); }, [slotKey]);
+
+  useEffect(() => {
+    if (useAuraScan && has3D) setMode("3d");
+  }, [useAuraScan, has3D, patientName]);
 
   const activePhotoUrl = simplifiedSlots[angleIdx]?.url ?? null;
   const hasPhoto = Boolean(activePhotoUrl);
@@ -406,13 +645,27 @@ export default function FaceMirrorPanel({
     [onOpenPatientPhotos],
   );
 
-  const toggle3DAnnotationRegionHighlight = useCallback((regionId: string) => {
-    setDebugHighlighted3DRegionIds((current) =>
+  const toggleAnnotationRegionHighlight = useCallback((regionId: string) => {
+    setManualHighlightedRegionIds((current) =>
       current.includes(regionId)
         ? current.filter((id) => id !== regionId)
         : [...current, regionId],
     );
   }, []);
+
+  const toggleAutoRotate3d = useCallback(() => {
+    setAutoRotate3d((v) => !v);
+  }, []);
+
+  const viewportOverlayProps = {
+    showAutoRotate: mode === "3d" && has3D,
+    autoRotate: autoRotate3d,
+    onToggleAutoRotate: toggleAutoRotate3d,
+    showHighlightPicker: hasPhoto || has3D,
+    manualHighlightedRegionIds,
+    onSetManualHighlightedRegionIds: setManualHighlightedRegionIds,
+    onToggleAnnotationRegionHighlight: toggleAnnotationRegionHighlight,
+  };
 
   // Keyboard: Escape closes viewport-expanded
   useEffect(() => {
@@ -433,9 +686,7 @@ export default function FaceMirrorPanel({
 
   // --- Scan generation flow ---
 
-  // In production VITE_SCAN_API_URL = "https://ponce-patient-backend.vercel.app"
-  // In local dev leave it unset — the Vite proxy forwards /api/* to server.py on port 8787
-  const SCAN_API = (import.meta.env.VITE_SCAN_API_URL as string | undefined) ?? "";
+  const SCAN_API = getScanApiBaseUrl();
 
   const stopPolling = useCallback(() => {
     if (pollRef.current !== null) {
@@ -444,7 +695,73 @@ export default function FaceMirrorPanel({
     }
   }, []);
 
-  /** Submit photos to /api/scan/submit, then poll /api/scan/status/:jobId for progress. */
+  /** Start polling /api/scan/status/:jobId. Call after submit or on remount to resume. */
+  const startPolling = useCallback((jobId: string) => {
+    type ProgressEvent = {
+      status: string;
+      progress?: number;
+      message?: string;
+      remaining?: number;
+      videoUrl?: string;
+      videoBase64?: string;
+      error?: string;
+    };
+
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const r = await fetch(`${SCAN_API}/api/scan/status/${jobId}`);
+        const d = await r.json() as ProgressEvent;
+
+        if (d.status === "done") {
+          stopPolling();
+          if (airtableRecordId) clearPersistedJob(airtableRecordId);
+          let videoUrl = d.videoUrl;
+          if (!videoUrl && d.videoBase64) {
+            const bytes = Uint8Array.from(atob(d.videoBase64), (c) => c.charCodeAt(0));
+            videoUrl = URL.createObjectURL(new Blob([bytes], { type: "video/mp4" }));
+          }
+          if (videoUrl) {
+            setOverrideGlbUrl(videoUrl);
+            setScanState({ phase: "done", videoUrl });
+            setMode("3d");
+            onScanGenerated?.(videoUrl);
+            if (airtableRecordId && airtableTableName) {
+              fetch(`${SCAN_API}/api/scan/save-video`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ jobId, recordId: airtableRecordId, tableName: airtableTableName }),
+              })
+                .then((r) => r.json())
+                .then((saved: { videoUrl?: string }) => {
+                  if (saved.videoUrl) {
+                    setOverrideGlbUrl(saved.videoUrl);
+                    onScanGenerated?.(saved.videoUrl);
+                  }
+                })
+                .catch(() => { /* non-fatal */ });
+            }
+          }
+        } else if (d.status === "error") {
+          stopPolling();
+          if (airtableRecordId) clearPersistedJob(airtableRecordId);
+          setScanState({ phase: "error", message: d.error ?? "Unknown error" });
+        } else {
+          setScanState({
+            phase: "running",
+            jobId,
+            progress: d.progress ?? 0,
+            message: d.message ?? "Working…",
+            remaining: d.remaining ?? 0,
+          });
+        }
+      } catch {
+        // transient network error — keep polling
+      }
+    }, 2500);
+  }, [SCAN_API, stopPolling, airtableRecordId, airtableTableName, onScanGenerated]);
+
+  /** Submit photos to /api/scan/submit, then poll for progress. */
   const startScan = useCallback(async () => {
     setScanState({ phase: "submitting" });
 
@@ -460,11 +777,7 @@ export default function FaceMirrorPanel({
       const res = await fetch(`${SCAN_API}/api/scan/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientName: patientName,
-          quality: scanQuality,
-          photos: photoMap,
-        }),
+        body: JSON.stringify({ clientName: patientName, quality: scanQuality, photos: photoMap }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -480,69 +793,27 @@ export default function FaceMirrorPanel({
 
     setScanState({ phase: "running", jobId, progress: 0.01, message: "Starting…", remaining: estimatedSeconds });
 
-    // Poll for progress every 2.5 s (works with both local server.py and Modal via backend)
-    stopPolling();
-    pollRef.current = setInterval(async () => {
-      type ProgressEvent = {
-        status: string;
-        progress?: number;
-        message?: string;
-        remaining?: number;
-        videoUrl?: string;
-        videoBase64?: string;
-        error?: string;
-      };
-      try {
-        const r = await fetch(`${SCAN_API}/api/scan/status/${jobId}`);
-        const d = await r.json() as ProgressEvent;
+    // Persist so the job survives page navigations
+    if (airtableRecordId) {
+      savePersistedJob(airtableRecordId, { jobId, quality: scanQuality, estimatedSeconds, startedAt: Date.now() });
+    }
 
-        if (d.status === "done") {
-          stopPolling();
-          // Local server.py returns videoUrl; Modal endpoint returns videoBase64
-          let videoUrl = d.videoUrl;
-          if (!videoUrl && d.videoBase64) {
-            const bytes = Uint8Array.from(atob(d.videoBase64), (c) => c.charCodeAt(0));
-            videoUrl = URL.createObjectURL(new Blob([bytes], { type: "video/mp4" }));
-          }
-          if (videoUrl) {
-            setOverrideGlbUrl(videoUrl);
-            setScanState({ phase: "done", videoUrl });
-            setMode("3d");
-            onScanGenerated?.(videoUrl);
-            // Persist to GCS + Airtable so the scan survives page reloads and works across devices
-            if (airtableRecordId && airtableTableName && airtableTableName === "Patients") {
-              fetch(`${SCAN_API}/api/scan/save-video`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ jobId, recordId: airtableRecordId, tableName: airtableTableName }),
-              })
-                .then((r) => r.json())
-                .then((saved: { videoUrl?: string }) => {
-                  if (saved.videoUrl) {
-                    setOverrideGlbUrl(saved.videoUrl);
-                    onScanGenerated?.(saved.videoUrl);
-                  }
-                })
-                .catch(() => { /* non-fatal — blob URL still works locally */ });
-            }
-          }
-        } else if (d.status === "error") {
-          stopPolling();
-          setScanState({ phase: "error", message: d.error ?? "Unknown error" });
-        } else {
-          setScanState({
-            phase: "running",
-            jobId,
-            progress: d.progress ?? 0,
-            message: d.message ?? "Working…",
-            remaining: d.remaining ?? 0,
-          });
-        }
-      } catch {
-        // transient network error — keep polling
-      }
-    }, 2500);
-  }, [angleSlots, patientName, scanQuality, onScanGenerated, SCAN_API, stopPolling]);
+    startPolling(jobId);
+  }, [angleSlots, patientName, scanQuality, SCAN_API, airtableRecordId, startPolling]);
+
+  // Resume an in-progress scan after remount (e.g. user navigated away and came back)
+  const resumeAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (resumeAttemptedRef.current || !airtableRecordId) return;
+    resumeAttemptedRef.current = true;
+    const saved = loadPersistedJob(airtableRecordId);
+    if (!saved) return;
+    const ageSec = (Date.now() - saved.startedAt) / 1000;
+    const remaining = Math.max(0, saved.estimatedSeconds - ageSec);
+    setScanQuality(saved.quality);
+    setScanState({ phase: "running", jobId: saved.jobId, progress: 0.05, message: "Reconnecting…", remaining });
+    startPolling(saved.jobId);
+  }, [airtableRecordId, startPolling]);
 
   // Cleanup poll on unmount
   useEffect(() => {
@@ -551,8 +822,9 @@ export default function FaceMirrorPanel({
 
   const cancelScan = useCallback(() => {
     stopPolling();
+    if (airtableRecordId) clearPersistedJob(airtableRecordId);
     setScanState({ phase: "idle" });
-  }, [stopPolling]);
+  }, [stopPolling, airtableRecordId]);
 
   // --- Toolbar rendering helper ---
 
@@ -565,7 +837,12 @@ export default function FaceMirrorPanel({
   const toolbar = (
     <div className="fmp-toolbar">
       <div className="fmp-toolbar-start">
-        {has3D && scanState.phase !== "running" && (
+        {useAuraScan ? (
+          <span className="fmp-aura-badge" title="3D turntable scan">
+            3D scan
+          </span>
+        ) : null}
+        {has3D && !useAuraScan && scanState.phase !== "running" && (
           <div className="fmp-mode-tabs" role="tablist" aria-label="View mode">
             <button
               role="tab"
@@ -632,7 +909,7 @@ export default function FaceMirrorPanel({
         )}
 
         {/* Regenerate button when a 3D scan already exists */}
-        {has3D && angleSlots.length > 0 && !scanning && scanState.phase !== "config" && (
+        {has3D && !useAuraScan && angleSlots.length > 0 && !scanning && scanState.phase !== "config" && (
           <button
             type="button"
             className="fmp-regenerate-3d-btn"
@@ -656,59 +933,6 @@ export default function FaceMirrorPanel({
       </div>
 
       <div className="fmp-toolbar-end">
-        {mode === "3d" && has3D && (
-          <>
-            <label className="fmp-auto-rotate">
-              <input type="checkbox" checked={autoRotate3d} onChange={(e) => setAutoRotate3d(e.target.checked)} />
-              <span>Auto-rotate</span>
-            </label>
-            <label className="fmp-auto-rotate">
-              <input type="checkbox" checked={show3DAnnotations} onChange={(e) => setShow3DAnnotations(e.target.checked)} />
-              <span>Annotate</span>
-            </label>
-            <button
-              type="button"
-              className={`fmp-fullscreen-btn${useBlackBgVideo ? " fmp-fullscreen-btn--active" : ""}`}
-              onClick={() => setUseBlackBgVideo((v) => !v)}
-              title={useBlackBgVideo ? "Switch to normal video" : "Switch to black-bg video"}
-            >
-              {useBlackBgVideo ? "⬛ Black bg" : "⬜ Black bg"}
-            </button>
-            {show3DAnnotations && (
-              <details className="fmp-annotation-regions">
-                <summary>Highlight</summary>
-                <div className="fmp-annotation-regions__panel">
-                  <div className="fmp-annotation-regions__actions">
-                    <button
-                      type="button"
-                      onClick={() => setDebugHighlighted3DRegionIds(ALL_ANNOTATION_REGION_IDS)}
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDebugHighlighted3DRegionIds([])}
-                    >
-                      None
-                    </button>
-                  </div>
-                  <div className="fmp-annotation-regions__grid">
-                    {DEBUG_ANNOTATION_REGIONS.map((region) => (
-                      <label key={region.id} className="fmp-annotation-regions__item">
-                        <input
-                          type="checkbox"
-                          checked={debugHighlighted3DRegionIds.includes(region.id)}
-                          onChange={() => toggle3DAnnotationRegionHighlight(region.id)}
-                        />
-                        <span>{ANNOTATION_REGION_LABELS[region.id] ?? region.id}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </details>
-            )}
-          </>
-        )}
         {scanning && (
           <button type="button" className="fmp-fullscreen-btn" onClick={cancelScan}>
             Cancel
@@ -749,7 +973,9 @@ export default function FaceMirrorPanel({
   const photoStageProps = {
     activePhotoUrl: activePhotoUrl!,
     patientName,
-    highlightTerms,
+    highlightTerms: highlightTermsForView,
+    highlightedRegionIds: manualRegionsForView,
+    showAnnotations: hasAnnotations,
     showPatientPhotoGallery,
     onOpenPatientPhotos,
     openPatientPhotosSafe,
@@ -761,14 +987,26 @@ export default function FaceMirrorPanel({
   };
 
   const viewer3D = effectiveVideoUrl ? (
-    <Face3DViewer
-      videoUrl={effectiveVideoUrl}
-      autoRotate={autoRotate3d}
-      showAnnotations={show3DAnnotations}
-      highlightTerms={highlightTerms}
-      highlightedAnnotationRegionIds={debugHighlighted3DRegionIds}
-      pingPongLoop={useBlackBgVideo}
-    />
+    useAuraScan ? (
+      <AuraFaceView
+        embedded
+        turntableOnly
+        videoUrl={effectiveVideoUrl}
+        viewerAngleAssets={TANYA_TAN_VIEWER_ANGLE_ASSETS}
+        highlightTerms={highlightTermsForView}
+        highlightedRegionIds={manualRegionsForView}
+      />
+    ) : (
+      <Face3DViewer
+        videoUrl={effectiveVideoUrl}
+        autoRotate={autoRotate3d}
+        showAnnotations={hasAnnotations}
+        highlightTerms={highlightTermsForView}
+        highlightedAnnotationRegionIds={manualRegionsForView}
+        initialZoom={1.3}
+        initialPanY={-70}
+      />
+    )
   ) : null;
 
   const placeholderEl = (
@@ -783,7 +1021,9 @@ export default function FaceMirrorPanel({
 
   // --- Render ---
   return (
-    <div className={`fmp-root${viewportExpanded ? " fmp-root--viewport-expanded" : ""}`}>
+    <div
+      className={`fmp-root${viewportExpanded ? " fmp-root--viewport-expanded" : ""}${useAuraScan ? " fmp-root--aura" : ""}`}
+    >
       {/* Toolbar: always visible when there's content (has3D or photos or can generate) */}
       {(has3D || hasPhoto || canGenerate) && toolbar}
 
@@ -801,21 +1041,75 @@ export default function FaceMirrorPanel({
 
       <div className="fmp-body">
         {showFsAnalysisOverview && analysisOverviewClient ? (
-          <div className="fmp-fullscreen-split">
+          <div
+            className={`fmp-fullscreen-split${auraPanelCollapsed ? " fmp-fullscreen-split--panel-collapsed" : ""}`}
+          >
             {mode === "photo" && hasPhoto && activePhotoUrl ? (
-              <div className="fmp-fullscreen-split-photo">
+              <div className="fmp-fullscreen-split-photo fmp-fullscreen-split-face">
                 <div className="fmp-fullscreen-split-photo-inner fmp-canvas-area">
-                  <FaceMirrorPhotoStage {...photoStageProps} wrapClassName="fmp-photo-stage--in-expanded-split" />
+                  <FaceMirrorViewportShell {...viewportOverlayProps}>
+                    <FaceMirrorPhotoStage {...photoStageProps} wrapClassName="fmp-photo-stage--in-expanded-split" />
+                  </FaceMirrorViewportShell>
+                  {auraPanelCollapsed && auraBridge && (
+                    <div className="fmp-aura-float-tabs" role="tablist" aria-label="Analysis categories">
+                      {AURA_OVERVIEW_TABS.map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={auraActiveCategory === tab.key}
+                          className={`fmp-aura-float-tab${auraActiveCategory === tab.key ? " fmp-aura-float-tab--active" : ""}`}
+                          style={
+                            auraActiveCategory === tab.key
+                              ? ({ "--aura-tab-accent": tab.accent } as CSSProperties)
+                              : undefined
+                          }
+                          onClick={() => {
+                            setAuraActiveCategory(tab.key);
+                            setAuraPanelCollapsed(false);
+                          }}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : mode === "3d" && effectiveVideoUrl ? (
-              <div className="fmp-fullscreen-split-3d">
+              <div className="fmp-fullscreen-split-3d fmp-fullscreen-split-face">
                 <div className="fmp-fullscreen-split-3d-inner fmp-canvas-area fmp-canvas-area--3d">
-                  {viewer3D}
+                  <FaceMirrorViewportShell {...viewportOverlayProps}>
+                    {viewer3D}
+                  </FaceMirrorViewportShell>
+                  {auraPanelCollapsed && auraBridge && (
+                    <div className="fmp-aura-float-tabs" role="tablist" aria-label="Analysis categories">
+                      {AURA_OVERVIEW_TABS.map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={auraActiveCategory === tab.key}
+                          className={`fmp-aura-float-tab${auraActiveCategory === tab.key ? " fmp-aura-float-tab--active" : ""}`}
+                          style={
+                            auraActiveCategory === tab.key
+                              ? ({ "--aura-tab-accent": tab.accent } as CSSProperties)
+                              : undefined
+                          }
+                          onClick={() => {
+                            setAuraActiveCategory(tab.key);
+                            setAuraPanelCollapsed(false);
+                          }}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
-              <div className="fmp-fullscreen-split-placeholder fmp-canvas-area">
+              <div className="fmp-fullscreen-split-placeholder fmp-canvas-area fmp-fullscreen-split-face">
                 <div className="fmp-placeholder">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="1.5" aria-hidden>
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -831,6 +1125,7 @@ export default function FaceMirrorPanel({
                 client={analysisOverviewClient}
                 onClose={() => setViewportExpanded(false)}
                 onAddToPlanDirect={analysisOverviewOnAddToPlanDirect}
+                auraBridge={auraBridge}
               />
             </div>
           </div>
@@ -838,10 +1133,18 @@ export default function FaceMirrorPanel({
           <div className={`fmp-canvas-area${mode === "3d" && has3D ? " fmp-canvas-area--3d" : ""}`}>
             {mode === "photo" && (
               hasPhoto && activePhotoUrl
-                ? <FaceMirrorPhotoStage {...photoStageProps} />
+                ? (
+                  <FaceMirrorViewportShell {...viewportOverlayProps}>
+                    <FaceMirrorPhotoStage {...photoStageProps} />
+                  </FaceMirrorViewportShell>
+                )
                 : placeholderEl
             )}
-            {mode === "3d" && has3D && viewer3D}
+            {mode === "3d" && has3D && (
+              <FaceMirrorViewportShell {...viewportOverlayProps}>
+                {viewer3D}
+              </FaceMirrorViewportShell>
+            )}
           </div>
         )}
       </div>

@@ -7,6 +7,7 @@ import { formatDate } from "../../utils/dateFormatting";
 import { formatPhoneDisplay, cleanPhoneNumber } from "../../utils/validation";
 import ClientDetailPanel from "./ClientDetailPanel";
 import SendSMSModal from "../modals/SendSMSModal";
+import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
 import "./InboxView.css";
 
 function formatInboxDate(createdTime: string | undefined): string {
@@ -26,9 +27,10 @@ function formatInboxDate(createdTime: string | undefined): string {
 }
 
 function getFrontPhotoUrl(client: Client | undefined): string | null {
-  if (!client?.frontPhoto || !Array.isArray(client.frontPhoto) || client.frontPhoto.length === 0) return null;
-  const attachment = client.frontPhoto[0] as { thumbnails?: { large?: { url: string }; full?: { url: string } }; url?: string };
-  return attachment.thumbnails?.large?.url ?? attachment.thumbnails?.full?.url ?? attachment.url ?? null;
+  if (!client) return null;
+  return getClientFrontPhotoDisplayUrl(client.frontPhoto, {
+    allowExpiringAirtableCdn: client.frontPhotoLoaded,
+  });
 }
 
 /** Collect treatment interests for display: goals + discussed treatment names. */

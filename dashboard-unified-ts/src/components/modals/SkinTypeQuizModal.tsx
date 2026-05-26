@@ -41,6 +41,8 @@ interface SkinTypeQuizModalProps {
   providerName?: string | null;
   /** When set, only products whose name starts with this brand are shown in results (e.g. "SkinCeuticals"). */
   filterBrand?: string;
+  /** Match client-detail dark mode (routine chips, notes panel). */
+  darkTheme?: boolean;
 }
 
 const DEFAULT_PROVIDER_NAME = "your practice";
@@ -53,6 +55,7 @@ export default function SkinTypeQuizModal({
   onAddToPlan,
   providerName,
   filterBrand,
+  darkTheme = false,
 }: SkinTypeQuizModalProps) {
   const practiceName = (providerName && providerName.trim()) || DEFAULT_PROVIDER_NAME;
   const [answers, setAnswers] = useState<Record<string, number>>(
@@ -219,7 +222,7 @@ export default function SkinTypeQuizModal({
     <>
     <div className="modal-overlay active skin-type-quiz-modal-overlay" onClick={onClose}>
       <div
-        className={`modal-content skin-type-quiz-modal-content skin-type-quiz-card${showResults ? " skin-type-quiz-card--results" : ""}`}
+        className={`modal-content skin-type-quiz-modal-content skin-type-quiz-card${showResults ? " skin-type-quiz-card--results" : ""}${darkTheme ? " skin-type-quiz-card--dark" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header skin-type-quiz-card-header">

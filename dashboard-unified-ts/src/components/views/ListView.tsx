@@ -1,6 +1,6 @@
 // List View Component
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import LeadAutoReplySettingsModal from "../modals/LeadAutoReplySettingsModal";
 import { useDashboard } from "../../context/DashboardContext";
 import ClientDetailPanel from "./ClientDetailPanel";
@@ -14,6 +14,7 @@ import {
   DashboardPlanIcon,
   DashboardQuizIcon,
 } from "../common/DashboardSectionIcons";
+import { warmClientFrontPhoto } from "../../utils/photoLoading";
 import "./ListView.css";
 
 export default function ListView() {
@@ -63,8 +64,17 @@ export default function ListView() {
   );
 
   const handleRowClick = (client: (typeof clients)[0]) => {
+    warmClientFrontPhoto(client, "high");
     setSelectedClient(client);
   };
+
+  useEffect(() => {
+    if (paginatedClients.length === 0) return;
+    const t = window.setTimeout(() => {
+      paginatedClients.forEach((client) => warmClientFrontPhoto(client, "low"));
+    }, 100);
+    return () => window.clearTimeout(t);
+  }, [paginatedClients]);
 
   const handleColumnSort = (field: typeof sort.field) => {
     if (sort.field === field) {
@@ -195,6 +205,8 @@ export default function ListView() {
                   <tr
                     key={client.id}
                     onClick={() => handleRowClick(client)}
+                    onMouseEnter={() => warmClientFrontPhoto(client, "high")}
+                    onFocus={() => warmClientFrontPhoto(client, "high")}
                     className="cursor-pointer"
                   >
                     <td>

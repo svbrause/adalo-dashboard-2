@@ -56,18 +56,21 @@
 .share-tp-link-dialog-header-text .share-tp-link-dialog-title {
   margin: 0 0 6px;
   font-size: 18px;
-  color: #0f172a;
+  color: var(--color-text-heading, var(--theme-text-primary, #0f172a));
 }
 
 .share-tp-link-dialog-header-text .share-tp-link-dialog-title:last-child {
   margin-bottom: 12px;
 }
 
-.share-tp-link-dialog-subheading {
+/* Higher specificity than .treatment-plan-checkout-blueprint-compose-modal p */
+.treatment-plan-checkout-blueprint-compose-modal.share-treatment-plan-link-dialog
+  .share-tp-link-dialog-subheading,
+.share-tp-link-dialog-header-text .share-tp-link-dialog-subheading {
   margin: 0 0 16px;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--theme-text-muted, #64748b);
+  color: var(--theme-text-secondary, #475569);
 }
 
 .share-tp-link-dialog-body {
@@ -129,11 +132,13 @@
   flex-wrap: nowrap;
 }
 
+.treatment-plan-checkout-blueprint-compose-modal.share-treatment-plan-link-dialog
+  .share-treatment-plan-link-empty,
 .share-treatment-plan-link-empty {
   margin: 0 0 16px;
   font-size: 0.875rem;
   line-height: 1.45;
-  color: var(--theme-text-muted, #64748b);
+  color: var(--theme-text-secondary, #475569);
 }
 
 .share-treatment-plan-link-items {

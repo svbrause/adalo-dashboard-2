@@ -19,6 +19,23 @@
   min-height: 0;
 }
 
+.analysis-overview-modal--aura-embedded {
+  max-width: none;
+  width: 100%;
+  max-height: none;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.analysis-overview-modal--aura-embedded .analysis-overview-modal__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
 .analysis-overview-modal {
   max-width: 1080px;
   width: 92vw;

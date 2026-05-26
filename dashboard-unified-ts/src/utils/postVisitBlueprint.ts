@@ -22,6 +22,7 @@ import {
 import { isWellnestWellnessProviderCode } from "../data/wellnestOfferings";
 import { getQuoteLineDiscussedItemIndexOrder } from "./pvbQuotePartition";
 import { isValidPlanScheduledDateIso } from "./planScheduledDate";
+import { getClientGlbUrl } from "./client3dConfig";
 
 /** Keep SMS / localStorage payload reasonable if the model returns a long essay. */
 const MAX_AI_NARRATIVE_CHARS = 10_000;
@@ -151,6 +152,8 @@ export interface PostVisitBlueprintPayload {
     frontPhotoPersistentUrl?: string | null;
     /** Airtable attachment id — for server-side refresh or GCS upload (optional). */
     frontPhotoAttachmentId?: string | null;
+    /** GCS turntable MP4 when captured at send time (patient-facing 3D hero). */
+    turntableVideoUrl?: string | null;
   };
   discussedItems: DiscussedItem[];
   quote: {
@@ -364,6 +367,15 @@ export function resolveHeroPhotoUrlFromEnvTemplate(
     .join(encodeURIComponent(tok))
     .trim();
   return url || null;
+}
+
+/** Turntable MP4 for patient-facing 3D hero (stored on send, or demo name map). */
+export function resolveBlueprintTurntableVideoUrl(
+  patient: PostVisitBlueprintPayload["patient"],
+): string | null {
+  const stored = patient.turntableVideoUrl?.trim();
+  if (stored) return stored;
+  return getClientGlbUrl(patient.name);
 }
 
 /** True when hero can be shown without calling the Airtable refresh endpoint. */
@@ -794,6 +806,10 @@ export async function createAndStorePostVisitBlueprint(input: {
       frontPhoto: basePhotoUrl,
       frontPhotoDataUrl: frontPhotoDataUrl || undefined,
       frontPhotoAttachmentId: attachmentId || undefined,
+      turntableVideoUrl:
+        input.client.turntableVideoUrl?.trim() ||
+        getClientGlbUrl(input.client.name) ||
+        undefined,
     },
     discussedItems: bpDiscussed,
     quote: bpQuote,

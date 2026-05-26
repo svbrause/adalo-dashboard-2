@@ -9,6 +9,7 @@ import {
   partitionInterestedIssuesForFacialVsWellness,
 } from '../../utils/partitionInterestedIssuesWellnessFacial';
 import IssuePhotoCarousel from './IssuePhotoCarousel';
+import { getClientFrontPhotoDisplayUrl } from '../../utils/photoLoading';
 import './PatientIssuesModal.css';
 
 interface PatientIssuesModalProps {
@@ -145,14 +146,9 @@ export default function PatientIssuesModal({ client, onClose, onPhotoClick, demo
     return aIndex - bIndex;
   });
 
-  // Get front photo URL if available
-  let frontPhotoUrl: string | null = null;
-  if (client.frontPhoto && Array.isArray(client.frontPhoto) && client.frontPhoto.length > 0) {
-    const attachment = client.frontPhoto[0];
-    frontPhotoUrl = attachment.thumbnails?.large?.url || 
-                    attachment.thumbnails?.full?.url ||
-                    attachment.url;
-  }
+  const frontPhotoUrl = getClientFrontPhotoDisplayUrl(client.frontPhoto, {
+    allowExpiringAirtableCdn: client.frontPhotoLoaded,
+  });
 
   const lastActivityRelative = client.lastContact 
     ? formatRelativeDate(client.lastContact) 

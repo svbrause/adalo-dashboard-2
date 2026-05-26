@@ -191,6 +191,29 @@
   margin-bottom: 10px;
   padding-left: 0;
   position: relative;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.analysis-issue-item--clickable {
+  cursor: pointer;
+  padding: 6px 8px;
+  margin-left: -8px;
+  margin-right: -8px;
+}
+
+.analysis-issue-item--clickable:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.analysis-issue-item--active {
+  background: color-mix(in srgb, var(--theme-accent) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--theme-accent);
+}
+
+.analysis-issue-item--active .analysis-issue-name {
+  color: var(--theme-accent);
+  font-weight: 600;
 }
 
 .analysis-issue-row {

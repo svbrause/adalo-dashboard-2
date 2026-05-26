@@ -20,6 +20,33 @@
   min-width: 0;
 }
 
+/* Facial analysis header: title+date on one flex line, pill wraps below when space is tight */
+.detail-section-facial-analysis-header__primary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.detail-section-facial-analysis-header__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+/* On narrow panels the actions row should sit below primary, not push it */
+.detail-section-facial-analysis-header {
+  align-items: flex-start;
+}
+
+.detail-section-facial-analysis-header .detail-section-facial-analysis-header__actions {
+  flex-shrink: 0;
+}
+
 .detail-section-status-pill {
   display: inline-flex;
   align-items: center;

@@ -470,6 +470,84 @@
   margin-top: 0;
 }
 
+/* Dark theme (client detail panel) */
+.skin-type-quiz-card--dark {
+  background: #1a1a1a;
+  color: #efefef;
+}
+
+.skin-type-quiz-card--dark .modal-header,
+.skin-type-quiz-card--dark .skin-type-quiz-card-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.skin-type-quiz-card--dark .modal-title {
+  color: #efefef;
+}
+
+.skin-type-quiz-card--dark .modal-close {
+  color: #8a8a8a;
+}
+
+.skin-type-quiz-card--dark .modal-close:hover {
+  color: #efefef;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-notes {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-title {
+  color: #a8a8a8;
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-block[data-routine="am"] .skin-type-quiz-routine-period,
+.skin-type-quiz-card--dark .skin-type-quiz-routine-grid > .skin-type-quiz-routine-block:first-child .skin-type-quiz-routine-period {
+  color: #fcd34d;
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-grid > .skin-type-quiz-routine-block:nth-child(2) .skin-type-quiz-routine-period {
+  color: #a5b4fc;
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-period {
+  color: #e0e0e0;
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-step-label {
+  color: #d4d4d4;
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-list {
+  color: #b0b0b0;
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-product-chip {
+  background: #252525;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e4e4e4;
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-product-chip:hover {
+  border-color: rgba(125, 211, 192, 0.5);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-product-placeholder {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8a8a8a;
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-optional {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.skin-type-quiz-card--dark .skin-type-quiz-routine-optional-label {
+  color: #9a9a9a;
+}
+
 .skin-type-quiz-products-section {
   margin-bottom: 24px;
 }

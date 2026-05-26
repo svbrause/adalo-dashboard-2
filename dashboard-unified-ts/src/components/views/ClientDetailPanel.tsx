@@ -123,9 +123,12 @@ import {
   parseDateOfBirthForForm,
 } from "../../utils/formMapping";
 import {
-  shouldLoadPhotoForClient,
   fetchClientFrontPhoto,
+  clientNeedsFreshFrontPhotoUrl,
   getClientFrontPhotoDisplayUrl,
+  markPhotoDisplayUrlFailed,
+  preloadClientFrontPhotoImage,
+  resolveClientFrontPhotoDisplayUrl,
 } from "../../utils/photoLoading";
 import { formatZipCodeInput } from "../../utils/validation";
 import { useDashboard } from "../../context/DashboardContext";
@@ -134,6 +137,7 @@ import { useAddClientAcquisitionFunnelScan } from "../../hooks/useAddClientAcqui
 import { createPortal } from "react-dom";
 import FaceMirrorPanel from "./FaceMirrorPanel";
 import { clientHas3DModel, getClientGlbUrl, setGeneratedClientGlbUrl } from "../../utils/client3dConfig";
+import { clientUsesAuraScan } from "../../utils/auraScanConfig";
 import { loadClientGalleryPhotoSlots } from "../../utils/clientGalleryPhotos";
 import { ponceLogoSrc } from "../../utils/ponceBrand";
 import "./ClientDetailPanel.css";
@@ -294,10 +298,14 @@ export default function ClientDetailPanel({
     // Load photo slots for 3D-model clients AND for any client with a front photo,
     // so FaceMirrorPanel can show the annotated photo + "Generate 3D Scan" button.
     const hasFrontPhoto = Boolean(
-      frontPhotoUrl ||
-      (typeof client?.frontPhoto === "string" && client.frontPhoto.trim()),
+      frontPhotoUrl || getClientFrontPhotoDisplayUrl(client?.frontPhoto),
     );
-    if (!client || recommenderMode || (!clientHas3DModel(client.name) && !hasFrontPhoto)) {
+    if (
+      !client ||
+      recommenderMode ||
+      clientUsesAuraScan(client.name) ||
+      (!clientHas3DModel(client.name) && !hasFrontPhoto)
+    ) {
       setFaceMirrorPhotoSlots([]);
       return;
     }
@@ -373,22 +381,26 @@ export default function ClientDetailPanel({
       });
       setStatus(client.status);
 
-      // Load front photo: inline URL string, Airtable attachment array, or fetch on demand
-      const resolved = getClientFrontPhotoDisplayUrl(client.frontPhoto);
+      // Use attachment from list fetch when available (no extra Airtable round-trip).
+      const resolved = resolveClientFrontPhotoDisplayUrl(client);
       if (resolved) {
+        preloadClientFrontPhotoImage(resolved, "high");
+        client.frontPhotoLoaded = true;
         setFrontPhotoUrl(resolved);
         setPhotoLoading(false);
-      } else if (
-        client.tableSource === "Patients" &&
-        !client.frontPhotoLoaded &&
-        shouldLoadPhotoForClient(client)
-      ) {
+      } else if (clientNeedsFreshFrontPhotoUrl(client)) {
         setFrontPhotoUrl(null);
         setPhotoLoading(true);
         fetchClientFrontPhoto(client.id)
           .then((photo) => {
-            const url = getClientFrontPhotoDisplayUrl(photo);
-            if (url) setFrontPhotoUrl(url);
+            const url = getClientFrontPhotoDisplayUrl(photo, {
+              allowExpiringAirtableCdn: true,
+            });
+            if (url) {
+              client.frontPhoto = (photo ?? url) as Client["frontPhoto"];
+              client.frontPhotoLoaded = true;
+              setFrontPhotoUrl(url);
+            }
             setPhotoLoading(false);
           })
           .catch(() => {
@@ -727,20 +739,21 @@ export default function ClientDetailPanel({
 
   // 3D face mirror — Airtable persistent URL wins, then localStorage cache, then null
   const glbUrl = client.turntableVideoUrl || getClientGlbUrl(client.name) || null;
-  const photoUrlForMirrorCheck = frontPhotoUrl ?? (typeof client.frontPhoto === "string" ? client.frontPhoto : null);
+  const photoUrlForMirrorCheck =
+    frontPhotoUrl ?? getClientFrontPhotoDisplayUrl(client.frontPhoto);
   const is3DSplit = (Boolean(glbUrl) || clientHas3DModel(client.name) || faceMirrorPhotoSlots.length > 0 || Boolean(photoUrlForMirrorCheck)) && !recommenderMode;
-  const faceMirrorHighlightTerms = useMemo(() => {
-    const raw = client.interestedIssues;
-    if (!raw) return [];
-    const terms = typeof raw === "string"
-      ? raw.split(",").map((t) => t.trim()).filter(Boolean)
-      : Array.isArray(raw) ? raw : [];
-    return terms.slice(0, 8);
-  }, [client.interestedIssues]);
+  const [activeAnalysisTerm, setActiveAnalysisTerm] = useState<string | null>(null);
 
-  const photoUrlForMirror = frontPhotoUrl ?? (
-    typeof client.frontPhoto === "string" ? client.frontPhoto : null
+  /** Face mirror: no default overlays; user picks regions or clicks one analysis issue. */
+  const effectiveMirrorTerms = useMemo(
+    () => (activeAnalysisTerm ? [activeAnalysisTerm] : []),
+    [activeAnalysisTerm],
   );
+
+  const auraScanOnly = clientUsesAuraScan(client.name);
+  const photoUrlForMirror = auraScanOnly
+    ? null
+    : (frontPhotoUrl ?? getClientFrontPhotoDisplayUrl(client.frontPhoto));
 
   const handleScanGenerated = useCallback((videoUrl: string) => {
     setGeneratedClientGlbUrl(client.name, videoUrl);
@@ -770,12 +783,12 @@ export default function ClientDetailPanel({
 
           {/* 3D split: left face mirror column */}
           {is3DSplit && (
-            <div className="cdp-face-col">
+            <div className={`cdp-face-col${clientUsesAuraScan(client.name) ? " cdp-face-col--aura" : ""}`}>
               <FaceMirrorPanel
-                photoUrl={photoUrlForMirror}
+                photoUrl={auraScanOnly ? null : photoUrlForMirror}
                 photoSlots={faceMirrorPhotoSlots}
                 glbUrl={glbUrl}
-                highlightTerms={faceMirrorHighlightTerms}
+                highlightTerms={effectiveMirrorTerms}
                 patientName={client.name}
                 airtableRecordId={client.id}
                 airtableTableName={client.tableSource}
@@ -890,7 +903,28 @@ export default function ClientDetailPanel({
                           alt=""
                           className="modal-photo"
                           loading="eager"
+                          fetchPriority="high"
+                          decoding="async"
                           draggable={false}
+                          onError={() => {
+                            if (!frontPhotoUrl || !client) return;
+                            markPhotoDisplayUrlFailed(frontPhotoUrl);
+                            setFrontPhotoUrl(null);
+                            setPhotoLoading(true);
+                            fetchClientFrontPhoto(client.id)
+                              .then((photo) => {
+                                const url = getClientFrontPhotoDisplayUrl(photo, {
+                                  allowExpiringAirtableCdn: true,
+                                });
+                                if (url) {
+                                  client.frontPhoto = (photo ?? url) as Client["frontPhoto"];
+                                  client.frontPhotoLoaded = true;
+                                  setFrontPhotoUrl(url);
+                                }
+                                setPhotoLoading(false);
+                              })
+                              .catch(() => setPhotoLoading(false));
+                          }}
                         />
                         <span className="modal-photo-overlay">
                           Click to view
@@ -1984,8 +2018,20 @@ export default function ClientDetailPanel({
                   <div className="detail-section detail-section-facial-analysis">
                     <div className="detail-section-header-flex detail-section-facial-analysis-header">
                       <div className="detail-section-facial-analysis-header__primary">
-                        <span className="detail-section-title detail-section-facial-analysis-header__title">
-                          Facial Analysis
+                        <span className="detail-section-facial-analysis-header__heading">
+                          <span className="detail-section-title detail-section-facial-analysis-header__title">
+                            Facial Analysis
+                          </span>
+                          {client.tableSource === "Patients" &&
+                            facialAnalysisFormHasData &&
+                            client.createdAt && (
+                              <span
+                                className="facial-analysis-date-meta facial-analysis-date-meta--inline"
+                                title={`Analysis date: ${formatDate(client.createdAt)}`}
+                              >
+                                {formatDate(client.createdAt)}
+                              </span>
+                            )}
                         </span>
                         <FacialAnalysisStatusPill
                           client={client}
@@ -1994,16 +2040,6 @@ export default function ClientDetailPanel({
                             facialAnalysisFormHasData,
                           )}
                         />
-                        {client.tableSource === "Patients" &&
-                          facialAnalysisFormHasData &&
-                          client.createdAt && (
-                            <span
-                              className="facial-analysis-date-meta facial-analysis-date-meta--inline"
-                              title={`Analysis date: ${formatDate(client.createdAt)}`}
-                            >
-                              {formatDate(client.createdAt)}
-                            </span>
-                          )}
                       </div>
                       <div className="detail-actions-inline detail-section-facial-analysis-header__actions">
                         {facialAnalysisFormHasData && (
@@ -2012,13 +2048,13 @@ export default function ClientDetailPanel({
                               <button
                                 type="button"
                                 className="btn-secondary btn-sm"
-                                title="Explore Analysis Overview"
+                                title="View facial analysis"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setShowAnalysisOverview(true);
                                 }}
                               >
-                                Overview
+                                View
                               </button>
                             )}
                             <button
@@ -2079,6 +2115,10 @@ export default function ClientDetailPanel({
                     {facialAnalysisFormHasData ? (
                       <AnalysisResultsSection
                         client={client}
+                        activeIssueTerm={activeAnalysisTerm}
+                        onIssueActivate={(term) =>
+                          setActiveAnalysisTerm((prev) => (prev === term ? null : term))
+                        }
                         onViewExamples={(issue, region) =>
                           setIssuePhotosContext({ issue, region })
                         }
@@ -2213,6 +2253,7 @@ export default function ClientDetailPanel({
                                     <div
                                       key={section.id}
                                       className="skin-analysis-products skin-analysis-products--routine-group"
+                                      data-routine={section.id}
                                     >
                                       <span className="skin-analysis-products-label">
                                         {section.title}
@@ -2508,6 +2549,7 @@ export default function ClientDetailPanel({
               client={client}
               onClose={() => setShowSkinTypeQuiz(false)}
               onSuccess={onUpdate}
+              darkTheme={darkMode}
               savedQuiz={skincareQuiz ?? undefined}
               providerName={
                 formatProviderDisplayName(provider?.name) || provider?.name

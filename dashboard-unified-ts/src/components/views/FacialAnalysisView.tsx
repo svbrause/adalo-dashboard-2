@@ -23,7 +23,12 @@ import { applyFilters, applySorting } from "../../utils/filtering";
 // Unused imports - kept for potential future drag-and-drop functionality
 // import { updateFacialAnalysisStatus } from '../../services/api';
 // import { showToast, showError } from '../../utils/toast';
-import { preloadVisiblePhotos } from "../../utils/photoLoading";
+import {
+  markPhotoDisplayUrlFailed,
+  preloadVisiblePhotos,
+  resolveClientFrontPhotoDisplayUrl,
+  warmClientFrontPhoto,
+} from "../../utils/photoLoading";
 import "./FacialAnalysisView.css";
 
 export default function FacialAnalysisView() {
@@ -79,43 +84,12 @@ export default function FacialAnalysisView() {
   useEffect(() => {
     if (paginatedClients.length === 0 || !provider?.id) return;
 
-    // Helper function to extract photo URL from frontPhoto (handles both array and JSON string)
-    const extractPhotoUrl = (frontPhoto: any): string | null => {
-      if (!frontPhoto) return null;
+    paginatedClients.forEach((client) => warmClientFrontPhoto(client, "low"));
 
-      let frontPhotoArray: any[] | null = null;
-      if (Array.isArray(frontPhoto)) {
-        frontPhotoArray = frontPhoto;
-      } else if (typeof frontPhoto === "string") {
-        try {
-          const parsed = JSON.parse(frontPhoto);
-          if (Array.isArray(parsed)) {
-            frontPhotoArray = parsed;
-          }
-        } catch (e) {
-          // Not JSON, ignore
-        }
-      }
-
-      if (frontPhotoArray && frontPhotoArray.length > 0) {
-        const attachment = frontPhotoArray[0];
-        return (
-          attachment.thumbnails?.large?.url ||
-          attachment.thumbnails?.full?.url ||
-          attachment.url ||
-          null
-        );
-      }
-      return null;
-    };
-
-    // First, extract photos that are already in client data
     const updatedPhotos: Record<string, string> = {};
     paginatedClients.forEach((client) => {
-      const url = extractPhotoUrl(client.frontPhoto);
-      if (url) {
-        updatedPhotos[client.id] = url;
-      }
+      const url = resolveClientFrontPhotoDisplayUrl(client);
+      if (url) updatedPhotos[client.id] = url;
     });
     if (Object.keys(updatedPhotos).length > 0) {
       setClientPhotos((prev) => ({ ...prev, ...updatedPhotos }));
@@ -131,10 +105,8 @@ export default function FacialAnalysisView() {
       // Update local photo state from loaded client photos after preload
       const postLoadPhotos: Record<string, string> = {};
       paginatedClients.forEach((client) => {
-        const url = extractPhotoUrl(client.frontPhoto);
-        if (url) {
-          postLoadPhotos[client.id] = url;
-        }
+        const url = resolveClientFrontPhotoDisplayUrl(client);
+        if (url) postLoadPhotos[client.id] = url;
       });
       if (Object.keys(postLoadPhotos).length > 0) {
         setClientPhotos((prev) => ({ ...prev, ...postLoadPhotos }));
@@ -364,6 +336,9 @@ export default function FacialAnalysisView() {
                           alt={client.name}
                           loading="lazy"
                           className="facial-card-photo-img"
+                          onError={() =>
+                            markPhotoDisplayUrlFailed(clientPhotos[client.id])
+                          }
                         />
                       ) : (
                         <div className="facial-card-photo-placeholder">

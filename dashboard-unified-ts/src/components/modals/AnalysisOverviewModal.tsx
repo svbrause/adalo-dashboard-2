@@ -38,6 +38,7 @@ import {
   getInterestAreaNamesFromClient,
   getSeverityIssueRowsFromClient,
 } from "../../utils/analysisOverviewClient";
+import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
 import {
   getQuantityContext,
   getTreatmentsForInterest,
@@ -62,6 +63,9 @@ import TreatmentPhotosModal from "./TreatmentPhotosModal";
 import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
 import { RadarChart } from "../postVisitBlueprint/RadarChart";
 import { SeverityNormRing } from "../common/SeverityNormRing";
+import AuraEmbeddedAnalysisPanel, {
+  type AuraMirrorHighlightBridge,
+} from "../views/AuraEmbeddedAnalysisPanel";
 import "./AnalysisOverviewModal.css";
 
 // ---------------------------------------------------------------------------
@@ -140,6 +144,8 @@ interface AnalysisOverviewModalProps {
   initialDetailView?: DetailView | null;
   /** Renders without overlay/backdrop (e.g. inside element fullscreen). */
   embedded?: boolean;
+  /** Aura-style tabs + per-issue face highlights (expanded client detail). */
+  auraBridge?: AuraMirrorHighlightBridge;
 }
 
 // ---------------------------------------------------------------------------
@@ -1233,6 +1239,7 @@ export default function AnalysisOverviewModal({
   onAddToPlanDirect,
   initialDetailView,
   embedded = false,
+  auraBridge,
 }: AnalysisOverviewModalProps) {
   const { provider } = useDashboard();
   const [animate, setAnimate] = useState(false);
@@ -1263,22 +1270,8 @@ export default function AnalysisOverviewModal({
       setClientFrontPhotoUrl(null);
       return;
     }
-    const getUrl = (att: {
-      thumbnails?: { large?: { url?: string }; full?: { url?: string } };
-      url?: string;
-    }) =>
-      att?.thumbnails?.full?.url ||
-      att?.thumbnails?.large?.url ||
-      att?.url ||
-      null;
-
-    if (
-      client.frontPhoto &&
-      Array.isArray(client.frontPhoto) &&
-      client.frontPhoto.length > 0
-    ) {
-      setClientFrontPhotoUrl(getUrl(client.frontPhoto[0]) || null);
-    }
+    const cached = getClientFrontPhotoDisplayUrl(client.frontPhoto);
+    if (cached) setClientFrontPhotoUrl(cached);
 
     if (client.tableSource === "Patients") {
       let mounted = true;
@@ -1293,11 +1286,10 @@ export default function AnalysisOverviewModal({
             fields["Front Photo"] ||
             fields["Front photo"] ||
             fields["frontPhoto"];
-          if (front && Array.isArray(front) && front.length > 0) {
-            setClientFrontPhotoUrl(
-              (prev) => prev || getUrl(front[0]) || null,
-            );
-          }
+          const fresh = getClientFrontPhotoDisplayUrl(front, {
+            allowExpiringAirtableCdn: true,
+          });
+          if (fresh) setClientFrontPhotoUrl((prev) => prev || fresh);
         })
         .catch(() => {});
       return () => {
@@ -1415,13 +1407,15 @@ export default function AnalysisOverviewModal({
   const modalCardClass =
     `modal-content analysis-overview-modal` +
     `${isMaximized || embedded ? " analysis-overview-modal--maximized" : ""}` +
-    `${embedded ? " analysis-overview-modal--embedded" : ""}`;
+    `${embedded ? " analysis-overview-modal--embedded" : ""}` +
+    `${embedded && auraBridge ? " analysis-overview-modal--aura-embedded" : ""}`;
 
   const overviewCard = (
     <div
       className={modalCardClass}
       onClick={(e) => e.stopPropagation()}
     >
+        {!(embedded && auraBridge) && (
         <div className="analysis-overview-modal__header">
           <h2 id="ao-modal-title" className="analysis-overview-modal__title">
             {showCategoryDetail && detailView?.type === "category"
@@ -1454,6 +1448,7 @@ export default function AnalysisOverviewModal({
             </button>
           </div>
         </div>
+        )}
 
         <div className="analysis-overview-modal__body">
           {!hasAnyData ? (
@@ -1513,6 +1508,14 @@ export default function AnalysisOverviewModal({
                   ))}
               </div>
             </div>
+          ) : embedded && auraBridge ? (
+            <AuraEmbeddedAnalysisPanel
+              client={client}
+              categories={categories}
+              detectedIssues={detectedIssues}
+              overallScore={overall}
+              bridge={auraBridge}
+            />
           ) : (
             <>
               {/* ===== Hero: Photo + Overall Score + AI Summary ===== */}
@@ -1707,7 +1710,12 @@ export default function AnalysisOverviewModal({
       <div
         className="analysis-overview-modal__embedded-root"
         role="region"
-        aria-labelledby="ao-modal-title"
+        aria-label={
+          auraBridge
+            ? `Facial analysis${patientFirst ? ` for ${patientFirst}` : ""}`
+            : undefined
+        }
+        aria-labelledby={auraBridge ? undefined : "ao-modal-title"}
       >
         {overviewCard}
         {photoViewerLayer}

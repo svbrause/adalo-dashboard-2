@@ -1,7 +1,10 @@
 import type { Client, ClientPhotoSlot } from "../types";
 import { fetchTableRecords } from "../services/api";
 import { getWellnestDemoPhotoUrls } from "../debug/wellnestDemoPhotos";
-import { getClientFrontPhotoDisplayUrl } from "./photoLoading";
+import {
+  getClientFrontPhotoDisplayUrl,
+  sanitizePhotoDisplayUrl,
+} from "./photoLoading";
 
 const TABLES_WITH_PHOTOS = ["Patients", "Web Popup Leads"] as const;
 
@@ -23,8 +26,13 @@ function getFirstAttachmentUrl(fields: Record<string, unknown>, key: string): st
   return getAttachmentUrl(val[0] as Parameters<typeof getAttachmentUrl>[0]);
 }
 
-function pushUnique(out: ClientPhotoSlot[], seen: Set<string>, slot: ClientPhotoSlot) {
-  const u = slot.url?.trim();
+function pushUnique(
+  out: ClientPhotoSlot[],
+  seen: Set<string>,
+  slot: ClientPhotoSlot,
+  options?: { allowExpiringAirtableCdn?: boolean },
+) {
+  const u = sanitizePhotoDisplayUrl(slot.url, options);
   if (!u || seen.has(u)) return;
   seen.add(u);
   out.push({ ...slot, url: u });
@@ -36,7 +44,12 @@ function pushUnique(out: ClientPhotoSlot[], seen: Set<string>, slot: ClientPhoto
  */
 export async function loadClientGalleryPhotoSlots(client: Client): Promise<ClientPhotoSlot[]> {
   if (client.galleryPhotoSlots && client.galleryPhotoSlots.length > 0) {
-    return client.galleryPhotoSlots;
+    const out: ClientPhotoSlot[] = [];
+    const seen = new Set<string>();
+    for (const slot of client.galleryPhotoSlots) {
+      pushUnique(out, seen, slot);
+    }
+    return out;
   }
 
   const wellnest = getWellnestDemoPhotoUrls(client.id);
@@ -48,9 +61,7 @@ export async function loadClientGalleryPhotoSlots(client: Client): Promise<Clien
     return out;
   }
 
-  const fallbackFront =
-    getClientFrontPhotoDisplayUrl(client.frontPhoto) ??
-    (typeof client.frontPhoto === "string" ? client.frontPhoto.trim() || null : null);
+  const fallbackFront = getClientFrontPhotoDisplayUrl(client.frontPhoto);
 
   if (!TABLES_WITH_PHOTOS.includes(client.tableSource as (typeof TABLES_WITH_PHOTOS)[number])) {
     return fallbackFront ? [{ id: "front", label: "Front", url: fallbackFront }] : [];
@@ -92,21 +103,22 @@ export async function loadClientGalleryPhotoSlots(client: Client): Promise<Clien
     const sideFormRight = getFirstAttachmentUrl(fields, "Side Photo (from Form Submissions)");
     const sideFormLeft = getFirstAttachmentUrl(fields, "Left Side Photo (from Form Submissions)");
 
+    const freshCdn = { allowExpiringAirtableCdn: true as const };
     const primaryFront = frontProcessed ?? frontForm ?? fallbackFront;
     if (primaryFront) {
-      pushUnique(out, seen, { id: "front", label: "Front", url: primaryFront });
+      pushUnique(out, seen, { id: "front", label: "Front", url: primaryFront }, freshCdn);
     }
     if (frontProcessed && frontForm && frontProcessed !== frontForm) {
-      pushUnique(out, seen, { id: "front-form", label: "Front (intake)", url: frontForm });
+      pushUnique(out, seen, { id: "front-form", label: "Front (intake)", url: frontForm }, freshCdn);
     }
     if (sideProcessed) {
-      pushUnique(out, seen, { id: "side", label: "Side", url: sideProcessed });
+      pushUnique(out, seen, { id: "side", label: "Side", url: sideProcessed }, freshCdn);
     }
     if (sideFormRight) {
-      pushUnique(out, seen, { id: "side-form", label: "Side (intake)", url: sideFormRight });
+      pushUnique(out, seen, { id: "side-form", label: "Side (intake)", url: sideFormRight }, freshCdn);
     }
     if (sideFormLeft) {
-      pushUnique(out, seen, { id: "left-form", label: "Left (intake)", url: sideFormLeft });
+      pushUnique(out, seen, { id: "left-form", label: "Left (intake)", url: sideFormLeft }, freshCdn);
     }
 
     if (out.length === 0 && fallbackFront) {

@@ -27,8 +27,26 @@
 .client-detail-panel--3d-split {
   display: grid;
   grid-template-rows: auto 1fr;
-  /* Wider face column so photo / 3D turntable read larger (was 42%) */
-  grid-template-columns: minmax(340px, 48%) 1fr;
+  /* Face column gets more width; details column stays readable but narrower */
+  grid-template-columns: minmax(360px, 56%) minmax(280px, 44%);
+}
+
+@media (max-width: 1400px) {
+  .client-detail-panel--3d-split {
+    grid-template-columns: minmax(340px, 58%) minmax(260px, 42%);
+  }
+}
+
+@media (max-width: 1200px) {
+  .client-detail-panel--3d-split {
+    grid-template-columns: minmax(320px, 62%) minmax(240px, 38%);
+  }
+}
+
+@media (max-width: 1024px) and (min-width: 901px) {
+  .client-detail-panel--3d-split {
+    grid-template-columns: minmax(300px, 65%) minmax(220px, 35%);
+  }
 }
 
 .client-detail-panel--3d-split .client-detail-panel-header {
@@ -55,10 +73,19 @@
   border-right: none;
 }
 
+.cdp-face-col--aura {
+  background: #000;
+}
+
+.cdp-face-col--aura .fmp-root--aura {
+  background: #000;
+}
+
 /* Right content column scrolls independently */
 .client-detail-panel--3d-split .client-detail-panel-scroll {
   grid-row: 2;
   grid-column: 2;
+  min-width: 0;
   border-left: 1px solid var(--theme-border);
 }
 
@@ -66,6 +93,12 @@
 .client-detail-panel--3d-split .client-detail-panel-body {
   max-width: none;
   padding: 24px 28px;
+}
+
+@media (max-width: 1200px) {
+  .client-detail-panel--3d-split .client-detail-panel-body {
+    padding: 20px 18px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -1383,6 +1416,15 @@
   color: #666;
 }
 
+.cdp-dark .avf-static-photo .ai-mirror-canvas-wrap {
+  background: transparent;
+}
+
+.cdp-dark .avf-static-photo .ai-mirror-unavailable {
+  background: #1a1a1a;
+  color: #b0b0b0;
+}
+
 /* Photo canvas wrap + loading overlay */
 .cdp-dark .ai-mirror-canvas-wrap {
   background: #1a1a1a;
@@ -1434,8 +1476,27 @@
 .cdp-dark .fmp-fullscreen-btn:hover {
   color: #efefef;
 }
-.cdp-dark .fmp-auto-rotate {
-  color: #8a8a8a;
+.cdp-dark .fmp-overlay-btn,
+.cdp-dark .fmp-annotation-regions--overlay > summary {
+  background: rgba(18, 32, 36, 0.92);
+  border-color: rgba(110, 184, 196, 0.45);
+  color: #b8e8e0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.cdp-dark .fmp-overlay-btn:hover,
+.cdp-dark .fmp-annotation-regions--overlay > summary:hover {
+  border-color: rgba(125, 211, 192, 0.65);
+  color: #e8f6f3;
+}
+.cdp-dark .fmp-overlay-btn--active,
+.cdp-dark .fmp-annotation-regions--overlay[open] > summary {
+  background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.35));
+  border-color: var(--theme-accent-soft-border-hover, rgba(125, 211, 192, 0.65));
+  color: var(--theme-accent-soft-fg, #b8e8e0);
+}
+.cdp-dark .fmp-annotation-regions__panel {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* Right-column scroll + body */
@@ -1764,6 +1825,67 @@
 .cdp-dark .skin-analysis-result-badge,
 .cdp-dark .wellness-quiz-summary {
   color: #c8c8c8;
+}
+
+/* AM / PM skincare routine blocks */
+.cdp-dark .skin-analysis-routine-groups {
+  gap: 16px;
+}
+
+.cdp-dark .skin-analysis-products--routine-group {
+  margin-top: 0;
+  padding: 12px 14px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.cdp-dark .skin-analysis-products--routine-group[data-routine="am"] {
+  border-left: 3px solid rgba(251, 191, 36, 0.85);
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.08) 0%,
+    rgba(255, 255, 255, 0.03) 48%
+  );
+}
+
+.cdp-dark .skin-analysis-products--routine-group[data-routine="pm"] {
+  border-left: 3px solid rgba(129, 140, 248, 0.9);
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.1) 0%,
+    rgba(255, 255, 255, 0.03) 48%
+  );
+}
+
+.cdp-dark .skin-analysis-products--routine-group[data-routine="optional"] {
+  border-left: 3px solid rgba(167, 243, 109, 0.55);
+}
+
+.cdp-dark .skin-analysis-products-label {
+  color: #e8e8e8;
+  font-weight: 600;
+}
+
+.cdp-dark .skin-analysis-product-chip {
+  background: #252525;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e4e4e4;
+}
+
+.cdp-dark .skin-analysis-product-chip:hover {
+  border-color: rgba(125, 211, 192, 0.55);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  background: #2e2e2e;
+}
+
+.cdp-dark .skin-analysis-product-chip-placeholder {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8a8a8a;
+}
+
+.cdp-dark .skin-analysis-result-description {
+  color: #b8b8b8;
 }
 .cdp-dark .wellness-quiz-summary-label {
   color: #8a8a8a;

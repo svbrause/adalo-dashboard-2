@@ -194,6 +194,23 @@
   }
 }
 
+@media (max-width: 1024px) {
+  .kanban-view {
+    padding: var(--dashboard-content-pad-tablet, 20px);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .kanban-column .client-card {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .kanban-column .client-card:active {
+    background: var(--theme-bg-hover);
+  }
+}
+
 @media (max-width: 768px) {
   .kanban-view {
     padding: 12px;

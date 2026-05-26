@@ -1,46 +1,155 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
   ADDITIONAL_AI_MIRROR_REGIONS,
   AI_MIRROR_REGIONS,
+  cheekRegionPolygon,
+  foreheadRegionPolygon,
   polygonFromLandmarkIndices,
 } from "../postVisitBlueprint/aiMirrorRegions";
-import { getFaceLandmarker, getHighlightedRegionIds } from "../postVisitBlueprint/AiMirrorCanvas";
+import {
+  getEffectiveHighlightedRegionIds,
+  hasMirrorAnnotationHighlights,
+} from "../postVisitBlueprint/AiMirrorCanvas";
+import { getFaceLandmarker } from "../../utils/faceLandmarker";
+import {
+  FACE3D_TIMELINE_FPS,
+  face3dTimelineKey,
+  face3dTimelineTimeFromKey,
+  getFace3dLandmarkCache,
+  pruneFace3dLandmarkCaches,
+  quantizeFace3dTimelineTime,
+  resolveLandmarksForTimeKey,
+} from "../../utils/face3dLandmarkCache";
+import {
+  avoidMirrorViewportOverlay,
+  MIRROR_ANNOTATION_THEME,
+  mirrorViewportOverlaySafeBottom,
+} from "../../constants/mirrorAnnotationTheme";
+import {
+  mirrorRegionLabelFont,
+  mirrorRegionLabelFontSize,
+  prepareMirrorAnnotationCanvas,
+  snapMirrorLabelTextPosition,
+} from "../../utils/mirrorAnnotationCanvas";
 import "./Face3DViewer.css";
 
 const DEFAULT_VIDEO_W = 1024;
 const DEFAULT_VIDEO_H = 976;
-// Keep cached frames sharp without holding full 1024px turntables in GPU memory.
 const MAX_DISPLAY_DIM = 1024;
-const MAX_CACHED_FRAMES = 150;
-const MIN_EARLY_FRAMES = 16;
-const MAX_ANGLE = 85;
-const DEG_PER_PX = 360 / 380;
-const AUTO_SPEED = 36;
+/** Turntable export: -65° (start) → 0° nose-front (mid) → +65° (end). */
+const MAX_YAW_DEG = 65;
+const DEG_PER_PX = (2 * MAX_YAW_DEG) / 380;
+const AUTO_SPEED = 22;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const ANNOTATION_DETECT_MAX_DIM = 512;
+/**
+ * Shared timeline for decoded turntable frames + MediaPipe landmarks.
+ * Using one bucket rate prevents overlay drift when scrubbing (was 60fps video vs 30fps landmarks).
+ */
+const TIMELINE_KEY_MAX_DELTA = 1;
+/** Frame bitmap lookup tolerance while scrubbing (same buckets as landmarks). */
+const FRAME_CACHE_MAX_KEY_DELTA = 2;
+/** Wider tolerance during reverse cache playback (forward play may skip occasional buckets). */
+const FRAME_CACHE_REVERSE_MAX_KEY_DELTA = 4;
+/** Step size for background cache fill (scrub / Safari fallback only). */
+const FRAME_CACHE_PRIME_STEP = 2;
 
 interface Face3DViewerProps {
   videoUrl: string;
   autoRotate: boolean;
+  /** External yaw control in degrees (-65 = left end, 0 = front, +65 = right end). */
+  controlledYawDeg?: number;
+  /** External turntable timeline control (0 = first frame, 1 = final frame). */
+  controlledTimeRatio?: number;
+  controlledTimeAnimationMs?: number;
+  onTimeRatioChange?: (ratio: number) => void;
   showAnnotations?: boolean;
   highlightTerms?: string[];
   highlightedAnnotationRegionIds?: string[];
-  /** When true: play video forward → reverse → forward in a simple loop.
-   *  Skips frame extraction; drag-to-rotate is not available. */
-  pingPongLoop?: boolean;
+  showHint?: boolean;
+  /** Start zoomed in (default 1). Applied once when the video first loads. */
+  initialZoom?: number;
+  /** Initial vertical pan in pixels (negative = shift content up, revealing lower face). */
+  initialPanY?: number;
+  /** Optional overlay rendered inside the zoom/pan layer (tracks zoom with the video). */
+  overlay?: ReactNode;
+  /** Opacity for the video/canvas media layer (0–1). Useful when an overlay replaces the video at anchor angles. */
+  mediaOpacity?: number;
 }
 
-/** Map an angle to a pre-extracted frame index. */
-function angleToFrameIdx(angle: number, frameCount: number): number {
-  return Math.floor((((angle / 360) * frameCount + frameCount) % frameCount)) % frameCount;
+function clampYaw(yawDeg: number): number {
+  return Math.max(-MAX_YAW_DEG, Math.min(MAX_YAW_DEG, yawDeg));
 }
 
-function waitForVideoEvent(video: HTMLVideoElement, eventName: keyof HTMLMediaElementEventMap): Promise<void> {
-  return new Promise<void>((resolve) => {
-    video.addEventListener(eventName, () => resolve(), { once: true });
-  });
+/** Map yaw (0 = nose front) to timeline position. */
+function yawToVideoTime(yawDeg: number, duration: number): number {
+  if (!duration || !isFinite(duration)) return 0;
+  const clamped = clampYaw(yawDeg);
+  return ((clamped + MAX_YAW_DEG) / (2 * MAX_YAW_DEG)) * duration;
+}
+
+/** Inverse of {@link yawToVideoTime}. */
+function videoTimeToYaw(t: number, duration: number): number {
+  if (!duration || !isFinite(duration)) return 0;
+  return (t / duration) * (2 * MAX_YAW_DEG) - MAX_YAW_DEG;
+}
+
+/** Match {@link AUTO_SPEED} (deg/s) via native playbackRate (sign = direction). */
+function computeAutoPlaybackRate(duration: number, direction: 1 | -1 = 1): number {
+  return (direction * AUTO_SPEED * duration) / (2 * MAX_YAW_DEG);
+}
+
+const SCRUB_SEEK_EPS = 0.02;
+/** Tighter threshold while dragging so scrub RAF can keep up. */
+const SCRUB_SEEK_EPS_DRAG = 0.006;
+const END_TIME_EPS = 0.03;
+/** Capture frames at half resolution to keep memory under ~30 MB for a typical turntable. */
+const FRAME_CACHE_SCALE = 0.5;
+function seekVideoToTime(
+  video: HTMLVideoElement,
+  target: number,
+  eps = SCRUB_SEEK_EPS,
+  useFastSeek = true,
+): void {
+  if (Math.abs(video.currentTime - target) < eps) return;
+  const fast = (video as HTMLVideoElement & { fastSeek?: (t: number) => void }).fastSeek;
+  if (useFastSeek && typeof fast === "function") {
+    try {
+      fast.call(video, target);
+      return;
+    } catch {
+      /* fall through */
+    }
+  }
+  video.currentTime = target;
+}
+
+function seekVideoPrecisely(video: HTMLVideoElement, target: number, eps = SCRUB_SEEK_EPS): void {
+  seekVideoToTime(video, target, eps, false);
+}
+
+function safeSetPlaybackRate(video: HTMLVideoElement, rate: number): boolean {
+  try {
+    video.playbackRate = rate;
+    return true;
+  } catch (err) {
+    console.warn("[Face3DViewer] unsupported playbackRate:", rate, err);
+    return false;
+  }
+}
+
+/** True when the browser will honor a negative playbackRate (smooth reverse auto-rotate). */
+function detectReverseVideoPlayback(video: HTMLVideoElement): boolean {
+  const prev = video.playbackRate;
+  if (!safeSetPlaybackRate(video, -1)) {
+    safeSetPlaybackRate(video, prev || 1);
+    return false;
+  }
+  const ok = video.playbackRate < 0;
+  safeSetPlaybackRate(video, prev || 1);
+  return ok;
 }
 
 function idle(): Promise<void> {
@@ -203,7 +312,7 @@ function annotationRegionPolygon(
   width: number,
   height: number,
 ): { x: number; y: number }[] {
-  if ((regionId === "rForehead" || regionId === "rLowerFace") && profileYawAmount(landmarks, width, height) > 0.16) {
+  if ((regionId === "rForehead" || regionId === "rLowerFace") && profileYawAmount(landmarks, width, height) > 0.22) {
     return [];
   }
   if (regionId === "rLeftUnderEye") return underEyeRegion(landmarks, width, height, "left");
@@ -213,50 +322,64 @@ function annotationRegionPolygon(
   if (regionId === "rLeftMarionetteLine") return marionetteLineRegion(landmarks, width, height, "left");
   if (regionId === "rRightMarionetteLine") return marionetteLineRegion(landmarks, width, height, "right");
   if (regionId === "rLowerFace") return lowerFaceRegion(landmarks, width, height);
+  if (regionId === "rForehead") {
+    return foreheadRegionPolygon(landmarks, width, height);
+  }
+  if (regionId === "rLeftCheek") {
+    return cheekRegionPolygon(landmarks, width, height, "left");
+  }
+  if (regionId === "rRightCheek") {
+    return cheekRegionPolygon(landmarks, width, height, "right");
+  }
   return polygonFromLandmarkIndices(landmarks, indices, width, height);
 }
 
-/** Draw facial landmark annotations from cached MediaPipe landmarks. */
+/** Draw facial landmark annotations from cached MediaPipe landmarks.
+ *  zoomLevel/panXPx are the current viewer zoom so label badges stay inside
+ *  the visible viewport even when the canvas is cropped by CSS scale. */
 function renderAnnotationOverlay(
   overlayCanvas: HTMLCanvasElement,
+  logicalW: number,
+  logicalH: number,
   landmarks: NormalizedLandmark[],
   highlightTerms: string[],
   manualHighlightedRegionIds: string[],
+  zoomLevel = 1,
+  panXPx = 0,
 ): void {
-  const w = overlayCanvas.width;
-  const h = overlayCanvas.height;
-  const ctx = overlayCanvas.getContext("2d");
+  const ctx = prepareMirrorAnnotationCanvas(overlayCanvas, logicalW, logicalH, zoomLevel);
   if (!ctx) return;
+  const w = logicalW;
+  const h = logicalH;
   ctx.clearRect(0, 0, w, h);
   if (!landmarks?.length) return;
 
-  const highlightedRegions = getHighlightedRegionIds(highlightTerms);
-  for (const regionId of manualHighlightedRegionIds) {
-    highlightedRegions.add(regionId);
-  }
+  const highlightedRegions = getEffectiveHighlightedRegionIds(
+    highlightTerms,
+    manualHighlightedRegionIds,
+  );
+  if (highlightedRegions.size === 0) return;
+
   const renderRegions = [
-    ...AI_MIRROR_REGIONS,
+    ...AI_MIRROR_REGIONS.filter((region) => highlightedRegions.has(region.id)),
     ...ADDITIONAL_AI_MIRROR_REGIONS.filter((region) => highlightedRegions.has(region.id)),
   ];
 
   for (const { id, indices } of renderRegions) {
     const poly = annotationRegionPolygon(id, indices, landmarks, w, h);
     if (poly.length < 3) continue;
-    const highlight = highlightedRegions.has(id);
     ctx.beginPath();
     ctx.moveTo(poly[0].x, poly[0].y);
     for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
     ctx.closePath();
-    ctx.fillStyle = highlight ? "rgba(59, 130, 246, 0.22)" : "rgba(99, 102, 241, 0.05)";
+    ctx.fillStyle = MIRROR_ANNOTATION_THEME.regionFill;
     ctx.fill();
-    ctx.strokeStyle = highlight ? "rgba(37, 99, 235, 0.9)" : "rgba(99, 102, 241, 0.18)";
-    ctx.lineWidth = highlight
-      ? Math.max(1.2, Math.min(w, h) * 0.002)
-      : Math.max(0.6, Math.min(w, h) * 0.001);
+    ctx.strokeStyle = MIRROR_ANNOTATION_THEME.regionStroke;
+    ctx.lineWidth = Math.max(1.2, Math.min(w, h) * 0.002);
     ctx.stroke();
   }
 
-  if (highlightedRegions.size > 0) {
+  {
     const DISPLAY: Record<string, string> = {
       rForehead: "Forehead", rLeftEye: "Eyes", rRightEye: "Eyes",
       rNose: "Nose", rLeftCheek: "Cheeks", rRightCheek: "Cheeks",
@@ -267,8 +390,9 @@ function renderAnnotationOverlay(
       rLowerFace: "Lower Face",
     };
     ctx.save();
-    const fs = Math.max(10, Math.round(Math.min(w, h) * 0.022));
-    ctx.font = `600 ${fs}px ui-sans-serif, system-ui, sans-serif`;
+    const minDim = Math.min(w, h);
+    const fs = mirrorRegionLabelFontSize(minDim);
+    ctx.font = mirrorRegionLabelFont(minDim);
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const seen = new Set<string>();
@@ -283,24 +407,52 @@ function renderAnnotationOverlay(
       const cy = poly.reduce((s, p) => s + p.y, 0) / poly.length;
       const side = cx < w / 2 ? "right" : "left";
       const tw = ctx.measureText(label).width;
-      const bw = tw + 16, bh = fs + 10, mg = 8;
-      const bx = side === "left" ? mg : w - bw - mg;
-      const by = Math.max(mg, Math.min(h - bh - mg, cy - bh / 2));
+      const bw = tw + 16, bh = fs + 10;
+      // At zoom > 1 the canvas edges are cropped; keep labels inside the visible strip.
+      const cropFraction = Math.max(0, (1 - 1 / zoomLevel) / 2);
+      const leftInset = Math.ceil(cropFraction * w - panXPx / zoomLevel) + 10;
+      const rightInset = Math.ceil(cropFraction * w + panXPx / zoomLevel) + 10;
+      const mg = 8;
+      const overlaySafeBottom = mirrorViewportOverlaySafeBottom();
+      let bx = side === "left" ? Math.max(mg, leftInset) : w - bw - Math.max(mg, rightInset);
+      let by = Math.max(
+        side === "left" ? Math.max(mg, overlaySafeBottom) : mg,
+        Math.min(h - bh - mg, cy - bh / 2),
+      );
+      ({ x: bx, y: by } = avoidMirrorViewportOverlay(side, bx, by, bw, bh, h));
       const ax = side === "left" ? bx + bw : bx;
-      ctx.strokeStyle = "rgba(30,64,175,0.6)";
+      ctx.strokeStyle = MIRROR_ANNOTATION_THEME.connector;
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(ax, by + bh / 2); ctx.lineTo(cx, cy); ctx.stroke();
-      ctx.fillStyle = "rgba(30,64,175,0.88)";
-      ctx.strokeStyle = "rgba(191,219,254,0.9)";
+      ctx.fillStyle = MIRROR_ANNOTATION_THEME.labelFill;
+      ctx.strokeStyle = MIRROR_ANNOTATION_THEME.labelStroke;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(bx, by, bw, bh, 999);
       ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#eef2ff";
-      ctx.fillText(label, bx + 8, by + bh / 2 + 0.5);
+      ctx.fillStyle = MIRROR_ANNOTATION_THEME.labelText;
+      const textPos = snapMirrorLabelTextPosition(bx + 8, by + bh / 2);
+      ctx.fillText(label, textPos.x, textPos.y);
     }
     ctx.restore();
   }
+}
+
+/** Walk outward from targetKey until we find a cached ImageBitmap within maxDelta. */
+function findNearestFrame(
+  cache: Map<number, ImageBitmap>,
+  targetKey: number,
+  maxDelta: number,
+): ImageBitmap | null {
+  const exact = cache.get(targetKey);
+  if (exact) return exact;
+  for (let d = 1; d <= maxDelta; d++) {
+    const a = cache.get(targetKey - d);
+    if (a) return a;
+    const b = cache.get(targetKey + d);
+    if (b) return b;
+  }
+  return null;
 }
 
 function clearAnnotationOverlay(overlayCanvas: HTMLCanvasElement | null): void {
@@ -312,10 +464,18 @@ function clearAnnotationOverlay(overlayCanvas: HTMLCanvasElement | null): void {
 export default function Face3DViewer({
   videoUrl,
   autoRotate,
+  controlledYawDeg,
+  controlledTimeRatio,
+  controlledTimeAnimationMs = 0,
+  onTimeRatioChange,
   showAnnotations = false,
   highlightTerms = [],
   highlightedAnnotationRegionIds = [],
-  pingPongLoop = false,
+  showHint = true,
+  initialZoom = 1,
+  initialPanY = 0,
+  overlay,
+  mediaOpacity = 1,
 }: Face3DViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const zoomLayerRef = useRef<HTMLDivElement>(null);
@@ -323,165 +483,872 @@ export default function Face3DViewer({
   const displayCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const annotationDetectCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const currentFrameIdxRef = useRef(0);
+  const frameCacheRef = useRef<Map<number, ImageBitmap>>(new Map());
+  const frameCachePrimedUrlRef = useRef<string | null>(null);
+  const frameCachePrimePromiseRef = useRef<Promise<void> | null>(null);
+  const reversePlaybackOkRef = useRef<boolean | null>(null);
+  const frameCapCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const currentTimeKeyRef = useRef(0);
+  const yawRef = useRef(0);
+  const controlledTimeAnimationRef = useRef(0);
 
-  // Pre-extracted frames stored as ImageBitmaps — drawn with ctx.drawImage (<0.1ms each).
-  const framesRef = useRef<ImageBitmap[] | null>(null);
-  const landmarksByFrameRef = useRef<Map<number, NormalizedLandmark[] | null>>(new Map());
-  const pendingLandmarkFramesRef = useRef<Set<number>>(new Set());
-  const landmarkFrameQueueRef = useRef<number[]>([]);
+  const landmarksByTimeKeyRef = useRef(getFace3dLandmarkCache(videoUrl));
+  const pendingLandmarkKeysRef = useRef<Set<number>>(new Set());
+  const landmarkKeyQueueRef = useRef<number[]>([]);
   const processingLandmarkQueueRef = useRef(false);
-  const [framesReady, setFramesReady] = useState(false);
-  const extractingRef = useRef(false);
 
   const autoRotateRef = useRef(autoRotate);
-  const pingPongLoopRef = useRef(pingPongLoop);
-  // Set when the user is dragging in ping-pong mode so the ping-pong loop pauses.
-  const pingPongDraggingRef = useRef(false);
+  const autoDirRef = useRef<1 | -1>(1);
+  const draggingRef = useRef(false);
+  const scrubTargetYawRef = useRef(0);
+  const lastDisplayedLandmarksRef = useRef<NormalizedLandmark[] | null>(null);
+  const autoPlaybackControllerRef = useRef<{
+    start: (preferredDir?: 1 | -1) => void;
+    stop: () => void;
+  } | null>(null);
   const highlightTermsRef = useRef(highlightTerms);
   const showAnnotationsRef = useRef(showAnnotations);
   const highlightedAnnotationRegionIdsRef = useRef(highlightedAnnotationRegionIds);
+  const onTimeRatioChangeRef = useRef(onTimeRatioChange);
 
   const [zoom, setZoom] = useState(1);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const zoomRef = useRef(1);
   const panXRef = useRef(0);
   const panYRef = useRef(0);
+  // Minimum zoom tracks initialZoom so users can't scroll below the default crop.
+  const minZoomRef = useRef(Math.max(MIN_ZOOM, initialZoom));
 
   const [displaySize, setDisplaySize] = useState({ w: DEFAULT_VIDEO_W, h: DEFAULT_VIDEO_H });
-  const [overlaySize, setOverlaySize] = useState({ w: DEFAULT_VIDEO_W, h: DEFAULT_VIDEO_H });
+  const displaySizeRef = useRef(displaySize);
+  useEffect(() => {
+    displaySizeRef.current = displaySize;
+  }, [displaySize]);
+
+  const renderCachedAnnotations = useCallback(() => {
+    if (!showAnnotationsRef.current || !overlayRef.current) return;
+    if (
+      !hasMirrorAnnotationHighlights(
+        highlightTermsRef.current,
+        highlightedAnnotationRegionIdsRef.current,
+      )
+    ) {
+      clearAnnotationOverlay(overlayRef.current);
+      return;
+    }
+    const cached = resolveLandmarksForTimeKey(
+      landmarksByTimeKeyRef.current,
+      currentTimeKeyRef.current,
+      TIMELINE_KEY_MAX_DELTA,
+    );
+    const landmarks = cached;
+    if (landmarks?.length) {
+      lastDisplayedLandmarksRef.current = landmarks;
+      const { w, h } = displaySizeRef.current;
+      renderAnnotationOverlay(
+        overlayRef.current,
+        w,
+        h,
+        landmarks,
+        highlightTermsRef.current,
+        highlightedAnnotationRegionIdsRef.current,
+        zoomRef.current,
+        panXRef.current,
+      );
+    } else if (draggingRef.current) {
+      clearAnnotationOverlay(overlayRef.current);
+    }
+  }, []);
+
+  const drawVideoFrameToDisplay = useCallback(() => {
+    const video = videoRef.current;
+    const dc = displayCanvasRef.current;
+    if (!video || !dc || video.readyState < 2) return false;
+    const ctx = dc.getContext("2d");
+    if (!ctx) return false;
+    ctx.clearRect(0, 0, dc.width, dc.height);
+    ctx.drawImage(video, 0, 0, dc.width, dc.height);
+    return true;
+  }, []);
+
+  const captureFrameBitmapAtKey = useCallback((key: number): Promise<void> => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return Promise.resolve();
+    if (frameCacheRef.current.has(key)) return Promise.resolve();
+    const srcW = video.videoWidth || DEFAULT_VIDEO_W;
+    const srcH = video.videoHeight || DEFAULT_VIDEO_H;
+    const capW = Math.max(1, Math.round(srcW * FRAME_CACHE_SCALE));
+    const capH = Math.max(1, Math.round(srcH * FRAME_CACHE_SCALE));
+    let cap = frameCapCanvasRef.current;
+    if (!cap || cap.width !== capW || cap.height !== capH) {
+      cap = document.createElement("canvas");
+      cap.width = capW;
+      cap.height = capH;
+      frameCapCanvasRef.current = cap;
+    }
+    const ctx = cap.getContext("2d");
+    if (!ctx) return Promise.resolve();
+    ctx.drawImage(video, 0, 0, capW, capH);
+    return new Promise((resolve) => {
+      void createImageBitmap(cap!).then((bitmap) => {
+        const prior = frameCacheRef.current.get(key);
+        if (prior) prior.close();
+        frameCacheRef.current.set(key, bitmap);
+        resolve();
+      });
+    });
+  }, []);
+
+  const captureCurrentFrame = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return;
+    const key = face3dTimelineKey(video.currentTime);
+    void captureFrameBitmapAtKey(key);
+  }, [captureFrameBitmapAtKey]);
+
+  const seekVideoToTimelineKey = useCallback((video: HTMLVideoElement, key: number): Promise<void> => {
+    const t = quantizeFace3dTimelineTime(face3dTimelineTimeFromKey(key));
+    if (Math.abs(video.currentTime - t) <= SCRUB_SEEK_EPS) return Promise.resolve();
+    return new Promise((resolve) => {
+      const onSeeked = () => {
+        video.removeEventListener("seeked", onSeeked);
+        resolve();
+      };
+      video.pause();
+      video.addEventListener("seeked", onSeeked, { once: true });
+      video.currentTime = t;
+    });
+  }, []);
+
+  /** Decode every timeline bucket once so the first reverse pass never freezes on stale frames. */
+  const primeTurntableFrameCache = useCallback(
+    async (video: HTMLVideoElement, isCancelled: () => boolean) => {
+      const d = video.duration;
+      if (!d || !isFinite(d)) return;
+      const maxKey = face3dTimelineKey(Math.max(0, d - END_TIME_EPS));
+      for (let key = 0; key <= maxKey; key += FRAME_CACHE_PRIME_STEP) {
+        if (isCancelled()) return;
+        if (frameCacheRef.current.has(key)) continue;
+        await seekVideoToTimelineKey(video, key);
+        if (isCancelled()) return;
+        await captureFrameBitmapAtKey(key);
+      }
+    },
+    [captureFrameBitmapAtKey, seekVideoToTimelineKey],
+  );
+
+  const ensureFrameCachePrimed = useCallback(
+    (video: HTMLVideoElement, isCancelled: () => boolean) => {
+      if (frameCachePrimedUrlRef.current === videoUrl) return Promise.resolve();
+      if (frameCachePrimePromiseRef.current) return frameCachePrimePromiseRef.current;
+      const dc = displayCanvasRef.current;
+      if (dc) dc.style.opacity = "0";
+      video.pause();
+      const promise = primeTurntableFrameCache(video, isCancelled).then(() => {
+        if (!isCancelled()) frameCachePrimedUrlRef.current = videoUrl;
+        frameCachePrimePromiseRef.current = null;
+      });
+      frameCachePrimePromiseRef.current = promise;
+      return promise;
+    },
+    [videoUrl, primeTurntableFrameCache],
+  );
+
+  useEffect(() => {
+    pruneFace3dLandmarkCaches(videoUrl);
+    landmarksByTimeKeyRef.current = getFace3dLandmarkCache(videoUrl);
+    pendingLandmarkKeysRef.current.clear();
+    landmarkKeyQueueRef.current = [];
+    processingLandmarkQueueRef.current = false;
+    yawRef.current = 0;
+    currentTimeKeyRef.current = 0;
+    lastDisplayedLandmarksRef.current = null;
+    setVideoError(null);
+    // Release GPU-backed ImageBitmaps from the previous video
+    for (const bmp of frameCacheRef.current.values()) bmp.close();
+    frameCacheRef.current.clear();
+    frameCachePrimedUrlRef.current = null;
+    frameCachePrimePromiseRef.current = null;
+    reversePlaybackOkRef.current = null;
+  }, [videoUrl]);
 
   useEffect(() => { autoRotateRef.current = autoRotate; }, [autoRotate]);
-  useEffect(() => { pingPongLoopRef.current = pingPongLoop; }, [pingPongLoop]);
+  useEffect(() => { onTimeRatioChangeRef.current = onTimeRatioChange; }, [onTimeRatioChange]);
+  useEffect(() => { minZoomRef.current = Math.max(MIN_ZOOM, initialZoom); }, [initialZoom]);
   useEffect(() => {
     highlightTermsRef.current = highlightTerms;
-    if (showAnnotationsRef.current && overlayRef.current) {
-      const landmarks = landmarksByFrameRef.current.get(currentFrameIdxRef.current);
-      if (landmarks?.length) {
-        renderAnnotationOverlay(
-          overlayRef.current,
-          landmarks,
-          highlightTerms,
-          highlightedAnnotationRegionIdsRef.current,
-        );
-      }
-    }
-  }, [highlightTerms]);
+    renderCachedAnnotations();
+  }, [highlightTerms, renderCachedAnnotations]);
   useEffect(() => { showAnnotationsRef.current = showAnnotations; }, [showAnnotations]);
   useEffect(() => {
     highlightedAnnotationRegionIdsRef.current = highlightedAnnotationRegionIds;
-    if (showAnnotationsRef.current && overlayRef.current) {
-      const landmarks = landmarksByFrameRef.current.get(currentFrameIdxRef.current);
-      if (landmarks?.length) {
-        renderAnnotationOverlay(
-          overlayRef.current,
-          landmarks,
-          highlightTermsRef.current,
-          highlightedAnnotationRegionIds,
-        );
-      } else {
-        clearAnnotationOverlay(overlayRef.current);
-      }
-    }
-  }, [highlightedAnnotationRegionIds]);
+    renderCachedAnnotations();
+  }, [highlightedAnnotationRegionIds, renderCachedAnnotations]);
 
   useEffect(() => {
     if (!showAnnotations) {
       clearAnnotationOverlay(overlayRef.current);
       return;
     }
-    const landmarks = landmarksByFrameRef.current.get(currentFrameIdxRef.current);
-    if (landmarks?.length && overlayRef.current) {
-      renderAnnotationOverlay(
-        overlayRef.current,
-        landmarks,
+    renderCachedAnnotations();
+  }, [showAnnotations, renderCachedAnnotations]);
+
+  const enqueueLandmarkDetection = useCallback((key: number) => {
+    if (
+      !hasMirrorAnnotationHighlights(
         highlightTermsRef.current,
         highlightedAnnotationRegionIdsRef.current,
-      );
+      )
+    ) {
+      return;
     }
-  }, [showAnnotations]);
-
-  const requestLandmarksForFrame = useCallback((idx: number) => {
-    const frames = framesRef.current;
-    if (!frames?.[idx]) return;
-    if (landmarksByFrameRef.current.has(idx) || pendingLandmarkFramesRef.current.has(idx)) return;
-    pendingLandmarkFramesRef.current.add(idx);
-    landmarkFrameQueueRef.current.push(idx);
+    const cache = landmarksByTimeKeyRef.current;
+    const toQueue = [key, key - 1, key + 1].filter(
+      (k) =>
+        k >= 0 &&
+        !cache.has(k) &&
+        !pendingLandmarkKeysRef.current.has(k) &&
+        !landmarkKeyQueueRef.current.includes(k),
+    );
+    if (toQueue.length === 0) return;
+    const queue = landmarkKeyQueueRef.current;
+    const priority = toQueue.filter((k) => k === key);
+    const neighbors = toQueue.filter((k) => k !== key);
+    for (const k of [...priority, ...neighbors]) {
+      pendingLandmarkKeysRef.current.add(k);
+      queue.push(k);
+    }
+    if (queue.length > 20) {
+      landmarkKeyQueueRef.current = queue.slice(-16);
+    }
     if (processingLandmarkQueueRef.current) return;
     processingLandmarkQueueRef.current = true;
 
     void (async () => {
       try {
         const landmarker = await getFaceLandmarker();
-        while (landmarkFrameQueueRef.current.length > 0) {
-          const nextIdx = landmarkFrameQueueRef.current.shift()!;
-          const frame = framesRef.current?.[nextIdx];
-          if (!frame) {
-            pendingLandmarkFramesRef.current.delete(nextIdx);
+        while (landmarkKeyQueueRef.current.length > 0) {
+          const nextKey = landmarkKeyQueueRef.current.shift()!;
+          const v = videoRef.current;
+          const targetTime = face3dTimelineTimeFromKey(nextKey);
+          const timeTolerance = draggingRef.current ? 0.02 : 0.06;
+          const cachedFrame =
+            frameCacheRef.current.get(nextKey) ??
+            findNearestFrame(frameCacheRef.current, nextKey, TIMELINE_KEY_MAX_DELTA);
+
+          if (!v || v.readyState < 2) {
+            pendingLandmarkKeysRef.current.delete(nextKey);
             continue;
           }
-          const scale = Math.min(1, ANNOTATION_DETECT_MAX_DIM / Math.max(frame.width, frame.height));
-          const w = Math.max(1, Math.round(frame.width * scale));
-          const h = Math.max(1, Math.round(frame.height * scale));
+
+          const srcW = v.videoWidth || DEFAULT_VIDEO_W;
+          const srcH = v.videoHeight || DEFAULT_VIDEO_H;
+          const scale = Math.min(1, ANNOTATION_DETECT_MAX_DIM / Math.max(srcW, srcH));
+          const w = Math.max(1, Math.round(srcW * scale));
+          const h = Math.max(1, Math.round(srcH * scale));
           const canvas = annotationDetectCanvasRef.current ?? document.createElement("canvas");
           annotationDetectCanvasRef.current = canvas;
           canvas.width = w;
           canvas.height = h;
           const ctx = canvas.getContext("2d");
           if (!ctx) {
-            pendingLandmarkFramesRef.current.delete(nextIdx);
+            pendingLandmarkKeysRef.current.delete(nextKey);
             continue;
           }
           ctx.clearRect(0, 0, w, h);
-          ctx.drawImage(frame, 0, 0, w, h);
+
+          if (cachedFrame) {
+            ctx.drawImage(cachedFrame, 0, 0, w, h);
+          } else {
+            if (Math.abs(v.currentTime - targetTime) > timeTolerance) {
+              seekVideoPrecisely(v, targetTime, SCRUB_SEEK_EPS_DRAG);
+              pendingLandmarkKeysRef.current.delete(nextKey);
+              landmarkKeyQueueRef.current.unshift(nextKey);
+              break;
+            }
+            ctx.drawImage(v, 0, 0, w, h);
+          }
+
           const result = landmarker.detect(canvas);
           const landmarks = result.faceLandmarks?.[0] ?? null;
-          landmarksByFrameRef.current.set(nextIdx, landmarks);
-          pendingLandmarkFramesRef.current.delete(nextIdx);
-          if (nextIdx === currentFrameIdxRef.current && showAnnotationsRef.current && landmarks?.length && overlayRef.current) {
-            renderAnnotationOverlay(
-              overlayRef.current,
-              landmarks,
-              highlightTermsRef.current,
-              highlightedAnnotationRegionIdsRef.current,
-            );
+          landmarksByTimeKeyRef.current.set(nextKey, landmarks);
+          pendingLandmarkKeysRef.current.delete(nextKey);
+          if (
+            showAnnotationsRef.current &&
+            landmarks?.length &&
+            Math.abs(nextKey - currentTimeKeyRef.current) <= TIMELINE_KEY_MAX_DELTA
+          ) {
+            renderCachedAnnotations();
           }
-          await idle();
+          if (!draggingRef.current && landmarkKeyQueueRef.current.length > 2) {
+            await idle();
+          }
         }
       } catch (err) {
         console.warn("[Face3DViewer] annotation landmark cache:", err);
       } finally {
         processingLandmarkQueueRef.current = false;
-        if (landmarkFrameQueueRef.current.length > 0) {
-          const restartIdx = landmarkFrameQueueRef.current.shift()!;
-          pendingLandmarkFramesRef.current.delete(restartIdx);
-          requestLandmarksForFrame(restartIdx);
+        if (landmarkKeyQueueRef.current.length > 0) {
+          const restartKey = landmarkKeyQueueRef.current.shift()!;
+          pendingLandmarkKeysRef.current.delete(restartKey);
+          enqueueLandmarkDetection(restartKey);
         }
       }
     })();
-  }, []);
+  }, [renderCachedAnnotations]);
 
+  const requestLandmarksForTimeKey = useCallback(
+    (key: number) => {
+      enqueueLandmarkDetection(key);
+    },
+    [enqueueLandmarkDetection],
+  );
+
+  const syncYawFromVideo = useCallback((opts?: { queueLandmarks?: boolean }) => {
+    const video = videoRef.current;
+    if (!video || !isFinite(video.duration) || video.duration <= 0) return;
+    yawRef.current = videoTimeToYaw(video.currentTime, video.duration);
+    onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, video.currentTime / video.duration)));
+    const key = face3dTimelineKey(video.currentTime);
+    if (key === currentTimeKeyRef.current) return;
+    currentTimeKeyRef.current = key;
+    renderCachedAnnotations();
+    if (opts?.queueLandmarks !== false) {
+      requestLandmarksForTimeKey(key);
+    }
+  }, [renderCachedAnnotations, requestLandmarksForTimeKey]);
+
+  // Auto-rotate: forward uses native video.play(); reverse uses the same timeline
+  // bucket rate as forward but draws only from the frame cache (no per-frame seeks).
   useEffect(() => {
-    if (!showAnnotations || !framesRef.current?.length) return undefined;
-    let cancelled = false;
-    const current = currentFrameIdxRef.current;
-    requestLandmarksForFrame(current);
-    requestLandmarksForFrame((current + 1) % framesRef.current.length);
+    const video = videoRef.current;
+    if (!video) return undefined;
 
-    void (async () => {
-      const frameCount = framesRef.current?.length ?? 0;
-      for (let offset = 0; offset < frameCount && !cancelled; offset++) {
-        const forward = (current + offset) % frameCount;
-        const backward = (current - offset + frameCount) % frameCount;
-        requestLandmarksForFrame(forward);
-        requestLandmarksForFrame(backward);
-        await idle();
+    let cancelled = false;
+    let autoRaf = 0;
+    let autoMode: 'idle' | 'forward' | 'backward' = 'idle';
+    let initialZoomApplied = false;
+    const initZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, initialZoom));
+    const initPanY = initialPanY;
+    let rvfcId = 0;
+
+    clearAnnotationOverlay(overlayRef.current);
+
+    const stopAuto = () => {
+      if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
+      video.pause();
+      safeSetPlaybackRate(video, 1);
+      const dc = displayCanvasRef.current;
+      if (dc) dc.style.opacity = '0';
+      autoMode = 'idle';
+    };
+
+    const drawTimelineFrame = (
+      timelineKey: number,
+      lastBitmap: ImageBitmap | null,
+    ): ImageBitmap | null => {
+      const dc = displayCanvasRef.current;
+      if (!dc) return lastBitmap;
+      const frame =
+        findNearestFrame(
+          frameCacheRef.current,
+          timelineKey,
+          FRAME_CACHE_REVERSE_MAX_KEY_DELTA,
+        ) ?? lastBitmap;
+      if (!frame) return lastBitmap;
+      const ctx = dc.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, dc.width, dc.height);
+        ctx.drawImage(frame, 0, 0, dc.width, dc.height);
       }
-    })();
+      return frame;
+    };
+
+    // Forward pass: native play() fills the frame cache via rvfc; monitor RAF
+    // detects the end and hands off to startBackward().
+    const startForward = () => {
+      if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
+      autoMode = 'forward';
+      autoDirRef.current = 1;
+      const d = video.duration;
+      if (!d || !isFinite(d)) return;
+      const rate = computeAutoPlaybackRate(d, 1);
+
+      const doPlay = () => {
+        if (cancelled || autoMode !== 'forward') return;
+        const dc = displayCanvasRef.current;
+        safeSetPlaybackRate(video, rate);
+        void video.play().catch(() => {});
+        if (dc) dc.style.opacity = '0'; // Reveal only after seek + play are aligned
+        const monitor = () => {
+          autoRaf = 0;
+          if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'forward') return;
+          const d2 = video.duration;
+          if (!d2 || !isFinite(d2)) { autoRaf = requestAnimationFrame(monitor); return; }
+          syncYawFromVideo();
+          if (video.currentTime >= d2 - END_TIME_EPS || video.ended) {
+            yawRef.current = MAX_YAW_DEG;
+            video.currentTime = Math.max(0, d2 - END_TIME_EPS);
+            autoDirRef.current = -1;
+            startBackward();
+            return;
+          }
+          autoRaf = requestAnimationFrame(monitor);
+        };
+        autoRaf = requestAnimationFrame(monitor);
+      };
+
+      // Seek to the correct start position before playing (important when
+      // transitioning from backward where video.currentTime may be anywhere).
+      const targetStart = yawToVideoTime(yawRef.current, d);
+      if (Math.abs(video.currentTime - targetStart) > SCRUB_SEEK_EPS) {
+        video.pause();
+        video.currentTime = targetStart;
+        video.addEventListener('seeked', doPlay, { once: true });
+      } else {
+        doPlay();
+      }
+    };
+
+    // Reverse: native video when supported (same smoothness as forward); else stepped cache RAF.
+    const startBackwardCache = () => {
+      if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
+      autoMode = 'backward';
+      autoDirRef.current = -1;
+      video.pause();
+      safeSetPlaybackRate(video, 1);
+      const dc = displayCanvasRef.current;
+      const d0 = video.duration;
+      if (!d0 || !isFinite(d0)) return;
+      const keysPerSecond =
+        Math.abs(computeAutoPlaybackRate(d0, 1)) * FACE3D_TIMELINE_FPS;
+      const maxKey = face3dTimelineKey(Math.max(0, d0 - END_TIME_EPS));
+      let timelineKey = Math.min(
+        maxKey,
+        Math.max(0, face3dTimelineKey(yawToVideoTime(yawRef.current, d0))),
+      );
+      let lastBitmap: ImageBitmap | null = null;
+      if (dc) {
+        lastBitmap = drawTimelineFrame(timelineKey, null);
+        dc.style.opacity = '1';
+      }
+      let last = performance.now();
+      const tick = (now: number) => {
+        autoRaf = 0;
+        if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'backward') {
+          if (dc) dc.style.opacity = '0';
+          return;
+        }
+        const d = video.duration;
+        if (!d || !isFinite(d)) {
+          autoRaf = requestAnimationFrame(tick);
+          return;
+        }
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now;
+        timelineKey -= keysPerSecond * dt;
+        if (timelineKey <= 0) {
+          timelineKey = 0;
+          yawRef.current = -MAX_YAW_DEG;
+          autoDirRef.current = 1;
+          const leftTime = yawToVideoTime(-MAX_YAW_DEG, d);
+          const handoffToForward = () => {
+            if (cancelled || autoMode !== 'backward') return;
+            startForward();
+          };
+          if (Math.abs(video.currentTime - leftTime) > SCRUB_SEEK_EPS) {
+            video.currentTime = leftTime;
+            video.addEventListener('seeked', handoffToForward, { once: true });
+          } else {
+            handoffToForward();
+          }
+          return;
+        }
+        const playbackTime = face3dTimelineTimeFromKey(Math.round(timelineKey));
+        yawRef.current = videoTimeToYaw(playbackTime, d);
+        onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, playbackTime / d)));
+        lastBitmap = drawTimelineFrame(Math.round(timelineKey), lastBitmap);
+        const landmarkKey = Math.round(timelineKey);
+        if (landmarkKey !== currentTimeKeyRef.current) {
+          currentTimeKeyRef.current = landmarkKey;
+          renderCachedAnnotations();
+          requestLandmarksForTimeKey(landmarkKey);
+        }
+        autoRaf = requestAnimationFrame(tick);
+      };
+      autoRaf = requestAnimationFrame(tick);
+    };
+
+    const startBackwardVideo = () => {
+      if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
+      autoMode = 'backward';
+      autoDirRef.current = -1;
+      const dc = displayCanvasRef.current;
+      if (dc) dc.style.opacity = '0';
+      const d = video.duration;
+      if (!d || !isFinite(d)) return;
+      const endTime = Math.max(0, d - END_TIME_EPS);
+      const rate = computeAutoPlaybackRate(d, -1);
+
+      const doPlay = () => {
+        if (cancelled || autoMode !== 'backward') return;
+        if (!safeSetPlaybackRate(video, rate) || video.playbackRate >= 0) {
+          reversePlaybackOkRef.current = false;
+          startBackwardCache();
+          return;
+        }
+        void video.play().catch(() => {
+          reversePlaybackOkRef.current = false;
+          startBackwardCache();
+        });
+        const monitor = () => {
+          autoRaf = 0;
+          if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'backward') return;
+          const d2 = video.duration;
+          if (!d2 || !isFinite(d2)) { autoRaf = requestAnimationFrame(monitor); return; }
+          syncYawFromVideo();
+          if (video.currentTime <= END_TIME_EPS || video.paused) {
+            video.pause();
+            safeSetPlaybackRate(video, 1);
+            yawRef.current = -MAX_YAW_DEG;
+            autoDirRef.current = 1;
+            const leftTime = yawToVideoTime(-MAX_YAW_DEG, d2);
+            const handoffToForward = () => {
+              if (cancelled || autoMode !== 'backward') return;
+              startForward();
+            };
+            if (Math.abs(video.currentTime - leftTime) > SCRUB_SEEK_EPS) {
+              video.currentTime = leftTime;
+              video.addEventListener('seeked', handoffToForward, { once: true });
+            } else {
+              handoffToForward();
+            }
+            return;
+          }
+          autoRaf = requestAnimationFrame(monitor);
+        };
+        autoRaf = requestAnimationFrame(monitor);
+      };
+
+      if (Math.abs(video.currentTime - endTime) > SCRUB_SEEK_EPS) {
+        video.pause();
+        safeSetPlaybackRate(video, 1);
+        video.currentTime = endTime;
+        video.addEventListener('seeked', doPlay, { once: true });
+      } else {
+        doPlay();
+      }
+    };
+
+    const startBackward = () => {
+      if (reversePlaybackOkRef.current !== false) {
+        startBackwardVideo();
+      } else {
+        startBackwardCache();
+      }
+    };
+
+    const stopAutoPlayback = () => stopAuto();
+
+    const startAutoPlayback = (preferredDir: 1 | -1 = autoDirRef.current) => {
+      if (cancelled || draggingRef.current || !autoRotateRef.current) return;
+      if (!video.duration || !isFinite(video.duration)) return;
+      if (preferredDir === -1) startBackward();
+      else startForward();
+    };
+
+    const onLoaded = () => {
+      if (cancelled) return;
+      const size = fitDisplaySize(video);
+      displaySizeRef.current = size;
+      setDisplaySize(size);
+      // Apply initial zoom/pan once — lets the face fill the frame on first load.
+      if (!initialZoomApplied && (initZoom !== 1 || initPanY !== 0)) {
+        initialZoomApplied = true;
+        zoomRef.current = initZoom;
+        panYRef.current = initPanY;
+        panXRef.current = 0;
+        if (zoomLayerRef.current) {
+          zoomLayerRef.current.style.transform = `translate(0px, ${initPanY}px) scale(${initZoom})`;
+        }
+        setZoom(initZoom);
+      }
+      renderCachedAnnotations();
+      stopAuto();
+      if (reversePlaybackOkRef.current === null) {
+        reversePlaybackOkRef.current = detectReverseVideoPlayback(video);
+      }
+      const initialYaw = autoRotateRef.current
+        ? -MAX_YAW_DEG
+        : clampYaw(controlledYawDeg ?? 0);
+      const controlledTime =
+        controlledTimeRatio === undefined
+          ? null
+          : Math.max(0, Math.min(1, controlledTimeRatio)) * video.duration;
+      yawRef.current = controlledTime == null ? initialYaw : videoTimeToYaw(controlledTime, video.duration);
+      const target = controlledTime ?? yawToVideoTime(initialYaw, video.duration);
+      const beginAutoRotate = () => {
+        if (cancelled || !autoRotateRef.current) return;
+        autoDirRef.current = 1;
+        yawRef.current = -MAX_YAW_DEG;
+        const d = video.duration;
+        if (!d || !isFinite(d)) {
+          startAutoPlayback(1);
+          return;
+        }
+        const leftTime = yawToVideoTime(-MAX_YAW_DEG, d);
+        const go = () => startAutoPlayback(1);
+        if (Math.abs(video.currentTime - leftTime) < SCRUB_SEEK_EPS) go();
+        else {
+          video.currentTime = leftTime;
+          video.addEventListener("seeked", go, { once: true });
+        }
+      };
+
+      const afterSeek = () => {
+        if (cancelled) return;
+        syncYawFromVideo();
+        if (!autoRotateRef.current) return;
+        // Fill cache in the background for manual scrub / Safari fallback only.
+        if (frameCachePrimedUrlRef.current !== videoUrl) {
+          void ensureFrameCachePrimed(video, () => cancelled);
+        }
+        beginAutoRotate();
+      };
+      if (Math.abs(video.currentTime - target) < SCRUB_SEEK_EPS) afterSeek();
+      else {
+        seekVideoToTime(video, target);
+        video.addEventListener('seeked', afterSeek, { once: true });
+      }
+    };
+
+    const onSeeked = () => {
+      if (cancelled) return;
+      syncYawFromVideo();
+      if (draggingRef.current) {
+        drawVideoFrameToDisplay();
+        captureCurrentFrame();
+        const dc = displayCanvasRef.current;
+        if (dc) dc.style.opacity = "1";
+        return;
+      }
+      captureCurrentFrame();
+    };
+
+    // Safety net in case the monitor RAF misses the video end event.
+    const onEnded = () => {
+      if (cancelled || draggingRef.current || !autoRotateRef.current) return;
+      if (autoMode === 'forward') {
+        yawRef.current = MAX_YAW_DEG;
+        autoDirRef.current = -1;
+        startBackward();
+      }
+    };
+
+    const scheduleVideoFrameSync = () => {
+      const rvfc = (
+        video as HTMLVideoElement & {
+          requestVideoFrameCallback?: (cb: () => void) => number;
+          cancelVideoFrameCallback?: (id: number) => void;
+        }
+      ).requestVideoFrameCallback;
+      if (typeof rvfc !== 'function' || cancelled || video.paused) return;
+      const id = rvfc.call(video, () => {
+        rvfcId = 0;
+        if (!cancelled && !draggingRef.current && !video.paused) {
+          syncYawFromVideo();
+          captureCurrentFrame();
+        }
+        scheduleVideoFrameSync();
+      });
+      if (typeof id === 'number') rvfcId = id;
+    };
+
+    const onPlay = () => {
+      if (cancelled) return;
+      scheduleVideoFrameSync();
+    };
+
+    video.addEventListener('loadedmetadata', onLoaded);
+    video.addEventListener('seeked', onSeeked);
+    video.addEventListener('ended', onEnded);
+    video.addEventListener('play', onPlay);
+    autoPlaybackControllerRef.current = {
+      start: startAutoPlayback,
+      stop: stopAutoPlayback,
+    };
+    if (video.readyState >= 1) onLoaded();
 
     return () => {
       cancelled = true;
+      if (autoPlaybackControllerRef.current?.stop === stopAutoPlayback) {
+        autoPlaybackControllerRef.current = null;
+      }
+      const cancelRvfc = (
+        video as HTMLVideoElement & { cancelVideoFrameCallback?: (id: number) => void }
+      ).cancelVideoFrameCallback;
+      if (rvfcId && typeof cancelRvfc === 'function') cancelRvfc.call(video, rvfcId);
+      stopAuto();
+      video.removeEventListener('loadedmetadata', onLoaded);
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('ended', onEnded);
+      video.removeEventListener('play', onPlay);
+      video.pause();
     };
-  }, [showAnnotations, framesReady, requestLandmarksForFrame]);
+  }, [
+    videoUrl,
+    controlledYawDeg,
+    controlledTimeRatio,
+    initialZoom,
+    initialPanY,
+    syncYawFromVideo,
+    drawVideoFrameToDisplay,
+    captureCurrentFrame,
+    captureFrameBitmapAtKey,
+    ensureFrameCachePrimed,
+    renderCachedAnnotations,
+    requestLandmarksForTimeKey,
+  ]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!autoRotate) {
+      autoPlaybackControllerRef.current?.stop();
+      if (video) {
+        video.pause();
+        safeSetPlaybackRate(video, 1);
+      }
+      return;
+    }
+    if (!video?.duration || !isFinite(video.duration)) return;
+    if (frameCachePrimedUrlRef.current !== videoUrl) {
+      void ensureFrameCachePrimed(video, () => false);
+    }
+    autoDirRef.current = 1;
+    yawRef.current = -MAX_YAW_DEG;
+    const leftTime = yawToVideoTime(-MAX_YAW_DEG, video.duration);
+    const go = () => autoPlaybackControllerRef.current?.start(1);
+    if (Math.abs(video.currentTime - leftTime) < SCRUB_SEEK_EPS) go();
+    else {
+      video.currentTime = leftTime;
+      video.addEventListener("seeked", go, { once: true });
+    }
+  }, [autoRotate, videoUrl, ensureFrameCachePrimed]);
+
+  useEffect(() => {
+    if (controlledYawDeg === undefined) return;
+    if (controlledTimeRatio !== undefined) return;
+    const video = videoRef.current;
+    if (!video || !video.duration || !isFinite(video.duration)) return;
+    const yaw = clampYaw(controlledYawDeg);
+    const target = yawToVideoTime(yaw, video.duration);
+    const quantizedTime = quantizeFace3dTimelineTime(target);
+    autoPlaybackControllerRef.current?.stop();
+    video.pause();
+    safeSetPlaybackRate(video, 1);
+    if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "0";
+    draggingRef.current = false;
+    yawRef.current = yaw;
+    scrubTargetYawRef.current = yaw;
+    currentTimeKeyRef.current = face3dTimelineKey(quantizedTime);
+    seekVideoPrecisely(video, quantizedTime, SCRUB_SEEK_EPS_DRAG);
+    renderCachedAnnotations();
+    requestLandmarksForTimeKey(currentTimeKeyRef.current);
+  }, [controlledYawDeg, controlledTimeRatio, renderCachedAnnotations, requestLandmarksForTimeKey]);
+
+  useEffect(() => {
+    if (controlledTimeRatio === undefined) return;
+    const video = videoRef.current;
+    if (!video || !video.duration || !isFinite(video.duration)) return;
+    const ratio = Math.max(0, Math.min(1, controlledTimeRatio));
+    const target = ratio * video.duration;
+    autoPlaybackControllerRef.current?.stop();
+    video.pause();
+    safeSetPlaybackRate(video, 1);
+    draggingRef.current = false;
+    if (controlledTimeAnimationRef.current) {
+      cancelAnimationFrame(controlledTimeAnimationRef.current);
+      controlledTimeAnimationRef.current = 0;
+    }
+
+    const duration = video.duration;
+    const start = video.currentTime || 0;
+    // Turntable is a linear sweep (left profile → front → right); never wrap the long way.
+    const shortestDelta = target - start;
+    const ms = Math.max(0, controlledTimeAnimationMs);
+    if (displayCanvasRef.current) {
+      displayCanvasRef.current.style.opacity = ms > 0 ? "1" : "0";
+    }
+    const setFrame = (time: number, queueLandmarks = true, finished = false) => {
+      const wrapped = ((time % duration) + duration) % duration;
+      yawRef.current = videoTimeToYaw(wrapped, duration);
+      onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, wrapped / duration)));
+      scrubTargetYawRef.current = yawRef.current;
+      currentTimeKeyRef.current = face3dTimelineKey(wrapped);
+
+      const targetKey = face3dTimelineKey(wrapped);
+      const quantized = quantizeFace3dTimelineTime(wrapped);
+      const cachedFrame = findNearestFrame(frameCacheRef.current, targetKey, FRAME_CACHE_MAX_KEY_DELTA);
+      const dc = displayCanvasRef.current;
+      const aligned = Math.abs(video.currentTime - quantized) <= SCRUB_SEEK_EPS_DRAG;
+      if (cachedFrame && dc) {
+        const ctx = dc.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, dc.width, dc.height);
+          ctx.drawImage(cachedFrame, 0, 0, dc.width, dc.height);
+        }
+        dc.style.opacity = "1";
+      } else if (aligned) {
+        seekVideoPrecisely(video, quantized, SCRUB_SEEK_EPS_DRAG);
+        drawVideoFrameToDisplay();
+        captureCurrentFrame();
+        if (dc) dc.style.opacity = "1";
+      } else {
+        seekVideoPrecisely(video, quantized, SCRUB_SEEK_EPS_DRAG);
+        if (dc) dc.style.opacity = "0";
+      }
+
+      renderCachedAnnotations();
+      if (queueLandmarks) requestLandmarksForTimeKey(currentTimeKeyRef.current);
+      if (finished && dc) dc.style.opacity = "0";
+    };
+
+    if (ms === 0 || Math.abs(shortestDelta) < 0.03) {
+      setFrame(target, true, true);
+      return;
+    }
+
+    const started = performance.now();
+    const easeInOut = (t: number) => {
+      const x = Math.max(0, Math.min(1, t));
+      return x * x * x * (x * (x * 6 - 15) + 10);
+    };
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - started) / ms);
+      const finished = progress === 1;
+      setFrame(start + shortestDelta * easeInOut(progress), true, finished);
+      if (!finished) {
+        controlledTimeAnimationRef.current = requestAnimationFrame(tick);
+      } else {
+        controlledTimeAnimationRef.current = 0;
+      }
+    };
+    controlledTimeAnimationRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (controlledTimeAnimationRef.current) {
+        cancelAnimationFrame(controlledTimeAnimationRef.current);
+        controlledTimeAnimationRef.current = 0;
+      }
+    };
+  }, [
+    controlledTimeRatio,
+    controlledTimeAnimationMs,
+    drawVideoFrameToDisplay,
+    captureCurrentFrame,
+    renderCachedAnnotations,
+    requestLandmarksForTimeKey,
+  ]);
 
   /** Apply CSS transform directly — no React re-render during drag/scroll. */
   const applyTransform = useCallback((px: number, py: number, z: number) => {
@@ -489,210 +1356,6 @@ export default function Face3DViewer({
       zoomLayerRef.current.style.transform = `translate(${px}px, ${py}px) scale(${z})`;
     }
   }, []);
-
-  // ── Frame extraction ──────────────────────────────────────────────────────
-  // Plays the display video at 2× speed and snapshots frames via RAF.
-  // After extraction, rotation is ctx.drawImage(bitmap) — GPU-accelerated,
-  // <0.1ms each.  Using the display video (not a separate element) means only
-  // one GCS request and the user sees the face playing immediately.
-  useEffect(() => {
-    if (framesRef.current) {
-      framesRef.current.forEach((b) => b.close());
-      framesRef.current = null;
-    }
-    landmarksByFrameRef.current.clear();
-    pendingLandmarkFramesRef.current.clear();
-    landmarkFrameQueueRef.current = [];
-    processingLandmarkQueueRef.current = false;
-    clearAnnotationOverlay(overlayRef.current);
-    setFramesReady(false);
-
-    // In ping-pong mode the video plays raw — no frame extraction needed.
-    if (pingPongLoop) return;
-
-    let cancelled = false;
-
-    async function extract() {
-      // Use the display video element for extraction — it's already loading the URL
-      // so there is no second GCS request and playback starts immediately.
-      // crossOrigin="anonymous" is set in JSX so the canvas draw is untainted.
-      // Non-null assertion: effect only runs after mount so ref is always set.
-      if (!videoRef.current) return;
-      const video = videoRef.current as HTMLVideoElement;
-
-      if (video.readyState < 1) {
-        await waitForVideoEvent(video, "loadedmetadata");
-      }
-      if (cancelled) return;
-
-      const dur = video.duration;
-      if (!dur || !isFinite(dur) || dur <= 0) return;
-
-      const targetSize = fitDisplaySize(video);
-      setDisplaySize(targetSize);
-      extractingRef.current = true;
-
-      const N = Math.min(Math.max(Math.round(dur * 30), 48), MAX_CACHED_FRAMES);
-      const bitmaps: (ImageBitmap | null)[] = new Array(N).fill(null);
-
-      const tmpC = document.createElement("canvas");
-      tmpC.width = targetSize.w;
-      tmpC.height = targetSize.h;
-      const tmpCtx = tmpC.getContext("2d")!;
-
-      // Play the display video at 2× speed and capture frames as they pass.
-      // The video element is visible during extraction so the user sees it playing
-      // immediately — no blank/stalled state while frames are loaded.
-      video.playbackRate = 2;
-      await new Promise<void>((resolve, reject) => {
-        let nextFrameIdx = 0;
-        let pendingBitmaps = 0;
-        let rafId = 0;
-        let resolved = false;
-
-        function finish() {
-          if (resolved) return;
-          resolved = true;
-          cancelAnimationFrame(rafId);
-          video.pause();
-          resolve();
-        }
-
-        function tick() {
-          if (cancelled) { finish(); return; }
-
-          const t = video.currentTime;
-
-          // Capture all frames whose target time we have now passed.
-          while (nextFrameIdx < N && (nextFrameIdx / N) * dur <= t) {
-            const idx = nextFrameIdx++;
-            try {
-              tmpCtx.drawImage(video, 0, 0, targetSize.w, targetSize.h);
-              // createImageBitmap snapshots the canvas pixel data synchronously at call
-              // time — safe to reuse tmpC immediately even though the promise resolves later.
-              pendingBitmaps++;
-              createImageBitmap(tmpC).then((bmp) => {
-                bitmaps[idx] = bmp;
-                pendingBitmaps--;
-
-                // Enable fast canvas path as soon as we have basic coverage.
-                const filled = bitmaps.filter(Boolean) as ImageBitmap[];
-                if (!framesRef.current && filled.length >= MIN_EARLY_FRAMES) {
-                  framesRef.current = filled;
-                  setFramesReady(true);
-                }
-
-                // All frames captured and all bitmaps resolved — done.
-                if (nextFrameIdx >= N && pendingBitmaps === 0) finish();
-              }).catch(() => {
-                pendingBitmaps--;
-                if (nextFrameIdx >= N && pendingBitmaps === 0) finish();
-              });
-            } catch {
-              // drawImage failed (video not decoded yet) — skip this slot
-            }
-          }
-
-          if (nextFrameIdx >= N) {
-            // Captured all frames; wait for pending bitmap promises then wrap up.
-            if (pendingBitmaps === 0) finish();
-            // else finish() is called from the last createImageBitmap .then()
-            return;
-          }
-
-          rafId = requestAnimationFrame(tick);
-        }
-
-        video.addEventListener("ended", finish, { once: true });
-        video.addEventListener("error", () => reject(new Error("video error")), { once: true });
-
-        video.play().then(() => {
-          rafId = requestAnimationFrame(tick);
-        }).catch(reject);
-      });
-
-      if (cancelled) { bitmaps.forEach((b) => b?.close()); return; }
-      const finalBitmaps = bitmaps.filter(Boolean) as ImageBitmap[];
-      framesRef.current = finalBitmaps;
-      setFramesReady(true);
-      extractingRef.current = false;
-    }
-
-    extract().catch((err) => console.warn("[Face3DViewer] frame extraction:", err));
-    return () => {
-      cancelled = true;
-      extractingRef.current = false;
-      videoRef.current?.pause();
-    };
-  }, [videoUrl, pingPongLoop]);
-
-  // ── Ping-pong playback (used for black-bg test video) ────────────────────
-  // Plays the video forward at 1× speed, then manually steps currentTime
-  // backward each RAF frame, then plays forward again — no frame extraction.
-  // During a drag gesture, the ping-pong loop pauses so the pointer handler
-  // can scrub currentTime directly.
-  useEffect(() => {
-    if (!pingPongLoop) return;
-    if (!videoRef.current) return;
-    const video = videoRef.current as HTMLVideoElement;
-
-    let dir: 1 | -1 = 1;
-    let rafId: number;
-    let lastTs: number | null = null;
-    let cancelled = false;
-
-    function tick(ts: number) {
-      if (cancelled) return;
-
-      // While the user is dragging, let the pointer handler control currentTime.
-      if (pingPongDraggingRef.current) {
-        lastTs = null; // reset dt so there's no jump when drag ends
-        rafId = requestAnimationFrame(tick);
-        return;
-      }
-
-      const dt = lastTs !== null ? (ts - lastTs) / 1000 : 0;
-      lastTs = ts;
-
-      if (dir === 1) {
-        if (isFinite(video.duration) && video.currentTime >= video.duration - 0.08) {
-          video.pause();
-          dir = -1;
-        }
-      } else {
-        const next = video.currentTime - dt;
-        if (next <= 0.04) {
-          video.currentTime = 0;
-          dir = 1;
-          video.play().catch(() => undefined);
-        } else {
-          video.currentTime = next;
-        }
-      }
-
-      rafId = requestAnimationFrame(tick);
-    }
-
-    async function start() {
-      if (video.readyState < 1) {
-        await waitForVideoEvent(video, "loadedmetadata");
-      }
-      if (cancelled) return;
-      video.playbackRate = 1;
-      video.currentTime = 0;
-      video.play()
-        .then(() => { if (!cancelled) rafId = requestAnimationFrame(tick); })
-        .catch(() => undefined);
-    }
-
-    start();
-
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(rafId);
-      video.pause();
-    };
-  }, [pingPongLoop, videoUrl]);
 
   // ── Wheel-to-zoom ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -702,7 +1365,7 @@ export default function Face3DViewer({
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
       const oldZoom = zoomRef.current;
-      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, oldZoom * factor));
+      const newZoom = Math.max(minZoomRef.current, Math.min(MAX_ZOOM, oldZoom * factor));
       if (newZoom === oldZoom) return;
       const rect = viewer.getBoundingClientRect();
       const cx = e.clientX - (rect.left + rect.width / 2);
@@ -716,119 +1379,117 @@ export default function Face3DViewer({
       panYRef.current = newPanY;
       applyTransform(newPanX, newPanY, newZoom);
       setZoom(newZoom);
+      renderCachedAnnotations();
     };
     viewer.addEventListener("wheel", onWheel, { passive: false });
     return () => viewer.removeEventListener("wheel", onWheel);
-  }, [applyTransform]);
+  }, [applyTransform, renderCachedAnnotations]);
 
   const resetZoom = useCallback(() => {
-    zoomRef.current = 1; panXRef.current = 0; panYRef.current = 0;
-    applyTransform(0, 0, 1);
-    setZoom(1);
-  }, [applyTransform]);
+    const z = minZoomRef.current;
+    const py = initialPanY;
+    zoomRef.current = z; panXRef.current = 0; panYRef.current = py;
+    applyTransform(0, py, z);
+    setZoom(z);
+    renderCachedAnnotations();
+  }, [applyTransform, initialPanY, renderCachedAnnotations]);
 
-  // ── Core RAF loop + pointer events ───────────────────────────────────────
+  // ── Pointer scrub: RAF seeks when decoder is ready (no seek pile-up) ───────
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
 
-    let angle = 0;
-    let autoDir = 1;
-    let dragging = false;
-    let dragStartX = 0, dragStartAngle = 0;
-    let rafId: number;
-    let lastTs = 0;
-    let lastFrameIdx = -1;
+    let dragStartX = 0;
+    let dragStartYaw = 0;
+    let scrubRaf = 0;
 
-    function drawFrame() {
-      const frames = framesRef.current;
-      const canvas = displayCanvasRef.current;
-      if (!frames || !frames.length || !canvas) return;
-      const idx = angleToFrameIdx(angle, frames.length);
-      const nextIdx = (idx + 1) % frames.length;
-      if (idx === lastFrameIdx) return; // skip identical frames — no GPU work needed
-      lastFrameIdx = idx;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(frames[idx], 0, 0, canvas.width, canvas.height);
+    const stopScrubLoop = () => {
+      if (scrubRaf) cancelAnimationFrame(scrubRaf);
+      scrubRaf = 0;
+    };
 
-      currentFrameIdxRef.current = idx;
-      if (showAnnotationsRef.current && overlayRef.current) {
-        const landmarks = landmarksByFrameRef.current.get(idx);
-        if (landmarks?.length) {
-          renderAnnotationOverlay(
-            overlayRef.current,
-            landmarks,
-            highlightTermsRef.current,
-            highlightedAnnotationRegionIdsRef.current,
-          );
+    const startScrubLoop = () => {
+      stopScrubLoop();
+      const tick = () => {
+        scrubRaf = 0;
+        if (!draggingRef.current) return;
+        const video = videoRef.current;
+        if (!video?.duration) return;
+        const yaw = scrubTargetYawRef.current;
+        yawRef.current = yaw;
+        const target = yawToVideoTime(yaw, video.duration);
+        const quantizedTime = quantizeFace3dTimelineTime(target);
+        const targetKey = face3dTimelineKey(quantizedTime);
+
+        const cachedFrame = findNearestFrame(
+          frameCacheRef.current,
+          targetKey,
+          FRAME_CACHE_MAX_KEY_DELTA,
+        );
+        const dc = displayCanvasRef.current;
+        const aligned = Math.abs(video.currentTime - quantizedTime) <= SCRUB_SEEK_EPS_DRAG;
+        if (cachedFrame && dc) {
+          const ctx = dc.getContext("2d");
+          if (ctx) {
+            ctx.clearRect(0, 0, dc.width, dc.height);
+            ctx.drawImage(cachedFrame, 0, 0, dc.width, dc.height);
+          }
+          dc.style.opacity = "1";
+        } else if (aligned) {
+          if (drawVideoFrameToDisplay()) captureCurrentFrame();
+          if (dc) dc.style.opacity = "1";
         } else {
-          clearAnnotationOverlay(overlayRef.current);
-          requestLandmarksForFrame(idx);
-          requestLandmarksForFrame(nextIdx);
+          seekVideoPrecisely(video, quantizedTime, SCRUB_SEEK_EPS_DRAG);
+          // Let the live video show through until the seek lands (avoids frozen front frame).
+          if (dc) dc.style.opacity = "0";
         }
-      }
-    }
 
-    function tick(now: number) {
-      const dt = lastTs ? (now - lastTs) / 1000 : 0;
-      lastTs = now;
-
-      if (!dragging && autoRotateRef.current) {
-        angle += AUTO_SPEED * dt * autoDir;
-        if (angle >= MAX_ANGLE)       { angle = MAX_ANGLE;  autoDir = -1; }
-        else if (angle <= -MAX_ANGLE) { angle = -MAX_ANGLE; autoDir = 1; }
-      }
-
-      if (framesRef.current) {
-        // Fast path: GPU bitmap copy, no decode.
-        drawFrame();
-      }
-      // While frames are still extracting the display video is playing live —
-      // no seeking needed; the browser updates the video element each frame.
-
-      rafId = requestAnimationFrame(tick);
-    }
+        if (targetKey !== currentTimeKeyRef.current) {
+          currentTimeKeyRef.current = targetKey;
+          renderCachedAnnotations();
+          requestLandmarksForTimeKey(targetKey);
+        }
+        scrubRaf = requestAnimationFrame(tick);
+      };
+      scrubRaf = requestAnimationFrame(tick);
+    };
 
     function onPointerDown(e: PointerEvent) {
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      dragging = true;
+      draggingRef.current = true;
       dragStartX = e.clientX;
-      dragStartAngle = angle;
+      dragStartYaw = yawRef.current;
+      scrubTargetYawRef.current = dragStartYaw;
       viewer!.style.cursor = "grabbing";
-      if (pingPongLoopRef.current) {
-        pingPongDraggingRef.current = true;
-        videoRef.current?.pause();
-      }
+      const video = videoRef.current;
+      if (video) { video.pause(); safeSetPlaybackRate(video, 1); }
+      if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "1";
+      startScrubLoop();
     }
 
     function onPointerMove(e: PointerEvent) {
-      if (!dragging) return;
+      if (!draggingRef.current) return;
       const dx = e.clientX - dragStartX;
-      // Always rotate regardless of zoom level — mirrors GLB viewer behavior.
-      angle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, dragStartAngle - dx * DEG_PER_PX));
-
-      // In ping-pong mode there are no extracted frames — scrub the video directly.
-      if (pingPongLoopRef.current && videoRef.current) {
-        const video = videoRef.current as HTMLVideoElement;
-        if (isFinite(video.duration) && video.duration > 0) {
-          const t = ((angle + MAX_ANGLE) / (2 * MAX_ANGLE)) * video.duration;
-          video.currentTime = Math.max(0, Math.min(video.duration, t));
-        }
-      }
+      scrubTargetYawRef.current = clampYaw(dragStartYaw - dx * DEG_PER_PX);
     }
 
     function onPointerUp() {
-      if (!dragging) return;
-      dragging = false;
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+      stopScrubLoop();
+      if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "0";
       viewer!.style.cursor = "";
-      autoDir = angle >= 0 ? 1 : -1;
-      if (pingPongLoopRef.current) {
-        pingPongDraggingRef.current = false;
-        // Resume ping-pong playback from wherever drag left off.
-        videoRef.current?.play().catch(() => undefined);
+      const video = videoRef.current;
+      if (video?.duration) {
+        const target = yawToVideoTime(scrubTargetYawRef.current, video.duration);
+        seekVideoPrecisely(video, quantizeFace3dTimelineTime(target), SCRUB_SEEK_EPS_DRAG);
+        yawRef.current = scrubTargetYawRef.current;
+        syncYawFromVideo({ queueLandmarks: true });
+      }
+      autoDirRef.current = yawRef.current >= 0 ? 1 : -1;
+      if (autoRotateRef.current && video?.duration) {
+        autoPlaybackControllerRef.current?.start(autoDirRef.current);
       }
     }
 
@@ -836,30 +1497,22 @@ export default function Face3DViewer({
     viewer.addEventListener("pointermove", onPointerMove);
     viewer.addEventListener("pointerup", onPointerUp);
     viewer.addEventListener("pointercancel", onPointerUp);
-    rafId = requestAnimationFrame(tick);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      stopScrubLoop();
       viewer.removeEventListener("pointerdown", onPointerDown);
       viewer.removeEventListener("pointermove", onPointerMove);
       viewer.removeEventListener("pointerup", onPointerUp);
       viewer.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [videoUrl, applyTransform, requestLandmarksForFrame]);
-
-  // ── Resize observer: keep overlay canvas matching rendered viewer size ────
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    const ro = new ResizeObserver(() => {
-      const rect = viewer.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        setOverlaySize({ w: Math.round(rect.width), h: Math.round(rect.height) });
-      }
-    });
-    ro.observe(viewer);
-    return () => ro.disconnect();
-  }, []);
+  }, [
+    videoUrl,
+    syncYawFromVideo,
+    renderCachedAnnotations,
+    applyTransform,
+    requestLandmarksForTimeKey,
+    drawVideoFrameToDisplay,
+  ]);
 
   return (
     <div className="face3d-wrap">
@@ -871,46 +1524,45 @@ export default function Face3DViewer({
         title={zoom > 1 ? "Double-click to reset zoom" : undefined}
       >
         <div ref={zoomLayerRef} className="face3d-zoom-layer">
-          {/*
-           * Both elements are always mounted so their refs are always valid.
-           * While frames are loading the video is visible (video seeking fallback).
-           * Once frames are extracted the canvas is visible and video is hidden.
-           */}
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            width={displaySize.w}
-            height={displaySize.h}
-            preload="auto"
-            muted
-            playsInline
-            crossOrigin="anonymous"
-            className={`face3d-display${framesReady ? " face3d-display--hidden" : ""}`}
-          />
-          <canvas
-            ref={displayCanvasRef}
-            width={displaySize.w}
-            height={displaySize.h}
-            className={`face3d-display${framesReady ? "" : " face3d-display--hidden"}`}
-          />
+          <div className="face3d-media-layer" style={{ opacity: mediaOpacity }}>
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              width={displaySize.w}
+              height={displaySize.h}
+              preload="auto"
+              muted
+              playsInline
+              crossOrigin="anonymous"
+              className="face3d-display"
+              onError={() => setVideoError("3D preview video could not be loaded.")}
+            />
+            <canvas
+              ref={displayCanvasRef}
+              className="face3d-frame-cache-layer"
+              width={displaySize.w}
+              height={displaySize.h}
+              aria-hidden
+            />
+          </div>
+          {overlay ? <div className="face3d-content-overlay">{overlay}</div> : null}
           {showAnnotations && (
             <canvas
               ref={overlayRef}
               className="face3d-annotation-overlay"
-              width={overlaySize.w}
-              height={overlaySize.h}
               aria-hidden
             />
           )}
+          {videoError ? <div className="face3d-error">{videoError}</div> : null}
         </div>
       </div>
-      <p className="face3d-hint">
-        {pingPongLoop
-          ? "Auto-playing forward / reverse loop · Scroll to zoom"
-          : zoom > 1
-            ? "Drag to rotate · Scroll to zoom · Double-click to reset zoom"
+      {showHint ? (
+        <p className="face3d-hint">
+          {zoom > 1
+            ? "Drag to pan · Scroll to zoom · Double-click to reset zoom"
             : "Drag to rotate · Scroll to zoom"}
-      </p>
+        </p>
+      ) : null}
     </div>
   );
 }

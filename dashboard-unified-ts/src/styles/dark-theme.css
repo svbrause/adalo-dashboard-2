@@ -1,46 +1,52 @@
 /**
- * Global dark mode — activated by adding "dark-mode" class to <body>.
- * Overrides all --theme-* CSS variables so variable-based components
- * auto-darken. Explicit rules below patch any hardcoded light colors.
+ * Dark mode component patches — token remaps live in theme-tokens.css.
+ * Add new colors there first; only keep rules here for hardcoded legacy CSS.
+ * See src/styles/THEME.md.
  */
-
-body.dark-mode,
-body.dark-mode.pastel-teal-theme {
-  --theme-bg-gradient: #111111;
-  --theme-bg-card: #111111;
-  --theme-bg-surface: #1a1a1a;
-  --theme-bg-subtle: #1f1f1f;
-  --theme-bg-hover: #222222;
-  --theme-bg-elevated: #1c1c1c;
-  --theme-text-primary: #efefef;
-  --theme-text-secondary: #c0c0c0;
-  --theme-text-muted: #8a8a8a;
-  --theme-border: rgba(255, 255, 255, 0.10);
-  --theme-shadow: rgba(0, 0, 0, 0.5);
-  --theme-shadow-hover: rgba(0, 0, 0, 0.7);
-  --theme-nav-active-bg: rgba(54, 117, 136, 0.20);
-  --theme-nav-hover-bg: rgba(255, 255, 255, 0.05);
-  --plan-quote-surface-bg: #1a1a1a;
-  --plan-quote-section-header-bg: #151515;
-  --plan-quote-subtotal-bg: #161616;
-  --plan-quote-border: rgba(255, 255, 255, 0.04);
-  --plan-quote-row-divider: rgba(255, 255, 255, 0.05);
-  background: #111111;
-  color: #efefef;
-}
 
 /* ── Layout shell ────────────────────────────────────────────────────────── */
 
 body.dark-mode .dashboard-wrapper {
-  background: #111111 !important; /* overrides mobile hardcoded #fff */
+  background: var(--theme-bg-page) !important; /* overrides mobile hardcoded #fff */
 }
 
 body.dark-mode .main-content {
-  background: #111111;
+  background: var(--theme-bg-page);
 }
 
 body.dark-mode .dashboard-views-wrap {
-  background: #111111;
+  background: var(--theme-bg-page);
+}
+
+/* Settings hub + subpanels inherit theme vars; extra overrides in SettingsView.css */
+body.dark-mode .settings-page {
+  color: var(--theme-text-primary);
+}
+
+/* Page & section headings — Settings, subpanels, scrollable views */
+body.dark-mode .main-content h1,
+body.dark-mode .main-content h2,
+body.dark-mode .main-content h3,
+body.dark-mode .settings-page-title,
+body.dark-mode .settings-hub-card-title,
+body.dark-mode .settings-card-title,
+body.dark-mode .settings-notif-product-title,
+body.dark-mode .settings-pricing-section-title,
+body.dark-mode .settings-notif-event-name,
+body.dark-mode .settings-back-btn {
+  color: var(--color-text-heading, var(--theme-text-primary));
+}
+
+body.dark-mode .settings-page-subtitle,
+body.dark-mode .settings-hub-card-desc,
+body.dark-mode .settings-card-lead,
+body.dark-mode .settings-notif-product-desc,
+body.dark-mode .settings-hub-placeholder-text {
+  color: var(--theme-text-secondary);
+}
+
+body.dark-mode .settings-back-btn:hover {
+  color: var(--color-text-heading, var(--theme-text-primary));
 }
 
 /* ── View controls bar (search + filter row) ─────────────────────────────── */
@@ -554,10 +560,6 @@ body.dark-mode textarea::placeholder {
   color: #666;
 }
 
-body.dark-mode label {
-  color: #c0c0c0;
-}
-
 /* ── Dark mode toggle button ─────────────────────────────────────────────── */
 
 .dark-mode-toggle {
@@ -803,6 +805,14 @@ body.dark-mode .share-tp-link-dialog-header-text .share-tp-link-dialog-title {
   color: #efefef;
 }
 
+body.dark-mode .share-tp-link-dialog-subheading,
+body.dark-mode
+  .treatment-plan-checkout-blueprint-compose-modal.share-treatment-plan-link-dialog
+  .share-tp-link-dialog-subheading,
+body.dark-mode .share-treatment-plan-link-empty {
+  color: var(--theme-text-secondary, #c0c0c0);
+}
+
 body.dark-mode .share-tp-sms-completed-hint {
   background: #1c1c1c;
   border-color: rgba(255, 255, 255, 0.1);
@@ -893,6 +903,136 @@ body.dark-mode .edit-toggle-btn:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* ── Treatment Explorer (photos browser + detail) ─────────────────────────── */
+
+body.dark-mode .treatment-photos-modal-overlay,
+body.dark-mode .discussed-treatments-photos-modal-overlay {
+  background: rgba(0, 0, 0, 0.78) !important;
+}
+
+body.dark-mode .treatment-photos-modal-content,
+body.dark-mode .discussed-treatments-photos-modal,
+body.dark-mode .treatment-photos-browser,
+body.dark-mode .treatment-photo-detail-modal {
+  background: var(--theme-bg-card, #1a1a1a);
+  color: var(--theme-text-primary, #efefef);
+}
+
+body.dark-mode .treatment-photos-title,
+body.dark-mode .treatment-photos-section-title,
+body.dark-mode .treatment-photos-client-title,
+body.dark-mode .treatment-photos-meta-title,
+body.dark-mode .treatment-photo-card-label,
+body.dark-mode .treatment-photo-title-bottom,
+body.dark-mode .treatment-photo-treatment,
+body.dark-mode .treatment-photo-detail-title {
+  color: var(--color-text-heading, #efefef);
+}
+
+body.dark-mode .treatment-photos-gallery-source-link {
+  color: var(--theme-text-link, #93c5fd);
+}
+
+body.dark-mode .treatment-photos-gallery-source-link:hover {
+  color: var(--theme-text-link-hover, #bfdbfe);
+}
+
+body.dark-mode .treatment-photos-client-card,
+body.dark-mode .treatment-photos-client-image-wrap,
+body.dark-mode .treatment-photos-client-placeholder,
+body.dark-mode .treatment-photo-image-wrap,
+body.dark-mode .treatment-photo-detail-side-by-side,
+body.dark-mode .treatment-photo-detail-client-image,
+body.dark-mode .treatment-photo-detail-image {
+  background: var(--theme-bg-subtle, #1f1f1f);
+}
+
+body.dark-mode .treatment-photos-meta-card {
+  background: var(--theme-accent-soft-bg);
+  border-color: var(--theme-accent-soft-border);
+}
+
+body.dark-mode .treatment-photos-toggle-btn,
+body.dark-mode .treatment-photos-chip,
+body.dark-mode .treatment-photo-detail-toggle-btn,
+body.dark-mode .treatment-photo-detail-add-chip {
+  background: var(--theme-bg-card, #1c1c1c);
+  color: var(--theme-text-secondary, #c0c0c0);
+  border-color: var(--theme-border);
+}
+
+body.dark-mode .treatment-photos-toggle-btn.active,
+body.dark-mode .treatment-photos-chip.active,
+body.dark-mode .treatment-photo-detail-toggle-btn.active,
+body.dark-mode .treatment-photos-side-source-item.active {
+  background: var(--theme-accent-soft-bg-active);
+  border-color: var(--theme-accent-soft-solid);
+  color: var(--theme-accent-soft-fg);
+}
+
+body.dark-mode .treatment-photos-interest-dropdown,
+body.dark-mode .treatment-photos-side-source-menu,
+body.dark-mode .treatment-photo-card,
+body.dark-mode .treatment-photo-detail-client,
+body.dark-mode .treatment-photo-detail-example,
+body.dark-mode .treatment-photo-detail-client-header,
+body.dark-mode .treatment-photo-detail-example-header,
+body.dark-mode .treatment-photo-detail-info-row {
+  background: var(--theme-bg-card, #1a1a1a);
+}
+
+body.dark-mode .treatment-photo-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  border-color: var(--theme-accent-soft-border-hover);
+}
+
+body.dark-mode .treatment-photos-error {
+  color: var(--theme-status-danger-fg, #fca5a5);
+  background: var(--theme-status-danger-bg, rgba(239, 68, 68, 0.15));
+}
+
+body.dark-mode .treatment-photo-chip-treatment {
+  background: var(--theme-accent-soft-bg);
+  color: var(--theme-accent-soft-fg);
+  border-color: var(--theme-accent-soft-border);
+}
+
+body.dark-mode .treatment-photos-interest-dropdown-item:hover {
+  background: var(--theme-accent-soft-bg);
+}
+
+body.dark-mode .treatment-photo-chip-interest {
+  background: var(--theme-chip-bg);
+  color: var(--theme-chip-fg);
+  border-color: var(--theme-chip-border);
+}
+
+body.dark-mode .treatment-photo-detail-close {
+  background: rgba(26, 26, 26, 0.92);
+  color: var(--theme-text-muted, #8a8a8a);
+}
+
+body.dark-mode .treatment-photo-detail-close:hover {
+  background: var(--theme-bg-hover, #252525);
+  color: var(--theme-text-primary, #efefef);
+}
+
+body.dark-mode .treatment-photo-detail-match-exact {
+  background: var(--theme-status-success-bg);
+  color: var(--theme-status-success-fg);
+}
+
+body.dark-mode .treatment-photo-detail-match-close {
+  background: var(--theme-status-muted-bg);
+  color: var(--theme-status-muted-fg);
+}
+
+body.dark-mode .treatment-photo-detail-add-btn-added {
+  background: var(--theme-status-success-bg);
+  border-color: var(--theme-status-success-border);
+  color: var(--theme-status-success-fg);
+}
+
 /* ── AI Mirror loading screen ────────────────────────────────────────────── */
 
 body.dark-mode .ai-mirror-canvas-wrap {
@@ -915,4 +1055,12 @@ body.dark-mode .ai-mirror-unavailable {
 
 body.dark-mode .ai-mirror-unavailable strong {
   color: #efefef;
+}
+
+body.dark-mode .analysis-issue-item--clickable:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .analysis-issue-item--active {
+  background: color-mix(in srgb, var(--theme-accent) 16%, transparent);
 }

@@ -19,6 +19,8 @@ import "./AnalysisResultsSection.css";
 
 interface AnalysisResultsSectionProps {
   client: Client;
+  activeIssueTerm?: string | null;
+  onIssueActivate?: (term: string) => void;
   onViewExamples?: (issue: string, region: string) => void;
   onTreatmentInterestClick?: (interest: string) => void;
 }
@@ -56,6 +58,8 @@ function ringBadnessForRow(
 
 export default function AnalysisResultsSection({
   client,
+  activeIssueTerm,
+  onIssueActivate,
   onViewExamples,
   onTreatmentInterestClick,
 }: AnalysisResultsSectionProps) {
@@ -382,8 +386,13 @@ export default function AnalysisResultsSection({
                             hasSeverityJson,
                           );
 
+                          const isActive = activeIssueTerm === issue;
                           return (
-                            <li key={i} className="analysis-issue-item">
+                            <li
+                              key={i}
+                              className={`analysis-issue-item${onIssueActivate ? " analysis-issue-item--clickable" : ""}${isActive ? " analysis-issue-item--active" : ""}`}
+                              onClick={() => onIssueActivate?.(issue)}
+                            >
                               <div className="analysis-issue-row">
                                 <div className="analysis-issue-ring-wrap">
                                   <SeverityNormRing badness01={badness} size={56} />

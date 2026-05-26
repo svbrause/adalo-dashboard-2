@@ -1,0 +1,259 @@
+/**
+ * Unified theme tokens (light + dark)
+ * ===================================
+ * Use these CSS variables in all components. Do not hardcode #fff, #212121,
+ * #f5f5f5, etc. — map each UI role to a token below.
+ *
+ * Dark mode: DashboardContext adds class `dark-mode` on <body>`. Tokens
+ * re-map automatically; you should not need per-screen color overrides.
+ *
+ * Quick reference:
+ *   Headings / primary text  → var(--color-text-heading) or --theme-text-primary
+ *   Body / values            → var(--color-text-body)
+ *   Labels / captions        → var(--color-text-label) or --theme-text-muted
+ *   Page background          → var(--theme-bg-page)
+ *   Cards / modals           → var(--theme-bg-card)
+ *   Nested panels / info box → var(--theme-bg-inset)
+ *   Table header             → var(--theme-table-header-bg)
+ *   Borders                  → var(--theme-border)
+ *
+ * See src/styles/THEME.md for full documentation.
+ */
+
+/* ── Light mode (default) ─────────────────────────────────────────────────── */
+
+:root {
+  /* Overlay nav breakpoint (phones); tablet touch polish uses 1024px separately */
+  --dashboard-overlay-nav-max: 768px;
+  --dashboard-compact-max: 768px;
+  --dashboard-touch-target: 44px;
+
+  /* Backgrounds */
+  --theme-bg-page: #f7f4f1;
+  --theme-bg-gradient: linear-gradient(180deg, #f7f4f1 0%, #ffffff 100%);
+  --theme-bg-card: #ffffff;
+  --theme-bg-surface: #ffffff;
+  --theme-bg-subtle: #f5f5f5;
+  --theme-bg-hover: #f8f8f8;
+  --theme-bg-elevated: #ffffff;
+  --theme-bg-inset: #f5f5f5;
+  --theme-bg-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Text */
+  --theme-text-primary: #222222;
+  --theme-text-secondary: #444444;
+  --theme-text-muted: #666666;
+  --theme-text-inverse: #ffffff;
+  --theme-text-link: #2563eb;
+  --theme-text-link-hover: #1d4ed8;
+
+  /* Semantic text aliases (prefer these in new CSS) */
+  --color-text-heading: var(--theme-text-primary);
+  --color-text-body: var(--theme-text-primary);
+  --color-text-secondary: var(--theme-text-secondary);
+  --color-text-label: var(--theme-text-muted);
+  --color-text-caption: var(--theme-text-muted);
+  --color-text-link: var(--theme-text-link);
+
+  /* Borders & shadows */
+  --theme-border: #e9d7d0;
+  --theme-border-subtle: rgba(0, 0, 0, 0.08);
+  --theme-border-strong: #d4c4bc;
+  --theme-shadow: rgba(0, 0, 0, 0.05);
+  --theme-shadow-hover: rgba(0, 0, 0, 0.1);
+  --theme-shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.2);
+
+  /* Brand / accent */
+  --theme-accent: #d9c8bd;
+  --theme-accent-hover: #c9b8ad;
+  --theme-primary-btn: #000000;
+  --theme-primary-btn-hover: #222222;
+  --theme-heading-font: "Montserrat", sans-serif;
+
+  /* Navigation */
+  --theme-nav-active-bg: rgba(0, 0, 0, 0.05);
+  --theme-nav-active-border: transparent;
+  --theme-nav-hover-bg: rgba(0, 0, 0, 0.04);
+
+  /* Form controls */
+  --theme-input-bg: #ffffff;
+  --theme-input-border: var(--theme-border);
+  --theme-input-text: var(--theme-text-primary);
+  --theme-input-placeholder: var(--theme-text-muted);
+
+  /* Buttons (secondary / ghost) */
+  --theme-btn-secondary-bg: #ffffff;
+  --theme-btn-secondary-border: var(--theme-border);
+  --theme-btn-secondary-text: var(--theme-text-primary);
+  --theme-btn-secondary-hover-bg: var(--theme-bg-hover);
+
+  /* Tables */
+  --theme-table-header-bg: #f3f3f3;
+  --theme-table-header-text: var(--theme-text-muted);
+  --theme-table-row-hover: rgba(0, 0, 0, 0.02);
+  --theme-table-border: var(--theme-border-subtle);
+
+  /* Status — success */
+  --theme-status-success-bg: #ecfdf5;
+  --theme-status-success-fg: #047857;
+  --theme-status-success-border: #a7f3d0;
+
+  /* Status — warning */
+  --theme-status-warning-bg: #fff3cd;
+  --theme-status-warning-fg: #78350f;
+  --theme-status-warning-border: #ffecb3;
+
+  /* Status — danger */
+  --theme-status-danger-bg: #fee2e2;
+  --theme-status-danger-fg: #991b1b;
+  --theme-status-danger-border: #fecaca;
+
+  /* Status — info / ready */
+  --theme-status-info-bg: #d1ecf1;
+  --theme-status-info-fg: #0c5460;
+  --theme-status-info-border: #bee5eb;
+
+  /* Status — muted / inactive */
+  --theme-status-muted-bg: #f1f5f9;
+  --theme-status-muted-fg: #475569;
+  --theme-status-muted-border: #e2e8f0;
+
+  /* Chips / tags (interest, treatment) */
+  --theme-chip-bg: #f3e5f5;
+  --theme-chip-fg: #6a1b9a;
+  --theme-chip-border: rgba(206, 147, 216, 0.35);
+
+  /* Soft teal accent (filters, chips, Treatment Explorer) */
+  --theme-accent-soft: #367588;
+  --theme-accent-soft-fg: #2c5f6b;
+  --theme-accent-soft-bg: rgba(54, 117, 136, 0.08);
+  --theme-accent-soft-bg-hover: rgba(54, 117, 136, 0.14);
+  --theme-accent-soft-bg-active: rgba(54, 117, 136, 0.12);
+  --theme-accent-soft-border: rgba(54, 117, 136, 0.35);
+  --theme-accent-soft-border-hover: rgba(54, 117, 136, 0.5);
+  --theme-accent-soft-solid: #367588;
+  --theme-accent-soft-solid-hover: #2c5f6b;
+  --theme-accent-soft-on-solid: #ffffff;
+
+  /* Accent indigo (3D scan, face mirror toolbar actions) */
+  --theme-accent-indigo: #5c6bc0;
+  --theme-accent-indigo-fg: #3949ab;
+  --theme-accent-indigo-bg: rgba(92, 107, 192, 0.09);
+  --theme-accent-indigo-bg-hover: rgba(92, 107, 192, 0.18);
+  --theme-accent-indigo-bg-active: rgba(92, 107, 192, 0.12);
+  --theme-accent-indigo-border: rgba(92, 107, 192, 0.55);
+  --theme-accent-indigo-border-strong: rgba(92, 107, 192, 0.7);
+  --theme-accent-indigo-border-hover: rgba(92, 107, 192, 0.8);
+  --theme-accent-indigo-solid: #5c6bc0;
+  --theme-accent-indigo-solid-hover: #4f5ead;
+  --theme-accent-indigo-on-solid: #ffffff;
+  --theme-accent-indigo-gradient-start: #5c6bc0;
+  --theme-accent-indigo-gradient-end: #818cf8;
+
+  /* Plan quote surfaces (checkout, share) */
+  --plan-quote-surface-bg: #ffffff;
+  --plan-quote-section-header-bg: #fafafa;
+  --plan-quote-subtotal-bg: #f5f5f5;
+  --plan-quote-border: rgba(0, 0, 0, 0.08);
+  --plan-quote-row-divider: rgba(0, 0, 0, 0.06);
+
+  /* Plan pricing warnings */
+  --plan-pricing-warning-fg: #b45309;
+  --plan-pricing-warning-bg: #fffbeb;
+  --plan-pricing-warning-border: #fde68a;
+  --plan-pricing-warning-stripe: #f59e0b;
+  --plan-pricing-fix-fg: #0f766e;
+  --plan-pricing-fix-bg: #ecfdf5;
+  --plan-pricing-fix-border: #0d9488;
+  --plan-pricing-fix-bg-hover: #d1fae5;
+
+  /* Radar / spider charts (Analysis Overview, Post-Visit Blueprint) */
+  --ao-radar-grid-stroke: rgba(0, 0, 0, 0.1);
+  --ao-radar-axis-stroke: rgba(0, 0, 0, 0.12);
+  --ao-radar-data-fill: rgba(59, 130, 246, 0.15);
+  --ao-radar-data-stroke: #3b82f6;
+  --ao-radar-point-fill: #3b82f6;
+}
+
+/* Dark mode token remaps: theme-dark-vars.css (imported after pastel-teal-theme) */
+
+/* ── Base typography & surfaces (token-driven) ──────────────────────────── */
+
+h1,
+h2,
+h3,
+h4,
+.page-title,
+.modal-title,
+.settings-page-title,
+.settings-card-title,
+.settings-hub-card-title,
+.settings-notif-product-title,
+.settings-pricing-section-title {
+  color: var(--color-text-heading);
+  font-family: var(--theme-heading-font);
+}
+
+label,
+.form-label,
+.form-group label {
+  color: var(--color-text-label);
+}
+
+a {
+  color: var(--color-text-link);
+}
+
+a:hover {
+  color: var(--theme-text-link-hover);
+}
+
+/* Cards, modals, panels — use token backgrounds when not already styled */
+.modal-content,
+.modal-card {
+  background: var(--theme-bg-card);
+  color: var(--theme-text-primary);
+  border-color: var(--theme-border);
+}
+
+.modal-header,
+.modal-footer {
+  background: var(--theme-bg-card);
+  border-color: var(--theme-border);
+}
+
+input,
+select,
+textarea {
+  background: var(--theme-input-bg);
+  color: var(--theme-input-text);
+  border-color: var(--theme-input-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--theme-input-placeholder);
+}
+
+.btn-secondary {
+  background: var(--theme-btn-secondary-bg);
+  color: var(--theme-btn-secondary-text);
+  border-color: var(--theme-btn-secondary-border);
+}
+
+.btn-secondary:hover {
+  background: var(--theme-btn-secondary-hover-bg);
+}
+
+.form-info-box {
+  background: var(--theme-bg-inset);
+  border-color: var(--theme-border-subtle);
+}
+
+.form-info-label {
+  color: var(--color-text-label);
+}
+
+.form-info-value {
+  color: var(--color-text-body);
+}

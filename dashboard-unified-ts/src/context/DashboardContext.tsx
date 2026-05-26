@@ -456,10 +456,9 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           allClients = [...allClients, ...extras];
         }
 
-        const adminDemos = getAdminDemoClientsIfEnabled(provider?.code, allClients);
+        const adminDemos = getAdminDemoClientsIfEnabled(provider, allClients);
         if (adminDemos.length > 0) {
-          const liveIds = new Set(allClients.map((c) => c.id));
-          allClients = [...allClients, ...adminDemos.filter((c) => !liveIds.has(c.id))];
+          allClients = [...allClients, ...adminDemos];
         }
 
         allClients = allClients.map((client) =>

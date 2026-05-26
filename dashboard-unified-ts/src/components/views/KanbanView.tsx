@@ -8,8 +8,10 @@ import { formatPhoneDisplay } from "../../utils/validation";
 import { updateClientStatus } from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
 import {
-  getClientFrontPhotoDisplayUrl,
+  markPhotoDisplayUrlFailed,
   preloadVisiblePhotos,
+  resolveClientFrontPhotoDisplayUrl,
+  warmClientFrontPhoto,
 } from "../../utils/photoLoading";
 import ClientDetailModal from "../modals/ClientDetailModal";
 import "./KanbanView.css";
@@ -58,22 +60,13 @@ export default function KanbanView() {
         effectiveProviderIds.length > 0
           ? effectiveProviderIds.join(",")
           : provider.id;
+      processedClients.forEach((client) => warmClientFrontPhoto(client, "low"));
       await preloadVisiblePhotos(processedClients, providerIdParam);
       // Update local photo state from loaded client photos
       const updatedPhotos: Record<string, string> = {};
       processedClients.forEach((client) => {
-        if (
-          client.frontPhoto &&
-          Array.isArray(client.frontPhoto) &&
-          client.frontPhoto.length > 0
-        ) {
-          const attachment = client.frontPhoto[0];
-          const url =
-            attachment.thumbnails?.large?.url ||
-            attachment.thumbnails?.full?.url ||
-            attachment.url;
-          updatedPhotos[client.id] = url;
-        }
+        const url = resolveClientFrontPhotoDisplayUrl(client);
+        if (url) updatedPhotos[client.id] = url;
       });
       if (Object.keys(updatedPhotos).length > 0) {
         setClientPhotos((prev) => ({ ...prev, ...updatedPhotos }));
@@ -188,8 +181,8 @@ export default function KanbanView() {
                 ) : (
                   statusClients.map((client) => {
                     // Get photo URL from client data or loaded photos
-                    let photoUrl: string | null =
-                      getClientFrontPhotoDisplayUrl(client.frontPhoto) ||
+                    const photoUrl: string | null =
+                      resolveClientFrontPhotoDisplayUrl(client) ||
                       clientPhotos[client.id] ||
                       null;
 
@@ -210,6 +203,7 @@ export default function KanbanView() {
                               className="client-photo-img"
                               draggable={false}
                               loading="lazy"
+                              onError={() => markPhotoDisplayUrlFailed(photoUrl)}
                             />
                           </div>
                         )}

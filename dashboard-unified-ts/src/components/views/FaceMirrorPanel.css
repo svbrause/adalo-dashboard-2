@@ -94,9 +94,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 10px 10px;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0;
 }
 
 .fmp-fullscreen-split-overview {
@@ -111,6 +111,57 @@
 .fmp-fullscreen-split-overview--solo {
   grid-column: 1 / -1;
   min-width: 0;
+}
+
+.fmp-fullscreen-split--panel-collapsed {
+  grid-template-columns: minmax(0, 1fr) minmax(52px, 88px);
+}
+
+.fmp-fullscreen-split--panel-collapsed .fmp-fullscreen-split-overview {
+  max-width: 88px;
+}
+
+.fmp-fullscreen-split-face {
+  position: relative;
+}
+
+.fmp-aura-float-tabs {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--theme-bg-card, #fff) 88%, transparent);
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.12));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.fmp-aura-float-tab {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--theme-text-secondary, #666);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.fmp-aura-float-tab--active {
+  border-color: var(--aura-tab-accent, #60a5fa);
+  background: color-mix(in srgb, var(--aura-tab-accent, #60a5fa) 16%, transparent);
+  color: var(--theme-text-primary, #111);
 }
 
 @media (max-width: 960px) {
@@ -159,7 +210,7 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--theme-primary, #5c6bc0);
+  color: var(--theme-accent-indigo);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -168,7 +219,7 @@
 }
 
 .fmp-gallery-link:hover {
-  color: #3f4a8a;
+  color: var(--theme-accent-indigo-fg);
 }
 
 /* Expanded viewport: grow 3D turntable */
@@ -205,12 +256,8 @@
 .fmp-root--viewport-expanded .fmp-fullscreen-split-3d .face3d-viewer {
   width: 100%;
   max-width: 100%;
-  /* Use 3D column width (container) × 512∶488, slightly taller cap vs half-vw */
-  max-height: min(
-    calc(100dvh - 108px),
-    100cqw * 488 / 512,
-    calc(62vw * 488 / 512)
-  );
+  /* Fill the column height; remove the cqw cap so the viewer can grow taller */
+  max-height: calc(100dvh - 56px);
   aspect-ratio: 512 / 488;
   height: auto;
 }
@@ -238,6 +285,43 @@
   min-width: 0;
 }
 
+.fmp-aura-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(167, 243, 109, 0.92);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 243, 109, 0.35);
+  background: rgba(167, 243, 109, 0.08);
+  white-space: nowrap;
+}
+
+.fmp-root--aura .fmp-toolbar {
+  border-bottom-color: rgba(255 255 255 / 0.08);
+  background: #0a0a0a;
+}
+
+.fmp-root--aura .fmp-fullscreen-btn {
+  background: rgba(255 255 255 / 0.06);
+  border-color: rgba(255 255 255 / 0.12);
+  color: rgba(255 255 255 / 0.72);
+}
+
+.fmp-root--aura .fmp-body {
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fmp-root--aura .fmp-body .avf-root--turntable-only {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
 .fmp-toolbar-end {
   display: flex;
   align-items: center;
@@ -262,35 +346,81 @@
 }
 
 .fmp-fullscreen-btn:hover {
-  border-color: var(--theme-primary, #5c6bc0);
+  border-color: var(--theme-accent-indigo);
   color: var(--theme-text-primary, #1e293b);
 }
 
 .fmp-fullscreen-btn[aria-pressed="true"],
 .fmp-fullscreen-btn--active {
-  background: rgba(92, 107, 192, 0.12);
-  border-color: rgba(92, 107, 192, 0.45);
-  color: #3f4a8a;
+  background: var(--theme-accent-indigo-bg-active);
+  border-color: var(--theme-accent-indigo-border);
+  color: var(--theme-accent-indigo-fg);
 }
 
-.fmp-auto-rotate {
+/* Photo / 3D viewport with floating controls */
+.fmp-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--theme-text-muted, #64748b);
-  cursor: pointer;
-  user-select: none;
-  flex-shrink: 0;
-  white-space: nowrap;
+  flex-direction: column;
+  width: 100%;
+  align-items: stretch;
 }
 
-.fmp-auto-rotate input {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--theme-primary, #5c6bc0);
+.fmp-viewport > .fmp-photo-stage,
+.fmp-viewport > .face3d-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.fmp-viewport-overlays {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 35;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  max-width: calc(100% - 52px);
+  pointer-events: none;
+}
+
+.fmp-viewport-overlays > * {
+  pointer-events: auto;
+}
+
+.fmp-overlay-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--theme-text-primary, #334155);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.fmp-overlay-btn:hover {
+  border-color: var(--theme-accent-soft-border-hover, rgba(54, 117, 136, 0.5));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+}
+
+.fmp-overlay-btn--active {
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.45));
+  background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.14));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+}
+
+.fmp-overlay-btn__label {
+  line-height: 1;
 }
 
 .fmp-annotation-regions {
@@ -330,9 +460,9 @@
 }
 
 .fmp-annotation-regions[open] > summary {
-  border-color: rgba(92, 107, 192, 0.45);
-  background: rgba(92, 107, 192, 0.08);
-  color: #3f4a8a;
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.45));
+  background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.14));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
 }
 
 .fmp-annotation-regions[open] > summary::after {
@@ -372,8 +502,8 @@
 }
 
 .fmp-annotation-regions__actions button:hover {
-  border-color: rgba(92, 107, 192, 0.45);
-  color: #3f4a8a;
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.45));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
 }
 
 .fmp-annotation-regions__grid {
@@ -397,7 +527,7 @@
   width: 14px;
   height: 14px;
   margin: 0;
-  accent-color: var(--theme-primary, #5c6bc0);
+  accent-color: var(--theme-accent-soft-solid, #367588);
   flex-shrink: 0;
 }
 
@@ -406,6 +536,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fmp-annotation-regions--overlay > summary {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.fmp-annotation-regions--overlay .fmp-annotation-regions__panel {
+  left: 0;
+  right: auto;
 }
 
 /* Photo angle picker (Front / Side) */
@@ -440,14 +583,14 @@
 }
 
 .fmp-angle-tab:hover {
-  border-color: var(--theme-primary, #5c6bc0);
+  border-color: var(--theme-accent-indigo);
   color: var(--theme-text-primary, #1e293b);
 }
 
 .fmp-angle-tab--active {
-  border-color: rgba(92, 107, 192, 0.55);
-  background: rgba(92, 107, 192, 0.1);
-  color: #3f4a8a;
+  border-color: var(--theme-accent-indigo-border);
+  background: var(--theme-accent-indigo-bg);
+  color: var(--theme-accent-indigo-fg);
   font-weight: 600;
 }
 
@@ -549,13 +692,13 @@
 }
 
 .fmp-gallery-expand:hover {
-  border-color: var(--theme-primary, #5c6bc0);
-  color: var(--theme-primary, #5c6bc0);
+  border-color: var(--theme-accent-indigo);
+  color: var(--theme-accent-indigo);
   transform: scale(1.04);
 }
 
 .fmp-gallery-expand:focus-visible {
-  outline: 2px solid var(--theme-primary, #5c6bc0);
+  outline: 2px solid var(--theme-accent-indigo);
   outline-offset: 2px;
 }
 
@@ -617,20 +760,21 @@
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  border: 1px solid rgba(92, 107, 192, 0.55);
+  border: 1px solid var(--theme-accent-indigo-border);
   border-radius: 8px;
-  background: rgba(92, 107, 192, 0.09);
-  color: #3f4a8a;
+  background: var(--theme-accent-indigo-bg);
+  color: var(--theme-accent-indigo-fg);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
   white-space: nowrap;
 }
 
 .fmp-generate-3d-btn:hover {
-  background: rgba(92, 107, 192, 0.18);
-  border-color: rgba(92, 107, 192, 0.8);
+  background: var(--theme-accent-indigo-bg-hover);
+  border-color: var(--theme-accent-indigo-border-hover);
+  color: var(--theme-accent-indigo-fg);
 }
 
 .fmp-regenerate-3d-btn {
@@ -650,9 +794,9 @@
 }
 
 .fmp-regenerate-3d-btn:hover {
-  background: rgba(92, 107, 192, 0.07);
-  border-color: rgba(92, 107, 192, 0.4);
-  color: #3f4a8a;
+  background: var(--theme-accent-indigo-bg);
+  border-color: var(--theme-accent-indigo-border);
+  color: var(--theme-accent-indigo-fg);
 }
 
 /* ── Scan progress bar (in toolbar, while running) ────────────────────── */
@@ -668,7 +812,11 @@
 .fmp-scan-progress-bar {
   height: 5px;
   border-radius: 3px;
-  background: linear-gradient(90deg, #5c6bc0, #818cf8);
+  background: linear-gradient(
+    90deg,
+    var(--theme-accent-indigo-gradient-start),
+    var(--theme-accent-indigo-gradient-end)
+  );
   transition: width 0.8s ease;
   min-width: 4px;
   max-width: 100%;
@@ -770,8 +918,8 @@
 }
 
 .fmp-scan-quality-option--active {
-  border-color: rgba(92, 107, 192, 0.7);
-  background: rgba(92, 107, 192, 0.08);
+  border-color: var(--theme-accent-indigo-border-strong);
+  background: var(--theme-accent-indigo-bg);
 }
 
 .fmp-scan-quality-name {
@@ -812,8 +960,8 @@
   padding: 6px 16px;
   border: none;
   border-radius: 8px;
-  background: #5c6bc0;
-  color: #fff;
+  background: var(--theme-accent-indigo-solid);
+  color: var(--theme-accent-indigo-on-solid);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -821,7 +969,7 @@
 }
 
 .fmp-scan-start-btn:hover:not(:disabled) {
-  background: #4f5ead;
+  background: var(--theme-accent-indigo-solid-hover);
 }
 
 .fmp-scan-start-btn:disabled {

@@ -1,6 +1,7 @@
 // Sidebar Component
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useDashboard } from "../../context/DashboardContext";
 import { ViewType } from "../../types";
 import { providerHasSmsAndSettingsAccess } from "../../utils/providerPrivileges";
@@ -14,13 +15,22 @@ import "./Sidebar.css";
 
 interface SidebarProps {
   onLogout: () => void;
+  /** Phone layout: drawer + backdrop portaled above main content. */
+  overlayNav?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }
 
-export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse, mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({
+  onLogout,
+  overlayNav = false,
+  collapsed = false,
+  onToggleCollapse,
+  mobileOpen = false,
+  onMobileClose,
+}: SidebarProps) {
   const { provider, currentView, setCurrentView, darkMode } = useDashboard();
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpModalInitialMessage, setHelpModalInitialMessage] = useState("");
@@ -50,10 +60,17 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
 
   const canSmsAndSettings = providerHasSmsAndSettingsAccess(provider);
 
-  return (
-    <>
-    {mobileOpen && <div className="sidebar-backdrop" onClick={onMobileClose} />}
-    <aside className={`sidebar ${collapsed ? "sidebar--collapsed" : ""} ${mobileOpen ? "sidebar--mobile-open" : ""}`}>
+  const sidebarClassName = [
+    "sidebar",
+    collapsed ? "sidebar--collapsed" : "",
+    overlayNav && mobileOpen ? "sidebar--mobile-open" : "",
+    overlayNav ? "sidebar--overlay-nav" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const sidebarInner = (
+    <aside className={sidebarClassName} aria-hidden={overlayNav && !mobileOpen}>
       <div className="sidebar-header">
         <div className="logo">
           <img
@@ -62,6 +79,28 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
             className="logo-image"
           />
         </div>
+        {overlayNav && mobileOpen && onMobileClose && (
+          <button
+            type="button"
+            className="sidebar-mobile-close"
+            onClick={onMobileClose}
+            aria-label="Close navigation"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+        )}
         {onToggleCollapse && (
           <button
             type="button"
@@ -72,13 +111,11 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
           >
             {collapsed ? (
               <svg className="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                {/* >| expand */}
                 <path d="M10 8 L14 12 L10 16" />
                 <line x1="18" y1="4" x2="18" y2="20" />
               </svg>
             ) : (
               <svg className="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                {/* <| collapse */}
                 <path d="M14 8 L10 12 L14 16" />
                 <line x1="18" y1="4" x2="18" y2="20" />
               </svg>
@@ -312,6 +349,29 @@ export default function Sidebar({ onLogout, collapsed = false, onToggleCollapse,
         />
       )}
     </aside>
-    </>
   );
+
+  if (overlayNav) {
+    const portalRoot = typeof document !== "undefined" ? document.body : null;
+    if (!portalRoot) return null;
+    return createPortal(
+      <div
+        className={`sidebar-drawer-layer${mobileOpen ? " sidebar-drawer-layer--open" : ""}`}
+        aria-hidden={!mobileOpen}
+      >
+        {mobileOpen && (
+          <button
+            type="button"
+            className="sidebar-backdrop"
+            onClick={onMobileClose}
+            aria-label="Close navigation"
+          />
+        )}
+        {sidebarInner}
+      </div>,
+      portalRoot,
+    );
+  }
+
+  return sidebarInner;
 }

@@ -422,8 +422,10 @@ export default function TreatmentRecommenderBySuggestion({
 
         const front = fields["Front Photo"] ?? fields["Front photo"];
         if (front && Array.isArray(front) && front.length > 0) {
-          const url = getUrlFromAttachment(front[0]);
-          setClientFrontPhotoUrl(url ?? null);
+          const url = getClientFrontPhotoDisplayUrl(front, {
+            allowExpiringAirtableCdn: true,
+          });
+          setClientFrontPhotoUrl(url);
         } else {
           setClientFrontPhotoUrl(
             getClientFrontPhotoDisplayUrl(client.frontPhoto),

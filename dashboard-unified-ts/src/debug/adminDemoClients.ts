@@ -1,14 +1,22 @@
 /**
  * Demo patients for the Admin provider in development.
- * Emily Dunhill and Allison Baum include facial analysis data + 3D model references
+ * Emily Dunhill, Allison Baum, and Tanya Tan include facial analysis data + 3D model references
  * (see `src/utils/client3dConfig.ts` for the name→GLB mapping).
+ * Tanya Tan is the full demo showcase: Aura turntable, analysis overview, severity scores,
+ * completed skincare quiz (Amber) with AM/PM routine, and treatment plan items.
  *
  * Only injected when:
- *  1. The logged-in provider is Admin (code "admin" or "password"), AND
- *  2. Running in dev mode (or VITE_ADMIN_DEMO_CLIENTS=true).
+ *  1. The logged-in provider is Admin (code "admin" or "password", or display name "Admin"), AND
+ *  2. Injection is enabled (always on for Admin provider unless VITE_ADMIN_DEMO_CLIENTS=false).
  */
 
-import type { Client, DiscussedItem, AnalysisSeverityScoresData } from "../types";
+import type { Client, DiscussedItem, AnalysisSeverityScoresData, Provider } from "../types";
+import { isAdminBlueprintProvider } from "../utils/providerHelpers";
+import { TANYA_TAN_SKINCARE_QUIZ } from "./adminDemoSkincareQuiz";
+import { TANYA_TAN_GALLERY_PHOTO_SLOTS } from "../utils/auraTanAnglePhotos";
+
+/** Suffix when a live Airtable patient already uses the demo display name. */
+export const ADMIN_DEMO_NAME_COLLISION_SUFFIX = " (Aura Demo)";
 
 function item(partial: Partial<DiscussedItem> & Pick<DiscussedItem, "id" | "treatment">): DiscussedItem {
   return partial as DiscussedItem;
@@ -193,6 +201,65 @@ export function getAdminDemoClients(): Client[] {
     }),
 
     baseClient({
+      id: "admin-demo-tanya",
+      name: "Tanya Tan",
+      age: 38,
+      ageRange: "30-39",
+      phone: "+1 555 312 8803",
+      frontPhoto: "/demo-3d/tanya-tan-front.png",
+      frontPhotoLoaded: true,
+      galleryPhotoSlots: TANYA_TAN_GALLERY_PHOTO_SLOTS,
+      interestedIssues:
+        "Forehead Wrinkles, Crow's Feet, Perioral Lines, Under Eye Hollowing, Nasolabial Folds",
+      allIssues:
+        "Forehead Wrinkles, Crow's Feet, Perioral Lines, Under Eye Hollowing, Nasolabial Folds",
+      skinType: "Combination",
+      skinTone: "Medium",
+      skinComplaints: "Fine lines, uneven tone, occasional dryness",
+      aestheticGoals: "Full demo — Aura scan, analysis overview, skincare quiz & routine",
+      severityScoresFromAnalyses: EMILY_SEVERITY,
+      skincareQuiz: TANYA_TAN_SKINCARE_QUIZ,
+      discussedItems: [
+        item({
+          id: "admin-tanya-d1",
+          treatment: "Botox",
+          interest: "Forehead Wrinkles",
+          findings: ["Forehead Wrinkles", "Crow's Feet"],
+          region: "Forehead",
+          timeline: "Now",
+          quantity: "24",
+        }),
+        item({
+          id: "admin-tanya-d2",
+          treatment: "Hyaluronic Acid Filler",
+          interest: "Under Eye Hollowing",
+          findings: ["Under Eye Hollowing"],
+          region: "Under Eyes",
+          timeline: "Now",
+          quantity: "1",
+        }),
+        item({
+          id: "admin-tanya-d3",
+          treatment: "Chemical Peel",
+          interest: "Perioral Lines",
+          findings: ["Perioral Lines"],
+          region: "Perioral",
+          timeline: "Add next visit",
+          quantity: "1",
+        }),
+        item({
+          id: "admin-tanya-d4",
+          treatment: "Medical-Grade Skincare",
+          interest: "Uneven skin tone",
+          findings: ["Nasolabial Folds"],
+          region: "Full face",
+          timeline: "Now",
+          quantity: "1",
+        }),
+      ],
+    }),
+
+    baseClient({
       id: "admin-demo-allison",
       name: "Allison Baum",
       age: 52,
@@ -253,27 +320,38 @@ export function getAdminDemoClients(): Client[] {
   ];
 }
 
-/** True when admin demo clients should be injected (dev mode or explicit env flag). */
-export function isAdminDemoClientInjectionEnabled(): boolean {
+/** True when admin demo clients should be injected. */
+export function isAdminDemoClientInjectionEnabled(
+  provider?: Pick<Provider, "code" | "name"> | null,
+): boolean {
   const v = import.meta.env.VITE_ADMIN_DEMO_CLIENTS as string | undefined;
   if (v === "false" || v === "0") return false;
   if (v === "true" || v === "1") return true;
+  if (isAdminBlueprintProvider((provider ?? null) as Provider | null)) return true;
   return Boolean(import.meta.env.DEV);
 }
 
-/** Returns demo clients if Admin provider + injection enabled; deduplicates by name. */
+function withDemoNameIfCollision(client: Client, liveNames: Set<string>): Client {
+  const key = client.name.trim().toLowerCase();
+  if (!liveNames.has(key)) return client;
+  const suffixed = `${client.name}${ADMIN_DEMO_NAME_COLLISION_SUFFIX}`;
+  return { ...client, name: suffixed };
+}
+
+/** Returns demo clients if Admin provider + injection enabled; skips duplicate ids, renames on name collision. */
 export function getAdminDemoClientsIfEnabled(
-  providerCode: string | undefined,
+  provider: Pick<Provider, "code" | "name"> | null | undefined,
   liveClients: Client[],
 ): Client[] {
-  const code = (providerCode ?? "").trim().toLowerCase();
-  if (code !== "admin" && code !== "password") return [];
-  if (!isAdminDemoClientInjectionEnabled()) return [];
+  if (!isAdminBlueprintProvider((provider ?? null) as Provider | null)) return [];
+  if (!isAdminDemoClientInjectionEnabled(provider)) return [];
 
+  const liveIds = new Set(liveClients.map((c) => c.id));
   const liveNames = new Set(
     liveClients.map((c) => c.name.trim().toLowerCase()),
   );
-  return getAdminDemoClients().filter(
-    (c) => !liveNames.has(c.name.trim().toLowerCase()),
-  );
+
+  return getAdminDemoClients()
+    .filter((c) => !liveIds.has(c.id))
+    .map((c) => withDemoNameIfCollision(c, liveNames));
 }

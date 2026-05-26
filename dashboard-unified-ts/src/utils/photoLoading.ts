@@ -7,6 +7,68 @@ import { fetchTableRecords } from '../services/api';
 const photoRequestedIds = new Set<string>();
 let photoRequestInProgress = false;
 
+/** URLs that returned 410/404 in this session — do not request again. */
+const failedPhotoUrls = new Set<string>();
+
+export type FrontPhotoDisplayOptions = {
+  /**
+   * When true, Airtable attachment CDN URLs may be returned (e.g. just fetched from the API).
+   * Default false so stale links from cached Airtable records are not loaded in the browser.
+   */
+  allowExpiringAirtableCdn?: boolean;
+};
+
+/**
+ * Airtable attachment download links expire (~2h). Records often store expired URLs.
+ * @see https://support.airtable.com/docs/en/airtable-attachment-url-behavior
+ */
+export function isExpiringAirtableAttachmentUrl(url: string): boolean {
+  try {
+    const host = new URL(url, window.location.origin).hostname.toLowerCase();
+    return (
+      host.includes("airtableusercontent.com") ||
+      host === "dl.airtable.com" ||
+      host.endsWith(".airtable.com")
+    );
+  } catch {
+    return /airtableusercontent\.com/i.test(url);
+  }
+}
+
+export function markPhotoDisplayUrlFailed(url: string): void {
+  const u = url?.trim();
+  if (u) failedPhotoUrls.add(u);
+}
+
+export function isPhotoDisplayUrlFailed(url: string): boolean {
+  return failedPhotoUrls.has(url.trim());
+}
+
+export function sanitizePhotoDisplayUrl(
+  url: string | null | undefined,
+  options?: FrontPhotoDisplayOptions,
+): string | null {
+  const u = url?.trim();
+  if (!u) return null;
+  if (isPhotoDisplayUrlFailed(u)) return null;
+  if (!options?.allowExpiringAirtableCdn && isExpiringAirtableAttachmentUrl(u)) {
+    return null;
+  }
+  return u;
+}
+
+function extractUrlFromAttachment(attachment: {
+  thumbnails?: { large?: { url?: string }; full?: { url?: string } };
+  url?: string;
+}): string | null {
+  return (
+    attachment?.thumbnails?.large?.url ||
+    attachment?.thumbnails?.full?.url ||
+    attachment?.url ||
+    null
+  );
+}
+
 /**
  * Check if a client should have photos loaded (only for "started" or "pending" status)
  */
@@ -37,25 +99,77 @@ export function shouldLoadPhotoForClient(client: Client): boolean {
  * Display URL for a client's front photo: Airtable attachment array, or a direct HTTPS/HTTP URL string
  * (e.g. Wellnest demo clients). Runtime `Client.frontPhoto` may be an array despite the type alias.
  */
-export function getClientFrontPhotoDisplayUrl(frontPhoto: unknown): string | null {
+export function getClientFrontPhotoDisplayUrl(
+  frontPhoto: unknown,
+  options?: FrontPhotoDisplayOptions,
+): string | null {
   if (!frontPhoto) return null;
   if (typeof frontPhoto === "string") {
-    const u = frontPhoto.trim();
-    return u || null;
+    return sanitizePhotoDisplayUrl(frontPhoto, options);
   }
   if (Array.isArray(frontPhoto) && frontPhoto.length > 0) {
     const attachment = frontPhoto[0] as {
       thumbnails?: { large?: { url?: string }; full?: { url?: string } };
       url?: string;
     };
-    return (
-      attachment?.thumbnails?.large?.url ||
-      attachment?.thumbnails?.full?.url ||
-      attachment?.url ||
-      null
-    );
+    return sanitizePhotoDisplayUrl(extractUrlFromAttachment(attachment), options);
   }
   return null;
+}
+
+/**
+ * Display URL from data already on the client (list/kanban fetch includes attachments).
+ * Uses Airtable CDN URLs when present — avoids a second API round-trip on detail open.
+ */
+export function resolveClientFrontPhotoDisplayUrl(client: Client): string | null {
+  return getClientFrontPhotoDisplayUrl(client.frontPhoto, {
+    allowExpiringAirtableCdn: true,
+  });
+}
+
+/** True only when we have no front-photo payload and must hit Airtable. */
+export function clientNeedsFreshFrontPhotoUrl(client: Client): boolean {
+  if (client.tableSource !== "Patients" || !shouldLoadPhotoForClient(client)) {
+    return false;
+  }
+  if (resolveClientFrontPhotoDisplayUrl(client)) return false;
+  if (Array.isArray(client.frontPhoto) && client.frontPhoto.length > 0) {
+    return false;
+  }
+  if (typeof client.frontPhoto === "string" && client.frontPhoto.trim()) {
+    return false;
+  }
+  return true;
+}
+
+const preloadedPhotoUrls = new Set<string>();
+
+/** Decode image in the background so detail open feels instant when URL is known. */
+export function preloadClientFrontPhotoImage(
+  url: string | null | undefined,
+  priority: "high" | "low" = "low",
+): void {
+  const u = url?.trim();
+  if (!u || preloadedPhotoUrls.has(u) || isPhotoDisplayUrlFailed(u)) return;
+  preloadedPhotoUrls.add(u);
+  const img = new Image();
+  img.decoding = "async";
+  if ("fetchPriority" in img) {
+    (img as HTMLImageElement & { fetchPriority?: string }).fetchPriority =
+      priority;
+  }
+  img.src = u;
+}
+
+/** Resolve URL from cached client row and warm the browser image cache. */
+export function warmClientFrontPhoto(client: Client, priority: "high" | "low" = "low"): string | null {
+  if (!shouldLoadPhotoForClient(client)) return null;
+  const url = resolveClientFrontPhotoDisplayUrl(client);
+  if (url) {
+    preloadClientFrontPhotoImage(url, priority);
+    client.frontPhotoLoaded = true;
+  }
+  return url;
 }
 
 /**
@@ -94,7 +208,7 @@ export async function fetchClientFrontPhoto(clientId: string): Promise<any[] | n
 export async function batchFetchClientPhotos(
   clientIds: string[],
   providerId?: string
-): Promise<Map<string, string>> {
+): Promise<Map<string, unknown>> {
   if (!clientIds || clientIds.length === 0) {
     return new Map();
   }
@@ -108,7 +222,7 @@ export async function batchFetchClientPhotos(
   // Mark these as requested
   uniqueIds.forEach(id => photoRequestedIds.add(id));
   
-  const photoMap = new Map<string, string>();
+  const photoMap = new Map<string, unknown>();
   
   // For small batches (≤10), use OR formula (more efficient)
   if (uniqueIds.length <= 10) {
@@ -125,13 +239,7 @@ export async function batchFetchClientPhotos(
       records.forEach(record => {
         const frontPhoto = record.fields['Front Photo'] || record.fields['Front photo'];
         if (frontPhoto && Array.isArray(frontPhoto) && frontPhoto.length > 0) {
-          // Extract URL from Airtable attachment array
-          const photoUrl = typeof frontPhoto[0] === 'string' 
-            ? frontPhoto[0] 
-            : frontPhoto[0]?.url || frontPhoto[0]?.thumbnails?.large?.url || '';
-          if (photoUrl) {
-            photoMap.set(record.id, photoUrl);
-          }
+          photoMap.set(record.id, frontPhoto);
         } else if (frontPhoto && typeof frontPhoto === 'string') {
           photoMap.set(record.id, frontPhoto);
         }
@@ -202,13 +310,7 @@ export async function batchFetchClientPhotos(
     allRecords.forEach(record => {
       const frontPhoto = record.fields['Front Photo'] || record.fields['Front photo'];
       if (frontPhoto && Array.isArray(frontPhoto) && frontPhoto.length > 0) {
-        // Extract URL from Airtable attachment array
-        const photoUrl = typeof frontPhoto[0] === 'string' 
-          ? frontPhoto[0] 
-          : frontPhoto[0]?.url || frontPhoto[0]?.thumbnails?.large?.url || '';
-        if (photoUrl) {
-          photoMap.set(record.id, photoUrl);
-        }
+        photoMap.set(record.id, frontPhoto);
       } else if (frontPhoto && typeof frontPhoto === 'string') {
         photoMap.set(record.id, frontPhoto);
       }
@@ -232,6 +334,12 @@ export async function preloadVisiblePhotos(
   clients: Client[],
   providerId?: string
 ): Promise<void> {
+  for (const client of clients) {
+    if (!client.frontPhotoLoaded) {
+      warmClientFrontPhoto(client, "low");
+    }
+  }
+
   // Prevent concurrent requests
   if (photoRequestInProgress) {
     return;
@@ -271,7 +379,7 @@ export async function preloadVisiblePhotos(
     photoMap.forEach((photo, clientId) => {
       const client = patientsWithoutPhotos.find(c => c.id === clientId);
       if (client) {
-        client.frontPhoto = photo;
+        client.frontPhoto = photo as Client["frontPhoto"];
         client.frontPhotoLoaded = true;
       }
     });
@@ -290,4 +398,6 @@ export async function preloadVisiblePhotos(
 export function clearPhotoRequestTracking(): void {
   photoRequestedIds.clear();
   photoRequestInProgress = false;
+  failedPhotoUrls.clear();
+  preloadedPhotoUrls.clear();
 }

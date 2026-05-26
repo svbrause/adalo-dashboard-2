@@ -4,7 +4,7 @@
  * Existing Lakeshore variables in :root are unchanged; this overrides them when the class is present.
  */
 
-.pastel-teal-theme {
+.pastel-teal-theme:not(.dark-mode) {
   /* Teal (primary accent) */
   --theme-accent: #367588;
   --theme-accent-hover: #2c5f6b;
@@ -29,10 +29,20 @@
   --theme-nav-active-bg: #e6f3f7;
   --theme-nav-active-border: #367588;
   --theme-nav-hover-bg: rgba(54, 117, 136, 0.08);
+
+  /* Treatment Explorer + soft chips align with brand teal */
+  --theme-accent-soft: #367588;
+  --theme-accent-soft-fg: #2c5f6b;
+  --theme-accent-soft-bg: var(--teal-tint-10);
+  --theme-accent-soft-bg-hover: var(--teal-tint-20);
+  --theme-accent-soft-bg-active: #e6f3f7;
+  --theme-accent-soft-border: var(--teal-tint-30);
+  --theme-accent-soft-solid: #367588;
+  --theme-accent-soft-solid-hover: #2c5f6b;
 }
 
 /* Optional: pastel teal accents for selected/hover areas (use var(--teal-pastel-bg) in components if desired) */
-.pastel-teal-theme {
+.pastel-teal-theme:not(.dark-mode) {
   --teal-primary: #367588;
   --teal-secondary: #2c5f6b;
   --teal-pastel-bg: #e6f3f7;

@@ -4,12 +4,18 @@
  * Issue names aligned with dashboard/Airtable "Name (from All Issues) (from Analyses)".
  */
 
+/** Airtable / legacy labels → canonical issue keys used in CATEGORIES. */
+const ISSUE_SYNONYMS: Record<string, string> = {
+  "under eye hollowing": "under eye hollow",
+};
+
 export function normalizeIssue(name: string): string {
-  return name
+  const key = name
     .toLowerCase()
     .trim()
     .replace(/['']/g, "")
     .replace(/\s+/g, " ");
+  return ISSUE_SYNONYMS[key] ?? key;
 }
 
 export interface SubScoreDef {

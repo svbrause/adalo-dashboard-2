@@ -3,6 +3,7 @@
 // import React from 'react';
 import { useState, useEffect } from "react";
 import { useDashboard } from "../../context/DashboardContext";
+import { useCompactDashboardChrome } from "../../hooks/useCompactDashboardChrome";
 import { providerHasSmsAndSettingsAccess } from "../../utils/providerPrivileges";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -71,9 +72,31 @@ const VIEWS_WITH_CONTROLS = [
 
 export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
   const { currentView, setCurrentView, provider } = useDashboard();
+  const compactChrome = useCompactDashboardChrome();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const showViewControls = VIEWS_WITH_CONTROLS.includes(currentView);
+
+  useEffect(() => {
+    if (!compactChrome) setNavDrawerOpen(false);
+  }, [compactChrome]);
+
+  useEffect(() => {
+    if (!navDrawerOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setNavDrawerOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [navDrawerOpen]);
+
+  const toggleNavDrawer = () => setNavDrawerOpen((open) => !open);
 
   useEffect(() => {
     if (!providerHasSmsAndSettingsAccess(provider)) {
@@ -105,11 +128,21 @@ export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
     >
       <Sidebar
         onLogout={onLogout}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+        overlayNav={compactChrome}
+        collapsed={compactChrome ? false : sidebarCollapsed}
+        onToggleCollapse={
+          compactChrome ? undefined : () => setSidebarCollapsed((c) => !c)
+        }
+        mobileOpen={compactChrome && navDrawerOpen}
+        onMobileClose={() => setNavDrawerOpen(false)}
       />
       <main className="main-content">
-        <Header onLogout={onLogout} />
+        <Header
+          onLogout={onLogout}
+          showNavMenu={compactChrome}
+          navMenuOpen={navDrawerOpen}
+          onToggleNav={toggleNavDrawer}
+        />
         {showViewControls && <ViewControls />}
         <div className="dashboard-views-wrap">
           <DashboardViews />

@@ -65,7 +65,7 @@ export function RadarChart({
               return `${p.x},${p.y}`;
             }).join(" ")}
             fill="none"
-            stroke="rgba(0,0,0,0.08)"
+            stroke="var(--ao-radar-grid-stroke, rgba(0, 0, 0, 0.1))"
             strokeWidth="1"
           />
         ))}
@@ -78,15 +78,15 @@ export function RadarChart({
               y1={cy}
               x2={p.x}
               y2={p.y}
-              stroke="rgba(0,0,0,0.06)"
+              stroke="var(--ao-radar-axis-stroke, rgba(0, 0, 0, 0.12))"
               strokeWidth="1"
             />
           );
         })}
         <polygon
           points={polygon}
-          fill="rgba(59,130,246,0.15)"
-          stroke="#3b82f6"
+          fill="var(--ao-radar-data-fill, rgba(59, 130, 246, 0.15))"
+          stroke="var(--ao-radar-data-stroke, #3b82f6)"
           strokeWidth={showLabels ? 2 : 1.5}
           style={{ transition: "all 0.6s ease-out" }}
         />
@@ -96,7 +96,7 @@ export function RadarChart({
             cx={p.x}
             cy={p.y}
             r={showLabels ? 3.5 : 2}
-            fill="#3b82f6"
+            fill="var(--ao-radar-point-fill, #3b82f6)"
             style={{ transition: "all 0.6s ease-out" }}
           />
         ))}
