@@ -21,6 +21,8 @@ import ReleaseNotesModal, {
   shouldShowReleaseNotes,
   dismissReleaseNotes,
 } from "../modals/ReleaseNotesModal";
+import DashboardEmbedView from "../views/DashboardEmbedView";
+import { isDashboardEmbedMode } from "../../utils/dashboardRoutes";
 import "./DashboardLayout.css";
 
 interface DashboardLayoutProps {
@@ -28,7 +30,7 @@ interface DashboardLayoutProps {
 }
 
 function DashboardViews() {
-  const { currentView, setCurrentView } = useDashboard();
+  const { currentView, navigateDashboard } = useDashboard();
 
   switch (currentView) {
     case "kanban":
@@ -49,7 +51,7 @@ function DashboardViews() {
       return (
         <FirebaseAdminPage
           embedded
-          onLeaveEmbedded={() => setCurrentView("list")}
+          onLeaveEmbedded={() => navigateDashboard({ view: "list" })}
         />
       );
     case "facial-analysis":
@@ -71,7 +73,8 @@ const VIEWS_WITH_CONTROLS = [
 ];
 
 export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
-  const { currentView, setCurrentView, provider } = useDashboard();
+  const { currentView, navigateDashboard, provider } = useDashboard();
+  const embedMode = isDashboardEmbedMode();
   const compactChrome = useCompactDashboardChrome();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
@@ -105,10 +108,10 @@ export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
         currentView === "sms-history" ||
         currentView === "user-admin"
       ) {
-        setCurrentView("list");
+        navigateDashboard({ view: "list" });
       }
     }
-  }, [provider, currentView, setCurrentView]);
+  }, [provider, currentView, navigateDashboard]);
 
   // Show release notes once per session, within the 1-week window, for logged-in users.
   useEffect(() => {
@@ -121,6 +124,10 @@ export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
     dismissReleaseNotes();
     setShowReleaseNotes(false);
   };
+
+  if (embedMode) {
+    return <DashboardEmbedView />;
+  }
 
   return (
     <div

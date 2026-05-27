@@ -36,7 +36,7 @@ export default function ViewControls() {
     searchQuery,
     setSearchQuery,
     currentView,
-    setCurrentView,
+    navigateDashboard,
     filters,
     setFilters,
     sort,
@@ -524,7 +524,7 @@ export default function ViewControls() {
             className={`view-toggle-btn ${
               currentView === "list" ? "active" : ""
             }`}
-            onClick={() => setCurrentView("list")}
+            onClick={() => navigateDashboard({ view: "list" })}
             title="List View"
           >
             <svg
@@ -550,7 +550,7 @@ export default function ViewControls() {
                 ? "active"
                 : ""
             }`}
-            onClick={() => setCurrentView("facial-analysis")}
+            onClick={() => navigateDashboard({ view: "facial-analysis" })}
             title="Card View"
           >
             <svg

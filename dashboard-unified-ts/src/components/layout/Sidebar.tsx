@@ -31,12 +31,12 @@ export default function Sidebar({
   mobileOpen = false,
   onMobileClose,
 }: SidebarProps) {
-  const { provider, currentView, setCurrentView, darkMode } = useDashboard();
+  const { provider, currentView, navigateDashboard, darkMode } = useDashboard();
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpModalInitialMessage, setHelpModalInitialMessage] = useState("");
 
   const handleViewChange = (view: ViewType) => {
-    setCurrentView(view);
+    navigateDashboard({ view });
     onMobileClose?.();
   };
 

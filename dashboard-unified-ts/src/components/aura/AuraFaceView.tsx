@@ -102,7 +102,7 @@ type PoreSpot = { cx: number; cy: number; r: number };
 
 const AURA_CV_ANNOTATIONS: {
   wrinkles: string[];
-  darkSpots: DarkSpot[];
+  darkSpotsByAngle: Partial<Record<ViewAngle, DarkSpot[]>>;
   redAreas: string[];
   pores: PoreSpot[];
   volume: string[];
@@ -139,19 +139,61 @@ const AURA_CV_ANNOTATIONS: {
     "M 44.7 47.9 L 49.8 43.6 L 55.1 47.9 L 53.85 60.2 L 49.7 64.35 L 45.85 60.2 Z",
     "M 40.25 64.85 Q 49.5 61.9 59.55 64.8 Q 55.55 69.4 44.3 69.2 Z",
   ],
-  darkSpots: [
-    // Person's LEFT cheek (right side of image, cx > 50%) — more affected side
-    { cx: 63.5, cy: 50.0, rx: 0.65, ry: 0.65, intensity: 0.68 },
-    { cx: 65.8, cy: 52.0, rx: 0.62, ry: 0.62, intensity: 0.72 },
-    { cx: 61.0, cy: 53.5, rx: 0.68, ry: 0.68, intensity: 0.70 },
-    { cx: 64.5, cy: 55.5, rx: 0.75, ry: 0.75, intensity: 0.75 },
-    { cx: 67.5, cy: 54.0, rx: 0.55, ry: 0.55, intensity: 0.65 },
-    { cx: 62.0, cy: 58.0, rx: 0.62, ry: 0.62, intensity: 0.68 },
-    // Person's RIGHT cheek (left side of image, cx < 50%)
-    { cx: 38.5, cy: 51.0, rx: 0.62, ry: 0.62, intensity: 0.62 },
-    { cx: 36.0, cy: 54.0, rx: 0.55, ry: 0.55, intensity: 0.58 },
-    { cx: 39.5, cy: 57.0, rx: 0.58, ry: 0.58, intensity: 0.60 },
-  ],
+  darkSpotsByAngle: {
+    front: [
+      // Person's LEFT cheek (right side of image, cx > 50%) — upper zone cy 54-57%
+      { cx: 63.86, cy: 54.70, rx: 0.225, ry: 0.225, intensity: 0.65 },
+      { cx: 64.29, cy: 56.31, rx: 0.245, ry: 0.245, intensity: 0.68 },
+      { cx: 62.52, cy: 56.25, rx: 0.258, ry: 0.258, intensity: 0.70 },
+      // Person's LEFT cheek — lower zone cy 57-64%
+      { cx: 60.28, cy: 57.58, rx: 0.258, ry: 0.258, intensity: 0.68 },
+      { cx: 62.69, cy: 57.64, rx: 0.279, ry: 0.279, intensity: 0.66 },
+      { cx: 59.84, cy: 58.52, rx: 0.309, ry: 0.309, intensity: 0.74 },
+      { cx: 61.4,  cy: 58.71, rx: 0.277, ry: 0.277, intensity: 0.70 },
+      { cx: 59.15, cy: 60.20, rx: 0.291, ry: 0.291, intensity: 0.76 },
+      { cx: 58.98, cy: 61.98, rx: 0.232, ry: 0.232, intensity: 0.55 },
+      { cx: 58.98, cy: 63.31, rx: 0.202, ry: 0.202, intensity: 0.68 },
+      // Person's RIGHT cheek (left side of image, cx < 50%) — upper zone cy 55-57%
+      { cx: 36.74, cy: 55.86, rx: 0.268, ry: 0.268, intensity: 0.72 },
+      { cx: 37.82, cy: 56.22, rx: 0.268, ry: 0.268, intensity: 0.70 },
+      { cx: 40.11, cy: 56.02, rx: 0.245, ry: 0.245, intensity: 0.68 },
+      // Person's RIGHT cheek — lower zone cy 57-64%
+      { cx: 41.41, cy: 57.55, rx: 0.245, ry: 0.245, intensity: 0.65 },
+      { cx: 41.11, cy: 58.52, rx: 0.272, ry: 0.272, intensity: 0.58 },
+      { cx: 40.98, cy: 59.55, rx: 0.317, ry: 0.317, intensity: 0.62 },
+      { cx: 41.49, cy: 62.08, rx: 0.258, ry: 0.258, intensity: 0.78 },
+      { cx: 41.80, cy: 63.15, rx: 0.277, ry: 0.277, intensity: 0.72 },
+    ],
+    // Coordinates measured directly in tan_45_left.png space.
+    // LEFT cheek is the near side in this view; malar zone cx≈39-51%, cy≈40-53%.
+    "three-quarter-left": [
+      { cx: 42.5, cy: 41.0, rx: 0.258, ry: 0.258, intensity: 0.68 },
+      { cx: 44.8, cy: 42.3, rx: 0.279, ry: 0.279, intensity: 0.72 },
+      { cx: 40.8, cy: 43.2, rx: 0.245, ry: 0.245, intensity: 0.65 },
+      { cx: 46.2, cy: 44.0, rx: 0.268, ry: 0.268, intensity: 0.70 },
+      { cx: 43.0, cy: 45.5, rx: 0.309, ry: 0.309, intensity: 0.76 },
+      { cx: 47.5, cy: 46.8, rx: 0.277, ry: 0.277, intensity: 0.70 },
+      { cx: 41.5, cy: 47.8, rx: 0.258, ry: 0.258, intensity: 0.74 },
+      { cx: 48.8, cy: 49.5, rx: 0.232, ry: 0.232, intensity: 0.62 },
+      { cx: 44.2, cy: 51.2, rx: 0.245, ry: 0.245, intensity: 0.58 },
+    ],
+    // Coordinates measured directly in tan_45_right.png space.
+    // RIGHT cheek is the near side in this view; malar zone cx≈28-42%, cy≈42-56%.
+    "three-quarter-right": [
+      { cx: 32.5, cy: 43.0, rx: 0.258, ry: 0.258, intensity: 0.68 },
+      { cx: 34.8, cy: 44.3, rx: 0.279, ry: 0.279, intensity: 0.72 },
+      { cx: 30.8, cy: 45.2, rx: 0.245, ry: 0.245, intensity: 0.65 },
+      { cx: 36.2, cy: 46.0, rx: 0.268, ry: 0.268, intensity: 0.70 },
+      { cx: 33.0, cy: 47.5, rx: 0.309, ry: 0.309, intensity: 0.76 },
+      { cx: 37.5, cy: 48.8, rx: 0.277, ry: 0.277, intensity: 0.70 },
+      { cx: 31.5, cy: 49.8, rx: 0.258, ry: 0.258, intensity: 0.74 },
+      { cx: 38.8, cy: 51.5, rx: 0.232, ry: 0.232, intensity: 0.62 },
+      { cx: 34.2, cy: 53.2, rx: 0.245, ry: 0.245, intensity: 0.58 },
+    ],
+    // Profile views: cheek faces away from camera, spots not visible.
+    "profile-left": [],
+    "profile-right": [],
+  },
   pores: [
     { cx: 47.5, cy: 43.9, r: 0.28 },
     { cx: 50.0, cy: 43.4, r: 0.3 },
@@ -364,9 +406,9 @@ function AuraAnglePhotoLayer({
 
 function angleOverlayTransform(angle: ViewAngle): string {
   if (angle === "front") return "";
-  if (angle === "three-quarter-left") return "translate(2 0) scale(0.84 1) skewY(-2)";
+  if (angle === "three-quarter-left") return "matrix(1.0364,-0.0031,-0.0464,1.1905,-10.46,-23.43)";
   if (angle === "profile-left") return "translate(6 0) scale(0.5 1) skewY(-5)";
-  if (angle === "three-quarter-right") return "translate(14 0) scale(0.84 1) skewY(2)";
+  if (angle === "three-quarter-right") return "matrix(0.9738,-0.0001,0.0280,1.0927,-1.33,-11.67)";
   return "translate(28 0) scale(0.5 1) skewY(5)";
 }
 
@@ -387,9 +429,7 @@ function AuraAnnotationOverlay({
   if (!visible) return null;
   const color = TAB_COLORS[activeTab];
   const displayAngle = fixedAngle ?? displayAngleFromRatio(turntableRatio);
-  const side = displayAngle === "profile-left" || displayAngle === "three-quarter-left" ? "left" : "right";
-  const isVisibleForAngle = (x: number) =>
-    displayAngle === "front" || (side === "left" ? x <= 53 : x >= 47);
+  const spotsForAngle = AURA_CV_ANNOTATIONS.darkSpotsByAngle[displayAngle] ?? [];
 
   return (
     <svg
@@ -432,21 +472,19 @@ function AuraAnnotationOverlay({
         </g>
       ) : null}
       {activeTab === "skin" ? (
-        <g transform={angleOverlayTransform(displayAngle)}>
+        <g>
           <g className="avf-diagnostic-overlay__spots">
-            {AURA_CV_ANNOTATIONS.darkSpots.map((spot, index) =>
-              isVisibleForAngle(spot.cx) ? (
-                <ellipse
-                  key={index}
-                  cx={spot.cx}
-                  cy={spot.cy}
-                  rx={spot.rx * 4.5}
-                  ry={spot.ry * 4.5}
-                  fill="url(#avf_diag_spot)"
-                  opacity={spot.intensity}
-                />
-              ) : null,
-            )}
+            {spotsForAngle.map((spot, index) => (
+              <ellipse
+                key={index}
+                cx={spot.cx}
+                cy={spot.cy}
+                rx={spot.rx * 4.5}
+                ry={spot.ry * 4.5}
+                fill="url(#avf_diag_spot)"
+                opacity={spot.intensity}
+              />
+            ))}
           </g>
         </g>
       ) : null}

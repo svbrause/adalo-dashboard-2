@@ -7,6 +7,7 @@ import Pagination from "../common/Pagination";
 import { formatRelativeDate } from "../../utils/dateFormatting";
 import { formatPhoneDisplay } from "../../utils/validation";
 import { applyFilters, applySorting } from "../../utils/filtering";
+import { useRouteSyncedClientSelection } from "../../hooks/useRouteSyncedClientSelection";
 import "./ArchivedView.css";
 
 export default function ArchivedView() {
@@ -24,6 +25,10 @@ export default function ArchivedView() {
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
   >(null);
+  const { selectClient, clearClient } = useRouteSyncedClientSelection(
+    selectedClient,
+    setSelectedClient,
+  );
 
   // Filter archived clients
   const processedClients = useMemo(() => {
@@ -78,7 +83,7 @@ export default function ArchivedView() {
                   paginatedClients.map((client) => (
                     <tr
                       key={client.id}
-                      onClick={() => setSelectedClient(client)}
+                      onClick={() => selectClient(client)}
                       className="cursor-pointer"
                     >
                       <td>{client.name}</td>
@@ -95,7 +100,7 @@ export default function ArchivedView() {
                           className="btn-secondary btn-view"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedClient(client);
+                            selectClient(client);
                           }}
                         >
                           View
@@ -128,7 +133,7 @@ export default function ArchivedView() {
           client={
             clients.find((c) => c.id === selectedClient.id) ?? selectedClient
           }
-          onClose={() => setSelectedClient(null)}
+          onClose={clearClient}
           onUpdate={() => refreshClients(true)}
         />
       )}

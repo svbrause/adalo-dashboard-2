@@ -27,7 +27,16 @@ import {
   getWellnestSampleClientsIfEnabled,
   filterOutWellnestSamplesDuplicatedByName,
 } from "../debug/wellnestSampleClients";
-import { withWellnestDemoDiscussedItemsOverlay } from "../utils/wellnestDemoPlanPersistence";
+import { withSessionDemoDiscussedItemsOverlay } from "../utils/wellnestDemoPlanPersistence";
+import {
+  parseDashboardRoute,
+  type ClientDetailSection,
+  type DashboardRoute,
+} from "../utils/dashboardRoutes";
+import {
+  useDashboardNavigation,
+  type DashboardNavigationState,
+} from "../hooks/useDashboardNavigation";
 import { getAdminDemoClientsIfEnabled } from "../debug/adminDemoClients";
 
 /**
@@ -214,7 +223,16 @@ interface DashboardContextType {
     itemId?: string,
     expectedTimeline?: string,
   ) => void;
+  /** Patient id from URL (`/client-details/:id`). */
+  routeClientId: string | null;
+  /** Optional deep-link section (`?section=mirror`, etc.). */
+  routeSection: ClientDetailSection | null;
+  navigateDashboard: DashboardNavigationState["navigateDashboard"];
+  openClient: DashboardNavigationState["openClient"];
+  closeClient: DashboardNavigationState["closeClient"];
 }
+
+export type { ClientDetailSection, DashboardRoute };
 
 const DashboardContext = createContext<DashboardContextType | undefined>(
   undefined,
@@ -255,7 +273,16 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     [],
   );
   const [clients, setClients] = useState<Client[]>([]);
-  const [currentView, setCurrentView] = useState<ViewType>("list");
+  const initialRoute = parseDashboardRoute();
+  const [currentView, setCurrentView] = useState<ViewType>(
+    () => initialRoute?.view ?? "list",
+  );
+  const [routeClientId, setRouteClientId] = useState<string | null>(
+    () => initialRoute?.clientId ?? null,
+  );
+  const [routeSection, setRouteSection] = useState<ClientDetailSection | null>(
+    () => initialRoute?.section ?? null,
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<FilterState>({
     source: "",
@@ -279,6 +306,16 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { navigateDashboard, openClient, closeClient } = useDashboardNavigation({
+    currentView,
+    setCurrentView,
+    routeClientId,
+    setRouteClientId,
+    routeSection,
+    setRouteSection,
+    enabled: Boolean(provider),
+  });
 
   // Cache merged IDs for TheTreatment250/TheTreatment447 so we only fetch the other provider once per session
   const merged250447IdsRef = useRef<[string, string] | null>(null);
@@ -452,13 +489,16 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           const liveIds = new Set(allClients.map((c) => c.id));
           const extras = noNameDupes
             .filter((c) => !liveIds.has(c.id))
-            .map(withWellnestDemoDiscussedItemsOverlay);
+            .map(withSessionDemoDiscussedItemsOverlay);
           allClients = [...allClients, ...extras];
         }
 
         const adminDemos = getAdminDemoClientsIfEnabled(provider, allClients);
         if (adminDemos.length > 0) {
-          allClients = [...allClients, ...adminDemos];
+          allClients = [
+            ...allClients,
+            ...adminDemos.map(withSessionDemoDiscussedItemsOverlay),
+          ];
         }
 
         allClients = allClients.map((client) =>
@@ -531,6 +571,11 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         refreshClients,
         cacheClientDiscussedItemTimeline,
         clearClientDiscussedItemTimelineCache,
+        routeClientId,
+        routeSection,
+        navigateDashboard,
+        openClient,
+        closeClient,
       }}
     >
       {children}

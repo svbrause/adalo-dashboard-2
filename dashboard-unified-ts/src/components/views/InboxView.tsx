@@ -8,6 +8,7 @@ import { formatPhoneDisplay, cleanPhoneNumber } from "../../utils/validation";
 import ClientDetailPanel from "./ClientDetailPanel";
 import SendSMSModal from "../modals/SendSMSModal";
 import { getClientFrontPhotoDisplayUrl } from "../../utils/photoLoading";
+import { useRouteSyncedClientSelection } from "../../hooks/useRouteSyncedClientSelection";
 import "./InboxView.css";
 
 function formatInboxDate(createdTime: string | undefined): string {
@@ -116,6 +117,8 @@ export default function InboxView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const { selectClient, clearClient, routeSection } =
+    useRouteSyncedClientSelection(selectedClient, setSelectedClient);
   const [smsClient, setSmsClient] = useState<Client | null>(null);
 
   const dedupedEntries = useMemo(() => deduplicateRequests(requests), [requests]);
@@ -273,7 +276,12 @@ export default function InboxView() {
                             <button
                               type="button"
                               className="inbox-action-btn inbox-action-view"
-                              onClick={() => setSelectedClient(clients.find((c) => c.id === linkedClient.id) ?? linkedClient)}
+                              onClick={() =>
+                                selectClient(
+                                  clients.find((c) => c.id === linkedClient.id) ??
+                                    linkedClient,
+                                )
+                              }
                               title="View client details"
                             >
                               View client
@@ -336,7 +344,8 @@ export default function InboxView() {
       {selectedClient && (
         <ClientDetailPanel
           client={clients.find((c) => c.id === selectedClient.id) ?? selectedClient}
-          onClose={() => setSelectedClient(null)}
+          onClose={clearClient}
+          initialSection={routeSection ?? undefined}
           onUpdate={() => refreshClients(true)}
         />
       )}

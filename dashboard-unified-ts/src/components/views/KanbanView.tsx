@@ -14,6 +14,7 @@ import {
   warmClientFrontPhoto,
 } from "../../utils/photoLoading";
 import ClientDetailModal from "../modals/ClientDetailModal";
+import { useRouteSyncedClientSelection } from "../../hooks/useRouteSyncedClientSelection";
 import "./KanbanView.css";
 
 export default function KanbanView() {
@@ -30,6 +31,10 @@ export default function KanbanView() {
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
   >(null);
+  const { selectClient, clearClient } = useRouteSyncedClientSelection(
+    selectedClient,
+    setSelectedClient,
+  );
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null);
   const [clientPhotos, setClientPhotos] = useState<Record<string, string>>({});
 
@@ -77,7 +82,8 @@ export default function KanbanView() {
   }, [processedClients, provider?.id, effectiveProviderIds]);
 
   const handleCardClick = (client: (typeof clients)[0]) => {
-    setSelectedClient(client);
+    warmClientFrontPhoto(client, "high");
+    selectClient(client);
   };
 
   const handleDragStart = (
@@ -252,7 +258,7 @@ export default function KanbanView() {
           client={
             clients.find((c) => c.id === selectedClient.id) ?? selectedClient
           }
-          onClose={() => setSelectedClient(null)}
+          onClose={clearClient}
           onUpdate={() => refreshClients(true)}
         />
       )}

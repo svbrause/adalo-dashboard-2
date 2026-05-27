@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "token": "gravitas-demo-tanya",
+  "createdAt": "2026-05-22T12:00:00.000Z",
+  "clinicName": "Gravitas Medspa",
+  "providerName": "Your provider",
+  "providerCode": "admin",
+  "patient": {
+    "id": "admin-demo-tanya",
+    "name": "Tanya Tan",
+    "phone": "+1 555 312 8803",
+    "tableSource": "Patients",
+    "ageRange": "30-39",
+    "skinType": "Combination",
+    "skinTone": "Medium",
+    "frontPhoto": "/demo-3d/tanya-tan-front.png",
+    "turntableVideoUrl": "/demo-3d/tanya-tan-front.png"
+  },
+  "discussedItems": [
+    {
+      "id": "admin-tanya-d1",
+      "treatment": "Botox",
+      "interest": "Forehead Wrinkles",
+      "findings": ["Forehead Wrinkles", "Crow's Feet"],
+      "region": "Forehead",
+      "timeline": "Now",
+      "quantity": "24"
+    },
+    {
+      "id": "admin-tanya-d2",
+      "treatment": "Hyaluronic Acid Filler",
+      "interest": "Under Eye Hollowing",
+      "findings": ["Under Eye Hollowing"],
+      "region": "Under Eyes",
+      "timeline": "Now",
+      "quantity": "1"
+    },
+    {
+      "id": "admin-tanya-d4",
+      "treatment": "Medical-Grade Skincare",
+      "interest": "Uneven skin tone",
+      "findings": ["Nasolabial Folds"],
+      "region": "Full face",
+      "timeline": "Now",
+      "quantity": "1"
+    }
+  ],
+  "quote": {
+    "lineItems": [
+      {
+        "label": "Botox — Forehead",
+        "price": 480,
+        "displayPrice": "$480"
+      },
+      {
+        "label": "Hyaluronic Acid Filler — Under Eyes",
+        "price": 850,
+        "displayPrice": "$850"
+      },
+      {
+        "label": "Medical-Grade Skincare",
+        "price": 220,
+        "displayPrice": "$220"
+      }
+    ],
+    "total": 1550,
+    "totalAfterDiscount": 1550,
+    "hasUnknownPrices": false,
+    "isMintMember": false
+  },
+  "cta": {
+    "bookingUrl": "https://gravitasmedspa.com",
+    "textProviderPhone": "+1 555 000 0000"
+  }
+}

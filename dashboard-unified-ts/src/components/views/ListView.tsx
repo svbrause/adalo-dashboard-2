@@ -15,6 +15,7 @@ import {
   DashboardQuizIcon,
 } from "../common/DashboardSectionIcons";
 import { warmClientFrontPhoto } from "../../utils/photoLoading";
+import { useRouteSyncedClientSelection } from "../../hooks/useRouteSyncedClientSelection";
 import "./ListView.css";
 
 export default function ListView() {
@@ -35,6 +36,8 @@ export default function ListView() {
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
   >(null);
+  const { selectClient, clearClient, routeSection } =
+    useRouteSyncedClientSelection(selectedClient, setSelectedClient);
   const [showLeadAutoReplySettings, setShowLeadAutoReplySettings] =
     useState(false);
 
@@ -65,7 +68,7 @@ export default function ListView() {
 
   const handleRowClick = (client: (typeof clients)[0]) => {
     warmClientFrontPhoto(client, "high");
-    setSelectedClient(client);
+    selectClient(client);
   };
 
   useEffect(() => {
@@ -277,7 +280,8 @@ export default function ListView() {
           client={
             clients.find((c) => c.id === selectedClient.id) ?? selectedClient
           }
-          onClose={() => setSelectedClient(null)}
+          onClose={clearClient}
+          initialSection={routeSection ?? undefined}
           onUpdate={() => refreshClients(true)}
         />
       )}

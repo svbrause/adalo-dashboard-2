@@ -1,5 +1,5 @@
 /**
- * Wellnest sample patients (`wellnest-demo-*`) are not Airtable rows. Treatment plan
+ * Demo patients (`wellnest-demo-*`, `admin-demo-*`) are not Airtable rows. Treatment plan
  * changes are stored in sessionStorage so Add to plan / Manage plan work until the tab closes.
  */
 
@@ -9,16 +9,37 @@ import { AIRTABLE_FIELD } from "../components/modals/DiscussedTreatmentsModal/co
 import { isAddClientLead } from "./leadSource";
 import { capturePatientAcquisitionFunnelEvent } from "./patientAcquisitionAnalytics";
 
-const STORAGE_PREFIX = "wellnest-demo-plan:";
+const WELLNEST_STORAGE_PREFIX = "wellnest-demo-plan:";
+const ADMIN_DEMO_STORAGE_PREFIX = "admin-demo-plan:";
 
 export function isWellnestDemoSampleClient(client: Pick<Client, "id">): boolean {
   return client.id.startsWith("wellnest-demo-");
 }
 
-export function loadWellnestDemoDiscussedItems(clientId: string): DiscussedItem[] | null {
-  if (!clientId.startsWith("wellnest-demo-")) return null;
+export function isAdminDemoSampleClient(client: Pick<Client, "id">): boolean {
+  return client.id.startsWith("admin-demo-");
+}
+
+/** Clients whose plan edits are persisted in sessionStorage, not Airtable. */
+export function isSessionDemoPlanClient(client: Pick<Client, "id">): boolean {
+  return isWellnestDemoSampleClient(client) || isAdminDemoSampleClient(client);
+}
+
+function storageKeyForDemoClient(clientId: string): string | null {
+  if (clientId.startsWith("wellnest-demo-")) {
+    return WELLNEST_STORAGE_PREFIX + clientId;
+  }
+  if (clientId.startsWith("admin-demo-")) {
+    return ADMIN_DEMO_STORAGE_PREFIX + clientId;
+  }
+  return null;
+}
+
+export function loadSessionDemoDiscussedItems(clientId: string): DiscussedItem[] | null {
+  const key = storageKeyForDemoClient(clientId);
+  if (!key) return null;
   try {
-    const raw = sessionStorage.getItem(STORAGE_PREFIX + clientId);
+    const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? (parsed as DiscussedItem[]) : null;
@@ -27,12 +48,23 @@ export function loadWellnestDemoDiscussedItems(clientId: string): DiscussedItem[
   }
 }
 
-/** Merge stored plan onto a client row (used when re-injecting samples after refresh). */
-export function withWellnestDemoDiscussedItemsOverlay(client: Client): Client {
-  if (!isWellnestDemoSampleClient(client)) return client;
-  const stored = loadWellnestDemoDiscussedItems(client.id);
+/** @deprecated Use {@link loadSessionDemoDiscussedItems} */
+export function loadWellnestDemoDiscussedItems(clientId: string): DiscussedItem[] | null {
+  if (!clientId.startsWith("wellnest-demo-")) return null;
+  return loadSessionDemoDiscussedItems(clientId);
+}
+
+/** Merge stored plan onto a demo client row (used when re-injecting samples after refresh). */
+export function withSessionDemoDiscussedItemsOverlay(client: Client): Client {
+  if (!isSessionDemoPlanClient(client)) return client;
+  const stored = loadSessionDemoDiscussedItems(client.id);
   if (!stored) return client;
   return { ...client, discussedItems: stored };
+}
+
+/** @deprecated Use {@link withSessionDemoDiscussedItemsOverlay} */
+export function withWellnestDemoDiscussedItemsOverlay(client: Client): Client {
+  return withSessionDemoDiscussedItemsOverlay(client);
 }
 
 /**
@@ -45,9 +77,10 @@ export async function persistClientDiscussedItems(
   const touch = new Date().toISOString();
   const stamped = nextItems.map((i) => ({ ...i, updatedAt: touch }));
 
-  if (isWellnestDemoSampleClient(client)) {
+  const storageKey = storageKeyForDemoClient(client.id);
+  if (storageKey) {
     try {
-      sessionStorage.setItem(STORAGE_PREFIX + client.id, JSON.stringify(stamped));
+      sessionStorage.setItem(storageKey, JSON.stringify(stamped));
     } catch {
       /* quota / private mode */
     }

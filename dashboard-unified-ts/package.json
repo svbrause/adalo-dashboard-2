@@ -17,7 +17,9 @@
     "prepare:judgemd-blueprint-videos": "node scripts/prepare-judgemd-blueprint-videos.mjs",
     "generate:judgemd-blueprint-captions": "node scripts/generate-judgemd-blueprint-captions.mjs",
     "seed:wellnest-demo-patients": "node scripts/seed-wellnest-demo-patients.mjs",
-    "compare:wellnest-demo-airtable": "node scripts/compare-wellnest-demo-airtable.mjs"
+    "compare:wellnest-demo-airtable": "node scripts/compare-wellnest-demo-airtable.mjs",
+    "deck": "python3 -m http.server 4177",
+    "demo": "echo 'Presentation: http://localhost:4177/docs/presentations/clinic-demo-deck.html' && echo 'Dashboard:  http://localhost:5173/patients' && echo 'Run npm run dev and npm run deck in two terminals.'"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.21",

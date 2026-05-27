@@ -342,7 +342,7 @@ type PricingRowWithSection = PricingSectionView["items"][number] & {
 };
 
 export default function SettingsView() {
-  const { provider, setCurrentView } = useDashboard();
+  const { provider, navigateDashboard } = useDashboard();
   const { isConfigured: firebaseConfigured } = useFirebaseAuth();
   /**
    * The Treatment / Admin: full catalog (notifications reference @getthetreatment.com examples,
@@ -760,7 +760,7 @@ export default function SettingsView() {
                     type="button"
                     className="btn-primary settings-hub-card-cta"
                     aria-label="Open Users and Roles"
-                    onClick={() => setCurrentView("user-admin")}
+                    onClick={() => navigateDashboard({ view: "user-admin" })}
                   >
                     Open
                     <span className="settings-hub-card-cta-icon" aria-hidden>

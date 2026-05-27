@@ -29,6 +29,7 @@ import {
   resolveClientFrontPhotoDisplayUrl,
   warmClientFrontPhoto,
 } from "../../utils/photoLoading";
+import { useRouteSyncedClientSelection } from "../../hooks/useRouteSyncedClientSelection";
 import "./FacialAnalysisView.css";
 
 export default function FacialAnalysisView() {
@@ -47,6 +48,8 @@ export default function FacialAnalysisView() {
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
   >(null);
+  const { selectClient, clearClient, routeSection } =
+    useRouteSyncedClientSelection(selectedClient, setSelectedClient);
   const [showPatientIssues, setShowPatientIssues] = useState<
     (typeof clients)[0] | null
   >(null);
@@ -115,103 +118,6 @@ export default function FacialAnalysisView() {
 
     return () => clearTimeout(timeout);
   }, [paginatedClients, provider?.id, effectiveProviderIds]);
-
-  const toggleCardExpansion = (clientId: string) => {
-    setExpandedCardId(expandedCardId === clientId ? null : clientId);
-  };
-
-  const handleCardClick = (
-    client: (typeof clients)[0],
-    e: React.MouseEvent,
-  ) => {
-    // Don't open modal if clicking expand button
-    if ((e.target as HTMLElement).closest(".expand-card-btn")) {
-      return;
-    }
-    // For Patients with facial analysis data, show Patient Issues Modal
-    if (client.tableSource === "Patients" && client.allIssues) {
-      setShowPatientIssues(client);
-    } else {
-      setSelectedClient(client);
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent, clientId: string) => {
-    setDraggedClientId(clientId);
-    e.dataTransfer.effectAllowed = "move";
-    e.currentTarget.classList.add("dragging");
-  };
-
-  const handleDragEnd = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove("dragging");
-    setDraggedClientId(null);
-  };
-
-  // Drag handlers - currently unused but kept for potential future drag-and-drop functionality
-  // const handleDragOver = (e: React.DragEvent) => {
-  //   e.preventDefault();
-  //   e.currentTarget.classList.add('drag-over');
-  // };
-
-  // const handleDragLeave = (e: React.DragEvent) => {
-  //   e.currentTarget.classList.remove('drag-over');
-  // };
-
-  // Drag and drop handler - currently unused but kept for potential future use
-  // const handleDrop = async (e: React.DragEvent, newStatus: string) => {
-  //   e.preventDefault();
-  //   e.currentTarget.classList.remove('drag-over');
-  //
-  //   if (!draggedClientId) return;
-  //
-  //   const client = clients.find(c => c.id === draggedClientId);
-  //   if (!client || client.tableSource !== 'Patients') {
-  //     setDraggedClientId(null);
-  //     if (client && client.tableSource === 'Web Popup Leads') {
-  //       showError('Web Popup Leads cannot be moved to other statuses. They must be in the Patients table first.');
-  //     }
-  //     return;
-  //   }
-  //
-  //   try {
-  //     const airtableStatus = newStatus === 'not-started' ? '' : newStatus;
-  //     await updateFacialAnalysisStatus(client.id, airtableStatus);
-  //     showToast(`Moved ${client.name} to ${formatFacialStatus(airtableStatus)}`);
-  //     refreshClients();
-  //   } catch (error: any) {
-  //     showError(error.message || 'Failed to update facial analysis status');
-  //   } finally {
-  //     setDraggedClientId(null);
-  //   }
-  // };
-
-  if (loading) {
-    return (
-      <section className="facial-analysis-view">
-        <div className="loading-state-center">
-          <div className="spinner spinner-with-margin"></div>
-          Loading clients...
-        </div>
-      </section>
-    );
-  }
-
-  if (processedClients.length === 0) {
-    return (
-      <section className="facial-analysis-view">
-        <div className="empty-state-center">
-          <p className="empty-state-text">
-            {clients.length === 0
-              ? "No clients yet."
-              : searchQuery ||
-                  Object.values(filters).some((v) => v !== "" && v !== null)
-                ? "No clients found matching your search or filters."
-                : "No active clients to display."}
-          </p>
-        </div>
-      </section>
-    );
-  }
 
   // Pre-process client data to avoid expensive operations during render
   const processedClientsData = useMemo(() => {
@@ -292,6 +198,104 @@ export default function FacialAnalysisView() {
       };
     });
   }, [paginatedClients, provider?.code]);
+
+  const toggleCardExpansion = (clientId: string) => {
+    setExpandedCardId(expandedCardId === clientId ? null : clientId);
+  };
+
+  const handleCardClick = (
+    client: (typeof clients)[0],
+    e: React.MouseEvent,
+  ) => {
+    // Don't open modal if clicking expand button
+    if ((e.target as HTMLElement).closest(".expand-card-btn")) {
+      return;
+    }
+    // For Patients with facial analysis data, show Patient Issues Modal
+    if (client.tableSource === "Patients" && client.allIssues) {
+      setShowPatientIssues(client);
+    } else {
+      warmClientFrontPhoto(client, "high");
+      selectClient(client);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, clientId: string) => {
+    setDraggedClientId(clientId);
+    e.dataTransfer.effectAllowed = "move";
+    e.currentTarget.classList.add("dragging");
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove("dragging");
+    setDraggedClientId(null);
+  };
+
+  // Drag handlers - currently unused but kept for potential future drag-and-drop functionality
+  // const handleDragOver = (e: React.DragEvent) => {
+  //   e.preventDefault();
+  //   e.currentTarget.classList.add('drag-over');
+  // };
+
+  // const handleDragLeave = (e: React.DragEvent) => {
+  //   e.currentTarget.classList.remove('drag-over');
+  // };
+
+  // Drag and drop handler - currently unused but kept for potential future use
+  // const handleDrop = async (e: React.DragEvent, newStatus: string) => {
+  //   e.preventDefault();
+  //   e.currentTarget.classList.remove('drag-over');
+  //
+  //   if (!draggedClientId) return;
+  //
+  //   const client = clients.find(c => c.id === draggedClientId);
+  //   if (!client || client.tableSource !== 'Patients') {
+  //     setDraggedClientId(null);
+  //     if (client && client.tableSource === 'Web Popup Leads') {
+  //       showError('Web Popup Leads cannot be moved to other statuses. They must be in the Patients table first.');
+  //     }
+  //     return;
+  //   }
+  //
+  //   try {
+  //     const airtableStatus = newStatus === 'not-started' ? '' : newStatus;
+  //     await updateFacialAnalysisStatus(client.id, airtableStatus);
+  //     showToast(`Moved ${client.name} to ${formatFacialStatus(airtableStatus)}`);
+  //     refreshClients();
+  //   } catch (error: any) {
+  //     showError(error.message || 'Failed to update facial analysis status');
+  //   } finally {
+  //     setDraggedClientId(null);
+  //   }
+  // };
+
+  if (loading) {
+    return (
+      <section className="facial-analysis-view">
+        <div className="loading-state-center">
+          <div className="spinner spinner-with-margin"></div>
+          Loading clients...
+        </div>
+      </section>
+    );
+  }
+
+  if (processedClients.length === 0) {
+    return (
+      <section className="facial-analysis-view">
+        <div className="empty-state-center">
+          <p className="empty-state-text">
+            {clients.length === 0
+              ? "No clients yet."
+              : searchQuery ||
+                  Object.values(filters).some((v) => v !== "" && v !== null)
+                ? "No clients found matching your search or filters."
+                : "No active clients to display."}
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="facial-analysis-view">
@@ -559,8 +563,9 @@ export default function FacialAnalysisView() {
           client={
             clients.find((c) => c.id === selectedClient.id) ?? selectedClient
           }
-          onClose={() => setSelectedClient(null)}
+          onClose={clearClient}
           onUpdate={() => refreshClients(true)}
+          initialSection={routeSection ?? undefined}
         />
       )}
 

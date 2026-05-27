@@ -138,6 +138,8 @@ import { createPortal } from "react-dom";
 import FaceMirrorPanel from "./FaceMirrorPanel";
 import { clientHas3DModel, getClientGlbUrl, setGeneratedClientGlbUrl } from "../../utils/client3dConfig";
 import { clientUsesAuraScan } from "../../utils/auraScanConfig";
+import type { ClientDetailSection } from "../../utils/dashboardRoutes";
+import { useClientDetailDeepLink } from "../../hooks/useClientDetailDeepLink";
 import { loadClientGalleryPhotoSlots } from "../../utils/clientGalleryPhotos";
 import { ponceLogoSrc } from "../../utils/ponceBrand";
 import "./ClientDetailPanel.css";
@@ -146,12 +148,15 @@ interface ClientDetailPanelProps {
   client: Client | null;
   onClose: () => void;
   onUpdate: () => void;
+  /** From `/client-details/:id?section=…` */
+  initialSection?: ClientDetailSection;
 }
 
 export default function ClientDetailPanel({
   client,
   onClose,
   onUpdate,
+  initialSection,
 }: ClientDetailPanelProps) {
   const { provider, darkMode } = useDashboard();
   const effectivePriceList = useMemo(
@@ -293,6 +298,14 @@ export default function ClientDetailPanel({
     useVisitModePlanSync({ client, onUpdate });
   const scanDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  useClientDetailDeepLink(client?.id, initialSection, {
+    openAnalysis: () => setShowAnalysisOverview(true),
+    openRecommender: () => setRecommenderMode("by-treatment"),
+    openQuiz: () => setShowSkinTypeQuiz(true),
+    openBlueprint: () => setShowShareTreatmentPlanLink(true),
+    focusMirror: () => setRecommenderMode(null),
+  });
 
   useEffect(() => {
     // Load photo slots for 3D-model clients AND for any client with a front photo,
