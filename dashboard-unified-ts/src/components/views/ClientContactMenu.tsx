@@ -75,7 +75,9 @@ export default function ClientContactMenu({
           >
             Call
             {hasPhone ? (
-              <span className="cdp-contact-menu__hint">Phone</span>
+              <span className="cdp-contact-menu__hint cdp-contact-menu__hint--value">
+                {phone!.trim()}
+              </span>
             ) : (
               <span className="cdp-contact-menu__hint cdp-contact-menu__hint--muted">
                 No phone
@@ -91,7 +93,9 @@ export default function ClientContactMenu({
           >
             Email
             {hasEmail ? (
-              <span className="cdp-contact-menu__hint">Email</span>
+              <span className="cdp-contact-menu__hint cdp-contact-menu__hint--value">
+                {email!.trim()}
+              </span>
             ) : (
               <span className="cdp-contact-menu__hint cdp-contact-menu__hint--muted">
                 No email

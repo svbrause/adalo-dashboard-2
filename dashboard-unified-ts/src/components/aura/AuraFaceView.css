@@ -568,6 +568,7 @@
   inset: 0;
   z-index: 24;
   pointer-events: none;
+  overflow: visible;
 }
 
 .avf-annotate-toolbar-portal .avf-annotate-toolbar {

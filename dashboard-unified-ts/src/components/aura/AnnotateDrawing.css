@@ -1,21 +1,22 @@
 /* Floating annotation dock (draw mode) */
 .avf-annotate-toolbar {
   position: absolute;
-  left: 50%;
+  left: 8px;
+  right: 8px;
   bottom: 14px;
   z-index: 12;
-  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 0;
-  max-width: min(96%, 720px);
+  row-gap: 6px;
+  width: auto;
+  max-width: none;
+  margin: 0 auto;
   padding: 6px 8px;
   border-radius: 999px;
-  overflow-x: auto;
-  overflow-y: visible;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  overflow: visible;
   background: rgba(10, 10, 12, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
@@ -23,10 +24,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(16px) saturate(1.2);
   pointer-events: auto;
-}
-
-.avf-annotate-toolbar::-webkit-scrollbar {
-  display: none;
+  box-sizing: border-box;
 }
 
 .avf-annotate-toolbar--compact {
@@ -49,83 +47,38 @@
   flex-shrink: 0;
 }
 
-.avf-annotate-width-trigger {
-  position: relative;
+.avf-annotate-width-presets {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.avf-annotate-width-trigger-btn {
-  display: inline-flex;
+.avf-annotate-width-preset {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 10px 0 8px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   border: none;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.82);
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
   transition:
     background 0.12s,
-    color 0.12s;
+    box-shadow 0.12s;
 }
 
-.avf-annotate-width-trigger-btn:hover,
-.avf-annotate-width-trigger-btn--open {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+.avf-annotate-width-preset:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.avf-annotate-width-trigger-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.avf-annotate-width-menu {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 10px);
-  transform: translateX(-50%);
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 112px;
-  padding: 6px;
-  border-radius: 12px;
-  background: rgba(10, 10, 12, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-}
-
-.avf-annotate-width-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-
-.avf-annotate-width-menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.avf-annotate-width-menu-item--active {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-}
-
-.avf-annotate-width-dot--trigger {
-  flex-shrink: 0;
+.avf-annotate-width-preset--active {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .avf-annotate-toolbar__actions--secondary {
@@ -312,9 +265,11 @@
   z-index: 6;
 }
 
+.avf-annotate-toolbar-portal .avf-annotate-toolbar,
 .avf-root--embedded .avf-annotate-toolbar {
   bottom: 10px;
-  max-width: min(96%, 620px);
+  left: 6px;
+  right: 6px;
 }
 
 .sr-only {

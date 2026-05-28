@@ -83,6 +83,14 @@
   font-style: italic;
 }
 
+.cdp-contact-menu__hint--value {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
 .cdp-dark .cdp-contact-menu__trigger {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.12);

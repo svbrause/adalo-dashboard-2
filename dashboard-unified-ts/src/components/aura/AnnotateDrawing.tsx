@@ -31,10 +31,10 @@ export const ANNOTATE_COLOR_PRESETS = [
 
 /** Screen-pixel stroke widths (`vectorEffect="non-scaling-stroke"` on the SVG layer). */
 const WIDTH_PRESETS = [
-  { id: "thin", label: "Thin", value: 2 },
-  { id: "medium", label: "Medium", value: 4 },
-  { id: "thick", label: "Thick", value: 7 },
-  { id: "bold", label: "Bold", value: 12 },
+  { id: "thin", label: "Thin", value: 3 },
+  { id: "medium", label: "Medium", value: 6 },
+  { id: "thick", label: "Thick", value: 11 },
+  { id: "bold", label: "Bold", value: 18 },
 ] as const;
 
 const DEFAULT_COLOR = ANNOTATE_COLOR_PRESETS[0].value;
@@ -62,8 +62,11 @@ type AnnotateDrawingProps = {
   onSave?: () => void;
   onDownload?: () => void;
   saveLabel?: string;
-  /** Mount toolbar on viewport (avoids clipping inside Face3D zoom layer). */
-  toolbarContainer?: HTMLElement | null;
+  /**
+   * Mount toolbar on viewport (avoids clipping inside Face3D zoom layer).
+   * `undefined` = render inline; `null` = wait for host; `HTMLElement` = portal target.
+   */
+  toolbarContainer?: HTMLElement | null | undefined;
 };
 
 export default function AnnotateDrawing({
@@ -73,14 +76,12 @@ export default function AnnotateDrawing({
   onSave,
   onDownload,
   saveLabel = "Save",
-  toolbarContainer = null,
+  toolbarContainer,
 }: AnnotateDrawingProps) {
   const maskId = useId().replace(/:/g, "");
   const [tool, setTool] = useState<AnnotateTool>("pen");
   const [color, setColor] = useState<string>(DEFAULT_COLOR);
   const [width, setWidth] = useState<number>(DEFAULT_WIDTH);
-  const [widthMenuOpen, setWidthMenuOpen] = useState(false);
-  const widthMenuRef = useRef<HTMLDivElement>(null);
   const [internalStrokes, setInternalStrokes] = useState<AnnotateStroke[]>([]);
   const [redoStack, setRedoStack] = useState<AnnotateStroke[]>([]);
   const [current, setCurrent] = useState<AnnotateStroke | null>(null);
@@ -171,24 +172,6 @@ export default function AnnotateDrawing({
     return () => window.removeEventListener("keydown", onKey);
   }, [active, undo, redo]);
 
-  useEffect(() => {
-    if (!widthMenuOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (widthMenuRef.current?.contains(t)) return;
-      setWidthMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [widthMenuOpen]);
-
-  useEffect(() => {
-    if (!active) setWidthMenuOpen(false);
-  }, [active]);
-
-  const activeWidthPreset =
-    WIDTH_PRESETS.find((preset) => preset.value === width) ?? WIDTH_PRESETS[1];
-
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
     if (!active) return;
     e.preventDefault();
@@ -227,6 +210,7 @@ export default function AnnotateDrawing({
       className={`avf-annotate-toolbar${active ? "" : " avf-annotate-toolbar--compact"}`}
       role="toolbar"
       aria-label="Annotation tools"
+      onPointerDown={(e) => e.stopPropagation()}
     >
       {active ? (
         <>
@@ -314,54 +298,29 @@ export default function AnnotateDrawing({
           </div>
           <span className="avf-annotate-toolbar__divider" aria-hidden />
           <div
-            ref={widthMenuRef}
-            className="avf-annotate-toolbar__cluster avf-annotate-width-trigger"
+            className="avf-annotate-toolbar__cluster avf-annotate-width-presets"
+            role="group"
+            aria-label="Line thickness"
           >
-            <button
-              type="button"
-              className={`avf-annotate-width-trigger-btn${widthMenuOpen ? " avf-annotate-width-trigger-btn--open" : ""}`}
-              title={`Line size: ${activeWidthPreset.label}`}
-              aria-label={`Line size: ${activeWidthPreset.label}`}
-              aria-haspopup="menu"
-              aria-expanded={widthMenuOpen}
-              onClick={() => setWidthMenuOpen((open) => !open)}
-            >
-              <span
-                className="avf-annotate-width-dot avf-annotate-width-dot--trigger"
-                style={{
-                  width: 4 + activeWidthPreset.value * 0.55,
-                  height: 4 + activeWidthPreset.value * 0.55,
-                }}
-              />
-              <span className="avf-annotate-width-trigger-label">{activeWidthPreset.label}</span>
-            </button>
-            {widthMenuOpen ? (
-              <div className="avf-annotate-width-menu" role="menu" aria-label="Line size">
-                {WIDTH_PRESETS.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={width === preset.value}
-                    className={`avf-annotate-width-menu-item${width === preset.value ? " avf-annotate-width-menu-item--active" : ""}`}
-                    title={preset.label}
-                    onClick={() => {
-                      setWidth(preset.value);
-                      setWidthMenuOpen(false);
-                    }}
-                  >
-                    <span
-                      className="avf-annotate-width-dot"
-                      style={{
-                        width: 4 + preset.value * 0.55,
-                        height: 4 + preset.value * 0.55,
-                      }}
-                    />
-                    <span>{preset.label}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            {WIDTH_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={`avf-annotate-width-preset${width === preset.value ? " avf-annotate-width-preset--active" : ""}`}
+                title={`${preset.label} (${preset.value}px)`}
+                aria-label={preset.label}
+                aria-pressed={width === preset.value}
+                onClick={() => setWidth(preset.value)}
+              >
+                <span
+                  className="avf-annotate-width-dot"
+                  style={{
+                    width: 4 + preset.value * 0.5,
+                    height: 4 + preset.value * 0.5,
+                  }}
+                />
+              </button>
+            ))}
           </div>
         </>
       ) : (
@@ -431,13 +390,18 @@ export default function AnnotateDrawing({
     </div>
   ) : null;
 
+  const toolbarMount =
+    toolbar === null
+      ? null
+      : toolbarContainer === undefined
+        ? toolbar
+        : toolbarContainer
+          ? createPortal(toolbar, toolbarContainer)
+          : null;
+
   return (
     <>
-      {toolbar
-        ? toolbarContainer
-          ? createPortal(toolbar, toolbarContainer)
-          : toolbar
-        : null}
+      {toolbarMount}
 
       {showCanvas ? (
         <svg

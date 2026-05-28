@@ -1053,7 +1053,7 @@ export default function AuraFaceView({
       onStrokesChange={onAnnotateStrokesChange}
       onSave={onAnnotateSave ? handleAnnotateSave : undefined}
       onDownload={handleAnnotateDownload}
-      toolbarContainer={embedded ? annotateToolbarHost : null}
+      toolbarContainer={embedded ? annotateToolbarHost : undefined}
     />
   );
 
