@@ -112,6 +112,7 @@
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -122,25 +123,70 @@
 }
 
 .fmp-fullscreen-split-overview-main {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .fmp-fullscreen-split-overview-lower {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   border-top: none;
   background: #0d0d0d;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * Recommender expanded: split the column 50/50.
+ * Analysis gets a shorter viewport and scrolls; recommender keeps equal space.
+ */
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  ) {
+  min-height: 0;
+}
+
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .fmp-fullscreen-split-overview-main {
+  flex: 1 1 50%;
+  min-height: 0;
+  max-height: 50%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .fmp-fullscreen-split-overview-lower {
+  flex: 1 1 50%;
+  min-height: 260px;
+  max-height: none;
+  overflow: hidden;
 }
 
 /* When recommender is collapsed, dock it to bottom and let analysis fill height. */
 .fmp-fullscreen-split-overview-lower:has(.cdp-expanded-planbuilder--collapsed) {
   flex: 0 0 auto;
   min-height: 0;
+  max-height: none;
   overflow: visible;
+}
+
+.fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
+  .fmp-fullscreen-split-overview-main {
+  flex: 1 1 auto;
+  max-height: none;
+  overflow: hidden;
 }
 
 .fmp-fullscreen-split-overview--solo {

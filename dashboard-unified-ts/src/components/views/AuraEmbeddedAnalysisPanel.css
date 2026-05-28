@@ -49,9 +49,17 @@
 
 .aura-embedded-panel__expandable-inner {
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
+}
+
+/* Recommender closed: inner analysis scrolls inside full-height column. */
+.fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
+  .aura-embedded-panel__expandable-inner {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -200,6 +208,32 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   padding: 12px 14px 24px;
+}
+
+/* Recommender open: main column scrolls; category grows naturally. */
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .aura-embedded-panel {
+  height: auto;
+  min-height: min-content;
+}
+
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .aura-embedded-panel__category,
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .aura-embedded-panel__plan,
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .aura-embedded-panel__files {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
 }
 
 .aura-embedded-panel__cat-header {

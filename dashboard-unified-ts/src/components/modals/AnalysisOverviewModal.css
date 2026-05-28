@@ -13,10 +13,15 @@
 .analysis-overview-modal.analysis-overview-modal--embedded {
   min-height: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .analysis-overview-modal.analysis-overview-modal--embedded .analysis-overview-modal__body {
+  flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .analysis-overview-modal--aura-embedded {
@@ -30,10 +35,43 @@
 
 .analysis-overview-modal--aura-embedded .analysis-overview-modal__body {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding: 0;
+}
+
+.analysis-overview-modal--aura-embedded .analysis-overview-modal__embedded-root {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+}
+
+/* When analysis column is height-capped (recommender open), panel fills scrollable main. */
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .analysis-overview-modal__embedded-root {
+  min-height: min-content;
+}
+
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .analysis-overview-modal--aura-embedded {
+  height: auto;
+  min-height: min-content;
+}
+
+.fmp-fullscreen-split-overview:has(
+    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
+  )
+  .analysis-overview-modal--aura-embedded .analysis-overview-modal__body {
+  height: auto;
+  min-height: min-content;
+  overflow: visible;
 }
 
 .analysis-overview-modal {

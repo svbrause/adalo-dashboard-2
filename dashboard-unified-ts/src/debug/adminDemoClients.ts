@@ -10,13 +10,21 @@
  *  2. Injection is enabled (always on for Admin provider unless VITE_ADMIN_DEMO_CLIENTS=false).
  */
 
-import type { Client, DiscussedItem, AnalysisSeverityScoresData, Provider } from "../types";
+import type {
+  Client,
+  DiscussedItem,
+  AnalysisSeverityScoresData,
+  DemoFacialAnalysisAi,
+  Provider,
+} from "../types";
 import { isAdminBlueprintProvider } from "../utils/providerHelpers";
 import { TANYA_TAN_SKINCARE_QUIZ } from "./adminDemoSkincareQuiz";
 import { TANYA_TAN_GALLERY_PHOTO_SLOTS } from "../utils/auraTanAnglePhotos";
 import tanyaTanSeverityScoresJson from "./tanya-tan-severity-scores.json";
+import tanyaTanAnalysisAiJson from "./tanya-tan-analysis-ai.json";
 
 const TANYA_TAN_SEVERITY = tanyaTanSeverityScoresJson as AnalysisSeverityScoresData;
+const TANYA_TAN_ANALYSIS_AI = tanyaTanAnalysisAiJson as DemoFacialAnalysisAi;
 
 /** Issue labels with predicted=true from Modal severity run, highest badness first. */
 const TANYA_TAN_DETECTED_ISSUES = Object.entries(TANYA_TAN_SEVERITY.issues ?? {})
@@ -229,6 +237,7 @@ export function getAdminDemoClients(): Client[] {
       skinComplaints: "Fine lines, uneven tone, occasional dryness",
       aestheticGoals: "Full demo — Aura scan, analysis overview, skincare quiz & routine",
       severityScoresFromAnalyses: TANYA_TAN_SEVERITY,
+      demoFacialAnalysisAi: TANYA_TAN_ANALYSIS_AI,
       skincareQuiz: TANYA_TAN_SKINCARE_QUIZ,
       discussedItems: [
         item({

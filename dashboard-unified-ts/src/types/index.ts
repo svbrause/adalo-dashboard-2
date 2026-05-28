@@ -136,6 +136,15 @@ export interface AnalysisSeverityScoresData {
   issues: Record<string, AnalysisSeverityIssue>;
 }
 
+/** Pre-generated OpenAI/Gemini copy for admin demo patients (skips live LLM in overview). */
+export interface DemoFacialAnalysisAi {
+  overview: string;
+  categories?: Partial<
+    Record<"skinHealth" | "volumeLoss" | "proportions", string>
+  >;
+  generatedAt?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -204,6 +213,8 @@ export interface Client {
   wellnessQuiz?: WellnessQuizData | null;
   /** Patients: optional long-text JSON from "Severity Scores (from Analyses)". */
   severityScoresFromAnalyses?: AnalysisSeverityScoresData | null;
+  /** Admin demos: cached AI overview/category narratives (see scripts/revise-tanya-analysis-openai.ts). */
+  demoFacialAnalysisAi?: DemoFacialAnalysisAi | null;
   /**
    * Extra angles for the client-detail face mirror (front / side / form uploads).
    * Used by admin demos without Airtable; otherwise filled via {@link loadClientGalleryPhotoSlots}.

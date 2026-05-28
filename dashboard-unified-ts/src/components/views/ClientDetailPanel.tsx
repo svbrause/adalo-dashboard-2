@@ -1148,7 +1148,7 @@ export default function ClientDetailPanel({
       ];
     })();
 
-    const topFindings = prioritizedFindings.slice(0, 5);
+    const findingsForRecommendations = prioritizedFindings.slice(0, 5);
 
     const getFallbackMappingForIssue = (finding: string) => {
       const lowered = normalizeIssue(finding);
@@ -1170,7 +1170,7 @@ export default function ClientDetailPanel({
       };
     };
 
-    const highImpactTreatments = topFindings
+    const highImpactTreatments = findingsForRecommendations
       .flatMap((finding) => {
         const f = finding.finding.toLowerCase();
         const mapped = FINDING_TO_GOAL_REGION_TREATMENTS.find((row) =>
@@ -1262,31 +1262,10 @@ export default function ClientDetailPanel({
           }`}
           aria-hidden={expandedRecommenderCollapsed}
         >
-        <div className="cdp-expanded-planbuilder__analysis">
-          {topFindings.length > 0 ? (
-            <div className="cdp-expanded-planbuilder__analysis-block">
-              <span className="cdp-expanded-planbuilder__analysis-label">
-                Top findings
-              </span>
-              <ul className="cdp-expanded-planbuilder__finding-list">
-                {topFindings.map((issue) => (
-                  <li key={`issue-${issue.finding}`} className="cdp-expanded-planbuilder__finding-item">
-                    <span className="cdp-expanded-planbuilder__finding-name">{issue.finding}</span>
-                    <span className={`cdp-expanded-planbuilder__severity cdp-expanded-planbuilder__severity--${issue.level.toLowerCase().replace(/[^a-z]/g, "")}`}>
-                      {issue.level}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <span className="cdp-expanded-planbuilder__analysis-empty">No findings available</span>
-          )}
-        </div>
         {highImpactTreatments.length > 0 ? (
           <div className="cdp-expanded-planbuilder__quick-add">
             <span className="cdp-expanded-planbuilder__analysis-label">
-              High-impact treatments
+              Recommended treatments
             </span>
             <div className="cdp-expanded-planbuilder__quick-add-list">
               {highImpactTreatments.map((qa) => (
@@ -1295,7 +1274,7 @@ export default function ClientDetailPanel({
                     {qa.treatment}
                   </span>
                   <span className="cdp-expanded-planbuilder__quick-add-meta">
-                    {qa.goal} · addresses {qa.findings.length} top finding{qa.findings.length !== 1 ? "s" : ""}
+                    {qa.goal} · addresses {qa.findings.length} finding{qa.findings.length !== 1 ? "s" : ""}
                   </span>
                   <p className="cdp-expanded-planbuilder__quick-add-findings">
                     {qa.findings.slice(0, 3).map((f, i) => (
@@ -1332,7 +1311,11 @@ export default function ClientDetailPanel({
               ))}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p className="cdp-expanded-planbuilder__analysis-empty">
+            No treatment recommendations for this category yet.
+          </p>
+        )}
         </div>
       </section>
     );

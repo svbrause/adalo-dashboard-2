@@ -935,6 +935,14 @@ function CategoryDetailContent({
 
   useEffect(() => {
     if (!catResult) return;
+    const cachedCategory = client.demoFacialAnalysisAi?.categories?.[
+      categoryKey as keyof NonNullable<typeof client.demoFacialAnalysisAi.categories>
+    ]?.trim();
+    if (cachedCategory) {
+      setAiCatText(cachedCategory);
+      setAiCatLoading(false);
+      return;
+    }
     let mounted = true;
     setAiCatLoading(true);
     fetchCategoryAssessment({
@@ -962,7 +970,13 @@ function CategoryDetailContent({
     return () => {
       mounted = false;
     };
-  }, [catResult, detectedIssueNames, strengthIssueNames]);
+  }, [
+    catResult,
+    categoryKey,
+    client.demoFacialAnalysisAi?.categories,
+    detectedIssueNames,
+    strengthIssueNames,
+  ]);
 
   const displayCatAssessment = aiCatText || categoryDescription;
   const color = tierColor(catResult.tier);
@@ -1440,6 +1454,12 @@ export default function AnalysisOverviewModal({
 
   useEffect(() => {
     if (detectedIssues.size === 0) return;
+    const cachedOverview = client?.demoFacialAnalysisAi?.overview?.trim();
+    if (cachedOverview) {
+      setAiAssessmentText(cachedOverview);
+      setAiAssessmentLoading(false);
+      return;
+    }
     let mounted = true;
     setAiAssessmentLoading(true);
     const detectedList = Array.from(detectedIssues);
@@ -1465,7 +1485,7 @@ export default function AnalysisOverviewModal({
     return () => {
       mounted = false;
     };
-  }, [detectedIssues, overall, categories, focusCount]);
+  }, [client?.demoFacialAnalysisAi?.overview, detectedIssues, overall, categories, focusCount]);
 
   const displayAssessment = aiAssessmentText || assessmentText;
 

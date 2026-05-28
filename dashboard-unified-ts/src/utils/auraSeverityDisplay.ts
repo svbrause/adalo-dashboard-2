@@ -62,6 +62,19 @@ export function severityColorFromBadness(badness01: number): string {
   return tierColor(scoreTier(severityHealthScoreFromBadness(badness01)));
 }
 
+/**
+ * Color for issue badges/dots from `severity_level` text — not the category score tier.
+ * Keeps “mild” mint (calm) instead of amber, so it doesn’t fight a green “Very Good” skin score.
+ */
+export function severityLevelColor(level: string | undefined): string | undefined {
+  const n = (level ?? "").trim().toLowerCase().replace(/[^a-z]/g, "");
+  if (!n || n === "none" || n === "minimal") return "#94a3b8";
+  if (n === "low" || n === "mild") return "#5eead4";
+  if (n === "moderate" || n.includes("moderate")) return "#fbbf24";
+  if (n === "severe" || n === "high") return "#f87171";
+  return undefined;
+}
+
 export function severityFillOpacity(badness01: number): number {
   const b = Math.max(0, Math.min(1, badness01));
   return 0.22 + b * 0.58;
@@ -84,11 +97,12 @@ export function issueSeverityVisual(
   const payload = getSeverityPayloadForIssueLabel(issueName, severityIssues);
   const badness = payload ? inferSeverityBadness01(payload) : undefined;
   if (badness !== undefined && Number.isFinite(badness)) {
+    const levelColor = severityLevelColor(payload?.severity_level);
     return {
       issue: issueName,
       badness01: badness,
       healthScore: severityHealthScoreFromBadness(badness),
-      color: severityColorFromBadness(badness),
+      color: levelColor ?? severityColorFromBadness(badness),
       hasSeverityPayload: true,
       severityLevel: payload?.severity_level,
     };
