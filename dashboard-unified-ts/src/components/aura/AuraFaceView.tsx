@@ -7,9 +7,12 @@ import {
   type ReactNode,
 } from "react";
 import Face3DViewer from "../views/Face3DViewer";
-import auraTurntableVideo from "../../assets/images/turntable_2048_black.mp4";
-import auraTurntableSkinGrayVideo from "../../assets/images/turntable_2048_black_pigmentation_gray.mp4";
-import auraTurntablePigmentationVideo from "../../assets/images/turntable_2048_black_pigmentation_brown.mp4";
+import auraTurntableVideo from "../../assets/images/turntable_1024_black_scrub.mp4";
+import auraTurntableReverseVideo from "../../assets/images/turntable_1024_black_scrub_reverse.mp4";
+import auraTurntableSkinGrayVideo from "../../assets/images/turntable_1024_black_skin_gray_scrub.mp4";
+import auraTurntableSkinGrayReverseVideo from "../../assets/images/turntable_1024_black_skin_gray_scrub_reverse.mp4";
+import auraTurntablePigmentationVideo from "../../assets/images/turntable_1024_black_pigmentation_brown_scrub.mp4";
+import auraTurntablePigmentationReverseVideo from "../../assets/images/turntable_1024_black_pigmentation_brown_scrub_reverse.mp4";
 import aura90LeftIcon from "../../assets/images/aura-90degrees-left.png";
 import aura45LeftIcon from "../../assets/images/aura-45degrees-left.png";
 import aura45LeftSkinIcon from "../../assets/images/45-left-rembg.png";
@@ -929,6 +932,14 @@ export default function AuraFaceView({
       : pigmentationTurntableMode
         ? auraTurntablePigmentationVideo
         : videoUrl;
+  const activeReverseVideoUrl =
+    textureTurntableMode
+      ? auraTurntableSkinGrayReverseVideo
+      : pigmentationTurntableMode
+        ? auraTurntablePigmentationReverseVideo
+        : activeVideoUrl === auraTurntableVideo
+          ? auraTurntableReverseVideo
+          : undefined;
 
   const annotateExportAngle = embeddedPhotoStills ? activePhotoAngle : activeTurntableAngle;
   const annotateAngleLabel =
@@ -1249,6 +1260,7 @@ export default function AuraFaceView({
                   <Face3DViewer
                     key={activeVideoUrl}
                     videoUrl={activeVideoUrl}
+                    reverseVideoUrl={activeReverseVideoUrl}
                     autoRotate={autoRotate}
                     controlledTimeRatio={
                       autoRotate ? undefined : turntableOnly ? blendRatio : activeTimeRatio

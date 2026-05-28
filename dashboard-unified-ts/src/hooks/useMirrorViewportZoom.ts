@@ -28,17 +28,20 @@ export function useMirrorViewportZoom({
   const [zoom, setZoom] = useState(initialZoom);
   const panningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const panRafRef = useRef(0);
 
   useEffect(() => {
     minZoomRef.current = Math.max(MIN_ZOOM, initialZoom);
   }, [initialZoom]);
 
   const applyTransform = useCallback(
-    (px: number, py: number, z: number) => {
+    (px: number, py: number, z: number, notify = true) => {
       if (zoomLayerRef.current) {
-        zoomLayerRef.current.style.transform = `translate(${px}px, ${py}px) scale(${z})`;
+        const x = Math.round(px);
+        const y = Math.round(py);
+        zoomLayerRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${z})`;
       }
-      onTransformChange?.();
+      if (notify) onTransformChange?.();
     },
     [zoomLayerRef, onTransformChange],
   );
@@ -113,12 +116,21 @@ export function useMirrorViewportZoom({
       const dy = e.clientY - panStartRef.current.y;
       panXRef.current = panStartRef.current.panX + dx;
       panYRef.current = panStartRef.current.panY + dy;
-      applyTransform(panXRef.current, panYRef.current, zoomRef.current);
+      if (panRafRef.current) return;
+      panRafRef.current = requestAnimationFrame(() => {
+        panRafRef.current = 0;
+        applyTransform(panXRef.current, panYRef.current, zoomRef.current, false);
+      });
     };
 
     const endPan = (e: PointerEvent) => {
       if (!panningRef.current) return;
       panningRef.current = false;
+      if (panRafRef.current) {
+        cancelAnimationFrame(panRafRef.current);
+        panRafRef.current = 0;
+      }
+      applyTransform(panXRef.current, panYRef.current, zoomRef.current, true);
       viewer.style.cursor = zoomRef.current > minZoomRef.current ? "grab" : "";
       try {
         viewer.releasePointerCapture(e.pointerId);
@@ -132,6 +144,7 @@ export function useMirrorViewportZoom({
     viewer.addEventListener("pointerup", endPan);
     viewer.addEventListener("pointercancel", endPan);
     return () => {
+      if (panRafRef.current) cancelAnimationFrame(panRafRef.current);
       viewer.removeEventListener("pointerdown", onPointerDown);
       viewer.removeEventListener("pointermove", onPointerMove);
       viewer.removeEventListener("pointerup", endPan);
