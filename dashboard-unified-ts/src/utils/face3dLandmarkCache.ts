@@ -41,11 +41,21 @@ export function pruneFace3dLandmarkCaches(keepVideoUrl: string): void {
   }
 }
 
+/**
+ * Overlays must match the same 30fps bucket as the turntable video.
+ * Only exact-key landmarks are shown (maxKeyDelta 0).
+ */
+/** Allow ±1 bucket when the exact frame is still processing. */
+export const FACE3D_LANDMARK_DISPLAY_MAX_DELTA = 1;
+
+/** @deprecated Use FACE3D_LANDMARK_DISPLAY_MAX_DELTA — kept for callers/tests. */
+export const FACE3D_LANDMARK_RESOLVE_MAX_DELTA = FACE3D_LANDMARK_DISPLAY_MAX_DELTA;
+
 /** Nearest cached landmarks within ±maxKeyDelta buckets (~1/FACE3D_TIMELINE_FPS s each). */
 export function resolveLandmarksForTimeKey(
   cache: FrameLandmarkCache,
   timeKey: number,
-  maxKeyDelta = 1,
+  maxKeyDelta = FACE3D_LANDMARK_DISPLAY_MAX_DELTA,
 ): NormalizedLandmark[] | null {
   const exact = cache.get(timeKey);
   if (exact?.length) return exact;

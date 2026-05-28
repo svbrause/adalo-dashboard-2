@@ -24,5 +24,7 @@ describe("face3d timeline helpers", () => {
     expect(resolveLandmarksForTimeKey(cache, 10, 1)?.[0]?.x).toBe(0.5);
     expect(resolveLandmarksForTimeKey(cache, 11, 1)?.[0]?.x).toBe(0.5);
     expect(resolveLandmarksForTimeKey(cache, 15, 1)).toBeNull();
+    expect(resolveLandmarksForTimeKey(cache, 11)?.[0]?.x).toBe(0.5);
+    expect(resolveLandmarksForTimeKey(cache, 15)).toBeNull();
   });
 });

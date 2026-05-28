@@ -13,6 +13,7 @@ import {
 } from "../postVisitBlueprint/AiMirrorCanvas";
 import { getFaceLandmarker } from "../../utils/faceLandmarker";
 import {
+  FACE3D_LANDMARK_DISPLAY_MAX_DELTA,
   FACE3D_TIMELINE_FPS,
   face3dTimelineKey,
   face3dTimelineTimeFromKey,
@@ -50,9 +51,20 @@ const ANNOTATION_DETECT_MAX_DIM = 512;
  * Shared timeline for decoded turntable frames + MediaPipe landmarks.
  * Using one bucket rate prevents overlay drift when scrubbing (was 60fps video vs 30fps landmarks).
  */
-const TIMELINE_KEY_MAX_DELTA = 1;
 /** Wider tolerance during reverse cache playback (forward play may skip occasional buckets). */
 const FRAME_CACHE_REVERSE_MAX_KEY_DELTA = 4;
+/** Prefetch ±N buckets around interactive requests (scrub / playback). */
+const LANDMARK_DETECT_NEIGHBOR_SPAN = 1;
+/** Max pending landmark keys (prevents memory / seek storms). */
+const LANDMARK_QUEUE_MAX = 32;
+/** MediaPipe jobs per idle slice — yields to the main thread between batches. */
+const LANDMARK_BATCH_MAX = 4;
+/** GPU frame bitmaps kept near the current timeline key. */
+const FRAME_CACHE_MAX = 48;
+/** Initial backfill radius + sparse stride when highlights turn on. */
+const LANDMARK_PRIME_RADIUS = 12;
+const LANDMARK_PRIME_STRIDE = 10;
+const LANDMARK_PRIME_MAX_KEYS = 36;
 
 interface Face3DViewerProps {
   videoUrl: string;
@@ -461,6 +473,29 @@ function findNearestFrame(
   return null;
 }
 
+function pruneFrameCache(cache: Map<number, ImageBitmap>, keepNearKey: number): void {
+  if (cache.size <= FRAME_CACHE_MAX) return;
+  const keys = [...cache.keys()].sort(
+    (a, b) => Math.abs(a - keepNearKey) - Math.abs(b - keepNearKey),
+  );
+  for (let i = FRAME_CACHE_MAX; i < keys.length; i++) {
+    const k = keys[i]!;
+    cache.get(k)?.close();
+    cache.delete(k);
+  }
+}
+
+function isTurntablePlaybackActive(
+  forward: HTMLVideoElement | null,
+  reverse: HTMLVideoElement | null,
+  active: "forward" | "reverse",
+  dragging: boolean,
+): boolean {
+  if (dragging) return true;
+  if (active === "reverse") return Boolean(reverse && !reverse.paused);
+  return Boolean(forward && !forward.paused);
+}
+
 function clearAnnotationOverlay(overlayCanvas: HTMLCanvasElement | null): void {
   if (!overlayCanvas) return;
   const ctx = overlayCanvas.getContext("2d");
@@ -514,7 +549,13 @@ export default function Face3DViewer({
   const landmarksByTimeKeyRef = useRef(getFace3dLandmarkCache(videoUrl));
   const pendingLandmarkKeysRef = useRef<Set<number>>(new Set());
   const landmarkKeyQueueRef = useRef<number[]>([]);
+  const deferredLandmarkKeysRef = useRef<Set<number>>(new Set());
   const processingLandmarkQueueRef = useRef(false);
+  const landmarkProcessorGenRef = useRef(0);
+  const lastCaptureKeyRef = useRef(-9999);
+  const enqueueLandmarkDetectionRef = useRef<
+    ((key: number, opts?: { expandNeighbors?: boolean }) => void) | null
+  >(null);
 
   const autoRotateRef = useRef(autoRotate);
   const autoDirRef = useRef<1 | -1>(1);
@@ -524,7 +565,6 @@ export default function Face3DViewer({
   const scrubTargetYawRef = useRef(0);
   const scrubDisplayYawRef = useRef(0);
   const lastScrubSeekAtRef = useRef(0);
-  const lastDisplayedLandmarksRef = useRef<NormalizedLandmark[] | null>(null);
   const autoPlaybackControllerRef = useRef<{
     start: (preferredDir?: 1 | -1) => void;
     stop: () => void;
@@ -563,14 +603,12 @@ export default function Face3DViewer({
       clearAnnotationOverlay(overlayRef.current);
       return;
     }
-    const cached = resolveLandmarksForTimeKey(
+    const landmarks = resolveLandmarksForTimeKey(
       landmarksByTimeKeyRef.current,
       currentTimeKeyRef.current,
-      TIMELINE_KEY_MAX_DELTA,
+      FACE3D_LANDMARK_DISPLAY_MAX_DELTA,
     );
-    const landmarks = cached;
     if (landmarks?.length) {
-      lastDisplayedLandmarksRef.current = landmarks;
       const { w, h } = displaySizeRef.current;
       renderAnnotationOverlay(
         overlayRef.current,
@@ -582,7 +620,7 @@ export default function Face3DViewer({
         zoomRef.current,
         panXRef.current,
       );
-    } else if (draggingRef.current) {
+    } else {
       clearAnnotationOverlay(overlayRef.current);
     }
   }, []);
@@ -633,9 +671,18 @@ export default function Face3DViewer({
     return true;
   }, []);
 
+  const activeCaptureVideo = useCallback((): HTMLVideoElement | null => {
+    if (activeVideoRef.current === "reverse") {
+      const reverse = reverseVideoRef.current;
+      if (reverse && reverse.readyState >= 2) return reverse;
+    }
+    const forward = videoRef.current;
+    return forward && forward.readyState >= 2 ? forward : null;
+  }, []);
+
   const captureFrameBitmapAtKey = useCallback((key: number): Promise<void> => {
-    const video = videoRef.current;
-    if (!video || video.readyState < 2) return Promise.resolve();
+    const video = activeCaptureVideo();
+    if (!video) return Promise.resolve();
     if (frameCacheRef.current.has(key)) return Promise.resolve();
     const srcW = video.videoWidth || DEFAULT_VIDEO_W;
     const srcH = video.videoHeight || DEFAULT_VIDEO_H;
@@ -656,27 +703,23 @@ export default function Face3DViewer({
         const prior = frameCacheRef.current.get(key);
         if (prior) prior.close();
         frameCacheRef.current.set(key, bitmap);
+        pruneFrameCache(frameCacheRef.current, currentTimeKeyRef.current);
         resolve();
       });
     });
-  }, []);
-
-  const captureCurrentFrame = useCallback(() => {
-    const video = videoRef.current;
-    if (!video || video.readyState < 2) return;
-    const key = face3dTimelineKey(video.currentTime);
-    void captureFrameBitmapAtKey(key);
-  }, [captureFrameBitmapAtKey]);
+  }, [activeCaptureVideo]);
 
   useEffect(() => {
     pruneFace3dLandmarkCaches(videoUrl);
     landmarksByTimeKeyRef.current = getFace3dLandmarkCache(videoUrl);
     pendingLandmarkKeysRef.current.clear();
     landmarkKeyQueueRef.current = [];
+    deferredLandmarkKeysRef.current.clear();
     processingLandmarkQueueRef.current = false;
+    landmarkProcessorGenRef.current += 1;
+    lastCaptureKeyRef.current = -9999;
     yawRef.current = 0;
     currentTimeKeyRef.current = 0;
-    lastDisplayedLandmarksRef.current = null;
     setVideoError(null);
     // Release GPU-backed ImageBitmaps from the previous video
     for (const bmp of frameCacheRef.current.values()) bmp.close();
@@ -758,7 +801,206 @@ export default function Face3DViewer({
     setVideoError("3D preview video could not be loaded.");
   }, []);
 
-  const enqueueLandmarkDetection = useCallback((key: number) => {
+  const trimLandmarkQueue = useCallback(() => {
+    const queue = landmarkKeyQueueRef.current;
+    if (queue.length <= LANDMARK_QUEUE_MAX) return;
+    const current = currentTimeKeyRef.current;
+    const near = queue.filter((k) => Math.abs(k - current) <= 4);
+    const far = queue.filter((k) => Math.abs(k - current) > 4);
+    landmarkKeyQueueRef.current = [
+      ...near,
+      ...far.slice(-(LANDMARK_QUEUE_MAX - near.length)),
+    ];
+  }, []);
+
+  const drainDeferredLandmarkKeys = useCallback((maxKeys = 12) => {
+    const forward = videoRef.current;
+    const reverse = reverseVideoRef.current;
+    if (
+      isTurntablePlaybackActive(
+        forward,
+        reverse,
+        activeVideoRef.current,
+        draggingRef.current,
+      )
+    ) {
+      return;
+    }
+    const current = currentTimeKeyRef.current;
+    const sorted = [...deferredLandmarkKeysRef.current].sort(
+      (a, b) => Math.abs(a - current) - Math.abs(b - current),
+    );
+    deferredLandmarkKeysRef.current.clear();
+    for (const k of sorted.slice(0, maxKeys)) {
+      if (
+        landmarksByTimeKeyRef.current.has(k) ||
+        pendingLandmarkKeysRef.current.has(k) ||
+        landmarkKeyQueueRef.current.includes(k)
+      ) {
+        continue;
+      }
+      pendingLandmarkKeysRef.current.add(k);
+      landmarkKeyQueueRef.current.push(k);
+    }
+    trimLandmarkQueue();
+  }, [trimLandmarkQueue]);
+
+  const processLandmarkQueueRef = useRef<() => Promise<void>>(async () => {});
+
+  const scheduleLandmarkProcessor = useCallback((delayMs = 0) => {
+    const run = () => {
+      if (processingLandmarkQueueRef.current) return;
+      void processLandmarkQueueRef.current();
+    };
+    if (delayMs > 0) window.setTimeout(run, delayMs);
+    else run();
+  }, []);
+
+  const processLandmarkQueue = useCallback(async () => {
+    if (processingLandmarkQueueRef.current) return;
+    if (landmarkKeyQueueRef.current.length === 0) return;
+    processingLandmarkQueueRef.current = true;
+    const gen = landmarkProcessorGenRef.current;
+
+    try {
+      const landmarker = await getFaceLandmarker();
+      let processed = 0;
+      let seekedThisBatch = false;
+
+      while (
+        processed < LANDMARK_BATCH_MAX &&
+        landmarkKeyQueueRef.current.length > 0 &&
+        gen === landmarkProcessorGenRef.current
+      ) {
+        const nextKey = landmarkKeyQueueRef.current.shift()!;
+        const forward = videoRef.current;
+        const reverse = reverseVideoRef.current;
+        const active = activeVideoRef.current;
+        const v =
+          active === "reverse" && reverse?.readyState && reverse.readyState >= 2
+            ? reverse
+            : forward;
+        const targetTime = face3dTimelineTimeFromKey(nextKey);
+        const duration =
+          forward?.duration && isFinite(forward.duration) ? forward.duration : 0;
+        const playbackTime =
+          v === reverse && duration ? duration - targetTime : targetTime;
+        const timeTolerance = draggingRef.current ? 0.02 : 0.04;
+        const cachedFrame = frameCacheRef.current.get(nextKey);
+        const playbackActive = isTurntablePlaybackActive(
+          forward,
+          reverse,
+          active,
+          draggingRef.current,
+        );
+
+        if (!v || v.readyState < 2) {
+          pendingLandmarkKeysRef.current.delete(nextKey);
+          processed++;
+          await idle();
+          continue;
+        }
+
+        if (!cachedFrame) {
+          if (playbackActive) {
+            deferredLandmarkKeysRef.current.add(nextKey);
+            pendingLandmarkKeysRef.current.delete(nextKey);
+            processed++;
+            await idle();
+            continue;
+          }
+          if (
+            !seekedThisBatch &&
+            !draggingRef.current &&
+            Math.abs(v.currentTime - playbackTime) > timeTolerance
+          ) {
+            const seekTarget =
+              v === reverse && duration ? duration - targetTime : targetTime;
+            seekVideoPrecisely(v, seekTarget, SCRUB_SEEK_EPS_DRAG);
+            pendingLandmarkKeysRef.current.delete(nextKey);
+            landmarkKeyQueueRef.current.unshift(nextKey);
+            seekedThisBatch = true;
+            processed++;
+            break;
+          }
+        }
+
+        const srcW = v.videoWidth || DEFAULT_VIDEO_W;
+        const srcH = v.videoHeight || DEFAULT_VIDEO_H;
+        const scale = Math.min(1, ANNOTATION_DETECT_MAX_DIM / Math.max(srcW, srcH));
+        const w = Math.max(1, Math.round(srcW * scale));
+        const h = Math.max(1, Math.round(srcH * scale));
+        const canvas =
+          annotationDetectCanvasRef.current ?? document.createElement("canvas");
+        annotationDetectCanvasRef.current = canvas;
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          pendingLandmarkKeysRef.current.delete(nextKey);
+          processed++;
+          await idle();
+          continue;
+        }
+        ctx.clearRect(0, 0, w, h);
+
+        if (cachedFrame) {
+          ctx.drawImage(cachedFrame, 0, 0, w, h);
+        } else {
+          ctx.drawImage(v, 0, 0, w, h);
+        }
+
+        const result = landmarker.detect(canvas);
+        const landmarks = result.faceLandmarks?.[0] ?? null;
+        landmarksByTimeKeyRef.current.set(nextKey, landmarks);
+        pendingLandmarkKeysRef.current.delete(nextKey);
+        if (
+          showAnnotationsRef.current &&
+          landmarks?.length &&
+          Math.abs(nextKey - currentTimeKeyRef.current) <=
+            FACE3D_LANDMARK_DISPLAY_MAX_DELTA
+        ) {
+          renderCachedAnnotations();
+        }
+        processed++;
+        await idle();
+      }
+    } catch (err) {
+      console.warn("[Face3DViewer] annotation landmark cache:", err);
+    } finally {
+      processingLandmarkQueueRef.current = false;
+      if (gen !== landmarkProcessorGenRef.current) return;
+
+      const forward = videoRef.current;
+      const reverse = reverseVideoRef.current;
+      const playbackActive = isTurntablePlaybackActive(
+        forward,
+        reverse,
+        activeVideoRef.current,
+        draggingRef.current,
+      );
+      const hasQueue = landmarkKeyQueueRef.current.length > 0;
+      const hasDeferred = deferredLandmarkKeysRef.current.size > 0;
+      if (!hasQueue && !hasDeferred) return;
+
+      if (!playbackActive && hasDeferred) drainDeferredLandmarkKeys();
+      scheduleLandmarkProcessor(playbackActive ? 150 : 24);
+    }
+  }, [drainDeferredLandmarkKeys, renderCachedAnnotations, scheduleLandmarkProcessor]);
+
+  processLandmarkQueueRef.current = processLandmarkQueue;
+
+  const drainDeferredLandmarkKeysRef = useRef(drainDeferredLandmarkKeys);
+  const scheduleLandmarkProcessorRef = useRef(scheduleLandmarkProcessor);
+  useEffect(() => {
+    drainDeferredLandmarkKeysRef.current = drainDeferredLandmarkKeys;
+    scheduleLandmarkProcessorRef.current = scheduleLandmarkProcessor;
+  }, [drainDeferredLandmarkKeys, scheduleLandmarkProcessor]);
+
+  const enqueueLandmarkDetection = useCallback((
+    key: number,
+    opts?: { expandNeighbors?: boolean },
+  ) => {
     if (
       !hasMirrorAnnotationHighlights(
         highlightTermsRef.current,
@@ -768,7 +1010,8 @@ export default function Face3DViewer({
       return;
     }
     const cache = landmarksByTimeKeyRef.current;
-    const neighborSpan = autoRotateRef.current ? 3 : 1;
+    const expandNeighbors = opts?.expandNeighbors ?? true;
+    const neighborSpan = expandNeighbors ? LANDMARK_DETECT_NEIGHBOR_SPAN : 0;
     const toQueue: number[] = [];
     for (let d = -neighborSpan; d <= neighborSpan; d++) {
       const k = key + d;
@@ -777,6 +1020,7 @@ export default function Face3DViewer({
         !cache.has(k) &&
         !pendingLandmarkKeysRef.current.has(k) &&
         !landmarkKeyQueueRef.current.includes(k) &&
+        !deferredLandmarkKeysRef.current.has(k) &&
         !toQueue.includes(k)
       ) {
         toQueue.push(k);
@@ -790,84 +1034,29 @@ export default function Face3DViewer({
       pendingLandmarkKeysRef.current.add(k);
       queue.push(k);
     }
-    if (queue.length > 20) {
-      landmarkKeyQueueRef.current = queue.slice(-16);
-    }
-    if (processingLandmarkQueueRef.current) return;
-    processingLandmarkQueueRef.current = true;
+    trimLandmarkQueue();
+    scheduleLandmarkProcessor();
+  }, [scheduleLandmarkProcessor, trimLandmarkQueue]);
 
-    void (async () => {
-      try {
-        const landmarker = await getFaceLandmarker();
-        while (landmarkKeyQueueRef.current.length > 0) {
-          const nextKey = landmarkKeyQueueRef.current.shift()!;
-          const v = videoRef.current;
-          const targetTime = face3dTimelineTimeFromKey(nextKey);
-          const timeTolerance = draggingRef.current ? 0.02 : 0.06;
-          const cachedFrame =
-            frameCacheRef.current.get(nextKey) ??
-            findNearestFrame(frameCacheRef.current, nextKey, TIMELINE_KEY_MAX_DELTA);
+  enqueueLandmarkDetectionRef.current = enqueueLandmarkDetection;
 
-          if (!v || v.readyState < 2) {
-            pendingLandmarkKeysRef.current.delete(nextKey);
-            continue;
-          }
-
-          const srcW = v.videoWidth || DEFAULT_VIDEO_W;
-          const srcH = v.videoHeight || DEFAULT_VIDEO_H;
-          const scale = Math.min(1, ANNOTATION_DETECT_MAX_DIM / Math.max(srcW, srcH));
-          const w = Math.max(1, Math.round(srcW * scale));
-          const h = Math.max(1, Math.round(srcH * scale));
-          const canvas = annotationDetectCanvasRef.current ?? document.createElement("canvas");
-          annotationDetectCanvasRef.current = canvas;
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            pendingLandmarkKeysRef.current.delete(nextKey);
-            continue;
-          }
-          ctx.clearRect(0, 0, w, h);
-
-          if (cachedFrame) {
-            ctx.drawImage(cachedFrame, 0, 0, w, h);
-          } else {
-            if (Math.abs(v.currentTime - targetTime) > timeTolerance) {
-              seekVideoPrecisely(v, targetTime, SCRUB_SEEK_EPS_DRAG);
-              pendingLandmarkKeysRef.current.delete(nextKey);
-              landmarkKeyQueueRef.current.unshift(nextKey);
-              break;
-            }
-            ctx.drawImage(v, 0, 0, w, h);
-          }
-
-          const result = landmarker.detect(canvas);
-          const landmarks = result.faceLandmarks?.[0] ?? null;
-          landmarksByTimeKeyRef.current.set(nextKey, landmarks);
-          pendingLandmarkKeysRef.current.delete(nextKey);
-          if (
-            showAnnotationsRef.current &&
-            landmarks?.length &&
-            Math.abs(nextKey - currentTimeKeyRef.current) <= TIMELINE_KEY_MAX_DELTA
-          ) {
-            renderCachedAnnotations();
-          }
-          if (!draggingRef.current && landmarkKeyQueueRef.current.length > 2) {
-            await idle();
-          }
-        }
-      } catch (err) {
-        console.warn("[Face3DViewer] annotation landmark cache:", err);
-      } finally {
-        processingLandmarkQueueRef.current = false;
-        if (landmarkKeyQueueRef.current.length > 0) {
-          const restartKey = landmarkKeyQueueRef.current.shift()!;
-          pendingLandmarkKeysRef.current.delete(restartKey);
-          enqueueLandmarkDetection(restartKey);
-        }
+  const captureCurrentFrame = useCallback(() => {
+    const video = activeCaptureVideo();
+    if (!video) return;
+    const key = face3dTimelineKey(logicalVideoTime() ?? video.currentTime);
+    if (key === lastCaptureKeyRef.current) return;
+    lastCaptureKeyRef.current = key;
+    void captureFrameBitmapAtKey(key).then(() => {
+      if (
+        hasMirrorAnnotationHighlights(
+          highlightTermsRef.current,
+          highlightedAnnotationRegionIdsRef.current,
+        )
+      ) {
+        enqueueLandmarkDetection(key, { expandNeighbors: false });
       }
-    })();
-  }, [renderCachedAnnotations]);
+    });
+  }, [activeCaptureVideo, captureFrameBitmapAtKey, logicalVideoTime, enqueueLandmarkDetection]);
 
   const requestLandmarksForTimeKey = useCallback(
     (key: number) => {
@@ -884,13 +1073,64 @@ export default function Face3DViewer({
     yawRef.current = videoTimeToYaw(currentTime, video.duration);
     onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, currentTime / video.duration)));
     const key = face3dTimelineKey(currentTime);
-    if (key === currentTimeKeyRef.current) return;
-    currentTimeKeyRef.current = key;
+    const keyChanged = key !== currentTimeKeyRef.current;
+    if (keyChanged) currentTimeKeyRef.current = key;
     renderCachedAnnotations();
-    if (opts?.queueLandmarks !== false) {
-      requestLandmarksForTimeKey(key);
-    }
+    if (opts?.queueLandmarks === false || !keyChanged) return;
+    requestLandmarksForTimeKey(key);
   }, [logicalVideoTime, renderCachedAnnotations, requestLandmarksForTimeKey]);
+
+  const primeLandmarkCacheForHighlights = useCallback(() => {
+    if (
+      !showAnnotationsRef.current ||
+      !hasMirrorAnnotationHighlights(
+        highlightTermsRef.current,
+        highlightedAnnotationRegionIdsRef.current,
+      )
+    ) {
+      return;
+    }
+    const video = videoRef.current;
+    if (!video?.duration || !isFinite(video.duration)) return;
+    const cache = landmarksByTimeKeyRef.current;
+    const maxKey = face3dTimelineKey(Math.max(0, video.duration - END_TIME_EPS));
+    const current = currentTimeKeyRef.current;
+    const keys = new Set<number>();
+    for (let d = -LANDMARK_PRIME_RADIUS; d <= LANDMARK_PRIME_RADIUS; d++) {
+      const k = current + d;
+      if (k >= 0 && k <= maxKey && !cache.has(k)) keys.add(k);
+    }
+    for (let k = 0; k <= maxKey; k += LANDMARK_PRIME_STRIDE) {
+      if (!cache.has(k)) keys.add(k);
+    }
+    const sorted = [...keys].sort(
+      (a, b) => Math.abs(a - current) - Math.abs(b - current),
+    );
+    for (const k of sorted.slice(0, LANDMARK_PRIME_MAX_KEYS)) {
+      enqueueLandmarkDetection(k, { expandNeighbors: false });
+    }
+  }, [enqueueLandmarkDetection]);
+
+  useEffect(() => {
+    if (
+      showAnnotations &&
+      hasMirrorAnnotationHighlights(highlightTerms, highlightedAnnotationRegionIds)
+    ) {
+      primeLandmarkCacheForHighlights();
+      return;
+    }
+    landmarkProcessorGenRef.current += 1;
+    landmarkKeyQueueRef.current = [];
+    deferredLandmarkKeysRef.current.clear();
+    pendingLandmarkKeysRef.current.clear();
+    processingLandmarkQueueRef.current = false;
+  }, [
+    highlightTerms,
+    highlightedAnnotationRegionIds,
+    showAnnotations,
+    videoUrl,
+    primeLandmarkCacheForHighlights,
+  ]);
 
   // Auto-rotate: native video playback forward and reverse; frame cache is fallback only.
   useEffect(() => {
@@ -982,7 +1222,7 @@ export default function Face3DViewer({
           if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'forward') return;
           const d2 = video.duration;
           if (!d2 || !isFinite(d2)) { autoRaf = requestAnimationFrame(monitor); return; }
-          syncYawFromVideo({ queueLandmarks: false });
+          syncYawFromVideo();
           if (video.currentTime >= d2 - END_TIME_EPS || video.ended) {
             yawRef.current = MAX_YAW_DEG;
             video.currentTime = Math.max(0, d2 - END_TIME_EPS);
@@ -1103,7 +1343,8 @@ export default function Face3DViewer({
           if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'backward') return;
           const d2 = video.duration;
           if (!d2 || !isFinite(d2)) { autoRaf = requestAnimationFrame(monitor); return; }
-          syncYawFromVideo({ queueLandmarks: false });
+          syncYawFromVideo();
+          captureCurrentFrame();
           if (reverse.currentTime >= reverseDuration - END_TIME_EPS || reverse.ended) {
             yawRef.current = -MAX_YAW_DEG;
             // Let startForward seek video to 0 and await 'seeked' before swapping
@@ -1211,6 +1452,10 @@ export default function Face3DViewer({
     const onSeeked = () => {
       if (cancelled) return;
       syncYawFromVideo({ queueLandmarks: !draggingRef.current });
+      if (!draggingRef.current) {
+        drainDeferredLandmarkKeysRef.current();
+        scheduleLandmarkProcessorRef.current(32);
+      }
     };
 
     // Safety net in case the monitor RAF misses the video end event.
@@ -1234,8 +1479,8 @@ export default function Face3DViewer({
       const id = rvfc.call(video, () => {
         rvfcId = 0;
         if (!cancelled && !draggingRef.current && !video.paused) {
-          syncYawFromVideo({ queueLandmarks: false });
-          if (!reverseVideoUrl) captureCurrentFrame();
+          syncYawFromVideo();
+          captureCurrentFrame();
         }
         scheduleVideoFrameSync();
       });
@@ -1599,6 +1844,8 @@ export default function Face3DViewer({
         seekVideoPrecisely(video, quantizeFace3dTimelineTime(target), SCRUB_SEEK_EPS_DRAG);
         yawRef.current = scrubTargetYawRef.current;
         syncYawFromVideo({ queueLandmarks: true });
+        drainDeferredLandmarkKeysRef.current();
+        scheduleLandmarkProcessorRef.current(32);
       }
       autoDirRef.current = yawRef.current >= 0 ? 1 : -1;
       if (resumeAutoAfterScrub && video?.duration) {

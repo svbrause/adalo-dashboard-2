@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useRef,
   useState,
   type CSSProperties,
@@ -53,6 +52,61 @@ function strokeOpacity(tool: AnnotateTool): number {
   return 0.92;
 }
 
+type Point = [number, number];
+
+type HistoryEntry =
+  | { type: "add"; stroke: AnnotateStroke }
+  | { type: "erase"; strokes: AnnotateStroke[] };
+
+/** Parse M/L paths produced by this canvas (viewBox 0–100). */
+function pathToPoints(d: string): Point[] {
+  const points: Point[] = [];
+  const tokens = d.trim().split(/\s+/);
+  for (let i = 0; i < tokens.length; ) {
+    const cmd = tokens[i];
+    if (cmd === "M" || cmd === "L") {
+      const x = Number.parseFloat(tokens[i + 1] ?? "");
+      const y = Number.parseFloat(tokens[i + 2] ?? "");
+      if (Number.isFinite(x) && Number.isFinite(y)) points.push([x, y]);
+      i += 3;
+    } else {
+      i += 1;
+    }
+  }
+  return points;
+}
+
+function minDistanceBetweenPolylines(a: Point[], b: Point[]): number {
+  let min = Infinity;
+  for (const [ax, ay] of a) {
+    for (const [bx, by] of b) {
+      min = Math.min(min, Math.hypot(ax - bx, ay - by));
+    }
+  }
+  return min;
+}
+
+/** Screen-pixel widths → approximate hit radius in viewBox units. */
+function eraserHitRadius(inkWidth: number, eraserWidth: number): number {
+  const pxToViewBox = 0.22;
+  return Math.max(1, ((inkWidth + eraserWidth) / 2) * pxToViewBox);
+}
+
+function strokeHitByEraser(
+  stroke: AnnotateStroke,
+  eraserPath: string,
+  eraserWidth: number,
+): boolean {
+  if (eraserPath.length < 4) return false;
+  const inkPts = pathToPoints(stroke.d);
+  const eraserPts = pathToPoints(eraserPath);
+  if (inkPts.length === 0 || eraserPts.length === 0) return false;
+  return (
+    minDistanceBetweenPolylines(inkPts, eraserPts) <=
+    eraserHitRadius(stroke.width, eraserWidth)
+  );
+}
+
 type AnnotateDrawingProps = {
   /** When false, toolbar hides and canvas ignores input (marks remain visible). */
   active: boolean;
@@ -78,14 +132,15 @@ export default function AnnotateDrawing({
   saveLabel = "Save",
   toolbarContainer,
 }: AnnotateDrawingProps) {
-  const maskId = useId().replace(/:/g, "");
   const [tool, setTool] = useState<AnnotateTool>("pen");
   const [color, setColor] = useState<string>(DEFAULT_COLOR);
   const [width, setWidth] = useState<number>(DEFAULT_WIDTH);
   const [internalStrokes, setInternalStrokes] = useState<AnnotateStroke[]>([]);
-  const [redoStack, setRedoStack] = useState<AnnotateStroke[]>([]);
+  const [undoStack, setUndoStack] = useState<HistoryEntry[]>([]);
+  const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
   const [current, setCurrent] = useState<AnnotateStroke | null>(null);
   const drawingRef = useRef(false);
+  const eraseGestureRemovedRef = useRef<AnnotateStroke[]>([]);
 
   const controlled = onStrokesChange !== undefined;
   const strokes = controlled ? (strokesProp ?? []) : internalStrokes;
@@ -100,14 +155,25 @@ export default function AnnotateDrawing({
   );
 
   const inkStrokes = strokes.filter((s) => s.tool !== "eraser");
-  const eraserStrokes = strokes.filter((s) => s.tool === "eraser");
-  const canUndo = strokes.length > 0;
+  const canUndo = undoStack.length > 0;
   const canRedo = redoStack.length > 0;
 
-  const commitStroke = useCallback(
-    (stroke: AnnotateStroke) => {
-      setStrokes((prev) => [...prev, stroke]);
-      setRedoStack([]);
+  const eraseAlongPath = useCallback(
+    (eraserPath: string, eraserWidth: number) => {
+      setStrokes((prev) => {
+        const ink = prev.filter((s) => s.tool !== "eraser");
+        const removed: AnnotateStroke[] = [];
+        const kept = ink.filter((stroke) => {
+          if (strokeHitByEraser(stroke, eraserPath, eraserWidth)) {
+            removed.push(stroke);
+            return false;
+          }
+          return true;
+        });
+        if (removed.length === 0) return prev;
+        eraseGestureRemovedRef.current.push(...removed);
+        return kept;
+      });
     },
     [setStrokes],
   );
@@ -115,36 +181,74 @@ export default function AnnotateDrawing({
   const finishStroke = useCallback(() => {
     drawingRef.current = false;
     setCurrent((stroke) => {
-      if (stroke && stroke.d.length > 3) commitStroke(stroke);
+      if (!stroke) return null;
+
+      if (stroke.tool === "eraser") {
+        if (eraseGestureRemovedRef.current.length > 0) {
+          setUndoStack((u) => [
+            ...u,
+            {
+              type: "erase",
+              strokes: [...eraseGestureRemovedRef.current],
+            },
+          ]);
+          setRedoStack([]);
+          eraseGestureRemovedRef.current = [];
+        }
+        return null;
+      }
+
+      if (stroke.d.length > 3) {
+        setStrokes((prev) => [...prev, stroke]);
+        setUndoStack((u) => [...u, { type: "add", stroke }]);
+        setRedoStack([]);
+      }
       return null;
     });
-  }, [commitStroke, setStrokes]);
+  }, [setStrokes]);
 
   const undo = useCallback(() => {
-    setStrokes((prev) => {
-      if (prev.length === 0) return prev;
-      const next = [...prev];
-      const removed = next.pop()!;
-      setRedoStack((r) => [...r, removed]);
-      return next;
+    setUndoStack((u) => {
+      const entry = u[u.length - 1];
+      if (!entry) return u;
+      if (entry.type === "add") {
+        setStrokes((prev) => {
+          const idx = prev.lastIndexOf(entry.stroke);
+          if (idx === -1) return prev.slice(0, -1);
+          return prev.filter((_, i) => i !== idx);
+        });
+      } else {
+        setStrokes((prev) => [...prev, ...entry.strokes]);
+      }
+      setRedoStack((r) => [...r, entry]);
+      return u.slice(0, -1);
     });
     setCurrent(null);
   }, [setStrokes]);
 
   const redo = useCallback(() => {
-    setRedoStack((prev) => {
-      if (prev.length === 0) return prev;
-      const next = [...prev];
-      const restored = next.pop()!;
-      setStrokes((s) => [...s, restored]);
-      return next;
+    setRedoStack((r) => {
+      const entry = r[r.length - 1];
+      if (!entry) return r;
+      if (entry.type === "add") {
+        setStrokes((prev) => [...prev, entry.stroke]);
+      } else {
+        setStrokes((prev) => {
+          const removeSet = new Set(entry.strokes);
+          return prev.filter((s) => !removeSet.has(s));
+        });
+      }
+      setUndoStack((u) => [...u, entry]);
+      return r.slice(0, -1);
     });
   }, [setStrokes]);
 
   const clearAll = useCallback(() => {
     if (strokes.length === 0) return;
     setStrokes([]);
+    setUndoStack([]);
     setRedoStack([]);
+    eraseGestureRemovedRef.current = [];
     setCurrent(null);
   }, [strokes.length, setStrokes]);
 
@@ -179,15 +283,22 @@ export default function AnnotateDrawing({
     e.currentTarget.setPointerCapture(e.pointerId);
     drawingRef.current = true;
     const { x, y } = svgPointFromPointer(e.currentTarget, e.clientX, e.clientY);
+    if (tool === "eraser") {
+      eraseGestureRemovedRef.current = [];
+      setCurrent({
+        d: `M ${x} ${y}`,
+        color: "#000000",
+        width: width * 2.4,
+        opacity: 1,
+        tool: "eraser",
+      });
+      return;
+    }
+
     setCurrent({
       d: `M ${x} ${y}`,
-      color: tool === "eraser" ? "#000000" : color,
-      width:
-        tool === "eraser"
-          ? width * 2.4
-          : tool === "highlighter"
-            ? width * 1.75
-            : width,
+      color,
+      width: tool === "highlighter" ? width * 1.75 : width,
       opacity: strokeOpacity(tool),
       tool,
     });
@@ -196,9 +307,16 @@ export default function AnnotateDrawing({
   const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
     if (!active || !drawingRef.current) return;
     const { x, y } = svgPointFromPointer(e.currentTarget, e.clientX, e.clientY);
-    setCurrent((stroke) =>
-      stroke ? { ...stroke, d: `${stroke.d} L ${x} ${y}` } : null,
-    );
+    setCurrent((stroke) => {
+      if (!stroke) return null;
+      const nextPath = `${stroke.d} L ${x} ${y}`;
+      if (stroke.tool === "eraser") {
+        const next = { ...stroke, d: nextPath };
+        eraseAlongPath(next.d, next.width);
+        return next;
+      }
+      return { ...stroke, d: nextPath };
+    });
   };
 
   const showCanvas = active || strokes.length > 0;
@@ -358,7 +476,7 @@ export default function AnnotateDrawing({
           className="avf-annotate-action avf-annotate-action--danger"
           title="Clear all marks"
           aria-label="Clear all"
-          disabled={strokes.length === 0}
+          disabled={inkStrokes.length === 0}
           onClick={clearAll}
         >
           <IconTrash />
@@ -416,63 +534,47 @@ export default function AnnotateDrawing({
           onPointerCancel={finishStroke}
           onLostPointerCapture={finishStroke}
         >
-          <defs>
-            <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-              <rect x="0" y="0" width="100" height="100" fill="white" />
-              {eraserStrokes.map((stroke, i) => (
-                <path
-                  key={`eraser-${i}`}
-                  d={stroke.d}
-                  fill="none"
-                  stroke="black"
-                  strokeWidth={stroke.width}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
-              {current?.tool === "eraser" ? (
-                <path
-                  d={current.d}
-                  fill="none"
-                  stroke="black"
-                  strokeWidth={current.width}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ) : null}
-            </mask>
-          </defs>
-          <g mask={`url(#${maskId})`}>
-            {inkStrokes.map((stroke, i) => (
-              <path
-                key={i}
-                d={stroke.d}
-                fill="none"
-                stroke={stroke.color}
-                strokeWidth={stroke.width}
-                strokeOpacity={stroke.opacity}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-                className="avf-drawing-layer__stroke"
-              />
-            ))}
-            {current && current.tool !== "eraser" ? (
-              <path
-                d={current.d}
-                fill="none"
-                stroke={current.color}
-                strokeWidth={current.width}
-                strokeOpacity={current.opacity}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-                className="avf-drawing-layer__stroke avf-drawing-layer__stroke--live"
-              />
-            ) : null}
-          </g>
+          {inkStrokes.map((stroke, i) => (
+            <path
+              key={i}
+              d={stroke.d}
+              fill="none"
+              stroke={stroke.color}
+              strokeWidth={stroke.width}
+              strokeOpacity={stroke.opacity}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              className="avf-drawing-layer__stroke"
+            />
+          ))}
+          {current && current.tool !== "eraser" ? (
+            <path
+              d={current.d}
+              fill="none"
+              stroke={current.color}
+              strokeWidth={current.width}
+              strokeOpacity={current.opacity}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              className="avf-drawing-layer__stroke avf-drawing-layer__stroke--live"
+            />
+          ) : null}
+          {current?.tool === "eraser" ? (
+            <path
+              d={current.d}
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.55)"
+              strokeWidth={current.width}
+              strokeOpacity={0.9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="4 3"
+              vectorEffect="non-scaling-stroke"
+              className="avf-drawing-layer__eraser-preview"
+            />
+          ) : null}
         </svg>
       ) : null}
     </>

@@ -696,6 +696,10 @@
   filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.35));
 }
 
+.avf-drawing-layer__eraser-preview {
+  pointer-events: none;
+}
+
 .avf-diagnostic-overlay__strokes path,
 .avf-diagnostic-overlay__strokes polyline {
   fill: none;
