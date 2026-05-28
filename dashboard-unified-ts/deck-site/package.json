@@ -1,0 +1,10 @@
+{
+  "name": "ponce-clinic-deck",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Standalone Gravitas / clinic sales deck (static site for Vercel)",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && npx --yes serve public -l 4177"
+  }
+}

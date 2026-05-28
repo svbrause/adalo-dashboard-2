@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Face3DViewer from "../views/Face3DViewer";
 import auraTurntableVideo from "../../assets/images/turntable_2048_black.mp4";
+import auraTurntableSkinGrayVideo from "../../assets/images/turntable_2048_black_pigmentation_gray.mp4";
+import auraTurntablePigmentationVideo from "../../assets/images/turntable_2048_black_pigmentation_brown.mp4";
 import aura90LeftIcon from "../../assets/images/aura-90degrees-left.png";
 import aura45LeftIcon from "../../assets/images/aura-45degrees-left.png";
+import aura45LeftSkinIcon from "../../assets/images/45-left-rembg.png";
 import auraFrontIcon from "../../assets/images/aura-facing-ahead.png";
 import aura45RightIcon from "../../assets/images/aura-45degrees-right.png";
 import aura90RightIcon from "../../assets/images/aura-90degrees-right.png";
-import aura3dTurntableIcon from "../../assets/images/aura-3d-turntable.svg";
 import {
   TANYA_TAN_LEFT_NAV_ORDER,
   TANYA_TAN_STUDIO_ANGLE_ASSETS,
@@ -16,15 +25,40 @@ import {
   type AuraTanViewerAngleAsset,
 } from "../../utils/auraTanAnglePhotos";
 import { tanPhotoPlateAlignStyle } from "../../utils/auraTanPhotoFraming";
+import {
+  auraFaceTabToOverviewCategory,
+  overviewCategoryToAuraFaceTab,
+  type AuraOverviewCategoryKey,
+} from "../../utils/auraAnalysisBridge";
 import { useMirrorViewportZoom } from "../../hooks/useMirrorViewportZoom";
 import { AiMirrorCanvas, hasMirrorAnnotationHighlights } from "../postVisitBlueprint/AiMirrorCanvas";
+import AnnotateDrawing, { type AnnotateStroke } from "./AnnotateDrawing";
+import FaceMirrorRegionsPicker, {
+  type FaceMirrorRegionsPickerProps,
+} from "../views/FaceMirrorRegionsPicker";
+import {
+  captureVideoFrameDataUrl,
+  compositeAnnotationOnImage,
+  downloadDataUrl,
+  measureAnnotateContentRect,
+  sanitizeDownloadFilename,
+} from "../../utils/annotationComposite";
+import AutoRotateHeadIcon from "../common/AutoRotateHeadIcon";
 import "./AuraFaceView.css";
 
-type AnalysisTab = "skin" | "volume" | "structure";
+export type AnnotateSavePayload = {
+  faceImageUrl: string;
+  compositeDataUrl: string;
+  strokes: AnnotateStroke[];
+  /** Angle + layer (color/texture) + still vs 3D — captured at save/download time. */
+  viewContext: string;
+};
+
+type AnalysisTab = "texture" | "pigmentation" | "volume" | "structure";
 type ViewAngle = "profile-left" | "three-quarter-left" | "front" | "three-quarter-right" | "profile-right";
 
 const ANALYSIS_TABS: { id: AnalysisTab; label: string }[] = [
-  { id: "skin", label: "Skin" },
+  { id: "texture", label: "Skin" },
   { id: "volume", label: "Volume" },
   { id: "structure", label: "Structure" },
 ];
@@ -40,11 +74,14 @@ const ANGLE_CONTROLS: { id: ViewAngle; label: string; timeRatio: number }[] = [
 /** Left rail order: 3D on top, then viewer L → R around the turntable. */
 const LEFT_NAV_ANGLE_ORDER: ViewAngle[] = TANYA_TAN_LEFT_NAV_ORDER;
 
+/** Glowing head silhouette — left-rail 3D turntable control (public/demo-3d). */
+const AURA_3D_TURNTABLE_ICON = "/demo-3d/aura-3d-turntable-icon.png";
+
 type FaceSource = "turntable" | ViewAngle;
 
-/** Match Face3DViewer turntable framing in the dashboard left column. */
-const TURNTABLE_MATCH_ZOOM = 1.42;
-const TURNTABLE_MATCH_PAN_Y = -96;
+/** Match Face3DViewer turntable framing in the dashboard left column (larger zoom = face fills more of the panel). */
+const TURNTABLE_MATCH_ZOOM = 1.82;
+const TURNTABLE_MATCH_PAN_Y = -112;
 
 const ANGLE_ICON_SRC: Record<ViewAngle, string> = {
   "profile-left": aura90LeftIcon,
@@ -60,7 +97,8 @@ const TAB_NO_ISSUES: Partial<Record<AnalysisTab, string>> = {
 };
 
 const TAB_COLORS: Record<AnalysisTab, string> = {
-  skin: "#ff5535",
+  texture: "#22d3ee",
+  pigmentation: "#8b5cf6",
   volume: "#60a5fa",
   structure: "#a7f36d",
 };
@@ -74,25 +112,31 @@ const RADAR_DATA: { label: string; value: number }[] = [
 ];
 
 const TAB_SCORES: Record<AnalysisTab, { label: string; val: number }[]> = {
-  skin: [
-    { label: "Tone", val: 65 },
-    { label: "Texture", val: 52 },
-    { label: "Pores", val: 47 },
+  texture: [
+    { label: "Texture", val: 81 },
+    { label: "Pores", val: 79 },
+    { label: "Smoothness", val: 83 },
+  ],
+  pigmentation: [
+    { label: "Pigment", val: 86 },
+    { label: "Melasma", val: 83 },
+    { label: "Sun spots", val: 84 },
   ],
   volume: [
-    { label: "Midface", val: 61 },
-    { label: "Temples", val: 49 },
-    { label: "Jawline", val: 38 },
+    { label: "Midface", val: 84 },
+    { label: "Temples", val: 80 },
+    { label: "Jawline", val: 75 },
   ],
   structure: [
-    { label: "Forehead", val: 72 },
-    { label: "Periocular", val: 58 },
-    { label: "Lower face", val: 44 },
+    { label: "Forehead", val: 89 },
+    { label: "Periocular", val: 83 },
+    { label: "Lower face", val: 78 },
   ],
 };
 
 const MINIMAP_REGION_IDS: Record<AnalysisTab, string[]> = {
-  skin: ["rNose", "rLeftCheek", "rRightCheek", "rChin"],
+  texture: ["rNose", "rLeftCheek", "rRightCheek", "rChin"],
+  pigmentation: ["rLeftCheek", "rRightCheek", "rNose"],
   volume: ["rLeftCheek", "rRightCheek", "rLowerFace"],
   structure: ["rForehead", "rLeftEye", "rRightEye"],
 };
@@ -140,59 +184,31 @@ const AURA_CV_ANNOTATIONS: {
     "M 40.25 64.85 Q 49.5 61.9 59.55 64.8 Q 55.55 69.4 44.3 69.2 Z",
   ],
   darkSpotsByAngle: {
-    front: [
-      // Person's LEFT cheek (right side of image, cx > 50%) — upper zone cy 54-57%
-      { cx: 63.86, cy: 54.70, rx: 0.225, ry: 0.225, intensity: 0.65 },
-      { cx: 64.29, cy: 56.31, rx: 0.245, ry: 0.245, intensity: 0.68 },
-      { cx: 62.52, cy: 56.25, rx: 0.258, ry: 0.258, intensity: 0.70 },
-      // Person's LEFT cheek — lower zone cy 57-64%
-      { cx: 60.28, cy: 57.58, rx: 0.258, ry: 0.258, intensity: 0.68 },
-      { cx: 62.69, cy: 57.64, rx: 0.279, ry: 0.279, intensity: 0.66 },
-      { cx: 59.84, cy: 58.52, rx: 0.309, ry: 0.309, intensity: 0.74 },
-      { cx: 61.4,  cy: 58.71, rx: 0.277, ry: 0.277, intensity: 0.70 },
-      { cx: 59.15, cy: 60.20, rx: 0.291, ry: 0.291, intensity: 0.76 },
-      { cx: 58.98, cy: 61.98, rx: 0.232, ry: 0.232, intensity: 0.55 },
-      { cx: 58.98, cy: 63.31, rx: 0.202, ry: 0.202, intensity: 0.68 },
-      // Person's RIGHT cheek (left side of image, cx < 50%) — upper zone cy 55-57%
-      { cx: 36.74, cy: 55.86, rx: 0.268, ry: 0.268, intensity: 0.72 },
-      { cx: 37.82, cy: 56.22, rx: 0.268, ry: 0.268, intensity: 0.70 },
-      { cx: 40.11, cy: 56.02, rx: 0.245, ry: 0.245, intensity: 0.68 },
-      // Person's RIGHT cheek — lower zone cy 57-64%
-      { cx: 41.41, cy: 57.55, rx: 0.245, ry: 0.245, intensity: 0.65 },
-      { cx: 41.11, cy: 58.52, rx: 0.272, ry: 0.272, intensity: 0.58 },
-      { cx: 40.98, cy: 59.55, rx: 0.317, ry: 0.317, intensity: 0.62 },
-      { cx: 41.49, cy: 62.08, rx: 0.258, ry: 0.258, intensity: 0.78 },
-      { cx: 41.80, cy: 63.15, rx: 0.277, ry: 0.277, intensity: 0.72 },
-    ],
-    // Coordinates measured directly in tan_45_left.png space.
-    // LEFT cheek is the near side in this view; malar zone cx≈39-51%, cy≈40-53%.
+    front: [],
+  /** ¾ views: fewer, stronger pigment marks (native 45° plate coordinates). */
     "three-quarter-left": [
-      { cx: 42.5, cy: 41.0, rx: 0.258, ry: 0.258, intensity: 0.68 },
-      { cx: 44.8, cy: 42.3, rx: 0.279, ry: 0.279, intensity: 0.72 },
-      { cx: 40.8, cy: 43.2, rx: 0.245, ry: 0.245, intensity: 0.65 },
-      { cx: 46.2, cy: 44.0, rx: 0.268, ry: 0.268, intensity: 0.70 },
       { cx: 43.0, cy: 45.5, rx: 0.309, ry: 0.309, intensity: 0.76 },
-      { cx: 47.5, cy: 46.8, rx: 0.277, ry: 0.277, intensity: 0.70 },
       { cx: 41.5, cy: 47.8, rx: 0.258, ry: 0.258, intensity: 0.74 },
-      { cx: 48.8, cy: 49.5, rx: 0.232, ry: 0.232, intensity: 0.62 },
-      { cx: 44.2, cy: 51.2, rx: 0.245, ry: 0.245, intensity: 0.58 },
+      { cx: 44.8, cy: 42.3, rx: 0.279, ry: 0.279, intensity: 0.72 },
+      { cx: 46.2, cy: 44.0, rx: 0.268, ry: 0.268, intensity: 0.7 },
+      { cx: 42.5, cy: 41.0, rx: 0.258, ry: 0.258, intensity: 0.68 },
     ],
-    // Coordinates measured directly in tan_45_right.png space.
-    // RIGHT cheek is the near side in this view; malar zone cx≈28-42%, cy≈42-56%.
     "three-quarter-right": [
-      { cx: 32.5, cy: 43.0, rx: 0.258, ry: 0.258, intensity: 0.68 },
-      { cx: 34.8, cy: 44.3, rx: 0.279, ry: 0.279, intensity: 0.72 },
-      { cx: 30.8, cy: 45.2, rx: 0.245, ry: 0.245, intensity: 0.65 },
-      { cx: 36.2, cy: 46.0, rx: 0.268, ry: 0.268, intensity: 0.70 },
       { cx: 33.0, cy: 47.5, rx: 0.309, ry: 0.309, intensity: 0.76 },
-      { cx: 37.5, cy: 48.8, rx: 0.277, ry: 0.277, intensity: 0.70 },
       { cx: 31.5, cy: 49.8, rx: 0.258, ry: 0.258, intensity: 0.74 },
-      { cx: 38.8, cy: 51.5, rx: 0.232, ry: 0.232, intensity: 0.62 },
-      { cx: 34.2, cy: 53.2, rx: 0.245, ry: 0.245, intensity: 0.58 },
+      { cx: 34.8, cy: 44.3, rx: 0.279, ry: 0.279, intensity: 0.72 },
+      { cx: 36.2, cy: 46.0, rx: 0.268, ry: 0.268, intensity: 0.7 },
+      { cx: 32.5, cy: 43.0, rx: 0.258, ry: 0.258, intensity: 0.68 },
     ],
     // Profile views: cheek faces away from camera, spots not visible.
     "profile-left": [],
-    "profile-right": [],
+    "profile-right": [
+      { cx: 47.0, cy: 44.0, rx: 0.95, ry: 0.62, intensity: 0.74 },
+      { cx: 50.0, cy: 45.1, rx: 1.25, ry: 0.86, intensity: 0.78 },
+      { cx: 53.4, cy: 44.8, rx: 0.82, ry: 0.58, intensity: 0.7 },
+      { cx: 49.4, cy: 48.2, rx: 0.72, ry: 0.54, intensity: 0.68 },
+      { cx: 45.5, cy: 49.4, rx: 0.64, ry: 0.45, intensity: 0.62 },
+    ],
   },
   pores: [
     { cx: 47.5, cy: 43.9, r: 0.28 },
@@ -217,14 +233,6 @@ const AURA_TAN_ANGLE_ASSETS: Record<ViewAngle, AuraTanBlendAngleAsset> = TANYA_T
 
 type ViewerAngleAssets = Record<ViewAngle, AuraTanViewerAngleAsset>;
 
-const VIEWER_ANGLE_ICON_SRC: Record<ViewAngle, string> = {
-  "profile-left": aura90RightIcon,
-  "three-quarter-left": aura45RightIcon,
-  front: auraFrontIcon,
-  "three-quarter-right": aura45LeftIcon,
-  "profile-right": aura90LeftIcon,
-};
-
 function tanAssetsForView(
   angle: ViewAngle,
   viewerMode: boolean,
@@ -245,13 +253,43 @@ const BLEND_RATIO_LERP = 0.18;
 
 type PhotoTransition = { from: ViewAngle; to: ViewAngle };
 
-function closestAnchor(turntableRatio: number): { angle: ViewAngle; distance: number } {
+type AngleTimings = Record<ViewAngle, { timeRatio: number }>;
+
+function closestAnchor(
+  turntableRatio: number,
+  timings: AngleTimings = AURA_TAN_ANGLE_ASSETS,
+): { angle: ViewAngle; distance: number } {
   let best: { angle: ViewAngle; distance: number } = { angle: "front", distance: Infinity };
   for (const angle of TAN_ANGLE_ORDER) {
-    const distance = Math.abs(turntableRatio - AURA_TAN_ANGLE_ASSETS[angle].timeRatio);
+    const distance = Math.abs(turntableRatio - timings[angle].timeRatio);
     if (distance < best.distance) best = { angle, distance };
   }
   return best;
+}
+
+/** Neighboring anchor poses + 0–1 blend for smooth overlay crossfade while the turntable spins. */
+function bracketingAnchors(
+  turntableRatio: number,
+  timings: AngleTimings,
+): { from: ViewAngle; to: ViewAngle; blend: number } {
+  const ordered = [...TAN_ANGLE_ORDER].sort(
+    (a, b) => timings[a].timeRatio - timings[b].timeRatio,
+  );
+  const r = Math.max(0, Math.min(1, turntableRatio));
+  const first = ordered[0];
+  const last = ordered[ordered.length - 1];
+  if (r <= timings[first].timeRatio) return { from: first, to: first, blend: 0 };
+  if (r >= timings[last].timeRatio) return { from: last, to: last, blend: 0 };
+  for (let i = 0; i < ordered.length - 1; i++) {
+    const from = ordered[i];
+    const to = ordered[i + 1];
+    const t0 = timings[from].timeRatio;
+    const t1 = timings[to].timeRatio;
+    if (r >= t0 && r <= t1) {
+      return { from, to, blend: t1 > t0 ? (r - t0) / (t1 - t0) : 0 };
+    }
+  }
+  return { from: last, to: last, blend: 0 };
 }
 
 function smootherstep(t: number): number {
@@ -259,8 +297,12 @@ function smootherstep(t: number): number {
   return x * x * x * (x * (x * 6 - 15) + 10);
 }
 
-function anchorPhotoStrength(turntableRatio: number, angle: ViewAngle): number {
-  const distance = Math.abs(turntableRatio - AURA_TAN_ANGLE_ASSETS[angle].timeRatio);
+function anchorPhotoStrength(
+  turntableRatio: number,
+  angle: ViewAngle,
+  timings: AngleTimings = AURA_TAN_ANGLE_ASSETS,
+): number {
+  const distance = Math.abs(turntableRatio - timings[angle].timeRatio);
   if (distance >= PHOTO_FADE_RADIUS) return 0;
   return smootherstep(1 - distance / PHOTO_FADE_RADIUS);
 }
@@ -269,20 +311,25 @@ function angleAnchorOpacity(
   angle: ViewAngle,
   turntableRatio: number,
   photoTransition: PhotoTransition | null,
+  timings: AngleTimings = AURA_TAN_ANGLE_ASSETS,
 ): number {
   if (photoTransition) {
     if (angle !== photoTransition.from && angle !== photoTransition.to) return 0;
-    return anchorPhotoStrength(turntableRatio, angle);
+    return anchorPhotoStrength(turntableRatio, angle, timings);
   }
 
-  const closest = closestAnchor(turntableRatio);
+  const closest = closestAnchor(turntableRatio, timings);
   if (closest.angle !== angle) return 0;
-  return anchorPhotoStrength(turntableRatio, angle);
+  return anchorPhotoStrength(turntableRatio, angle, timings);
 }
 
-function maxPhotoOpacity(turntableRatio: number, photoTransition: PhotoTransition | null): number {
+function maxPhotoOpacity(
+  turntableRatio: number,
+  photoTransition: PhotoTransition | null,
+  timings: AngleTimings = AURA_TAN_ANGLE_ASSETS,
+): number {
   return Math.max(
-    ...TAN_ANGLE_ORDER.map((angle) => angleAnchorOpacity(angle, turntableRatio, photoTransition)),
+    ...TAN_ANGLE_ORDER.map((angle) => angleAnchorOpacity(angle, turntableRatio, photoTransition, timings)),
   );
 }
 
@@ -294,8 +341,12 @@ function mediaOpacityForPhotoCover(photoCover: number): number {
   return smootherstep(1 - (p - 0.12) / 0.76);
 }
 
-function displayAngleFromRatio(turntableRatio: number): ViewAngle {
-  return closestAnchor(turntableRatio).angle;
+function buildAnnotateViewContext(input: {
+  angleLabel: string;
+  layer: "Color" | "Texture";
+  mode: "Still" | "3D";
+}): string {
+  return `${input.angleLabel} · ${input.layer} · ${input.mode}`;
 }
 
 function AuraStaticPhotoView({
@@ -306,6 +357,9 @@ function AuraStaticPhotoView({
   highlightTerms,
   highlightedRegionIds,
   viewerAssets,
+  photoVariant,
+  drawOverlay,
+  measureRootRef,
 }: {
   angle: ViewAngle;
   activeTab: AnalysisTab;
@@ -314,9 +368,24 @@ function AuraStaticPhotoView({
   highlightTerms: string[];
   highlightedRegionIds: string[];
   viewerAssets: ViewerAngleAssets;
+  /** Dashboard toggles: color still vs clinical texture plate (overrides tab default). */
+  photoVariant?: "normal" | "texture" | "pigmentation";
+  drawOverlay?: ReactNode;
+  measureRootRef?: (el: HTMLDivElement | null) => void;
 }) {
   const asset = viewerAssets[angle];
-  const src = asset.src;
+  const src =
+    photoVariant === "texture"
+      ? asset.srcTexture ?? asset.src
+      : photoVariant === "pigmentation"
+        ? asset.srcPigmentation ?? asset.srcTexture ?? asset.src
+      : photoVariant === "normal"
+        ? asset.src
+        : activeTab === "pigmentation"
+          ? asset.srcPigmentation ?? asset.srcTexture ?? asset.src
+        : activeTab === "texture"
+          ? asset.srcTexture ?? asset.src
+          : asset.src;
   const viewerRef = useRef<HTMLDivElement>(null);
   const zoomLayerRef = useRef<HTMLDivElement>(null);
   const alignStyle = tanPhotoPlateAlignStyle(angle);
@@ -335,7 +404,7 @@ function AuraStaticPhotoView({
       title={zoom > minZoom + 0.02 ? "Double-click to reset zoom · scroll to zoom · drag to pan" : "Scroll to zoom"}
     >
       <div ref={zoomLayerRef} className="avf-static-photo__zoom">
-        <div className="avf-photo-align" style={alignStyle}>
+        <div ref={measureRootRef} className="avf-photo-align" style={alignStyle}>
           {showMirrorAnnotations ? (
             <AiMirrorCanvas
               imageUrl={src}
@@ -354,6 +423,7 @@ function AuraStaticPhotoView({
             includeWrinkles
             fixedAngle={angle}
           />
+          {drawOverlay}
         </div>
       </div>
       {zoom > minZoom + 0.02 ? (
@@ -361,6 +431,39 @@ function AuraStaticPhotoView({
           {Math.round(zoom * 100)}%
         </span>
       ) : null}
+    </div>
+  );
+}
+
+function AuraTexturePhotoLayer({
+  turntableRatio,
+  photoTransition,
+  viewerAssets,
+}: {
+  turntableRatio: number;
+  photoTransition: PhotoTransition | null;
+  viewerAssets: ViewerAngleAssets;
+}) {
+  const timings = viewerAssets as AngleTimings;
+
+  return (
+    <div className="avf-angle-photo-layer avf-texture-photo-layer" aria-hidden>
+      {LEFT_NAV_ANGLE_ORDER.map((angle) => {
+        const opacity = angleAnchorOpacity(angle, turntableRatio, photoTransition, timings);
+        const asset = viewerAssets[angle];
+        const alignStyle = tanPhotoPlateAlignStyle(angle as AuraTanViewAngle);
+        return (
+          <div
+            key={`texture-${angle}`}
+            className="avf-angle-photo-layer__plate"
+            style={{ opacity }}
+          >
+            <div className="avf-photo-align" style={alignStyle}>
+              <img src={asset.srcTexture ?? asset.src} alt="" draggable={false} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -412,12 +515,80 @@ function angleOverlayTransform(angle: ViewAngle): string {
   return "translate(28 0) scale(0.5 1) skewY(5)";
 }
 
+function AnnotationAngleContent({
+  activeTab,
+  angle,
+  includeWrinkles,
+  glowId,
+}: {
+  activeTab: AnalysisTab;
+  angle: ViewAngle;
+  includeWrinkles: boolean;
+  glowId: string;
+}) {
+  const transform = angleOverlayTransform(angle);
+
+  return (
+    <>
+      {activeTab === "structure" && includeWrinkles ? (
+        <g transform={transform} filter={`url(#${glowId})`}>
+          <g className="avf-diagnostic-overlay__wrinkles">
+            {AURA_CV_ANNOTATIONS.wrinkles.map((d, index) => (
+              <path key={index} d={d} />
+            ))}
+          </g>
+        </g>
+      ) : null}
+      {activeTab === "volume" ? (
+        <g transform={transform} filter={`url(#${glowId})`}>
+          <g className="avf-diagnostic-overlay__volume">
+            {AURA_CV_ANNOTATIONS.volume.map((d, index) => (
+              <path key={index} d={d} />
+            ))}
+          </g>
+        </g>
+      ) : null}
+      {activeTab === "texture" ? (
+        <g transform={transform} filter={`url(#${glowId})`}>
+          <g className="avf-diagnostic-overlay__pores">
+            {AURA_CV_ANNOTATIONS.pores.map((pore, index) => (
+              <circle
+                key={`texture-pore-${index}`}
+                cx={pore.cx}
+                cy={pore.cy}
+                r={pore.r * 2.35}
+              />
+            ))}
+          </g>
+        </g>
+      ) : null}
+      {activeTab === "pigmentation" ? (
+        <g transform={transform} filter={`url(#${glowId})`}>
+          <g className="avf-diagnostic-overlay__spots">
+            {(AURA_CV_ANNOTATIONS.darkSpotsByAngle[angle] ?? []).map((spot, index) => (
+              <ellipse
+                key={`pigment-spot-${index}`}
+                cx={spot.cx}
+                cy={spot.cy}
+                rx={spot.rx * 1.35}
+                ry={spot.ry * 1.35}
+                fillOpacity={0.38 + spot.intensity * 0.28}
+              />
+            ))}
+          </g>
+        </g>
+      ) : null}
+    </>
+  );
+}
+
 function AuraAnnotationOverlay({
   activeTab,
   turntableRatio,
   visible,
   includeWrinkles = false,
   fixedAngle,
+  angleTimings = AURA_TAN_ANGLE_ASSETS,
 }: {
   activeTab: AnalysisTab;
   turntableRatio: number;
@@ -425,11 +596,44 @@ function AuraAnnotationOverlay({
   includeWrinkles?: boolean;
   /** When set (static photo view), use this angle instead of inferring from ratio. */
   fixedAngle?: ViewAngle;
+  /** Turntable anchor times (dashboard viewer vs /aura studio plates). */
+  angleTimings?: AngleTimings;
 }) {
   if (!visible) return null;
   const color = TAB_COLORS[activeTab];
-  const displayAngle = fixedAngle ?? displayAngleFromRatio(turntableRatio);
-  const spotsForAngle = AURA_CV_ANNOTATIONS.darkSpotsByAngle[displayAngle] ?? [];
+  const glowId = "avf_diag_glow";
+
+  const renderAtAngle = (angle: ViewAngle, opacity: number, layerKey: string) => (
+    <g key={layerKey} opacity={opacity} style={{ pointerEvents: "none" }}>
+      <AnnotationAngleContent
+        activeTab={activeTab}
+        angle={angle}
+        includeWrinkles={includeWrinkles}
+        glowId={glowId}
+      />
+    </g>
+  );
+
+  let layers: ReactNode;
+  if (fixedAngle) {
+    layers = renderAtAngle(fixedAngle, 1, fixedAngle);
+  } else {
+    const { from, to, blend } = bracketingAnchors(turntableRatio, angleTimings);
+    if (from === to || blend < 0.02) {
+      layers = renderAtAngle(from, 1, from);
+    } else if (blend > 0.98) {
+      layers = renderAtAngle(to, 1, to);
+    } else {
+      const fadeIn = smootherstep(blend);
+      const fadeOut = 1 - fadeIn;
+      layers = (
+        <>
+          {renderAtAngle(from, fadeOut, from)}
+          {renderAtAngle(to, fadeIn, to)}
+        </>
+      );
+    }
+  }
 
   return (
     <svg
@@ -440,54 +644,15 @@ function AuraAnnotationOverlay({
       style={{ color }}
     >
       <defs>
-        <filter id="avf_diag_glow" x="-30%" y="-30%" width="160%" height="160%">
+        <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="0.45" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        <radialGradient id="avf_diag_spot">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="1" />
-          <stop offset="45%" stopColor="currentColor" stopOpacity="0.62" />
-          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-        </radialGradient>
       </defs>
-      {activeTab === "structure" && includeWrinkles ? (
-        <g transform={angleOverlayTransform(displayAngle)} filter="url(#avf_diag_glow)">
-          <g className="avf-diagnostic-overlay__wrinkles">
-            {AURA_CV_ANNOTATIONS.wrinkles.map((d, index) => (
-              <path key={index} d={d} />
-            ))}
-          </g>
-        </g>
-      ) : null}
-      {activeTab === "volume" ? (
-        <g transform={angleOverlayTransform(displayAngle)} filter="url(#avf_diag_glow)">
-          <g className="avf-diagnostic-overlay__volume">
-            {AURA_CV_ANNOTATIONS.volume.map((d, index) => (
-              <path key={index} d={d} />
-            ))}
-          </g>
-        </g>
-      ) : null}
-      {activeTab === "skin" ? (
-        <g>
-          <g className="avf-diagnostic-overlay__spots">
-            {spotsForAngle.map((spot, index) => (
-              <ellipse
-                key={index}
-                cx={spot.cx}
-                cy={spot.cy}
-                rx={spot.rx * 4.5}
-                ry={spot.ry * 4.5}
-                fill="url(#avf_diag_spot)"
-                opacity={spot.intensity}
-              />
-            ))}
-          </g>
-        </g>
-      ) : null}
+      {layers}
     </svg>
   );
 }
@@ -521,18 +686,11 @@ function IconEyeOff() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.1-5.9M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2m-6.7-1.1a3 3 0 1 1-4.2-4.2" /><line x1="1" y1="1" x2="23" y2="23" /></svg>;
 }
 
-function IconAutoRotate() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M21 12a9 9 0 0 1-15.1 6.6" />
-      <path d="M3 12A9 9 0 0 1 18.1 5.4" />
-      <path d="M18 9V5h4" />
-      <path d="M6 15v4H2" />
-    </svg>
-  );
-}
-
-function IconSimple({ type }: { type: "upload" | "layers" | "pin" | "maximize" | "scan" | "grid" }) {
+function IconSimple({
+  type,
+}: {
+  type: "upload" | "layers" | "pin" | "maximize" | "scan" | "grid" | "draw";
+}) {
   const paths: Record<typeof type, JSX.Element> = {
     upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8 12 3 7 8" /><path d="M12 3v12" /></>,
     layers: <><path d="m12 2 10 5-10 5L2 7l10-5Z" /><path d="m2 17 10 5 10-5" /><path d="m2 12 10 5 10-5" /></>,
@@ -540,6 +698,12 @@ function IconSimple({ type }: { type: "upload" | "layers" | "pin" | "maximize" |
     maximize: <><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></>,
     scan: <><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 12h10" /></>,
     grid: <><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></>,
+    draw: (
+      <>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+      </>
+    ),
   };
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[type]}</svg>;
 }
@@ -641,6 +805,18 @@ export interface AuraFaceViewProps {
   /** MediaPipe region highlights (dashboard face mirror). */
   highlightTerms?: string[];
   highlightedRegionIds?: string[];
+  /**
+   * Expanded client detail: Skin / Volume / Structure pills drive the analysis panel
+   * category on the right (controlled from FaceMirrorPanel).
+   */
+  overviewCategory?: AuraOverviewCategoryKey;
+  onOverviewCategoryChange?: (key: AuraOverviewCategoryKey) => void;
+  /** Lifted ink for save / reload from patient files. */
+  annotateStrokes?: AnnotateStroke[];
+  onAnnotateStrokesChange?: (strokes: AnnotateStroke[]) => void;
+  onAnnotateSave?: (payload: AnnotateSavePayload) => void;
+  /** Dashboard: region highlight picker on the right tool rail (Aura clients). */
+  regionPicker?: Omit<FaceMirrorRegionsPickerProps, "variant">;
 }
 
 export default function AuraFaceView({
@@ -652,13 +828,34 @@ export default function AuraFaceView({
   viewerAngleAssets: viewerAngleAssetsProp,
   highlightTerms = [],
   highlightedRegionIds = [],
+  overviewCategory,
+  onOverviewCategoryChange,
+  annotateStrokes,
+  onAnnotateStrokesChange,
+  onAnnotateSave,
+  regionPicker,
 }: AuraFaceViewProps) {
   const viewerAngleAssets = viewerAngleAssetsProp ?? TANYA_TAN_VIEWER_ANGLE_ASSETS;
   const showMirrorAnnotations = hasMirrorAnnotationHighlights(
     highlightTerms,
     highlightedRegionIds,
   );
-  const [activeTab, setActiveTab] = useState<AnalysisTab>("skin");
+  const overviewControlled =
+    overviewCategory !== undefined && onOverviewCategoryChange !== undefined;
+  const [internalActiveTab, setInternalActiveTab] = useState<AnalysisTab>("texture");
+  const activeTab = overviewControlled
+    ? overviewCategoryToAuraFaceTab(overviewCategory)
+    : internalActiveTab;
+  const setActiveTab = useCallback(
+    (tab: AnalysisTab) => {
+      if (overviewControlled) {
+        onOverviewCategoryChange!(auraFaceTabToOverviewCategory(tab));
+      } else {
+        setInternalActiveTab(tab);
+      }
+    },
+    [overviewControlled, onOverviewCategoryChange],
+  );
   const [viewAngle, setViewAngle] = useState<ViewAngle>("front");
   const [faceSource, setFaceSource] = useState<FaceSource>(
     turntableOnly ? "turntable" : "front",
@@ -666,15 +863,51 @@ export default function AuraFaceView({
   const [radarMode, setRadarMode] = useState(showRadar);
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [autoRotate, setAutoRotate] = useState(turntableOnly);
+  const [drawingMode, setDrawingMode] = useState(false);
   const [blendRatio, setBlendRatio] = useState(0.5);
+  const [isDragging3D, setIsDragging3D] = useState(false);
   const [photoTransition, setPhotoTransition] = useState<PhotoTransition | null>(null);
+  const autoRotateRef = useRef(autoRotate);
   const targetRatioRef = useRef(0.5);
   const settleTimerRef = useRef<number | null>(null);
   const prevViewAngleRef = useRef(viewAngle);
+  const [annotateToolbarHost, setAnnotateToolbarHost] =
+    useState<HTMLDivElement | null>(null);
+  const annotateMeasureRef = useRef<HTMLElement | null>(null);
+  const setAnnotateMeasureRoot = useCallback((el: HTMLElement | null) => {
+    annotateMeasureRef.current = el;
+  }, []);
 
-  const isTurntableView = !turntableOnly || faceSource === "turntable";
+  /** Dashboard turntable uses viewer anchor times; /aura studio page uses studio plates. */
+  const angleTimings = useMemo<AngleTimings>(
+    () => (turntableOnly ? viewerAngleAssets : AURA_TAN_ANGLE_ASSETS),
+    [turntableOnly, viewerAngleAssets],
+  );
+
+  const activeTurntableAngle = useMemo(
+    () => closestAnchor(blendRatio, angleTimings).angle,
+    [blendRatio, angleTimings],
+  );
+
+  const embeddedPhotoStills =
+    embedded && turntableOnly && faceSource !== "turntable";
+  /** Skin tab → texture stills; Volume & Structure → color stills. */
+  const embeddedStillVariant: "normal" | "texture" | "pigmentation" =
+    activeTab === "texture"
+      ? "texture"
+      : activeTab === "pigmentation"
+        ? "pigmentation"
+        : "normal";
+  const isTurntableView =
+    turntableOnly && embedded
+      ? !embeddedPhotoStills
+      : !turntableOnly || faceSource === "turntable";
   const activePhotoAngle: ViewAngle =
-    turntableOnly && faceSource !== "turntable" ? faceSource : viewAngle;
+    turntableOnly && faceSource !== "turntable"
+      ? faceSource
+      : embeddedPhotoStills
+        ? viewAngle
+        : viewAngle;
   const activeAngleMeta =
     ANGLE_CONTROLS.find((angle) => angle.id === activePhotoAngle) ?? ANGLE_CONTROLS[2];
   const activeTimeRatio = turntableOnly
@@ -682,7 +915,137 @@ export default function AuraFaceView({
     : activeAngleMeta.timeRatio;
   const noIssuesMessage = TAB_NO_ISSUES[activeTab] ?? null;
   const annotationsActive = showAnnotations && !noIssuesMessage;
-  const uvMode = activeTab === "skin" && annotationsActive;
+  /** UV grayscale helps on still /aura page; on live turntable it muddies pigment marks. */
+  const uvMode = activeTab === "texture" && annotationsActive && !turntableOnly;
+  /** Client-detail turntable: video only. Full /aura page may still blend plates when on texture. */
+  const texturePlateMode =
+    turntableOnly ? false : isTurntableView && activeTab === "texture";
+  const scanOverlayVisible = annotationsActive && !texturePlateMode;
+  const textureTurntableMode = isTurntableView && activeTab === "texture";
+  const pigmentationTurntableMode = isTurntableView && activeTab === "pigmentation";
+  const activeVideoUrl =
+    textureTurntableMode
+      ? auraTurntableSkinGrayVideo
+      : pigmentationTurntableMode
+        ? auraTurntablePigmentationVideo
+        : videoUrl;
+
+  const annotateExportAngle = embeddedPhotoStills ? activePhotoAngle : activeTurntableAngle;
+  const annotateAngleLabel =
+    viewerAngleAssets[annotateExportAngle]?.label ??
+    ANGLE_CONTROLS.find((a) => a.id === annotateExportAngle)?.label ??
+    "Face";
+
+  const currentFaceImageUrl = useMemo(() => {
+    const asset = viewerAngleAssets[annotateExportAngle];
+    const left45SkinOverride =
+      annotateExportAngle === "three-quarter-left" && activeTab === "texture"
+        ? aura45LeftSkinIcon
+        : null;
+    if (embeddedPhotoStills) {
+      if (embeddedStillVariant === "texture") {
+        return left45SkinOverride ?? asset.srcTexture ?? asset.src;
+      }
+      if (embeddedStillVariant === "pigmentation") return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
+      return asset.src;
+    }
+    if (textureTurntableMode) {
+      return left45SkinOverride ?? asset.srcTexture ?? asset.src;
+    }
+    if (pigmentationTurntableMode) {
+      return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
+    }
+    return asset.src;
+  }, [
+    annotateExportAngle,
+    embeddedPhotoStills,
+    viewerAngleAssets,
+    embeddedStillVariant,
+    textureTurntableMode,
+    pigmentationTurntableMode,
+  ]);
+
+  const annotateViewContext = useMemo(() => {
+    const layer: "Color" | "Texture" = embeddedPhotoStills
+      ? embeddedStillVariant === "texture" || embeddedStillVariant === "pigmentation"
+        ? "Texture"
+        : "Color"
+      : textureTurntableMode || pigmentationTurntableMode || activeTab === "texture" || activeTab === "pigmentation"
+        ? "Texture"
+        : "Color";
+    const mode: "Still" | "3D" = embeddedPhotoStills ? "Still" : "3D";
+    return buildAnnotateViewContext({ angleLabel: annotateAngleLabel, layer, mode });
+  }, [
+    annotateAngleLabel,
+    embeddedPhotoStills,
+    embeddedStillVariant,
+    textureTurntableMode,
+    pigmentationTurntableMode,
+    activeTab,
+  ]);
+
+  const buildAnnotatePayload = useCallback(async (): Promise<AnnotateSavePayload | null> => {
+    const strokes = annotateStrokes ?? [];
+    if (strokes.filter((s) => s.tool !== "eraser").length === 0) return null;
+
+    const measureRoot = annotateMeasureRef.current;
+    const contentRect = measureRoot ? measureAnnotateContentRect(measureRoot) : undefined;
+
+    let faceImageUrl = currentFaceImageUrl;
+    if (!embeddedPhotoStills && measureRoot) {
+      const video = measureRoot.querySelector<HTMLVideoElement>(".face3d-display");
+      const frame = video ? captureVideoFrameDataUrl(video) : null;
+      if (frame) faceImageUrl = frame;
+    }
+    if (!faceImageUrl) return null;
+
+    try {
+      const compositeDataUrl = await compositeAnnotationOnImage(
+        faceImageUrl,
+        strokes,
+        contentRect,
+      );
+      return {
+        faceImageUrl,
+        compositeDataUrl,
+        strokes,
+        viewContext: annotateViewContext,
+      };
+    } catch {
+      return null;
+    }
+  }, [
+    annotateStrokes,
+    currentFaceImageUrl,
+    annotateViewContext,
+    embeddedPhotoStills,
+  ]);
+
+  const handleAnnotateSave = useCallback(async () => {
+    const payload = await buildAnnotatePayload();
+    if (payload) onAnnotateSave?.(payload);
+  }, [buildAnnotatePayload, onAnnotateSave]);
+
+  const handleAnnotateDownload = useCallback(async () => {
+    const payload = await buildAnnotatePayload();
+    if (!payload) return;
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadDataUrl(
+      payload.compositeDataUrl,
+      `${sanitizeDownloadFilename(payload.viewContext)}-${stamp}.jpg`,
+    );
+  }, [buildAnnotatePayload]);
+
+  const annotateOverlay = (
+    <AnnotateDrawing
+      active={drawingMode}
+      strokes={annotateStrokes}
+      onStrokesChange={onAnnotateStrokesChange}
+      onSave={onAnnotateSave ? handleAnnotateSave : undefined}
+      onDownload={handleAnnotateDownload}
+      toolbarContainer={embedded ? annotateToolbarHost : null}
+    />
+  );
 
   const selectTurntable = useCallback(() => {
     setFaceSource("turntable");
@@ -691,13 +1054,26 @@ export default function AuraFaceView({
 
   const selectPhotoAngle = useCallback((angle: ViewAngle) => {
     setAutoRotate(false);
+    setRadarMode(false);
+    if (turntableOnly) {
+      setFaceSource(angle);
+      setViewAngle(angle);
+      return;
+    }
     setFaceSource(angle);
     setViewAngle(angle);
-    setRadarMode(false);
-  }, []);
+  }, [turntableOnly]);
+
+  useEffect(() => {
+    autoRotateRef.current = autoRotate;
+  }, [autoRotate]);
 
   const handleTimeRatioChange = useCallback((ratio: number) => {
     targetRatioRef.current = ratio;
+    // Snap immediately while scrubbing so Face3DViewer isn't fighting controlledTimeRatio.
+    if (!autoRotateRef.current) {
+      setBlendRatio(ratio);
+    }
   }, []);
 
   useEffect(() => {
@@ -705,6 +1081,7 @@ export default function AuraFaceView({
     const tick = () => {
       setBlendRatio((current) => {
         const target = targetRatioRef.current;
+        if (autoRotateRef.current || turntableOnly) return target;
         const delta = target - current;
         if (Math.abs(delta) < 0.00035) return target;
         return current + delta * BLEND_RATIO_LERP;
@@ -713,11 +1090,14 @@ export default function AuraFaceView({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [turntableOnly]);
 
   const photoCoverOpacity = useMemo(
-    () => (turntableOnly ? 0 : maxPhotoOpacity(blendRatio, photoTransition)),
-    [blendRatio, photoTransition, turntableOnly],
+    () =>
+      turntableOnly
+        ? 0
+        : maxPhotoOpacity(blendRatio, photoTransition, angleTimings),
+    [blendRatio, photoTransition, turntableOnly, angleTimings],
   );
   const mediaOpacity = useMemo(
     () => (turntableOnly ? 1 : mediaOpacityForPhotoCover(photoCoverOpacity)),
@@ -793,27 +1173,35 @@ export default function AuraFaceView({
       </header>
 
       <nav className="avf-leftnav" aria-label="View angle">
-        {turntableOnly ? (
+        {turntableOnly && embedded ? (
           <button
             type="button"
-            className={`avf-angle-btn avf-angle-btn--3d${faceSource === "turntable" ? " avf-angle-btn--active" : ""}`}
+            className={`avf-angle-btn avf-angle-btn--3d${
+              faceSource === "turntable" ? " avf-angle-btn--active" : ""
+            }`}
             onClick={selectTurntable}
             aria-label="3D turntable"
             title="3D turntable"
           >
             <img
-              src={aura3dTurntableIcon}
+              src={AURA_3D_TURNTABLE_ICON}
               alt=""
-              className="avf-angle-icon avf-angle-icon--3d"
+              className="avf-angle-icon avf-angle-icon--turntable-face"
               draggable={false}
             />
           </button>
         ) : null}
-        {(turntableOnly ? LEFT_NAV_ANGLE_ORDER : ANGLE_CONTROLS.map((a) => a.id)).map((angleId) => {
+        {(turntableOnly
+          ? [...LEFT_NAV_ANGLE_ORDER].reverse()
+          : [...ANGLE_CONTROLS].reverse().map((a) => a.id)
+        ).map((angleId) => {
           const meta = ANGLE_CONTROLS.find((a) => a.id === angleId)!;
-          const active = turntableOnly
-            ? faceSource === angleId
-            : viewAngle === angleId;
+          const active =
+            turntableOnly && embedded
+              ? faceSource === angleId
+              : turntableOnly
+                ? faceSource === "turntable" && activeTurntableAngle === angleId
+                : viewAngle === angleId;
           return (
             <button
               key={angleId}
@@ -832,7 +1220,7 @@ export default function AuraFaceView({
               title={viewerAngleAssets[angleId]?.label ?? meta.label}
             >
               <img
-                src={(turntableOnly ? VIEWER_ANGLE_ICON_SRC : ANGLE_ICON_SRC)[angleId]}
+                src={ANGLE_ICON_SRC[angleId]}
                 alt=""
                 className="avf-angle-icon"
                 draggable={false}
@@ -859,13 +1247,16 @@ export default function AuraFaceView({
               >
                 {isTurntableView ? (
                   <Face3DViewer
-                    videoUrl={videoUrl}
+                    key={activeVideoUrl}
+                    videoUrl={activeVideoUrl}
                     autoRotate={autoRotate}
                     controlledTimeRatio={
-                      autoRotate || turntableOnly ? undefined : activeTimeRatio
+                      autoRotate ? undefined : turntableOnly ? blendRatio : activeTimeRatio
                     }
-                    controlledTimeAnimationMs={ANGLE_TRANSITION_MS}
+                    controlledTimeAnimationMs={turntableOnly ? 0 : ANGLE_TRANSITION_MS}
                     onTimeRatioChange={handleTimeRatioChange}
+                    onDragStart={turntableOnly ? () => setIsDragging3D(true) : undefined}
+                    onDragEnd={turntableOnly ? () => setIsDragging3D(false) : undefined}
                     showAnnotations={showMirrorAnnotations}
                     highlightTerms={highlightTerms}
                     highlightedAnnotationRegionIds={highlightedRegionIds}
@@ -873,12 +1264,21 @@ export default function AuraFaceView({
                     initialZoom={TURNTABLE_MATCH_ZOOM}
                     initialPanY={TURNTABLE_MATCH_PAN_Y}
                     mediaOpacity={mediaOpacity}
+                    drawOverlay={annotateOverlay}
+                    annotateMeasureRootRef={setAnnotateMeasureRoot}
                     overlay={
                       <>
+                        {texturePlateMode ? (
+                          <AuraTexturePhotoLayer
+                            turntableRatio={blendRatio}
+                            photoTransition={photoTransition}
+                            viewerAssets={viewerAngleAssets}
+                          />
+                        ) : null}
                         {!turntableOnly ? (
                           <AuraAnglePhotoLayer
                             activeTab={activeTab}
-                            showAnnotations={annotationsActive}
+                            showAnnotations={scanOverlayVisible}
                             turntableRatio={blendRatio}
                             photoTransition={photoTransition}
                           />
@@ -886,31 +1286,52 @@ export default function AuraFaceView({
                         <AuraAnnotationOverlay
                           activeTab={activeTab}
                           turntableRatio={blendRatio}
+                          angleTimings={angleTimings}
                           visible={
-                            annotationsActive &&
-                            (turntableOnly || (activeTab !== "structure" && !autoRotate))
+                            scanOverlayVisible &&
+                            !isDragging3D &&
+                            (turntableOnly || (activeTab !== "structure" && !autoRotate)) &&
+                            !(turntableOnly && activeTab === "texture")
                           }
                           includeWrinkles={turntableOnly}
                         />
                       </>
                     }
                   />
-                ) : (
+                ) : embeddedPhotoStills ? (
                   <AuraStaticPhotoView
-                    key={faceSource}
-                    angle={faceSource}
+                    key={`${activeTab}-${activePhotoAngle}`}
+                    angle={activePhotoAngle}
                     activeTab={activeTab}
-                    showAuraDiagnostics={annotationsActive}
+                    showAuraDiagnostics={annotationsActive && activeTab !== "texture"}
                     showMirrorAnnotations={showMirrorAnnotations}
                     highlightTerms={highlightTerms}
                     highlightedRegionIds={highlightedRegionIds}
                     viewerAssets={viewerAngleAssets}
+                    photoVariant={embeddedStillVariant}
+                    drawOverlay={annotateOverlay}
+                    measureRootRef={setAnnotateMeasureRoot}
+                  />
+                ) : (
+                  <AuraStaticPhotoView
+                    key={faceSource}
+                    angle={faceSource === "turntable" ? viewAngle : faceSource}
+                    activeTab={activeTab}
+                    showAuraDiagnostics={annotationsActive && activeTab !== "texture"}
+                    showMirrorAnnotations={showMirrorAnnotations}
+                    highlightTerms={highlightTerms}
+                    highlightedRegionIds={highlightedRegionIds}
+                    viewerAssets={viewerAngleAssets}
+                    drawOverlay={annotateOverlay}
+                    measureRootRef={setAnnotateMeasureRoot}
                   />
                 )}
               </div>
             </div>
             {noIssuesMessage ? <NoIssuesMessage message={noIssuesMessage} /> : null}
-            <MinimapPanel activeTab={activeTab} suppressed={!!noIssuesMessage} />
+            {!embedded ? (
+              <MinimapPanel activeTab={activeTab} suppressed={!!noIssuesMessage} />
+            ) : null}
             {!embedded ? (
               <>
                 <div className="avf-subject-toggle">
@@ -920,6 +1341,12 @@ export default function AuraFaceView({
                 </div>
                 <span className="avf-wordmark">aura</span>
               </>
+            ) : null}
+            {embedded ? (
+              <div
+                ref={setAnnotateToolbarHost}
+                className="avf-annotate-toolbar-portal"
+              />
             ) : null}
           </>
         )}
@@ -931,24 +1358,43 @@ export default function AuraFaceView({
           title={autoRotate ? "Pause auto-rotate" : "Auto-rotate"}
           aria-label={autoRotate ? "Pause auto-rotate" : "Auto-rotate"}
           aria-pressed={autoRotate}
-          disabled={turntableOnly && !isTurntableView}
           onClick={() => {
             if (turntableOnly && !isTurntableView) {
               selectTurntable();
+              setAutoRotate(true);
+              setRadarMode(false);
+              return;
             }
             setRadarMode(false);
             setAutoRotate((rotating) => !rotating);
           }}
         >
-          <IconAutoRotate />
+          <AutoRotateHeadIcon />
         </button>
+        {embedded && regionPicker ? (
+          <FaceMirrorRegionsPicker variant="aura-rail" {...regionPicker} />
+        ) : (
+          <button
+            className={`avf-tool-btn${showAnnotations ? " avf-tool-btn--active" : ""}`}
+            title={showAnnotations ? "Hide annotations" : "Show annotations"}
+            aria-label={showAnnotations ? "Hide annotations" : "Show annotations"}
+            onClick={() => setShowAnnotations((visible) => !visible)}
+          >
+            {showAnnotations ? <IconEye /> : <IconEyeOff />}
+          </button>
+        )}
         <button
-          className={`avf-tool-btn${showAnnotations ? " avf-tool-btn--active" : ""}`}
-          title={showAnnotations ? "Hide annotations" : "Show annotations"}
-          aria-label={showAnnotations ? "Hide annotations" : "Show annotations"}
-          onClick={() => setShowAnnotations((visible) => !visible)}
+          className={`avf-tool-btn${drawingMode ? " avf-tool-btn--active" : ""}`}
+          title={drawingMode ? "Stop drawing" : "Draw annotation"}
+          aria-label={drawingMode ? "Stop drawing" : "Draw annotation"}
+          aria-pressed={drawingMode}
+          onClick={() => {
+            setRadarMode(false);
+            setAutoRotate(false);
+            setDrawingMode((active) => !active);
+          }}
         >
-          {showAnnotations ? <IconEye /> : <IconEyeOff />}
+          <IconSimple type="draw" />
         </button>
         {!embedded
           ? [

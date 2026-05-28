@@ -35,10 +35,20 @@
 
 /* Embedded in client-detail 3D column */
 .avf-root--embedded {
-  --avf-topbar-h: 44px;
-  --avf-leftnav-w: 60px;
-  --avf-rightnav-w: 44px;
+  --avf-topbar-h: 58px;
+  --avf-leftnav-w: 48px;
+  --avf-rightnav-w: 48px;
   border-radius: 0;
+}
+
+.avf-root--embedded .avf-topbar {
+  align-items: center;
+  padding-top: 2px;
+  box-sizing: border-box;
+}
+
+.avf-root--embedded .avf-rightnav {
+  gap: 8px;
 }
 
 .avf-root--turntable-only.avf-root--embedded {
@@ -88,6 +98,17 @@
   width: 100%;
   height: 100%;
   transform-origin: center center;
+}
+
+.avf-photo-align .avf-drawing-layer,
+.avf-photo-align .avf-annotate-toolbar {
+  position: absolute;
+}
+
+.avf-photo-align .avf-drawing-layer {
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .avf-static-photo__img,
@@ -166,9 +187,44 @@
 }
 
 .avf-root--turntable-only .avf-leftnav {
-  justify-content: flex-start;
-  padding-top: 12px;
   gap: 6px;
+}
+
+/* Turntable mode: 3D head icon with ring when active (top of left rail). */
+.avf-angle-icon--turntable-face {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: contain;
+  object-position: center;
+  mix-blend-mode: normal;
+  opacity: 0.62;
+  filter: none;
+  background: rgba(0 0 0 / 0.35);
+  border: 2px solid rgba(255 255 255 / 0.2);
+  box-sizing: border-box;
+  transition:
+    opacity 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.avf-angle-btn--3d:hover .avf-angle-icon--turntable-face {
+  opacity: 0.72;
+  border-color: rgba(255 255 255 / 0.38);
+}
+
+.avf-angle-btn--3d.avf-angle-btn--active .avf-angle-icon--turntable-face {
+  opacity: 1;
+  border-color: rgba(255 255 255 / 0.92);
+  box-shadow:
+    0 0 0 2px rgba(255 255 255 / 0.18),
+    0 0 14px rgba(255 255 255 / 0.28);
+}
+
+.avf-root--embedded .avf-angle-icon--turntable-face {
+  width: 40px;
+  height: 40px;
 }
 
 .avf-root--turntable-only .avf-tool-btn:disabled {
@@ -177,14 +233,45 @@
 }
 
 .avf-root--embedded .avf-pills {
-  padding: 3px;
-  gap: 2px;
+  padding: 4px;
+  gap: 3px;
   max-width: 100%;
+  background: rgba(255 255 255 / 0.1);
 }
 
 .avf-root--embedded .avf-pill {
-  font-size: 11px;
-  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  color: rgba(255 255 255 / 0.72);
+  letter-spacing: 0.02em;
+}
+
+.avf-root--embedded .avf-pill:hover:not(.avf-pill--active) {
+  color: rgba(255 255 255 / 0.95);
+  background: rgba(255 255 255 / 0.12);
+}
+
+.avf-root--embedded .avf-pill--active,
+.avf-root--embedded .avf-pill--active:hover {
+  font-size: 13px;
+  padding: 6px 14px;
+  color: #141414;
+  background: #ffffff;
+  font-weight: 600;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.avf-root--embedded .avf-scan-mode {
+  right: 8px;
+}
+
+.avf-root--embedded .avf-scan-mode-btn {
+  min-width: 34px;
+  padding: 4px 6px;
+  font-size: 9.5px;
 }
 
 .avf-root--embedded .avf-minimap {
@@ -212,8 +299,8 @@
 }
 
 .avf-root--embedded .avf-tool-btn {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
 }
 
 /* ── Top bar ───────────────────────────────────────────────────────────────── */
@@ -264,35 +351,73 @@
 }
 
 .avf-pill {
-  background: none;
+  background: transparent;
   border: none;
-  color: var(--avf-muted);
-  font-size: 12.5px;
+  color: rgba(255 255 255 / 0.68);
+  font-size: 13.5px;
   font-weight: 500;
-  letter-spacing: 0.01em;
-  padding: 5px 14px;
+  letter-spacing: 0.02em;
+  padding: 7px 16px;
   border-radius: 999px;
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
   white-space: nowrap;
-  line-height: 1;
+  line-height: 1.2;
+  min-height: 32px;
 }
 
 .avf-pill:hover:not(.avf-pill--active) {
-  color: rgba(255 255 255 / 0.9);
-  background: rgba(255 255 255 / 0.1);
+  color: rgba(255 255 255 / 0.95);
+  background: rgba(255 255 255 / 0.12);
 }
 
 .avf-pill--active,
 .avf-pill--active:hover {
   background: rgba(255 255 255 / 0.94);
   color: #141414;
+  font-size: 13.5px;
   font-weight: 600;
   box-shadow: inset 0 0 0 1px rgba(255 255 255 / 0.35);
 }
 
 .avf-pill--active:hover {
   background: #ffffff;
+}
+
+.avf-scan-mode {
+  position: absolute;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(255 255 255 / 0.08);
+  border-radius: 999px;
+  background: rgba(255 255 255 / 0.055);
+}
+
+.avf-scan-mode-btn {
+  min-width: 48px;
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: transparent;
+  color: rgba(255 255 255 / 0.48);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.avf-scan-mode-btn:hover:not(.avf-scan-mode-btn--active) {
+  color: rgba(255 255 255 / 0.86);
+  background: rgba(255 255 255 / 0.09);
+}
+
+.avf-scan-mode-btn--active {
+  background: rgba(255 255 255 / 0.9);
+  color: #141414;
 }
 
 /* Edit landmarks button — right-anchored */
@@ -347,7 +472,8 @@
 .avf-angle-icon {
   width: 46px;
   height: 46px;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center center;
   display: block;
   border-radius: 50%;
   mix-blend-mode: screen;
@@ -375,31 +501,9 @@
   filter: grayscale(1) brightness(1.45);
 }
 
-.avf-angle-btn--active .avf-angle-icon {
+.avf-angle-btn--active .avf-angle-icon:not(.avf-angle-icon--turntable-face) {
   opacity: 1;
   filter: grayscale(1) brightness(1.85) drop-shadow(0 0 8px rgba(255 255 255 / 0.72));
-}
-
-.avf-angle-icon--3d {
-  width: 34px;
-  height: 34px;
-  opacity: 0.32;
-  filter: grayscale(1) brightness(1.05);
-}
-
-.avf-angle-btn:hover .avf-angle-icon--3d {
-  opacity: 0.52;
-  filter: grayscale(1) brightness(1.2);
-}
-
-.avf-angle-btn--active .avf-angle-icon--3d {
-  opacity: 0.78;
-  filter: grayscale(1) brightness(1.45);
-}
-
-.avf-root--embedded .avf-angle-icon--3d {
-  width: 30px;
-  height: 30px;
 }
 
 .avf-angle-icon--photo {
@@ -443,6 +547,18 @@
   background: #000;
 }
 
+/* Annotate toolbar portal — above 3D/photo layers, not clipped by face3d-viewer */
+.avf-annotate-toolbar-portal {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  pointer-events: none;
+}
+
+.avf-annotate-toolbar-portal .avf-annotate-toolbar {
+  pointer-events: auto;
+}
+
 .avf-3d-stage {
   position: absolute;
   inset: 0;
@@ -477,11 +593,48 @@
   object-fit: contain;
 }
 
+/* Client-detail left column: let turntable fill the viewport (not letterboxed 512:488 box). */
+.avf-root--embedded.avf-root--turntable-only .avf-viewport {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.avf-root--embedded.avf-root--turntable-only .avf-3d-stage {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.avf-root--embedded.avf-root--turntable-only .avf-3d-frame--turntable-only {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.avf-root--embedded.avf-root--turntable-only .avf-3d-stage .face3d-wrap {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  justify-content: stretch;
+}
+
+.avf-root--embedded.avf-root--turntable-only .avf-3d-stage .face3d-viewer {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+
 .avf-angle-photo-layer {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
+}
+
+.avf-texture-photo-layer {
+  z-index: 2;
+  mix-blend-mode: normal;
 }
 
 .avf-angle-photo-layer img {
@@ -506,6 +659,25 @@
   pointer-events: none;
   mix-blend-mode: multiply;
   opacity: 0.92;
+}
+
+.avf-drawing-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.avf-drawing-layer--active {
+  pointer-events: auto;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.avf-drawing-layer__stroke--live {
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.35));
 }
 
 .avf-diagnostic-overlay__strokes path,
@@ -578,9 +750,17 @@
   mix-blend-mode: screen;
 }
 
-.avf-diagnostic-overlay--skin {
-  mix-blend-mode: normal;
-  opacity: 0.95;
+.avf-diagnostic-overlay--texture,
+.avf-diagnostic-overlay--pigmentation {
+  mix-blend-mode: screen;
+  opacity: 0.9;
+}
+
+.avf-diagnostic-overlay__spots ellipse {
+  fill: currentColor;
+  stroke: rgba(255, 140, 80, 0.35);
+  stroke-width: 0.12;
+  vector-effect: non-scaling-stroke;
 }
 
 .avf-face-img {
@@ -866,6 +1046,16 @@
   transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
 
+.avf-tool-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.avf-root--embedded .avf-tool-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 .avf-tool-btn:hover {
   color: var(--avf-text);
   background: rgba(255 255 255 / 0.1);
@@ -884,7 +1074,8 @@
 
 @media (max-width: 700px) {
   .avf-edit-btn  { display: none; }
-  .avf-pill      { padding: 5px 10px; font-size: 11.5px; }
+  .avf-pill      { padding: 6px 12px; font-size: 12.5px; }
+  .avf-root--embedded .avf-pill { font-size: 12.5px; padding: 6px 12px; }
 }
 
 @media (max-width: 540px) {

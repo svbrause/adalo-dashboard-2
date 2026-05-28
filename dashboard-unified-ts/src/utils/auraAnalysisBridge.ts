@@ -17,6 +17,36 @@ export const AURA_OVERVIEW_TABS: {
   { key: "proportions", label: "Structure", accent: "#c4b5fd" },
 ];
 
+/** Aura face viewport tabs (left column pills). */
+export type AuraFaceAnalysisTab = "texture" | "pigmentation" | "volume" | "structure";
+
+export function auraFaceTabToOverviewCategory(
+  tab: AuraFaceAnalysisTab,
+): AuraOverviewCategoryKey {
+  switch (tab) {
+    case "texture":
+    case "pigmentation":
+      return "skinHealth";
+    case "volume":
+      return "volumeLoss";
+    case "structure":
+      return "proportions";
+  }
+}
+
+export function overviewCategoryToAuraFaceTab(
+  key: AuraOverviewCategoryKey,
+): AuraFaceAnalysisTab {
+  switch (key) {
+    case "skinHealth":
+      return "texture";
+    case "volumeLoss":
+      return "volume";
+    case "proportions":
+      return "structure";
+  }
+}
+
 export function auraTabLabelForCategoryKey(key: string): string {
   return AURA_OVERVIEW_TABS.find((t) => t.key === key)?.label ?? key;
 }

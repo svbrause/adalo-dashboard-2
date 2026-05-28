@@ -8,6 +8,10 @@ import tanPng45Left from "../assets/images/tan_45_left.png";
 import tanPng45Right from "../assets/images/tan_45_right.png";
 import tanPng90Left from "../assets/images/tan_90_left.png";
 import tanPng90Right from "../assets/images/tan_90_right.png";
+import tanPng45LeftRembg from "../assets/images/45-left-rembg.png";
+import tanPng90RightRembg from "../assets/images/tan_90_right_rembg.png";
+import tanPng90RightRembgTexture from "../assets/images/tan_90_right_rembg_texture.png";
+import tanPng90RightRembgPigmentation from "../assets/images/tan_90_right_rembg_pigmentation.png";
 import tanProfileLeftWrinkles from "../assets/images/aura-tan-profile-left-wrinkles.webp";
 import tanThreeQuarterLeftWrinkles from "../assets/images/aura-tan-three-quarter-left-wrinkles.webp";
 import tanFrontWrinkles from "../assets/images/aura-tan-front-wrinkles.webp";
@@ -23,6 +27,10 @@ export type AuraTanViewAngle =
 
 export type AuraTanViewerAngleAsset = {
   src: string;
+  /** Clinical texture map for Texture tab. */
+  srcTexture?: string;
+  /** Clinical pigment map for Pigmentation tab. */
+  srcPigmentation?: string;
   timeRatio: number;
   label: string;
 };
@@ -83,28 +91,35 @@ export const TANYA_TAN_STUDIO_ANGLE_ASSETS: Record<AuraTanViewAngle, AuraTanBlen
  */
 export const TANYA_TAN_VIEWER_ANGLE_ASSETS: Record<AuraTanViewAngle, AuraTanViewerAngleAsset> = {
   "profile-left": {
-    src: tanPng90Right,
-    timeRatio: 0,
+    src: tanPng90Left,
+    srcTexture: "/demo-3d/tanya-tan-profile-left-texture.png",
+    timeRatio: 0.99,
     label: "Left profile",
   },
   "three-quarter-left": {
-    src: tanPng45Right,
-    timeRatio: 0.24,
+    src: tanPng45Left,
+    srcTexture: tanPng45LeftRembg,
+    srcPigmentation: "/demo-3d/tanya-tan-45-left-pigmentation-brown.png",
+    timeRatio: 0.76,
     label: "Left three-quarter",
   },
   front: {
     src: tanPngFront,
+    srcTexture: "/demo-3d/tanya-tan-front-texture.png",
     timeRatio: 0.5,
     label: "Front",
   },
   "three-quarter-right": {
-    src: tanPng45Left,
-    timeRatio: 0.76,
+    src: tanPng45Right,
+    srcTexture: "/demo-3d/tanya-tan-45-right-texture.png",
+    timeRatio: 0.24,
     label: "Right three-quarter",
   },
   "profile-right": {
-    src: tanPng90Left,
-    timeRatio: 0.99,
+    src: tanPng90RightRembg,
+    srcTexture: tanPng90RightRembgTexture,
+    srcPigmentation: tanPng90RightRembgPigmentation,
+    timeRatio: 0,
     label: "Right profile",
   },
 };
@@ -119,13 +134,13 @@ export const TANYA_TAN_GALLERY_PHOTO_SLOTS: ClientPhotoSlot[] = [
   {
     id: "three-quarter-left",
     label: "Left ¾",
-    url: "/demo-3d/tanya-tan-45-right.png",
+    url: "/demo-3d/tanya-tan-45-left.png",
   },
   { id: "front", label: "Front", url: "/demo-3d/tanya-tan-front.png" },
   {
     id: "three-quarter-right",
     label: "Right ¾",
-    url: "/demo-3d/tanya-tan-45-left.png",
+    url: "/demo-3d/tanya-tan-45-right.png",
   },
   {
     id: "profile-right",

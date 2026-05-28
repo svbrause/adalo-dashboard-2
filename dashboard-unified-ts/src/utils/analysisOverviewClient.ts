@@ -25,10 +25,18 @@ export function inferSeverityBadness01(
 
 /** True when this detector row should surface as having meaningful severity (shown in severity lists). */
 export function isSeverityRowNonPerfect(issue: AnalysisSeverityIssue): boolean {
+  const level =
+    typeof issue.severity_level === "string"
+      ? issue.severity_level.trim().toLowerCase()
+      : "";
+  if (level === "none" || level === "minimal") return false;
+
   const n = issue.severity_normalized_0_1;
   if (n !== undefined && Number.isFinite(n)) {
+    if (issue.predicted === false) return n >= 0.25;
     return n > SEVERITY_NORM_NEAR_ZERO;
   }
+  if (issue.predicted === false) return false;
   return Boolean(
     issue.predicted ||
       (issue.severity ?? 0) > 0 ||

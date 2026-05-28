@@ -1,15 +1,14 @@
 import { useMemo, useState } from "react";
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import type { CategoryResult } from "../../config/analysisOverviewConfig";
 import type { AnalysisSeverityIssue } from "../../types";
 import { useRegionalFaceLandmarks } from "../../hooks/useRegionalFaceLandmarks";
 import {
-  AURA_FIVE_REGION_IDS,
-  badnessToPlusMinus,
-  fiveRegionalScoresForCategory,
-  type AuraRegionalZoneScore,
+  regionHighlightsFromCategoryIssues,
+  type AuraIssueMapHighlight,
 } from "../../utils/auraRegionalDisplay";
+import { mirrorRegionPolygonInViewBox } from "../../utils/mirrorRegionPolygons";
 import {
-  REGIONAL_FACE_PAN_VIEW,
   REGIONAL_FACE_VIEW_IMAGE,
   REGIONAL_FACE_VIEWPORT_ASPECT,
   regionalFaceMediaStyle,
@@ -19,29 +18,42 @@ import "./AuraRegionalFaceCard.css";
 
 export type RegionalScoreMode = "scale15" | "plusMinus";
 
-/** Fixed overlay strength (opacity slider removed). */
-const REGIONAL_OVERLAY_OPACITY = 0.72;
-
 interface AuraRegionalFaceCardProps {
   activeCat: CategoryResult | undefined;
   detectedIssues: Set<string>;
   severityIssues: Record<string, AnalysisSeverityIssue> | undefined;
   hasSeverity: boolean;
+  categoryAccent: string;
+  /** Embedded right panel: color zones only, no numeric scores or mode toggle. */
+  compact?: boolean;
 }
 
-function RegionalOverlaySvg({
-  scoreByZone,
-  formatZoneScore,
-  zonesByView,
-  landmarkStatus,
+function IssueRegionalOverlaySvg({
+  issueHighlights,
+  landmarks,
+  detectWidth,
+  detectHeight,
 }: {
-  scoreByZone: Map<string, AuraRegionalZoneScore>;
-  formatZoneScore: (zone: AuraRegionalZoneScore) => string;
-  zonesByView: ReturnType<typeof useRegionalFaceLandmarks>["zonesByView"];
-  landmarkStatus: ReturnType<typeof useRegionalFaceLandmarks>["status"];
+  issueHighlights: AuraIssueMapHighlight[];
+  landmarks: NormalizedLandmark[];
+  detectWidth: number;
+  detectHeight: number;
 }) {
-  const viewZones = zonesByView[REGIONAL_FACE_PAN_VIEW];
-  const useCv = landmarkStatus === "ready" && viewZones;
+  const shapes = useMemo(() => {
+    if (!landmarks.length || detectWidth <= 0 || detectHeight <= 0) return [];
+    return issueHighlights
+      .map((h) => {
+        const poly = mirrorRegionPolygonInViewBox(
+          h.regionId,
+          landmarks,
+          detectWidth,
+          detectHeight,
+        );
+        if (!poly || poly.points.length < 3) return null;
+        return { key: h.regionId, poly, highlight: h };
+      })
+      .filter((row): row is NonNullable<typeof row> => row != null);
+  }, [issueHighlights, landmarks, detectWidth, detectHeight]);
 
   return (
     <svg
@@ -50,36 +62,17 @@ function RegionalOverlaySvg({
       preserveAspectRatio="none"
       aria-hidden
     >
-      {AURA_FIVE_REGION_IDS.map((id) => {
-        const zone = scoreByZone.get(id);
-        if (!zone) return null;
-
-        const cv = useCv ? viewZones?.[id] : null;
-        if (cv && cv.points.length >= 3) {
-          return (
-            <g key={id}>
-              <polygon
-                points={polygonPointsAttr(cv.points)}
-                fill={zone.color}
-                fillOpacity={REGIONAL_OVERLAY_OPACITY}
-                stroke={zone.color}
-                strokeWidth="0.4"
-                strokeOpacity={0.85}
-              />
-              <text
-                x={cv.score.x}
-                y={cv.score.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                className="aura-regional-card__zone-score"
-              >
-                {formatZoneScore(zone)}
-              </text>
-            </g>
-          );
-        }
-        return null;
-      })}
+      {shapes.map(({ key, poly, highlight }) => (
+        <polygon
+          key={key}
+          points={polygonPointsAttr(poly.points)}
+          fill={highlight.color}
+          fillOpacity={highlight.fillOpacity}
+          stroke={highlight.color}
+          strokeWidth="0.45"
+          strokeOpacity={0.9}
+        />
+      ))}
     </svg>
   );
 }
@@ -89,27 +82,34 @@ export default function AuraRegionalFaceCard({
   detectedIssues,
   severityIssues,
   hasSeverity,
+  categoryAccent,
+  compact = false,
 }: AuraRegionalFaceCardProps) {
   const [scoreMode, setScoreMode] = useState<RegionalScoreMode>("scale15");
 
-  const { status: landmarkStatus, zonesByView } = useRegionalFaceLandmarks();
+  const {
+    status: landmarkStatus,
+    landmarks,
+    detectWidth,
+    detectHeight,
+  } = useRegionalFaceLandmarks();
 
-  const zoneScores = useMemo(
-    () => fiveRegionalScoresForCategory(activeCat, detectedIssues, severityIssues),
-    [activeCat, detectedIssues, severityIssues],
+  const issueHighlights = useMemo(
+    () =>
+      regionHighlightsFromCategoryIssues(
+        activeCat,
+        detectedIssues,
+        severityIssues,
+        categoryAccent,
+      ),
+    [activeCat, detectedIssues, severityIssues, categoryAccent],
   );
 
-  const scoreByZone = useMemo(
-    () => new Map(zoneScores.map((z) => [z.id, z])),
-    [zoneScores],
-  );
-
-  const formatZoneScore = (zone: AuraRegionalZoneScore) => {
-    if (scoreMode === "plusMinus") return badnessToPlusMinus(zone.badness01);
-    return zone.score15.toFixed(1);
-  };
-
-  const showOverlays = landmarkStatus === "ready" && zoneScores.length > 0;
+  const showIssueOverlays =
+    landmarkStatus === "ready" &&
+    issueHighlights.length > 0 &&
+    !!landmarks?.length &&
+    detectWidth > 0;
 
   return (
     <div className="aura-regional-card">
@@ -128,46 +128,48 @@ export default function AuraRegionalFaceCard({
                 className="aura-regional-card__photo"
                 draggable={false}
               />
-              {showOverlays && (
+              {showIssueOverlays && landmarks ? (
                 <div className="aura-regional-card__overlay-layer">
-                  <RegionalOverlaySvg
-                    scoreByZone={scoreByZone}
-                    formatZoneScore={formatZoneScore}
-                    zonesByView={zonesByView}
-                    landmarkStatus={landmarkStatus}
+                  <IssueRegionalOverlaySvg
+                    issueHighlights={issueHighlights}
+                    landmarks={landmarks}
+                    detectWidth={detectWidth}
+                    detectHeight={detectHeight}
                   />
                 </div>
-              )}
+              ) : null}
             </div>
             {landmarkStatus === "loading" && (
               <span className="aura-regional-card__cv-status" aria-live="polite">
                 Mapping regions…
               </span>
             )}
-            <div
-              className="aura-regional-card__mode-toggle"
-              role="group"
-              aria-label="Score display"
-            >
-              <button
-                type="button"
-                className={`aura-regional-card__mode-btn${scoreMode === "scale15" ? " aura-regional-card__mode-btn--active" : ""}`}
-                onClick={() => setScoreMode("scale15")}
+            {!compact ? (
+              <div
+                className="aura-regional-card__mode-toggle"
+                role="group"
+                aria-label="Score display"
               >
-                1–5
-              </button>
-              <button
-                type="button"
-                className={`aura-regional-card__mode-btn${scoreMode === "plusMinus" ? " aura-regional-card__mode-btn--active" : ""}`}
-                onClick={() => setScoreMode("plusMinus")}
-                title="Relative intensity"
-              >
-                +/−
-              </button>
-            </div>
+                <button
+                  type="button"
+                  className={`aura-regional-card__mode-btn${scoreMode === "scale15" ? " aura-regional-card__mode-btn--active" : ""}`}
+                  onClick={() => setScoreMode("scale15")}
+                >
+                  1–5
+                </button>
+                <button
+                  type="button"
+                  className={`aura-regional-card__mode-btn${scoreMode === "plusMinus" ? " aura-regional-card__mode-btn--active" : ""}`}
+                  onClick={() => setScoreMode("plusMinus")}
+                  title="Relative intensity"
+                >
+                  +/−
+                </button>
+              </div>
+            ) : null}
           </div>
 
-          {zoneScores.length === 0 && (
+          {issueHighlights.length === 0 && (
             <p className="aura-regional-card__no-data">
               {hasSeverity
                 ? "No regional findings in this category."

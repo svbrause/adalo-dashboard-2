@@ -14,6 +14,19 @@ import type { Client, DiscussedItem, AnalysisSeverityScoresData, Provider } from
 import { isAdminBlueprintProvider } from "../utils/providerHelpers";
 import { TANYA_TAN_SKINCARE_QUIZ } from "./adminDemoSkincareQuiz";
 import { TANYA_TAN_GALLERY_PHOTO_SLOTS } from "../utils/auraTanAnglePhotos";
+import tanyaTanSeverityScoresJson from "./tanya-tan-severity-scores.json";
+
+const TANYA_TAN_SEVERITY = tanyaTanSeverityScoresJson as AnalysisSeverityScoresData;
+
+/** Issue labels with predicted=true from Modal severity run, highest badness first. */
+const TANYA_TAN_DETECTED_ISSUES = Object.entries(TANYA_TAN_SEVERITY.issues ?? {})
+  .filter(([, row]) => row.predicted)
+  .sort(
+    (a, b) =>
+      (b[1].severity_normalized_0_1 ?? 0) - (a[1].severity_normalized_0_1 ?? 0),
+  )
+  .map(([name]) => name)
+  .join(", ");
 
 /** Suffix when a live Airtable patient already uses the demo display name. */
 export const ADMIN_DEMO_NAME_COLLISION_SUFFIX = " (Aura Demo)";
@@ -209,52 +222,58 @@ export function getAdminDemoClients(): Client[] {
       frontPhoto: "/demo-3d/tanya-tan-front.png",
       frontPhotoLoaded: true,
       galleryPhotoSlots: TANYA_TAN_GALLERY_PHOTO_SLOTS,
-      interestedIssues:
-        "Forehead Wrinkles, Crow's Feet, Perioral Lines, Under Eye Hollowing, Nasolabial Folds",
-      allIssues:
-        "Forehead Wrinkles, Crow's Feet, Perioral Lines, Under Eye Hollowing, Nasolabial Folds",
+      interestedIssues: "",
+      allIssues: TANYA_TAN_DETECTED_ISSUES,
       skinType: "Combination",
       skinTone: "Medium",
       skinComplaints: "Fine lines, uneven tone, occasional dryness",
       aestheticGoals: "Full demo — Aura scan, analysis overview, skincare quiz & routine",
-      severityScoresFromAnalyses: EMILY_SEVERITY,
+      severityScoresFromAnalyses: TANYA_TAN_SEVERITY,
       skincareQuiz: TANYA_TAN_SKINCARE_QUIZ,
       discussedItems: [
         item({
           id: "admin-tanya-d1",
-          treatment: "Botox",
+          treatment: "Neurotoxin",
+          product: "Botox",
           interest: "Forehead Wrinkles",
           findings: ["Forehead Wrinkles", "Crow's Feet"],
-          region: "Forehead",
+          region: "Forehead + Crow's Feet",
           timeline: "Now",
           quantity: "24",
+          planQuoteRole: "core",
         }),
         item({
           id: "admin-tanya-d2",
-          treatment: "Hyaluronic Acid Filler",
+          treatment: "Filler",
+          product: "Fillers (except Voluma & Volux)",
           interest: "Under Eye Hollowing",
           findings: ["Under Eye Hollowing"],
           region: "Under Eyes",
           timeline: "Now",
           quantity: "1",
+          planQuoteRole: "core",
         }),
         item({
           id: "admin-tanya-d3",
           treatment: "Chemical Peel",
-          interest: "Perioral Lines",
-          findings: ["Perioral Lines"],
-          region: "Perioral",
+          product: "Depigmentation peel",
+          interest: "Uneven skin tone",
+          findings: ["Uneven skin tone", "Perioral Lines"],
+          region: "Full Face",
           timeline: "Add next visit",
           quantity: "1",
+          planQuoteRole: "core",
         }),
         item({
           id: "admin-tanya-d4",
-          treatment: "Medical-Grade Skincare",
+          treatment: "Skincare",
+          product: "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
           interest: "Uneven skin tone",
-          findings: ["Nasolabial Folds"],
+          findings: ["Uneven skin tone"],
           region: "Full face",
           timeline: "Now",
           quantity: "1",
+          planQuoteRole: "core",
         }),
       ],
     }),

@@ -21,6 +21,7 @@ import {
 } from "../../services/contactHistory";
 import { showToast, showError } from "../../utils/toast";
 import ContactHistorySection from "../modals/ContactHistorySection";
+import ClientContactMenu from "./ClientContactMenu";
 import ClientSmsPopupModal from "../modals/ClientSmsPopupModal";
 import AnalysisResultsSection from "../modals/AnalysisResultsSection";
 import TelehealthSMSModal from "../modals/TelehealthSMSModal";
@@ -79,6 +80,7 @@ import {
 } from "../../data/skinTypeQuiz";
 import {
   generateId,
+  getTreatmentsForInterest,
   getDiscussedItemCheckedOffLabel,
   getTreatmentPlanRowPrimaryLabel,
   getTreatmentPlanRowSecondaryLabel,
@@ -86,6 +88,8 @@ import {
 } from "../modals/DiscussedTreatmentsModal/utils";
 import {
   SKINCARE_SECTION_LABEL,
+  FINDING_TO_GOAL_REGION_TREATMENTS,
+  getTreatmentOptionsForProvider,
   getSkincareCarouselItems,
 } from "../modals/DiscussedTreatmentsModal/constants";
 import {
@@ -136,12 +140,25 @@ import { useVisitModePlanSync } from "../../hooks/useVisitModePlanSync";
 import { useAddClientAcquisitionFunnelScan } from "../../hooks/useAddClientAcquisitionFunnelScan";
 import { createPortal } from "react-dom";
 import FaceMirrorPanel from "./FaceMirrorPanel";
+import PatientMediaLibraryPanel from "./PatientMediaLibraryPanel";
+import type { SavedPatientAnnotation } from "../../utils/patientAnnotationsStorage";
 import { clientHas3DModel, getClientGlbUrl, setGeneratedClientGlbUrl } from "../../utils/client3dConfig";
 import { clientUsesAuraScan } from "../../utils/auraScanConfig";
 import type { ClientDetailSection } from "../../utils/dashboardRoutes";
 import { useClientDetailDeepLink } from "../../hooks/useClientDetailDeepLink";
 import { loadClientGalleryPhotoSlots } from "../../utils/clientGalleryPhotos";
 import { ponceLogoSrc } from "../../utils/ponceBrand";
+import {
+  getDetectedIssuesFromClient,
+  getDetectedIssueDisplayStrings,
+  inferSeverityBadness01,
+} from "../../utils/analysisOverviewClient";
+import { CATEGORIES, normalizeIssue } from "../../config/analysisOverviewConfig";
+import {
+  detectedIssuesForSubScore,
+  type AuraOverviewCategoryKey,
+} from "../../utils/auraAnalysisBridge";
+import { SUGGESTION_TO_ISSUES } from "../modals/DiscussedTreatmentsModal/suggestionsMapping";
 import "./ClientDetailPanel.css";
 
 interface ClientDetailPanelProps {
@@ -267,6 +284,7 @@ export default function ClientDetailPanel({
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [enrichedSkincareQuiz, setEnrichedSkincareQuiz] =
     useState<Client["skincareQuiz"]>(undefined);
+  const [contactSectionCollapsed, setContactSectionCollapsed] = useState(true);
   const [showAnalysisOverview, setShowAnalysisOverview] = useState(false);
   const [returnToOverviewView, setReturnToOverviewView] =
     useState<DetailView | null>(null);
@@ -282,6 +300,13 @@ export default function ClientDetailPanel({
   const [recommenderMode, setRecommenderMode] = useState<
     "by-treatment" | "by-suggestion" | null
   >(null);
+  const [expandedRecommenderCollapsed, setExpandedRecommenderCollapsed] =
+    useState(true);
+  const [auraActiveCategoryForPlan, setAuraActiveCategoryForPlan] =
+    useState<AuraOverviewCategoryKey>("skinHealth");
+  const [focusedIssueForRecommender, setFocusedIssueForRecommender] = useState<
+    string | null
+  >(null);
   /** Region filter chips from the active plan builder — passed into post-visit blueprint for AI mirror. */
   const [recommenderFocusRegions, setRecommenderFocusRegions] = useState<
     string[]
@@ -294,10 +319,23 @@ export default function ClientDetailPanel({
   const [faceMirrorPhotoSlots, setFaceMirrorPhotoSlots] = useState<
     ClientPhotoSlot[]
   >([]);
+  const [patientFilesRefreshKey, setPatientFilesRefreshKey] = useState(0);
   const { optimisticTimelines, handleVisitModeToggleItem } =
     useVisitModePlanSync({ client, onUpdate });
   const scanDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!client?.id) return undefined;
+    const onAnnotationsChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ clientId?: string }>).detail;
+      if (detail?.clientId && detail.clientId !== client.id) return;
+      setPatientFilesRefreshKey((k) => k + 1);
+    };
+    window.addEventListener("patient-annotations-changed", onAnnotationsChanged);
+    return () =>
+      window.removeEventListener("patient-annotations-changed", onAnnotationsChanged);
+  }, [client?.id]);
 
   useClientDetailDeepLink(client?.id, initialSection, {
     openAnalysis: () => setShowAnalysisOverview(true),
@@ -773,6 +811,540 @@ export default function ClientDetailPanel({
     onUpdate();
   }, [client.name, onUpdate]);
 
+
+  const treatmentPlanSection = useMemo(
+    () => (
+                  <div className="detail-section detail-section-treatment-plan cdp-treatment-plan--primary">
+                    <div className="detail-section-header-flex">
+                      <div className="detail-section-title detail-section-title-inline detail-section-title-treatment-plan detail-section-header-title-group">
+                        <span>Treatment plan</span>
+                        <span className="treatment-plan-section-subtitle">
+                          {treatmentPlanSubheading}
+                        </span>
+                      </div>
+                      <PlanStatusPill client={client} />
+                      <div className="detail-actions-inline">
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRecommenderMode("by-treatment");
+                          }}
+                        >
+                          {(client.discussedItems?.length ?? 0) > 0
+                            ? "Edit"
+                            : "Build"}
+                        </button>
+                        {client.discussedItems &&
+                          client.discussedItems.length > 0 &&
+                          (isPostVisitBlueprintSender(provider) ||
+                            facialAnalysisFormHasData) && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-sm"
+                              onClick={() =>
+                                isPostVisitBlueprintSender(provider)
+                                  ? setShowShareTreatmentPlanLink(true)
+                                  : setShowShareTreatmentPlan(true)
+                              }
+                            >
+                              Share
+                            </button>
+                          )}
+                        {/* Plan Manage/Add — hidden for now (re-enable when Discussed Treatments modal flow is ready). */}
+                        {false && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm client-detail-plan-open-modal-btn"
+                            onClick={() => setShowDiscussedTreatments(true)}
+                          >
+                            {(client?.discussedItems?.length ?? 0) > 0
+                              ? "Manage"
+                              : "Add"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="discussed-treatments-in-facial-summary-row">
+                      {client.discussedItems &&
+                      client.discussedItems.length > 0 ? (
+                        <div className="discussed-treatments-plan-sections-outer share-tp-link-quote">
+                          {(() => {
+                            const items = client.discussedItems || [];
+                            const skincareItems = items
+                              .filter((i) => i.treatment?.trim() === "Skincare")
+                              .sort(
+                                (a, b) =>
+                                  (planQuoteOrderRank.get(a.id) ?? 9999) -
+                                  (planQuoteOrderRank.get(b.id) ?? 9999),
+                              );
+                            const treatmentPreviewSections =
+                              clientDetailTreatmentPreviewSectionsInOrder();
+                            const hasTreatmentsBlock =
+                              treatmentPreviewSections.some(
+                                (s) =>
+                                  getDiscussedTreatmentsForClientDetailSection(
+                                    client.discussedItems,
+                                    s.id,
+                                  ).length > 0,
+                              );
+                            const renderPlanRow = (item: DiscussedItem) => {
+                              const priceData =
+                                discussedPlanPriceLabels.get(item.id) ?? null;
+                              const timing =
+                                planTimingLabelForDiscussedItem(item);
+                              const isDone =
+                                (optimisticTimelines.get(item.id) ?? item.timeline ?? "").trim() === "Completed";
+                              const planSecondary =
+                                getTreatmentPlanRowSecondaryLabel(item, {
+                                  omitTimeline: Boolean(
+                                    !isDone && timing,
+                                  ),
+                                });
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta discussed-treatments-record-row-with-price${isDone ? " plan-row--done" : ""}`}
+                                >
+                                  <button
+                                    type="button"
+                                    className={`plan-row-checkbox${isDone ? " plan-row-checkbox--checked" : ""}`}
+                                    aria-label={isDone ? "Mark as not built" : "Mark as built"}
+                                    onClick={() => handleVisitModeToggleItem(item.id)}
+                                  >
+                                    {isDone ? "✓" : ""}
+                                  </button>
+                                  <div className="discussed-treatments-record-row-main">
+                                    <div className="discussed-treatments-record-treatment-heading-outer">
+                                      {getTreatmentPlanRowPrimaryLabel(item)}
+                                    </div>
+                                    {isDone ? (
+                                      <div className="discussed-treatments-record-meta-line-outer discussed-treatments-record-checked-off">
+                                        {getDiscussedItemCheckedOffLabel(item)}
+                                      </div>
+                                    ) : null}
+                                    {!isDone && (timing || planSecondary) ? (
+                                      <div className="discussed-treatments-record-timing-area-row">
+                                        {timing ? (
+                                          <div className="discussed-treatments-record-timing-line-outer">
+                                            <span className="discussed-treatments-record-timing-hint">
+                                              {timing}
+                                            </span>
+                                          </div>
+                                        ) : null}
+                                        {planSecondary ? (
+                                          <div className="discussed-treatments-record-meta-line-outer">
+                                            {planSecondary}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                  {priceData && !isDone ? (
+                                    <div
+                                      className="discussed-treatments-record-price-outer"
+                                      title="From practice price list / checkout"
+                                    >
+                                      <span>{priceData.label}</span>
+                                      {priceData.missingInfo && (
+                                        <span className="plan-pricing-warning-callout discussed-treatments-record-price-missing">
+                                          ⚠ {priceData.missingInfo}
+                                        </span>
+                                      )}
+                                      {priceData.missingInfo ? (
+                                        <button
+                                          type="button"
+                                          className="plan-pricing-fix-action-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openPlanBuilderForDiscussedItem(
+                                              item.id,
+                                            );
+                                          }}
+                                        >
+                                          {planPricingFixActionLabel(
+                                            priceData.missingInfo,
+                                          )}
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              );
+                            };
+
+                            return (
+                              <>
+                                {skincareItems.length > 0 ? (
+                                  <div className="share-tp-link-quote-section">
+                                    <h4 className="share-tp-link-quote-section-title">
+                                      {SKINCARE_SECTION_LABEL}
+                                    </h4>
+                                    <div className="discussed-treatments-records-list-outer">
+                                      {skincareItems.map(renderPlanRow)}
+                                    </div>
+                                    {planCheckoutSubtotals &&
+                                    planCheckoutSubtotals.skincareLineCount >
+                                      0 ? (
+                                      <div className="share-tp-link-quote-subtotal">
+                                        <span>Skincare subtotal</span>
+                                        <strong>
+                                          {formatPrice(
+                                            planCheckoutSubtotals.skincareSubtotal,
+                                          )}
+                                        </strong>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                                {hasTreatmentsBlock ? (
+                                  <div className="share-tp-link-quote-section share-tp-link-quote-section--treatments">
+                                    <h4 className="share-tp-link-quote-section-title">
+                                      Services
+                                    </h4>
+                                    {treatmentPreviewSections.map(
+                                      ({ id, title }) => {
+                                        const sectionItems =
+                                          getDiscussedTreatmentsForClientDetailSection(
+                                            client.discussedItems,
+                                            id,
+                                          ).sort(
+                                            (a, b) =>
+                                              (planQuoteOrderRank.get(a.id) ??
+                                                9999) -
+                                              (planQuoteOrderRank.get(b.id) ??
+                                                9999),
+                                          );
+                                        if (sectionItems.length === 0)
+                                          return null;
+                                        return (
+                                          <div
+                                            key={id}
+                                            className={`share-tp-link-timeline-group share-tp-link-timeline-group--${id}`}
+                                          >
+                                            <h5 className="share-tp-link-timeline-group-title">
+                                              {title}
+                                            </h5>
+                                            <div className="discussed-treatments-records-list-outer">
+                                              {sectionItems.map(renderPlanRow)}
+                                            </div>
+                                          </div>
+                                        );
+                                      },
+                                    )}
+                                    {planCheckoutSubtotals &&
+                                    planCheckoutSubtotals.treatmentLineCount >
+                                      0 ? (
+                                      <div className="share-tp-link-quote-subtotal">
+                                        <span>Subtotal</span>
+                                        <strong>
+                                          {formatPrice(
+                                            planCheckoutSubtotals.treatmentsSubtotal,
+                                          )}
+                                        </strong>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                                {planCheckoutSubtotals ? (
+                                  <div className="share-tp-link-quote-footer">
+                                    <div className="share-tp-link-quote-total">
+                                      <span>Total</span>
+                                      <strong>
+                                        {formatPrice(
+                                          planCheckoutSubtotals.total,
+                                        )}
+                                      </strong>
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <p className="discussed-treatments-in-facial-summary discussed-treatments-plan-empty">
+                          No treatments or products on this plan yet. Use Build
+                          Plan to add items from your conversation and see
+                          pricing here.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+    ),
+    [
+      client,
+      treatmentPlanSubheading,
+      planQuoteOrderRank,
+      discussedPlanPriceLabels,
+      planCheckoutSubtotals,
+      optimisticTimelines,
+      provider,
+      facialAnalysisFormHasData,
+      handleVisitModeToggleItem,
+      openPlanBuilderForDiscussedItem,
+    ],
+  );
+
+  const expandedPlanBuilderPanel = useMemo(() => {
+    const detectedIssueSet = client ? getDetectedIssuesFromClient(client) : new Set<string>();
+    const activeCategoryDef = CATEGORIES.find((c) => c.key === auraActiveCategoryForPlan);
+    const findingsFromActiveCategory = activeCategoryDef
+      ? activeCategoryDef.subScores.flatMap((sub) =>
+          detectedIssuesForSubScore(
+            auraActiveCategoryForPlan,
+            sub.name,
+            detectedIssueSet,
+          ),
+        )
+      : [];
+    const fallbackAllFindings = client
+      ? getDetectedIssueDisplayStrings(client).slice(0, 20)
+      : [];
+    const findingsBase =
+      findingsFromActiveCategory.length > 0
+        ? findingsFromActiveCategory
+        : fallbackAllFindings;
+    const findings = Array.from(
+      new Map(
+        findingsBase.map((finding) => [normalizeIssue(finding), finding.trim()]),
+      ).values(),
+    );
+    const severityIssues = client?.severityScoresFromAnalyses?.issues ?? {};
+    const availableTreatments = new Set(getTreatmentOptionsForProvider(provider?.code));
+
+    const issueEntries = Object.entries(severityIssues);
+    const severityForFinding = (finding: string) =>
+      issueEntries.find(
+        ([name]) => normalizeIssue(name) === normalizeIssue(finding),
+      )?.[1];
+
+    const allFindingsScored = findings
+      .map((finding) => {
+        const severityPayload = severityForFinding(finding);
+        const badness = inferSeverityBadness01(severityPayload) ?? 0;
+        const level =
+          typeof severityPayload?.severity_level === "string"
+            ? severityPayload.severity_level
+            : badness >= 0.75
+              ? "severe"
+              : badness >= 0.5
+                ? "moderate"
+                : badness >= 0.25
+                  ? "mild"
+                  : "low";
+        return { finding, badness, level };
+      })
+      .sort((a, b) => b.badness - a.badness)
+      .filter((f) => f.badness > 0 || severityForFinding(f.finding));
+
+    const prioritizedFindings = (() => {
+      if (!focusedIssueForRecommender) return allFindingsScored;
+      const focusedNorm = normalizeIssue(focusedIssueForRecommender);
+      return [
+        ...allFindingsScored.filter((f) => normalizeIssue(f.finding) === focusedNorm),
+        ...allFindingsScored.filter((f) => normalizeIssue(f.finding) !== focusedNorm),
+      ];
+    })();
+
+    const topFindings = prioritizedFindings.slice(0, 5);
+
+    const getFallbackMappingForIssue = (finding: string) => {
+      const lowered = normalizeIssue(finding);
+      const suggestion = Object.entries(SUGGESTION_TO_ISSUES).find(([, issues]) =>
+        issues.some((issue) => lowered.includes(normalizeIssue(issue))),
+      )?.[0];
+      if (!suggestion) return null;
+      const treatment = getTreatmentsForInterest(suggestion, provider?.code).find((t) =>
+        availableTreatments.has(t),
+      );
+      if (!treatment) return null;
+      const row = FINDING_TO_GOAL_REGION_TREATMENTS.find((item) =>
+        item.goal.trim().toLowerCase() === suggestion.trim().toLowerCase(),
+      );
+      return {
+        treatment,
+        goal: row?.goal ?? suggestion,
+        region: row?.region ?? "Skin",
+      };
+    };
+
+    const highImpactTreatments = topFindings
+      .flatMap((finding) => {
+        const f = finding.finding.toLowerCase();
+        const mapped = FINDING_TO_GOAL_REGION_TREATMENTS.find((row) =>
+          row.keywords.some((kw) => f.includes(kw.toLowerCase())),
+        );
+        const directTreatment = mapped?.treatments.find((t) => availableTreatments.has(t));
+        const fallback = !directTreatment
+          ? getFallbackMappingForIssue(finding.finding)
+          : null;
+        const treatment = directTreatment ?? fallback?.treatment;
+        if (!treatment) return [];
+        return [
+          {
+            finding: finding.finding,
+            treatment,
+            goal: mapped?.goal ?? fallback?.goal ?? "Skin improvement",
+            region: mapped?.region ?? fallback?.region ?? "Skin",
+            badness: finding.badness,
+            level: finding.level,
+          },
+        ];
+      })
+      .reduce<
+        Array<{
+          treatment: string;
+          goal: string;
+          region: string;
+          impactScore: number;
+          findings: Array<{ finding: string; level: string }>;
+        }>
+      >((acc, item) => {
+        const existing = acc.find(
+          (x) => x.treatment === item.treatment && x.goal === item.goal,
+        );
+        if (existing) {
+          existing.impactScore += item.badness + 0.15;
+          if (!existing.findings.some((f) => f.finding === item.finding)) {
+            existing.findings.push({ finding: item.finding, level: item.level });
+          }
+          return acc;
+        }
+        acc.push({
+          treatment: item.treatment,
+          goal: item.goal,
+          region: item.region,
+          impactScore: item.badness + 0.15,
+          findings: [{ finding: item.finding, level: item.level }],
+        });
+        return acc;
+      }, [])
+      .sort((a, b) => b.impactScore - a.impactScore)
+      .slice(0, 4);
+
+    return (
+      <section
+        className={`cdp-expanded-planbuilder${
+          expandedRecommenderCollapsed ? " cdp-expanded-planbuilder--collapsed" : ""
+        }`}
+        aria-label="Embedded plan builder"
+      >
+        <button
+          type="button"
+          className="cdp-expanded-planbuilder__header-btn"
+          onClick={() => setExpandedRecommenderCollapsed((v) => !v)}
+          aria-expanded={!expandedRecommenderCollapsed}
+          aria-label={
+            expandedRecommenderCollapsed
+              ? "Expand treatment recommender"
+              : "Collapse treatment recommender"
+          }
+        >
+          <div className="cdp-expanded-planbuilder__header-main">
+            <h4 className="cdp-expanded-planbuilder__title">Treatment Recommender</h4>
+            {!expandedRecommenderCollapsed ? (
+              <p className="cdp-expanded-planbuilder__subtitle">
+                Analysis-aware quick actions tailored to findings in view.
+              </p>
+            ) : null}
+          </div>
+          <span className="cdp-expanded-planbuilder__header-chevron" aria-hidden>
+            {expandedRecommenderCollapsed ? "▴" : "▾"}
+          </span>
+        </button>
+        <div
+          className={`cdp-expanded-planbuilder__expanded-content${
+            expandedRecommenderCollapsed
+              ? " cdp-expanded-planbuilder__expanded-content--collapsed"
+              : ""
+          }`}
+          aria-hidden={expandedRecommenderCollapsed}
+        >
+        <div className="cdp-expanded-planbuilder__analysis">
+          {topFindings.length > 0 ? (
+            <div className="cdp-expanded-planbuilder__analysis-block">
+              <span className="cdp-expanded-planbuilder__analysis-label">
+                Top findings
+              </span>
+              <ul className="cdp-expanded-planbuilder__finding-list">
+                {topFindings.map((issue) => (
+                  <li key={`issue-${issue.finding}`} className="cdp-expanded-planbuilder__finding-item">
+                    <span className="cdp-expanded-planbuilder__finding-name">{issue.finding}</span>
+                    <span className={`cdp-expanded-planbuilder__severity cdp-expanded-planbuilder__severity--${issue.level.toLowerCase().replace(/[^a-z]/g, "")}`}>
+                      {issue.level}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <span className="cdp-expanded-planbuilder__analysis-empty">No findings available</span>
+          )}
+        </div>
+        {highImpactTreatments.length > 0 ? (
+          <div className="cdp-expanded-planbuilder__quick-add">
+            <span className="cdp-expanded-planbuilder__analysis-label">
+              High-impact treatments
+            </span>
+            <div className="cdp-expanded-planbuilder__quick-add-list">
+              {highImpactTreatments.map((qa) => (
+                <div key={`${qa.treatment}-${qa.goal}`} className="cdp-expanded-planbuilder__quick-add-item">
+                  <span className="cdp-expanded-planbuilder__quick-add-title">
+                    {qa.treatment}
+                  </span>
+                  <span className="cdp-expanded-planbuilder__quick-add-meta">
+                    {qa.goal} · addresses {qa.findings.length} top finding{qa.findings.length !== 1 ? "s" : ""}
+                  </span>
+                  <p className="cdp-expanded-planbuilder__quick-add-findings">
+                    {qa.findings.slice(0, 3).map((f, i) => (
+                      <span key={`${qa.treatment}-${f.finding}`}>
+                        {i > 0 && <span className="cdp-expanded-planbuilder__quick-add-findings-sep"> · </span>}
+                        {f.finding}
+                      </span>
+                    ))}
+                  </p>
+                  <div className="cdp-expanded-planbuilder__quick-add-actions">
+                    <button
+                      type="button"
+                      className="cdp-expanded-planbuilder__mini-btn"
+                      onClick={() => setRecommenderMode("by-treatment")}
+                    >
+                      Learn more
+                    </button>
+                    <button
+                      type="button"
+                      className="cdp-expanded-planbuilder__mini-btn cdp-expanded-planbuilder__mini-btn--primary"
+                      onClick={() =>
+                        void appendDiscussedItemFromPrefill({
+                          interest: qa.goal,
+                          region: qa.region,
+                          treatment: qa.treatment,
+                          findings: qa.findings.map((f) => f.finding),
+                        })
+                      }
+                    >
+                      Add to plan
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        </div>
+      </section>
+    );
+  }, [
+    client,
+    provider?.code,
+    appendDiscussedItemFromPrefill,
+    expandedRecommenderCollapsed,
+    auraActiveCategoryForPlan,
+    focusedIssueForRecommender,
+  ]);
+
   return (
     <>
       {createPortal(
@@ -813,6 +1385,14 @@ export default function ClientDetailPanel({
                 }
                 analysisOverviewClient={client}
                 analysisOverviewOnAddToPlanDirect={appendDiscussedItemFromPrefill}
+                analysisOverviewOnOpenTreatmentRecommender={(issue, category) => {
+                  if (category) setAuraActiveCategoryForPlan(category);
+                  setFocusedIssueForRecommender(issue ?? null);
+                  setExpandedRecommenderCollapsed(false);
+                }}
+                expandedLowerRightContent={expandedPlanBuilderPanel}
+                onOpenPlanBuilder={() => setRecommenderMode("by-treatment")}
+                onAuraActiveCategoryChange={setAuraActiveCategoryForPlan}
                 onScanGenerated={handleScanGenerated}
               />
             </div>
@@ -891,7 +1471,9 @@ export default function ClientDetailPanel({
                 <div className="client-detail-panel-main">
                   {/* Contact Information Section */}
                   <div
-                    className={`detail-section modal-contact-section ${
+                    className={`detail-section modal-contact-section${
+                      contactSectionCollapsed ? " modal-contact-section--details-collapsed" : ""
+                    } ${
                       !is3DSplit && (frontPhotoUrl ||
                       (!wellnestReplacesSkinQuizWithWellness &&
                         (client.tableSource === "Patients" ||
@@ -1027,6 +1609,42 @@ export default function ClientDetailPanel({
                     <div className="detail-section-relative">
                       <div className="cdp-client-name-row">
                         <h2 className="client-detail-panel-title">{client.name}</h2>
+                        {!recommenderMode && (
+                          <button
+                            type="button"
+                            className="cdp-contact-collapse-btn"
+                            onClick={() => setContactSectionCollapsed((c) => !c)}
+                            aria-expanded={!contactSectionCollapsed}
+                            aria-label={
+                              contactSectionCollapsed
+                                ? "Show contact details"
+                                : "Hide contact details"
+                            }
+                            title={
+                              contactSectionCollapsed
+                                ? "Show contact details"
+                                : "Hide contact details"
+                            }
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
+                              {contactSectionCollapsed ? (
+                                <path d="M6 9l6 6 6-6" />
+                              ) : (
+                                <path d="M18 15l-6-6-6 6" />
+                              )}
+                            </svg>
+                          </button>
+                        )}
                         {recommenderMode ? (
                           <span className="client-detail-panel-header-subtitle">Plan Builder</span>
                         ) : (
@@ -1035,11 +1653,23 @@ export default function ClientDetailPanel({
                             <span className="modal-header-activity-value">{lastActivityRelative}</span>
                           </div>
                         )}
+                        {!recommenderMode && !isEditMode && (
+                          <ClientContactMenu
+                            phone={client.phone}
+                            email={client.email}
+                            onCall={handleCall}
+                            onEmail={handleEmail}
+                            onMessages={() => setShowSmsPopup(true)}
+                          />
+                        )}
                         {!isEditMode && (
                           <button
                             type="button"
                             className="edit-toggle-btn"
-                            onClick={() => setIsEditMode(true)}
+                            onClick={() => {
+                              setContactSectionCollapsed(false);
+                              setIsEditMode(true);
+                            }}
                             aria-label="Edit contact information"
                           >
                             <svg
@@ -1242,34 +1872,6 @@ export default function ClientDetailPanel({
                           </div>
                         </div>
                       </div>
-                      {!isEditMode && (
-                        <div className="contact-actions-bar">
-                          <div className="contact-actions-heading">Contact</div>
-                          <div className="contact-actions-buttons">
-                            <button
-                              className="btn-secondary btn-sm"
-                              onClick={handleCall}
-                              disabled={!client.phone}
-                            >
-                              Call
-                            </button>
-                            <button
-                              className="btn-secondary btn-sm"
-                              onClick={handleEmail}
-                              disabled={!client.email}
-                            >
-                              Email
-                            </button>
-                            <button
-                              className="btn-secondary btn-sm"
-                              onClick={() => setShowSmsPopup(true)}
-                              disabled={!client.phone}
-                            >
-                              Messages
-                            </button>
-                          </div>
-                        </div>
-                      )}
                       {isEditMode && (
                         <div className="edit-actions">
                           <button
@@ -1288,6 +1890,8 @@ export default function ClientDetailPanel({
                       )}
                     </div>
                   </div>
+
+                  {treatmentPlanSection}
 
                   {/* Online Treatment Finder – marketing web / popup funnel only (not Add Client or Walk-in) */}
                   {showOnlineTreatmentFinderSection(client) && (
@@ -1499,266 +2103,6 @@ export default function ClientDetailPanel({
                       </div>
                     </div>
                   )}
-
-                  <div className="detail-section detail-section-treatment-plan">
-                    <div className="detail-section-header-flex">
-                      <div className="detail-section-title detail-section-title-inline detail-section-title-treatment-plan detail-section-header-title-group">
-                        <span>
-                          {client.name?.trim().split(/\s+/)[0] || "Patient"}
-                          &apos;s plan
-                        </span>
-                        <span className="treatment-plan-section-subtitle">
-                          {treatmentPlanSubheading}
-                        </span>
-                      </div>
-                      <PlanStatusPill client={client} />
-                      <div className="detail-actions-inline">
-                        <button
-                          type="button"
-                          className="btn-secondary btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRecommenderMode("by-treatment");
-                          }}
-                        >
-                          Build Plan
-                        </button>
-                        {client.discussedItems &&
-                          client.discussedItems.length > 0 &&
-                          (isPostVisitBlueprintSender(provider) ||
-                            facialAnalysisFormHasData) && (
-                            <button
-                              type="button"
-                              className="btn-secondary btn-sm"
-                              onClick={() =>
-                                isPostVisitBlueprintSender(provider)
-                                  ? setShowShareTreatmentPlanLink(true)
-                                  : setShowShareTreatmentPlan(true)
-                              }
-                            >
-                              Share
-                            </button>
-                          )}
-                        {/* Plan Manage/Add — hidden for now (re-enable when Discussed Treatments modal flow is ready). */}
-                        {false && (
-                          <button
-                            type="button"
-                            className="btn-secondary btn-sm client-detail-plan-open-modal-btn"
-                            onClick={() => setShowDiscussedTreatments(true)}
-                          >
-                            {(client?.discussedItems?.length ?? 0) > 0
-                              ? "Manage"
-                              : "Add"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="discussed-treatments-in-facial-summary-row">
-                      {client.discussedItems &&
-                      client.discussedItems.length > 0 ? (
-                        <div className="discussed-treatments-plan-sections-outer share-tp-link-quote">
-                          {(() => {
-                            const items = client.discussedItems || [];
-                            const skincareItems = items
-                              .filter((i) => i.treatment?.trim() === "Skincare")
-                              .sort(
-                                (a, b) =>
-                                  (planQuoteOrderRank.get(a.id) ?? 9999) -
-                                  (planQuoteOrderRank.get(b.id) ?? 9999),
-                              );
-                            const treatmentPreviewSections =
-                              clientDetailTreatmentPreviewSectionsInOrder();
-                            const hasTreatmentsBlock =
-                              treatmentPreviewSections.some(
-                                (s) =>
-                                  getDiscussedTreatmentsForClientDetailSection(
-                                    client.discussedItems,
-                                    s.id,
-                                  ).length > 0,
-                              );
-                            const renderPlanRow = (item: DiscussedItem) => {
-                              const priceData =
-                                discussedPlanPriceLabels.get(item.id) ?? null;
-                              const timing =
-                                planTimingLabelForDiscussedItem(item);
-                              const isDone =
-                                (optimisticTimelines.get(item.id) ?? item.timeline ?? "").trim() === "Completed";
-                              const planSecondary =
-                                getTreatmentPlanRowSecondaryLabel(item, {
-                                  omitTimeline: Boolean(
-                                    !isDone && timing,
-                                  ),
-                                });
-                              return (
-                                <div
-                                  key={item.id}
-                                  className={`discussed-treatments-record-row-outer discussed-treatments-record-row-heading-meta discussed-treatments-record-row-with-price${isDone ? " plan-row--done" : ""}`}
-                                >
-                                  <button
-                                    type="button"
-                                    className={`plan-row-checkbox${isDone ? " plan-row-checkbox--checked" : ""}`}
-                                    aria-label={isDone ? "Mark as not built" : "Mark as built"}
-                                    onClick={() => handleVisitModeToggleItem(item.id)}
-                                  >
-                                    {isDone ? "✓" : ""}
-                                  </button>
-                                  <div className="discussed-treatments-record-row-main">
-                                    <div className="discussed-treatments-record-treatment-heading-outer">
-                                      {getTreatmentPlanRowPrimaryLabel(item)}
-                                    </div>
-                                    {isDone ? (
-                                      <div className="discussed-treatments-record-meta-line-outer discussed-treatments-record-checked-off">
-                                        {getDiscussedItemCheckedOffLabel(item)}
-                                      </div>
-                                    ) : null}
-                                    {!isDone && (timing || planSecondary) ? (
-                                      <div className="discussed-treatments-record-timing-area-row">
-                                        {timing ? (
-                                          <div className="discussed-treatments-record-timing-line-outer">
-                                            <span className="discussed-treatments-record-timing-hint">
-                                              {timing}
-                                            </span>
-                                          </div>
-                                        ) : null}
-                                        {planSecondary ? (
-                                          <div className="discussed-treatments-record-meta-line-outer">
-                                            {planSecondary}
-                                          </div>
-                                        ) : null}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                  {priceData && !isDone ? (
-                                    <div
-                                      className="discussed-treatments-record-price-outer"
-                                      title="From practice price list / checkout"
-                                    >
-                                      <span>{priceData.label}</span>
-                                      {priceData.missingInfo && (
-                                        <span className="plan-pricing-warning-callout discussed-treatments-record-price-missing">
-                                          ⚠ {priceData.missingInfo}
-                                        </span>
-                                      )}
-                                      {priceData.missingInfo ? (
-                                        <button
-                                          type="button"
-                                          className="plan-pricing-fix-action-btn"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            openPlanBuilderForDiscussedItem(
-                                              item.id,
-                                            );
-                                          }}
-                                        >
-                                          {planPricingFixActionLabel(
-                                            priceData.missingInfo,
-                                          )}
-                                        </button>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              );
-                            };
-
-                            return (
-                              <>
-                                {skincareItems.length > 0 ? (
-                                  <div className="share-tp-link-quote-section">
-                                    <h4 className="share-tp-link-quote-section-title">
-                                      {SKINCARE_SECTION_LABEL}
-                                    </h4>
-                                    <div className="discussed-treatments-records-list-outer">
-                                      {skincareItems.map(renderPlanRow)}
-                                    </div>
-                                    {planCheckoutSubtotals &&
-                                    planCheckoutSubtotals.skincareLineCount >
-                                      0 ? (
-                                      <div className="share-tp-link-quote-subtotal">
-                                        <span>Skincare subtotal</span>
-                                        <strong>
-                                          {formatPrice(
-                                            planCheckoutSubtotals.skincareSubtotal,
-                                          )}
-                                        </strong>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                                {hasTreatmentsBlock ? (
-                                  <div className="share-tp-link-quote-section share-tp-link-quote-section--treatments">
-                                    <h4 className="share-tp-link-quote-section-title">
-                                      Treatments
-                                    </h4>
-                                    {treatmentPreviewSections.map(
-                                      ({ id, title }) => {
-                                        const sectionItems =
-                                          getDiscussedTreatmentsForClientDetailSection(
-                                            client.discussedItems,
-                                            id,
-                                          ).sort(
-                                            (a, b) =>
-                                              (planQuoteOrderRank.get(a.id) ??
-                                                9999) -
-                                              (planQuoteOrderRank.get(b.id) ??
-                                                9999),
-                                          );
-                                        if (sectionItems.length === 0)
-                                          return null;
-                                        return (
-                                          <div
-                                            key={id}
-                                            className={`share-tp-link-timeline-group share-tp-link-timeline-group--${id}`}
-                                          >
-                                            <h5 className="share-tp-link-timeline-group-title">
-                                              {title}
-                                            </h5>
-                                            <div className="discussed-treatments-records-list-outer">
-                                              {sectionItems.map(renderPlanRow)}
-                                            </div>
-                                          </div>
-                                        );
-                                      },
-                                    )}
-                                    {planCheckoutSubtotals &&
-                                    planCheckoutSubtotals.treatmentLineCount >
-                                      0 ? (
-                                      <div className="share-tp-link-quote-subtotal">
-                                        <span>Treatments subtotal</span>
-                                        <strong>
-                                          {formatPrice(
-                                            planCheckoutSubtotals.treatmentsSubtotal,
-                                          )}
-                                        </strong>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                                {planCheckoutSubtotals ? (
-                                  <div className="share-tp-link-quote-footer">
-                                    <div className="share-tp-link-quote-total">
-                                      <span>Total</span>
-                                      <strong>
-                                        {formatPrice(
-                                          planCheckoutSubtotals.total,
-                                        )}
-                                      </strong>
-                                    </div>
-                                  </div>
-                                ) : null}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <p className="discussed-treatments-in-facial-summary discussed-treatments-plan-empty">
-                          No treatments or products on this plan yet. Use Build
-                          Plan to add items from your conversation and see
-                          pricing here.
-                        </p>
-                      )}
-                    </div>
-                  </div>
 
                   {showMergedWellnessSection && (
                     <div
@@ -2024,6 +2368,27 @@ export default function ClientDetailPanel({
                             )}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {is3DSplit && client && (
+                    <div className="detail-section detail-section-patient-files">
+                      <PatientMediaLibraryPanel
+                        client={client}
+                        photoSlots={faceMirrorPhotoSlots}
+                        turntableVideoUrl={glbUrl}
+                        refreshKey={patientFilesRefreshKey}
+                        onLoadAnnotation={(record: SavedPatientAnnotation) => {
+                          window.dispatchEvent(
+                            new CustomEvent("patient-annotation-load-request", {
+                              detail: { clientId: client.id, record },
+                            }),
+                          );
+                        }}
+                        onOpenPhoto={(url) =>
+                          window.open(url, "_blank", "noopener,noreferrer")
+                        }
+                      />
                     </div>
                   )}
 

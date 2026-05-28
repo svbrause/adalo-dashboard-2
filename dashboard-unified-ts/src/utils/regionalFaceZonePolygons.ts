@@ -48,7 +48,7 @@ function insetPolygonPixels(
   }));
 }
 
-function polygonCentroid(points: NormalizedPoint[]): NormalizedPoint {
+export function polygonCentroid(points: NormalizedPoint[]): NormalizedPoint {
   if (points.length === 0) return { x: 50, y: 50 };
   const sum = points.reduce(
     (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
@@ -57,7 +57,7 @@ function polygonCentroid(points: NormalizedPoint[]): NormalizedPoint {
   return { x: sum.x / points.length, y: sum.y / points.length };
 }
 
-function toViewBox(
+export function toViewBox(
   points: { x: number; y: number }[],
   width: number,
   height: number,

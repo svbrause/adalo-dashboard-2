@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from "react";
 import type { Client, ClientPhotoSlot, DiscussedItem } from "../../types";
@@ -17,16 +16,20 @@ import {
   AiMirrorCanvas,
   hasMirrorAnnotationHighlights,
 } from "../postVisitBlueprint/AiMirrorCanvas";
-import {
-  ADDITIONAL_AI_MIRROR_REGIONS,
-  AI_MIRROR_REGIONS,
-} from "../postVisitBlueprint/aiMirrorRegions";
+import AutoRotateHeadIcon from "../common/AutoRotateHeadIcon";
 import Face3DViewer from "./Face3DViewer";
-import AuraFaceView from "../aura/AuraFaceView";
+import FaceMirrorRegionsPicker, {
+  ALL_MIRROR_ANNOTATION_REGION_IDS,
+} from "./FaceMirrorRegionsPicker";
+import AuraFaceView, { type AnnotateSavePayload } from "../aura/AuraFaceView";
+import type { AnnotateStroke } from "../aura/AnnotateDrawing";
 import { clientUsesAuraScan } from "../../utils/auraScanConfig";
+import {
+  savePatientAnnotation,
+  type SavedPatientAnnotation,
+} from "../../utils/patientAnnotationsStorage";
 import { TANYA_TAN_VIEWER_ANGLE_ASSETS } from "../../utils/auraTanAnglePhotos";
 import {
-  AURA_OVERVIEW_TABS,
   issueToMirrorHighlightTerm,
   type AuraOverviewCategoryKey,
 } from "../../utils/auraAnalysisBridge";
@@ -156,31 +159,6 @@ function formatRemaining(seconds: number): string {
 // ---------------------------------------------------------------------------
 type ViewMode = "photo" | "3d";
 
-const ANNOTATION_REGION_LABELS: Record<string, string> = {
-  rForehead: "Forehead",
-  rLeftEye: "Left eye",
-  rRightEye: "Right eye",
-  rNose: "Nose",
-  rLeftCheek: "Left cheek",
-  rRightCheek: "Right cheek",
-  rLips: "Lips",
-  rChin: "Chin",
-  rLeftUnderEye: "Left under eye",
-  rRightUnderEye: "Right under eye",
-  rLeftNasolabialFold: "Left nasolabial",
-  rRightNasolabialFold: "Right nasolabial",
-  rLeftMarionetteLine: "Left marionette",
-  rRightMarionetteLine: "Right marionette",
-  rLowerFace: "Lower face",
-};
-
-const MIRROR_ANNOTATION_REGIONS = [
-  ...AI_MIRROR_REGIONS,
-  ...ADDITIONAL_AI_MIRROR_REGIONS,
-];
-
-const ALL_ANNOTATION_REGION_IDS = MIRROR_ANNOTATION_REGIONS.map((region) => region.id);
-
 function isIntakeOrFormSlot(s: ClientPhotoSlot): boolean {
   const id = s.id.toLowerCase();
   const lab = (s.label ?? "").toLowerCase();
@@ -261,42 +239,49 @@ function FaceMirrorPhotoStage({
         highlightedRegionIds={highlightedRegionIds}
         showAnnotations={showAnnotations}
       />
-      {showPatientPhotoGallery && onOpenPatientPhotos && (
-        <button
-          type="button"
-          className="fmp-gallery-expand"
-          onClick={() => openPatientPhotosSafe(photoModalInitialTab)}
-          aria-label="Open all photos and originals"
-          title="All photos and originals"
-        >
-          <img
-            className="fmp-gallery-expand-icon"
-            src={`${import.meta.env.BASE_URL}expand.png`}
-            alt=""
-            width={18}
-            height={18}
-            draggable={false}
-          />
-        </button>
-      )}
-      {showAnglePicker && (
-        <div
-          className="fmp-angle-bar fmp-angle-bar--under-photo"
-          role="tablist"
-          aria-label="Photo angle"
-        >
-          {simplifiedSlots.map((slot, i) => (
-            <button
-              key={`${slot.url}-${i}`}
-              type="button"
-              role="tab"
-              aria-selected={i === angleIdx}
-              className={`fmp-angle-tab${i === angleIdx ? " fmp-angle-tab--active" : ""}`}
-              onClick={() => setAngleIdx(i)}
+      {(showAnglePicker || (showPatientPhotoGallery && onOpenPatientPhotos)) && (
+        <div className="fmp-photo-controls fmp-photo-controls--top-left">
+          {showAnglePicker && (
+            <div
+              className="fmp-angle-bar fmp-angle-bar--overlay"
+              role="tablist"
+              aria-label="Photo angle"
             >
-              {slot.label}
+              {[...simplifiedSlots].reverse().map((slot, revIdx) => {
+                const i = simplifiedSlots.length - 1 - revIdx;
+                return (
+                  <button
+                    key={`${slot.url}-${i}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === angleIdx}
+                    className={`fmp-angle-tab${i === angleIdx ? " fmp-angle-tab--active" : ""}`}
+                    onClick={() => setAngleIdx(i)}
+                  >
+                    {slot.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {showPatientPhotoGallery && onOpenPatientPhotos && (
+            <button
+              type="button"
+              className="fmp-gallery-expand"
+              onClick={() => openPatientPhotosSafe(photoModalInitialTab)}
+              aria-label="Open all photos and originals"
+              title="All photos and originals"
+            >
+              <img
+                className="fmp-gallery-expand-icon"
+                src={`${import.meta.env.BASE_URL}expand.png`}
+                alt=""
+                width={18}
+                height={18}
+                draggable={false}
+              />
             </button>
-          ))}
+          )}
         </div>
       )}
     </div>
@@ -340,46 +325,18 @@ function FaceMirrorViewportShell({
             aria-pressed={autoRotate}
             title={autoRotate ? "Pause auto-rotate" : "Auto-rotate"}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M21 12a9 9 0 1 1-3-6.7" />
-              <polyline points="21 3 21 9 15 9" />
-            </svg>
+            <AutoRotateHeadIcon size={14} />
             <span className="fmp-overlay-btn__label">Rotate</span>
           </button>
         )}
-        {showHighlightPicker && (
-          <details className="fmp-annotation-regions fmp-annotation-regions--overlay">
-            <summary>Regions</summary>
-            <div className="fmp-annotation-regions__panel">
-              <div className="fmp-annotation-regions__actions">
-                <button
-                  type="button"
-                  onClick={() => onSetManualHighlightedRegionIds(ALL_ANNOTATION_REGION_IDS)}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSetManualHighlightedRegionIds([])}
-                >
-                  None
-                </button>
-              </div>
-              <div className="fmp-annotation-regions__grid">
-                {MIRROR_ANNOTATION_REGIONS.map((region) => (
-                  <label key={region.id} className="fmp-annotation-regions__item">
-                    <input
-                      type="checkbox"
-                      checked={manualHighlightedRegionIds.includes(region.id)}
-                      onChange={() => onToggleAnnotationRegionHighlight(region.id)}
-                    />
-                    <span>{ANNOTATION_REGION_LABELS[region.id] ?? region.id}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </details>
-        )}
+        {showHighlightPicker ? (
+          <FaceMirrorRegionsPicker
+            variant="overlay"
+            manualHighlightedRegionIds={manualHighlightedRegionIds}
+            onSetManualHighlightedRegionIds={onSetManualHighlightedRegionIds}
+            onToggleAnnotationRegionHighlight={onToggleAnnotationRegionHighlight}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -480,6 +437,15 @@ interface FaceMirrorPanelProps {
     prefill: TreatmentPlanPrefill,
     options?: TreatmentPlanAddDirectOptions,
   ) => Promise<void | DiscussedItem> | DiscussedItem | void;
+  analysisOverviewOnOpenTreatmentRecommender?: (
+    issue?: string,
+    category?: AuraOverviewCategoryKey,
+  ) => void;
+  /** Optional lower-right content rendered under embedded Analysis Overview in expanded split mode. */
+  expandedLowerRightContent?: ReactNode;
+  onOpenPlanBuilder?: () => void;
+  /** Fires whenever the Aura analysis tab (Skin / Volume / Structure) changes. */
+  onAuraActiveCategoryChange?: (category: AuraOverviewCategoryKey) => void;
   /** Called when a new turntable video has been generated for this client. */
   onScanGenerated?: (videoUrl: string) => void;
 }
@@ -496,6 +462,10 @@ export default function FaceMirrorPanel({
   showPatientPhotoGallery = false,
   analysisOverviewClient = null,
   analysisOverviewOnAddToPlanDirect,
+  analysisOverviewOnOpenTreatmentRecommender,
+  expandedLowerRightContent,
+  onOpenPlanBuilder,
+  onAuraActiveCategoryChange,
   onScanGenerated,
 }: FaceMirrorPanelProps) {
   // --- Existing state ---
@@ -506,15 +476,16 @@ export default function FaceMirrorPanel({
     patientName,
   );
   const [manualHighlightedRegionIds, setManualHighlightedRegionIds] = useState<string[]>(
-    () => loadFaceMirrorHighlightedRegions(highlightStorageKey, ALL_ANNOTATION_REGION_IDS),
+    () => loadFaceMirrorHighlightedRegions(highlightStorageKey, ALL_MIRROR_ANNOTATION_REGION_IDS),
   );
   const [angleIdx, setAngleIdx] = useState(0);
   const [viewportExpanded, setViewportExpanded] = useState(false);
   const [auraPanelCollapsed, setAuraPanelCollapsed] = useState(false);
   const [auraActiveCategory, setAuraActiveCategory] =
-    useState<AuraOverviewCategoryKey>("volumeLoss");
+    useState<AuraOverviewCategoryKey>("skinHealth");
   const [auraIssueHighlights, setAuraIssueHighlights] = useState<string[]>([]);
-
+  const [annotateStrokes, setAnnotateStrokes] = useState<AnnotateStroke[]>([]);
+  const [annotationsRefreshKey, setAnnotationsRefreshKey] = useState(0);
   // --- Scan generation state ---
   const [scanState, setScanState] = useState<ScanState>({ phase: "idle" });
   const [scanQuality, setScanQuality] = useState<ScanQuality>("standard");
@@ -527,7 +498,7 @@ export default function FaceMirrorPanel({
 
   useEffect(() => {
     setManualHighlightedRegionIds(
-      loadFaceMirrorHighlightedRegions(highlightStorageKey, ALL_ANNOTATION_REGION_IDS),
+      loadFaceMirrorHighlightedRegions(highlightStorageKey, ALL_MIRROR_ANNOTATION_REGION_IDS),
     );
   }, [highlightStorageKey]);
 
@@ -535,10 +506,15 @@ export default function FaceMirrorPanel({
     saveFaceMirrorHighlightedRegions(highlightStorageKey, manualHighlightedRegionIds);
   }, [highlightStorageKey, manualHighlightedRegionIds]);
 
+  useEffect(() => {
+    onAuraActiveCategoryChange?.(auraActiveCategory);
+  }, [auraActiveCategory, onAuraActiveCategoryChange]);
+
   const useAuraExpandedAnalysis = Boolean(
     viewportExpanded && analysisOverviewClient,
   );
-  const auraMirrorHighlightsActive = useAuraExpandedAnalysis && !useAuraScan;
+  /** Expanded analysis panel: issue eye toggles → mirror / 3D region highlights. */
+  const auraMirrorHighlightsActive = useAuraExpandedAnalysis;
 
   const auraHighlightTermsForView = useMemo(() => {
     if (!auraMirrorHighlightsActive) return [];
@@ -547,7 +523,7 @@ export default function FaceMirrorPanel({
 
   /**
    * Collapsed split: manual regions only (no bulk interested-issues overlay).
-   * Expanded: Aura issue highlights or parent terms.
+   * Expanded: issue eye toggles (Aura panel) or parent terms.
    * Single term from analysis row click works in both layouts.
    */
   const highlightTermsForView = useMemo(() => {
@@ -585,25 +561,59 @@ export default function FaceMirrorPanel({
     setAuraIssueHighlights([]);
   }, []);
 
-  const auraBridge = useMemo((): AuraMirrorHighlightBridge | undefined => {
-    if (!useAuraExpandedAnalysis) return undefined;
-    return {
-      highlightTerms: auraIssueHighlights,
-      onToggleIssueHighlight: toggleAuraIssueHighlight,
-      onClearIssueHighlights: clearAuraIssueHighlights,
-      activeCategory: auraActiveCategory,
-      onActiveCategoryChange: setAuraActiveCategory,
-      panelCollapsed: auraPanelCollapsed,
-      onPanelCollapsedChange: setAuraPanelCollapsed,
+  const handleSaveAnnotation = useCallback(
+    (payload: AnnotateSavePayload) => {
+      const clientId = analysisOverviewClient?.id;
+      if (!clientId) return;
+      const stamp = new Date().toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      savePatientAnnotation({
+        clientId,
+        label: `${payload.viewContext} · ${stamp}`,
+        viewContext: payload.viewContext,
+        strokes: payload.strokes,
+        faceImageUrl: payload.faceImageUrl,
+        compositeDataUrl: payload.compositeDataUrl,
+      });
+      setAnnotationsRefreshKey((k) => k + 1);
+      window.dispatchEvent(
+        new CustomEvent("patient-annotations-changed", { detail: { clientId } }),
+      );
+    },
+    [analysisOverviewClient?.id],
+  );
+
+  const handleLoadAnnotation = useCallback((record: SavedPatientAnnotation) => {
+    setAnnotateStrokes(record.strokes);
+  }, []);
+
+  useEffect(() => {
+    const clientId = analysisOverviewClient?.id;
+    if (!clientId) return undefined;
+    const onChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ clientId?: string }>).detail;
+      if (detail?.clientId && detail.clientId !== clientId) return;
+      setAnnotationsRefreshKey((k) => k + 1);
     };
-  }, [
-    useAuraExpandedAnalysis,
-    auraIssueHighlights,
-    auraActiveCategory,
-    auraPanelCollapsed,
-    toggleAuraIssueHighlight,
-    clearAuraIssueHighlights,
-  ]);
+    const onLoadRequest = (e: Event) => {
+      const detail = (
+        e as CustomEvent<{ clientId: string; record: SavedPatientAnnotation }>
+      ).detail;
+      if (!detail || detail.clientId !== clientId) return;
+      handleLoadAnnotation(detail.record);
+      setViewportExpanded(true);
+    };
+    window.addEventListener("patient-annotations-changed", onChanged);
+    window.addEventListener("patient-annotation-load-request", onLoadRequest);
+    return () => {
+      window.removeEventListener("patient-annotations-changed", onChanged);
+      window.removeEventListener("patient-annotation-load-request", onLoadRequest);
+    };
+  }, [analysisOverviewClient?.id, handleLoadAnnotation]);
 
   const angleSlots = useMemo((): ClientPhotoSlot[] => {
     if (photoSlots.length > 0) return photoSlots;
@@ -637,6 +647,37 @@ export default function FaceMirrorPanel({
     return slot.label === "Side" ? "side" : "front";
   }, [simplifiedSlots, angleIdx]);
 
+  const auraBridge = useMemo((): AuraMirrorHighlightBridge | undefined => {
+    if (!useAuraExpandedAnalysis || !analysisOverviewClient) return undefined;
+    return {
+      highlightTerms: auraIssueHighlights,
+      onToggleIssueHighlight: toggleAuraIssueHighlight,
+      onClearIssueHighlights: clearAuraIssueHighlights,
+      activeCategory: auraActiveCategory,
+      onActiveCategoryChange: setAuraActiveCategory,
+      panelCollapsed: auraPanelCollapsed,
+      onPanelCollapsedChange: setAuraPanelCollapsed,
+      patientFiles: {
+        photoSlots: angleSlots,
+        turntableVideoUrl: effectiveVideoUrl,
+        annotationsRefreshKey,
+        onLoadAnnotation: handleLoadAnnotation,
+      },
+    };
+  }, [
+    useAuraExpandedAnalysis,
+    analysisOverviewClient,
+    auraIssueHighlights,
+    auraActiveCategory,
+    auraPanelCollapsed,
+    toggleAuraIssueHighlight,
+    clearAuraIssueHighlights,
+    angleSlots,
+    effectiveVideoUrl,
+    annotationsRefreshKey,
+    handleLoadAnnotation,
+  ]);
+
   const openPatientPhotosSafe = useCallback(
     (initialTab: "front" | "side") => {
       setViewportExpanded(false);
@@ -661,7 +702,7 @@ export default function FaceMirrorPanel({
     showAutoRotate: mode === "3d" && has3D && !useAuraScan,
     autoRotate: autoRotate3d,
     onToggleAutoRotate: toggleAutoRotate3d,
-    showHighlightPicker: hasPhoto || has3D,
+    showHighlightPicker: (hasPhoto || has3D) && !useAuraScan,
     manualHighlightedRegionIds,
     onSetManualHighlightedRegionIds: setManualHighlightedRegionIds,
     onToggleAnnotationRegionHighlight: toggleAnnotationRegionHighlight,
@@ -828,35 +869,22 @@ export default function FaceMirrorPanel({
 
   // --- Toolbar rendering helper ---
 
-  const expandBtnLabel = analysisOverviewClient
-    ? viewportExpanded ? "Exit expanded view (Esc)" : "Expand to fill window — toggle Photo / 3D beside analysis"
-    : viewportExpanded ? "Exit expanded view (Esc)" : "Expand to fill window";
+  const expandBtnLabel = viewportExpanded
+    ? "Hide analysis (Esc)"
+    : "Show analysis";
 
   const scanning = scanState.phase === "running" || scanState.phase === "submitting";
 
   const toolbar = (
     <div className="fmp-toolbar">
       <div className="fmp-toolbar-start">
-        {useAuraScan ? (
+        {useAuraScan && !has3D ? (
           <span className="fmp-aura-badge" title="3D turntable scan">
             3D scan
           </span>
         ) : null}
         {has3D && !useAuraScan && scanState.phase !== "running" && (
           <div className="fmp-mode-tabs" role="tablist" aria-label="View mode">
-            <button
-              role="tab"
-              aria-selected={mode === "photo"}
-              className={`fmp-tab${mode === "photo" ? " fmp-tab--active" : ""}`}
-              onClick={() => setMode("photo")}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-              Photo
-            </button>
             <button
               role="tab"
               aria-selected={mode === "3d"}
@@ -869,6 +897,19 @@ export default function FaceMirrorPanel({
                 <path d="M2 12l10 5 10-5" />
               </svg>
               3D
+            </button>
+            <button
+              role="tab"
+              aria-selected={mode === "photo"}
+              className={`fmp-tab${mode === "photo" ? " fmp-tab--active" : ""}`}
+              onClick={() => setMode("photo")}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              Photo
             </button>
           </div>
         )}
@@ -950,7 +991,7 @@ export default function FaceMirrorPanel({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M5 5 12 12M19 5 12 12M19 19 12 12M5 19 12 12" />
               </svg>
-              Exit expanded
+              Hide analysis
             </>
           ) : (
             <>
@@ -960,7 +1001,7 @@ export default function FaceMirrorPanel({
                 <path d="M21 15v6h-6" />
                 <path d="M3 9V3h6" />
               </svg>
-              Expand
+              Analysis
             </>
           )}
         </button>
@@ -995,6 +1036,24 @@ export default function FaceMirrorPanel({
         viewerAngleAssets={TANYA_TAN_VIEWER_ANGLE_ASSETS}
         highlightTerms={highlightTermsForView}
         highlightedRegionIds={manualRegionsForView}
+        overviewCategory={
+          useAuraExpandedAnalysis ? auraActiveCategory : undefined
+        }
+        onOverviewCategoryChange={
+          useAuraExpandedAnalysis ? setAuraActiveCategory : undefined
+        }
+        annotateStrokes={annotateStrokes}
+        onAnnotateStrokesChange={setAnnotateStrokes}
+        onAnnotateSave={analysisOverviewClient ? handleSaveAnnotation : undefined}
+        regionPicker={
+          useAuraScan
+            ? {
+                manualHighlightedRegionIds,
+                onSetManualHighlightedRegionIds: setManualHighlightedRegionIds,
+                onToggleAnnotationRegionHighlight: toggleAnnotationRegionHighlight,
+              }
+            : undefined
+        }
       />
     ) : (
       <Face3DViewer
@@ -1003,8 +1062,8 @@ export default function FaceMirrorPanel({
         showAnnotations={hasAnnotations}
         highlightTerms={highlightTermsForView}
         highlightedAnnotationRegionIds={manualRegionsForView}
-        initialZoom={1.3}
-        initialPanY={-70}
+        initialZoom={1.75}
+        initialPanY={-88}
       />
     )
   ) : null;
@@ -1024,7 +1083,7 @@ export default function FaceMirrorPanel({
     <div
       className={`fmp-root${viewportExpanded ? " fmp-root--viewport-expanded" : ""}${useAuraScan ? " fmp-root--aura" : ""}`}
     >
-      {/* Toolbar: always visible when there's content (has3D or photos or can generate) */}
+      {/* Toolbar: expand always available; Aura collapsed hides extra chrome via CSS */}
       {(has3D || hasPhoto || canGenerate) && toolbar}
 
       {/* Config sheet: slides in between toolbar and body */}
@@ -1050,30 +1109,6 @@ export default function FaceMirrorPanel({
                   <FaceMirrorViewportShell {...viewportOverlayProps}>
                     <FaceMirrorPhotoStage {...photoStageProps} wrapClassName="fmp-photo-stage--in-expanded-split" />
                   </FaceMirrorViewportShell>
-                  {auraPanelCollapsed && auraBridge && (
-                    <div className="fmp-aura-float-tabs" role="tablist" aria-label="Analysis categories">
-                      {AURA_OVERVIEW_TABS.map((tab) => (
-                        <button
-                          key={tab.key}
-                          type="button"
-                          role="tab"
-                          aria-selected={auraActiveCategory === tab.key}
-                          className={`fmp-aura-float-tab${auraActiveCategory === tab.key ? " fmp-aura-float-tab--active" : ""}`}
-                          style={
-                            auraActiveCategory === tab.key
-                              ? ({ "--aura-tab-accent": tab.accent } as CSSProperties)
-                              : undefined
-                          }
-                          onClick={() => {
-                            setAuraActiveCategory(tab.key);
-                            setAuraPanelCollapsed(false);
-                          }}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             ) : mode === "3d" && effectiveVideoUrl ? (
@@ -1082,30 +1117,6 @@ export default function FaceMirrorPanel({
                   <FaceMirrorViewportShell {...viewportOverlayProps}>
                     {viewer3D}
                   </FaceMirrorViewportShell>
-                  {auraPanelCollapsed && auraBridge && (
-                    <div className="fmp-aura-float-tabs" role="tablist" aria-label="Analysis categories">
-                      {AURA_OVERVIEW_TABS.map((tab) => (
-                        <button
-                          key={tab.key}
-                          type="button"
-                          role="tab"
-                          aria-selected={auraActiveCategory === tab.key}
-                          className={`fmp-aura-float-tab${auraActiveCategory === tab.key ? " fmp-aura-float-tab--active" : ""}`}
-                          style={
-                            auraActiveCategory === tab.key
-                              ? ({ "--aura-tab-accent": tab.accent } as CSSProperties)
-                              : undefined
-                          }
-                          onClick={() => {
-                            setAuraActiveCategory(tab.key);
-                            setAuraPanelCollapsed(false);
-                          }}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             ) : (
@@ -1120,13 +1131,21 @@ export default function FaceMirrorPanel({
               </div>
             )}
             <div className={`fmp-fullscreen-split-overview${overviewSoloSpan ? " fmp-fullscreen-split-overview--solo" : ""}`}>
-              <AnalysisOverviewModal
-                embedded
-                client={analysisOverviewClient}
-                onClose={() => setViewportExpanded(false)}
-                onAddToPlanDirect={analysisOverviewOnAddToPlanDirect}
-                auraBridge={auraBridge}
-              />
+              <div className="fmp-fullscreen-split-overview-main">
+                <AnalysisOverviewModal
+                  embedded
+                  client={analysisOverviewClient}
+                  onClose={() => setViewportExpanded(false)}
+                  onAddToPlanDirect={analysisOverviewOnAddToPlanDirect}
+                  auraBridge={auraBridge}
+                  onOpenTreatmentRecommender={analysisOverviewOnOpenTreatmentRecommender}
+                />
+              </div>
+              {expandedLowerRightContent ? (
+                <div className="fmp-fullscreen-split-overview-lower">
+                  {expandedLowerRightContent}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : (
@@ -1148,6 +1167,16 @@ export default function FaceMirrorPanel({
           </div>
         )}
       </div>
+      {showFsAnalysisOverview && onOpenPlanBuilder && !expandedLowerRightContent ? (
+        <button
+          type="button"
+          className="fmp-planbuilder-launcher"
+          onClick={onOpenPlanBuilder}
+          title="Open full plan builder"
+        >
+          Plan Builder
+        </button>
+      ) : null}
     </div>
   );
 }

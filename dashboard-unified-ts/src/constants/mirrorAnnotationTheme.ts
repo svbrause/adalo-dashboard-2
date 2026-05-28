@@ -13,13 +13,13 @@ export const MIRROR_ANNOTATION_THEME = {
 } as const;
 
 /**
- * Reserved screen area for FaceMirrorPanel controls (Rotate + Highlight pills).
- * Keep in sync with `.fmp-viewport-overlays` in FaceMirrorPanel.css.
+ * Reserved screen area for FaceMirrorPanel viewport overlay controls (Rotate pill).
+ * Regions on Aura clients live on the right tool rail, not here.
  */
 export const MIRROR_VIEWPORT_OVERLAY_SAFE = {
   top: 10,
   left: 10,
-  width: 220,
+  width: 120,
   height: 44,
   padding: 10,
 } as const;

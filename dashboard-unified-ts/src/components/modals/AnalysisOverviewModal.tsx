@@ -66,6 +66,7 @@ import { SeverityNormRing } from "../common/SeverityNormRing";
 import AuraEmbeddedAnalysisPanel, {
   type AuraMirrorHighlightBridge,
 } from "../views/AuraEmbeddedAnalysisPanel";
+import type { AuraOverviewCategoryKey } from "../../utils/auraAnalysisBridge";
 import "./AnalysisOverviewModal.css";
 
 // ---------------------------------------------------------------------------
@@ -146,6 +147,11 @@ interface AnalysisOverviewModalProps {
   embedded?: boolean;
   /** Aura-style tabs + per-issue face highlights (expanded client detail). */
   auraBridge?: AuraMirrorHighlightBridge;
+  /** Optional CTA for opening the full treatment recommender. */
+  onOpenTreatmentRecommender?: (
+    issue?: string,
+    category?: AuraOverviewCategoryKey,
+  ) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -1240,6 +1246,7 @@ export default function AnalysisOverviewModal({
   initialDetailView,
   embedded = false,
   auraBridge,
+  onOpenTreatmentRecommender,
 }: AnalysisOverviewModalProps) {
   const { provider } = useDashboard();
   const [animate, setAnimate] = useState(false);
@@ -1349,6 +1356,77 @@ export default function AnalysisOverviewModal({
     .filter((a) => !a.hasInterest)
     .sort((a, b) => a.score - b.score);
   const focusCount = focusAreas.length;
+  const strengthHighlights = useMemo(() => {
+    const highlights: string[] = [];
+
+    const strongestCategories = [...categories]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2);
+    for (const cat of strongestCategories) {
+      if (cat.score >= 80) {
+        highlights.push(`${cat.name} is performing strongly (${cat.score}).`);
+      }
+    }
+
+    const strongestSubScores = categories
+      .flatMap((cat) =>
+        cat.subScores.map((sub) => ({ ...sub, categoryName: cat.name })),
+      )
+      .filter((sub) => sub.detected === 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2);
+    for (const sub of strongestSubScores) {
+      highlights.push(
+        `${sub.name} showed no flagged findings in ${sub.categoryName}.`,
+      );
+    }
+
+    const strongestAreas = [...areaResults]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2);
+    for (const area of strongestAreas) {
+      if (area.score >= 80) {
+        highlights.push(`${area.name} remains a relative strength (${area.score}).`);
+      }
+    }
+
+    return Array.from(new Set(highlights)).slice(0, 4);
+  }, [categories, areaResults]);
+  const improvementHighlights = useMemo(() => {
+    const highlights: string[] = [];
+
+    const weakestCategories = [...categories]
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 2);
+    for (const cat of weakestCategories) {
+      highlights.push(`${cat.name} has the most near-term opportunity (${cat.score}).`);
+    }
+
+    const mostFlaggedSubScores = categories
+      .flatMap((cat) =>
+        cat.subScores.map((sub) => ({ ...sub, categoryName: cat.name })),
+      )
+      .filter((sub) => sub.detected > 0)
+      .sort((a, b) => b.detected - a.detected || a.score - b.score)
+      .slice(0, 2);
+    for (const sub of mostFlaggedSubScores) {
+      highlights.push(
+        `${sub.name} is a focus area within ${sub.categoryName}.`,
+      );
+    }
+
+    const focusImprovements = [...areaResults]
+      .filter((area) => area.improvements.length > 0)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 2);
+    for (const area of focusImprovements) {
+      highlights.push(
+        `${area.name} has ${area.improvements.length} flagged ${area.improvements.length === 1 ? "feature" : "features"} to improve.`,
+      );
+    }
+
+    return Array.from(new Set(highlights)).slice(0, 4);
+  }, [categories, areaResults]);
 
   const assessmentText = useMemo(
     () => generateAssessment(overall, categories, focusCount),
@@ -1513,8 +1591,9 @@ export default function AnalysisOverviewModal({
               client={client}
               categories={categories}
               detectedIssues={detectedIssues}
-              overallScore={overall}
               bridge={auraBridge}
+              onOpenPlanBuilder={onOpenTreatmentRecommender}
+              onOpenTreatmentForIssue={onOpenTreatmentRecommender}
             />
           ) : (
             <>
@@ -1641,6 +1720,56 @@ export default function AnalysisOverviewModal({
                         </div>
                       </div>
                     ))}
+                  </div>
+                </section>
+              )}
+
+              {strengthHighlights.length > 0 && (
+                <section className="analysis-overview-modal__strengths">
+                  <OverviewSectionHeading>Strengths supporting overall score</OverviewSectionHeading>
+                  <p className="analysis-overview-modal__strengths-note">
+                    Even when some findings are moderate to severe, these strengths help explain a
+                    high overall score.
+                  </p>
+                  <ul className="analysis-overview-modal__strengths-list">
+                    {strengthHighlights.map((item) => (
+                      <li key={item} className="analysis-overview-modal__strengths-item">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {improvementHighlights.length > 0 && (
+                <section className="analysis-overview-modal__strengths analysis-overview-modal__improvements">
+                  <OverviewSectionHeading>Areas for improvement</OverviewSectionHeading>
+                  <p className="analysis-overview-modal__strengths-note">
+                    These are the features most influencing score upside and treatment priority.
+                  </p>
+                  <ul className="analysis-overview-modal__strengths-list">
+                    {improvementHighlights.map((item) => (
+                      <li key={item} className="analysis-overview-modal__strengths-item analysis-overview-modal__strengths-item--improvement">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {embedded && onOpenTreatmentRecommender && (
+                <section className="analysis-overview-modal__recommender">
+                  <OverviewSectionHeading>Treatment recommender</OverviewSectionHeading>
+                  <p className="analysis-overview-modal__recommender-note">
+                    Open the full recommender to turn findings into a structured plan with pricing.
+                  </p>
+                  <div className="analysis-overview-modal__recommender-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={() => onOpenTreatmentRecommender()}
+                    >
+                      Open Recommender
+                    </button>
                   </div>
                 </section>
               )}

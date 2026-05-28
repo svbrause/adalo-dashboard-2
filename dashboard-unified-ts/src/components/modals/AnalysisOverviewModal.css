@@ -625,6 +625,61 @@
   flex-shrink: 0;
 }
 
+/* ===================== Strengths supporting score ===================== */
+.analysis-overview-modal__strengths {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-overview-modal__strengths-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.analysis-overview-modal__strengths-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.analysis-overview-modal__strengths-item {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent, #5ba3a3) 36%, #cfece7);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--theme-accent, #5ba3a3) 8%, #fff);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: var(--theme-text-primary, #212121);
+}
+
+.analysis-overview-modal__strengths-item--improvement {
+  border-color: color-mix(in srgb, #f59e0b 38%, #f8e7bf);
+  background: color-mix(in srgb, #f59e0b 12%, #fff);
+}
+
+.analysis-overview-modal__recommender {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-overview-modal__recommender-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary, #616161);
+}
+
+.analysis-overview-modal__recommender-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ===================== Areas section ===================== */
 .analysis-overview-modal__areas {
   display: flex;

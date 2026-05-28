@@ -30,12 +30,13 @@
   inset: 0;
   transform-origin: center center;
   will-change: transform;
+  backface-visibility: hidden;
 }
 
 .face3d-media-layer {
   position: absolute;
   inset: 0;
-  transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.12s ease-out;
 }
 
 .face3d-content-overlay {
@@ -67,7 +68,8 @@
   height: 100%;
   pointer-events: none;
   opacity: 0; /* shown imperatively during drag; CSS owns default so React re-renders can't reset it */
-  will-change: opacity;
+  will-change: opacity, contents;
+  contain: layout paint;
 }
 
 /* Annotation canvas: overlaid on the video, pointer-events off so drag still works */
@@ -77,6 +79,21 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+
+.face3d-draw-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.face3d-draw-overlay .avf-annotate-toolbar {
+  pointer-events: auto;
+}
+
+.face3d-draw-overlay .avf-drawing-layer--active {
+  pointer-events: auto;
 }
 
 .face3d-error {

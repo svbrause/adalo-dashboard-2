@@ -5,8 +5,11 @@ import {
   type CategoryResult,
 } from "../config/analysisOverviewConfig";
 import type { AnalysisSeverityIssue } from "../types";
+import { getHighlightedRegionIds } from "../components/postVisitBlueprint/AiMirrorCanvas";
+import { issueToMirrorHighlightTerm } from "./auraAnalysisBridge";
 import {
   getSubScoreCanonicalIssues,
+  issueSeverityVisual,
   regionHighlightsForCategory,
   subScoreSeverityBadness01,
 } from "./auraSeverityDisplay";
@@ -32,11 +35,11 @@ export const AURA_FIVE_REGION_LABELS: Record<AuraFiveRegionId, string> = {
 
 /** Minimap region ids rolled up into each Aura regional zone. */
 export const REGION_TO_MINIMAP_IDS: Record<AuraFiveRegionId, string[]> = {
-  forehead: ["rForehead", "rLeftEye", "rRightEye"],
+  forehead: ["rForehead", "rLeftEye", "rRightEye", "rLeftUnderEye", "rRightUnderEye"],
   leftCheek: ["rLeftCheek", "rTemporal"],
   rightCheek: ["rRightCheek", "rTemporalR"],
   nose: ["rNose"],
-  chin: ["rLowerFace", "rChin", "rLips"],
+  chin: ["rLowerFace", "rChin", "rLips", "rLeftNasolabialFold", "rRightNasolabialFold", "rLeftMarionetteLine", "rRightMarionetteLine"],
 };
 
 export interface AuraRegionalZoneScore {
@@ -160,7 +163,7 @@ const SUB_SCORE_TO_AURA_ZONES: Record<string, AuraFiveRegionId[]> = {
   Texture: ["leftCheek", "rightCheek"],
   Pigmentation: ["forehead", "leftCheek", "rightCheek"],
   Hydration: ["leftCheek", "rightCheek"],
-  "Eye Area": ["leftCheek", "rightCheek"],
+  "Eye Area": ["forehead"],
   "Cheek Area": ["leftCheek", "rightCheek"],
   "Neck Area": ["chin"],
   "Lower Face": ["chin"],
@@ -201,6 +204,59 @@ export function fiveRegionalScoresFromSeverity(
     });
   }
   return out;
+}
+
+export interface AuraIssueMapHighlight {
+  regionId: string;
+  badness01: number;
+  color: string;
+  fillOpacity: number;
+}
+
+/**
+ * Map each detected issue in the active category to mirror regions (under-eye, nasolabial, etc.).
+ */
+export function regionHighlightsFromCategoryIssues(
+  activeCat: CategoryResult | undefined,
+  detected: Set<string>,
+  severityIssues: Record<string, AnalysisSeverityIssue> | undefined,
+  categoryAccent: string,
+): AuraIssueMapHighlight[] {
+  if (!activeCat) return [];
+
+  const issuesInCategory: string[] = [];
+  for (const sub of activeCat.subScores) {
+    for (const issue of getSubScoreCanonicalIssues(sub.name)) {
+      if (detected.has(normalizeIssue(issue))) {
+        issuesInCategory.push(issue);
+      }
+    }
+  }
+
+  const byRegion = new Map<string, AuraIssueMapHighlight>();
+
+  for (const issue of issuesInCategory) {
+    const term = issueToMirrorHighlightTerm(issue);
+    const regionIds = getHighlightedRegionIds([term]);
+    const vis = issueSeverityVisual(issue, severityIssues, categoryAccent);
+    const badness = vis.badness01 ?? 0.52;
+    const color = vis.color;
+    const fillOpacity = 0.22 + badness * 0.55;
+
+    for (const regionId of regionIds) {
+      const prev = byRegion.get(regionId);
+      if (!prev || badness > prev.badness01) {
+        byRegion.set(regionId, {
+          regionId,
+          badness01: badness,
+          color,
+          fillOpacity,
+        });
+      }
+    }
+  }
+
+  return Array.from(byRegion.values()).sort((a, b) => b.badness01 - a.badness01);
 }
 
 export function getRegionalIssuesByZone(): Record<AuraFiveRegionId, string[]> {

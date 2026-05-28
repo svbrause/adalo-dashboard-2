@@ -40,6 +40,10 @@ const MAX_DISPLAY_DIM = 1024;
 /** Turntable export: -65° (start) → 0° nose-front (mid) → +65° (end). */
 const MAX_YAW_DEG = 65;
 const DEG_PER_PX = (2 * MAX_YAW_DEG) / 380;
+/** Exponential smoothing for drag rotation (lower = snappier). */
+const SCRUB_YAW_SMOOTH_TAU_MS = 36;
+/** Throttle live video seeks while scrubbing — avoids decoder stutter. */
+const SCRUB_VIDEO_SEEK_MS = 36;
 const AUTO_SPEED = 22;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -53,8 +57,8 @@ const TIMELINE_KEY_MAX_DELTA = 1;
 const FRAME_CACHE_MAX_KEY_DELTA = 2;
 /** Wider tolerance during reverse cache playback (forward play may skip occasional buckets). */
 const FRAME_CACHE_REVERSE_MAX_KEY_DELTA = 4;
-/** Step size for background cache fill (scrub / Safari fallback only). */
-const FRAME_CACHE_PRIME_STEP = 2;
+/** Step size when pre-decoding turntable frames before the first auto-rotate cycle. */
+const FRAME_CACHE_PRIME_STEP = 1;
 
 interface Face3DViewerProps {
   videoUrl: string;
@@ -65,6 +69,8 @@ interface Face3DViewerProps {
   controlledTimeRatio?: number;
   controlledTimeAnimationMs?: number;
   onTimeRatioChange?: (ratio: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   showAnnotations?: boolean;
   highlightTerms?: string[];
   highlightedAnnotationRegionIds?: string[];
@@ -75,6 +81,10 @@ interface Face3DViewerProps {
   initialPanY?: number;
   /** Optional overlay rendered inside the zoom/pan layer (tracks zoom with the video). */
   overlay?: ReactNode;
+  /** Ink / markup above diagnostic overlays (tracks zoom with the video). */
+  drawOverlay?: ReactNode;
+  /** Receives the zoom layer root for annotation export layout measurement. */
+  annotateMeasureRootRef?: (el: HTMLElement | null) => void;
   /** Opacity for the video/canvas media layer (0–1). Useful when an overlay replaces the video at anchor angles. */
   mediaOpacity?: number;
 }
@@ -134,8 +144,8 @@ function safeSetPlaybackRate(video: HTMLVideoElement, rate: number): boolean {
   try {
     video.playbackRate = rate;
     return true;
-  } catch (err) {
-    console.warn("[Face3DViewer] unsupported playbackRate:", rate, err);
+  } catch {
+    // Reverse playback (-1) is unsupported in many browsers; callers fall back to frame cache.
     return false;
   }
 }
@@ -468,6 +478,8 @@ export default function Face3DViewer({
   controlledTimeRatio,
   controlledTimeAnimationMs = 0,
   onTimeRatioChange,
+  onDragStart,
+  onDragEnd,
   showAnnotations = false,
   highlightTerms = [],
   highlightedAnnotationRegionIds = [],
@@ -475,10 +487,19 @@ export default function Face3DViewer({
   initialZoom = 1,
   initialPanY = 0,
   overlay,
+  drawOverlay,
+  annotateMeasureRootRef,
   mediaOpacity = 1,
 }: Face3DViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
-  const zoomLayerRef = useRef<HTMLDivElement>(null);
+  const zoomLayerRef = useRef<HTMLDivElement | null>(null);
+  const setZoomLayerRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      zoomLayerRef.current = el;
+      annotateMeasureRootRef?.(el);
+    },
+    [annotateMeasureRootRef],
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
   const displayCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -486,6 +507,7 @@ export default function Face3DViewer({
   const frameCacheRef = useRef<Map<number, ImageBitmap>>(new Map());
   const frameCachePrimedUrlRef = useRef<string | null>(null);
   const frameCachePrimePromiseRef = useRef<Promise<void> | null>(null);
+  const autoRotateStartedForUrlRef = useRef<string | null>(null);
   const reversePlaybackOkRef = useRef<boolean | null>(null);
   const frameCapCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentTimeKeyRef = useRef(0);
@@ -500,16 +522,25 @@ export default function Face3DViewer({
   const autoRotateRef = useRef(autoRotate);
   const autoDirRef = useRef<1 | -1>(1);
   const draggingRef = useRef(false);
+  const panningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const scrubTargetYawRef = useRef(0);
+  const scrubDisplayYawRef = useRef(0);
+  const lastScrubSeekAtRef = useRef(0);
+  const lastScrubTickAtRef = useRef(0);
   const lastDisplayedLandmarksRef = useRef<NormalizedLandmark[] | null>(null);
   const autoPlaybackControllerRef = useRef<{
     start: (preferredDir?: 1 | -1) => void;
     stop: () => void;
   } | null>(null);
+  const videoRetryCountRef = useRef(0);
+  const videoRetryTimerRef = useRef<number | null>(null);
   const highlightTermsRef = useRef(highlightTerms);
   const showAnnotationsRef = useRef(showAnnotations);
   const highlightedAnnotationRegionIdsRef = useRef(highlightedAnnotationRegionIds);
   const onTimeRatioChangeRef = useRef(onTimeRatioChange);
+  const onDragStartRef = useRef(onDragStart);
+  const onDragEndRef = useRef(onDragEnd);
 
   const [zoom, setZoom] = useState(1);
   const [videoError, setVideoError] = useState<string | null>(null);
@@ -669,11 +700,29 @@ export default function Face3DViewer({
     frameCacheRef.current.clear();
     frameCachePrimedUrlRef.current = null;
     frameCachePrimePromiseRef.current = null;
+    autoRotateStartedForUrlRef.current = null;
     reversePlaybackOkRef.current = null;
+    videoRetryCountRef.current = 0;
+    if (videoRetryTimerRef.current !== null) {
+      window.clearTimeout(videoRetryTimerRef.current);
+      videoRetryTimerRef.current = null;
+    }
   }, [videoUrl]);
+
+  useEffect(
+    () => () => {
+      if (videoRetryTimerRef.current !== null) {
+        window.clearTimeout(videoRetryTimerRef.current);
+        videoRetryTimerRef.current = null;
+      }
+    },
+    [],
+  );
 
   useEffect(() => { autoRotateRef.current = autoRotate; }, [autoRotate]);
   useEffect(() => { onTimeRatioChangeRef.current = onTimeRatioChange; }, [onTimeRatioChange]);
+  useEffect(() => { onDragStartRef.current = onDragStart; }, [onDragStart]);
+  useEffect(() => { onDragEndRef.current = onDragEnd; }, [onDragEnd]);
   useEffect(() => { minZoomRef.current = Math.max(MIN_ZOOM, initialZoom); }, [initialZoom]);
   useEffect(() => {
     highlightTermsRef.current = highlightTerms;
@@ -693,6 +742,41 @@ export default function Face3DViewer({
     renderCachedAnnotations();
   }, [showAnnotations, renderCachedAnnotations]);
 
+  const handleVideoReady = useCallback(() => {
+    videoRetryCountRef.current = 0;
+    if (videoRetryTimerRef.current !== null) {
+      window.clearTimeout(videoRetryTimerRef.current);
+      videoRetryTimerRef.current = null;
+    }
+    setVideoError(null);
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      setVideoError("3D preview video could not be loaded.");
+      return;
+    }
+    if (video.readyState >= 1) {
+      setVideoError(null);
+      return;
+    }
+    if (videoRetryCountRef.current < 2) {
+      videoRetryCountRef.current += 1;
+      if (videoRetryTimerRef.current !== null) {
+        window.clearTimeout(videoRetryTimerRef.current);
+      }
+      videoRetryTimerRef.current = window.setTimeout(() => {
+        videoRetryTimerRef.current = null;
+        const currentVideo = videoRef.current;
+        if (!currentVideo || currentVideo.readyState >= 1) return;
+        currentVideo.load();
+      }, 250 * videoRetryCountRef.current);
+      return;
+    }
+    setVideoError("3D preview video could not be loaded.");
+  }, []);
+
   const enqueueLandmarkDetection = useCallback((key: number) => {
     if (
       !hasMirrorAnnotationHighlights(
@@ -703,13 +787,20 @@ export default function Face3DViewer({
       return;
     }
     const cache = landmarksByTimeKeyRef.current;
-    const toQueue = [key, key - 1, key + 1].filter(
-      (k) =>
+    const neighborSpan = autoRotateRef.current ? 3 : 1;
+    const toQueue: number[] = [];
+    for (let d = -neighborSpan; d <= neighborSpan; d++) {
+      const k = key + d;
+      if (
         k >= 0 &&
         !cache.has(k) &&
         !pendingLandmarkKeysRef.current.has(k) &&
-        !landmarkKeyQueueRef.current.includes(k),
-    );
+        !landmarkKeyQueueRef.current.includes(k) &&
+        !toQueue.includes(k)
+      ) {
+        toQueue.push(k);
+      }
+    }
     if (toQueue.length === 0) return;
     const queue = landmarkKeyQueueRef.current;
     const priority = toQueue.filter((k) => k === key);
@@ -849,12 +940,30 @@ export default function Face3DViewer({
     ): ImageBitmap | null => {
       const dc = displayCanvasRef.current;
       if (!dc) return lastBitmap;
-      const frame =
+      const roundedKey = Math.round(timelineKey);
+      let frame =
         findNearestFrame(
           frameCacheRef.current,
-          timelineKey,
+          roundedKey,
           FRAME_CACHE_REVERSE_MAX_KEY_DELTA,
         ) ?? lastBitmap;
+      if (!frame) {
+        const d = video.duration;
+        if (d && isFinite(d)) {
+          const playbackTime = face3dTimelineTimeFromKey(roundedKey);
+          if (Math.abs(video.currentTime - playbackTime) > SCRUB_SEEK_EPS) {
+            video.currentTime = playbackTime;
+          }
+          drawVideoFrameToDisplay();
+          captureCurrentFrame();
+          frame =
+            findNearestFrame(
+              frameCacheRef.current,
+              roundedKey,
+              FRAME_CACHE_REVERSE_MAX_KEY_DELTA,
+            ) ?? lastBitmap;
+        }
+      }
       if (!frame) return lastBitmap;
       const ctx = dc.getContext("2d");
       if (ctx) {
@@ -979,73 +1088,9 @@ export default function Face3DViewer({
       autoRaf = requestAnimationFrame(tick);
     };
 
-    const startBackwardVideo = () => {
-      if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
-      autoMode = 'backward';
-      autoDirRef.current = -1;
-      const dc = displayCanvasRef.current;
-      if (dc) dc.style.opacity = '0';
-      const d = video.duration;
-      if (!d || !isFinite(d)) return;
-      const endTime = Math.max(0, d - END_TIME_EPS);
-      const rate = computeAutoPlaybackRate(d, -1);
-
-      const doPlay = () => {
-        if (cancelled || autoMode !== 'backward') return;
-        if (!safeSetPlaybackRate(video, rate) || video.playbackRate >= 0) {
-          reversePlaybackOkRef.current = false;
-          startBackwardCache();
-          return;
-        }
-        void video.play().catch(() => {
-          reversePlaybackOkRef.current = false;
-          startBackwardCache();
-        });
-        const monitor = () => {
-          autoRaf = 0;
-          if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'backward') return;
-          const d2 = video.duration;
-          if (!d2 || !isFinite(d2)) { autoRaf = requestAnimationFrame(monitor); return; }
-          syncYawFromVideo();
-          if (video.currentTime <= END_TIME_EPS || video.paused) {
-            video.pause();
-            safeSetPlaybackRate(video, 1);
-            yawRef.current = -MAX_YAW_DEG;
-            autoDirRef.current = 1;
-            const leftTime = yawToVideoTime(-MAX_YAW_DEG, d2);
-            const handoffToForward = () => {
-              if (cancelled || autoMode !== 'backward') return;
-              startForward();
-            };
-            if (Math.abs(video.currentTime - leftTime) > SCRUB_SEEK_EPS) {
-              video.currentTime = leftTime;
-              video.addEventListener('seeked', handoffToForward, { once: true });
-            } else {
-              handoffToForward();
-            }
-            return;
-          }
-          autoRaf = requestAnimationFrame(monitor);
-        };
-        autoRaf = requestAnimationFrame(monitor);
-      };
-
-      if (Math.abs(video.currentTime - endTime) > SCRUB_SEEK_EPS) {
-        video.pause();
-        safeSetPlaybackRate(video, 1);
-        video.currentTime = endTime;
-        video.addEventListener('seeked', doPlay, { once: true });
-      } else {
-        doPlay();
-      }
-    };
-
+    /** Cache-only reverse keeps speed matched to forward after the turntable is primed. */
     const startBackward = () => {
-      if (reversePlaybackOkRef.current !== false) {
-        startBackwardVideo();
-      } else {
-        startBackwardCache();
-      }
+      startBackwardCache();
     };
 
     const stopAutoPlayback = () => stopAuto();
@@ -1069,7 +1114,7 @@ export default function Face3DViewer({
         panYRef.current = initPanY;
         panXRef.current = 0;
         if (zoomLayerRef.current) {
-          zoomLayerRef.current.style.transform = `translate(0px, ${initPanY}px) scale(${initZoom})`;
+          zoomLayerRef.current.style.transform = `translate3d(0px, ${initPanY}px, 0) scale(${initZoom})`;
         }
         setZoom(initZoom);
       }
@@ -1089,6 +1134,7 @@ export default function Face3DViewer({
       const target = controlledTime ?? yawToVideoTime(initialYaw, video.duration);
       const beginAutoRotate = () => {
         if (cancelled || !autoRotateRef.current) return;
+        autoRotateStartedForUrlRef.current = videoUrl;
         autoDirRef.current = 1;
         yawRef.current = -MAX_YAW_DEG;
         const d = video.duration;
@@ -1108,12 +1154,14 @@ export default function Face3DViewer({
       const afterSeek = () => {
         if (cancelled) return;
         syncYawFromVideo();
-        if (!autoRotateRef.current) return;
-        // Fill cache in the background for manual scrub / Safari fallback only.
-        if (frameCachePrimedUrlRef.current !== videoUrl) {
+        if (!autoRotateRef.current) {
           void ensureFrameCachePrimed(video, () => cancelled);
+          return;
         }
-        beginAutoRotate();
+        void ensureFrameCachePrimed(video, () => cancelled).then(() => {
+          if (cancelled || !autoRotateRef.current) return;
+          beginAutoRotate();
+        });
       };
       if (Math.abs(video.currentTime - target) < SCRUB_SEEK_EPS) afterSeek();
       else {
@@ -1213,6 +1261,7 @@ export default function Face3DViewer({
   useEffect(() => {
     const video = videoRef.current;
     if (!autoRotate) {
+      autoRotateStartedForUrlRef.current = null;
       autoPlaybackControllerRef.current?.stop();
       if (video) {
         video.pause();
@@ -1221,18 +1270,26 @@ export default function Face3DViewer({
       return;
     }
     if (!video?.duration || !isFinite(video.duration)) return;
-    if (frameCachePrimedUrlRef.current !== videoUrl) {
-      void ensureFrameCachePrimed(video, () => false);
-    }
-    autoDirRef.current = 1;
-    yawRef.current = -MAX_YAW_DEG;
-    const leftTime = yawToVideoTime(-MAX_YAW_DEG, video.duration);
-    const go = () => autoPlaybackControllerRef.current?.start(1);
-    if (Math.abs(video.currentTime - leftTime) < SCRUB_SEEK_EPS) go();
-    else {
-      video.currentTime = leftTime;
-      video.addEventListener("seeked", go, { once: true });
-    }
+    // Cold start is handled in the metadata effect (prime cache, then begin).
+    if (autoRotateStartedForUrlRef.current === videoUrl) return;
+
+    const startFromLeft = () => {
+      autoRotateStartedForUrlRef.current = videoUrl;
+      autoDirRef.current = 1;
+      yawRef.current = -MAX_YAW_DEG;
+      const leftTime = yawToVideoTime(-MAX_YAW_DEG, video.duration);
+      const go = () => autoPlaybackControllerRef.current?.start(1);
+      if (Math.abs(video.currentTime - leftTime) < SCRUB_SEEK_EPS) go();
+      else {
+        video.currentTime = leftTime;
+        video.addEventListener("seeked", go, { once: true });
+      }
+    };
+
+    void ensureFrameCachePrimed(video, () => !autoRotateRef.current).then(() => {
+      if (!autoRotateRef.current) return;
+      startFromLeft();
+    });
   }, [autoRotate, videoUrl, ensureFrameCachePrimed]);
 
   useEffect(() => {
@@ -1258,6 +1315,7 @@ export default function Face3DViewer({
 
   useEffect(() => {
     if (controlledTimeRatio === undefined) return;
+    if (draggingRef.current || panningRef.current) return;
     const video = videoRef.current;
     if (!video || !video.duration || !isFinite(video.duration)) return;
     const ratio = Math.max(0, Math.min(1, controlledTimeRatio));
@@ -1353,9 +1411,59 @@ export default function Face3DViewer({
   /** Apply CSS transform directly — no React re-render during drag/scroll. */
   const applyTransform = useCallback((px: number, py: number, z: number) => {
     if (zoomLayerRef.current) {
-      zoomLayerRef.current.style.transform = `translate(${px}px, ${py}px) scale(${z})`;
+      zoomLayerRef.current.style.transform = `translate3d(${px}px, ${py}px, 0) scale(${z})`;
     }
   }, []);
+
+  const publishScrubRatio = useCallback((yaw: number) => {
+    onTimeRatioChangeRef.current?.(
+      Math.max(0, Math.min(1, (yaw + MAX_YAW_DEG) / (2 * MAX_YAW_DEG))),
+    );
+  }, []);
+
+  const paintScrubFrame = useCallback(
+    (yaw: number) => {
+      const video = videoRef.current;
+      if (!video?.duration) return;
+      yawRef.current = yaw;
+      const target = yawToVideoTime(yaw, video.duration);
+      const quantizedTime = quantizeFace3dTimelineTime(target);
+      const targetKey = face3dTimelineKey(quantizedTime);
+      const cachedFrame = findNearestFrame(
+        frameCacheRef.current,
+        targetKey,
+        FRAME_CACHE_MAX_KEY_DELTA + 1,
+      );
+      const dc = displayCanvasRef.current;
+      const aligned = Math.abs(video.currentTime - quantizedTime) <= SCRUB_SEEK_EPS_DRAG;
+
+      if (cachedFrame && dc) {
+        const ctx = dc.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, dc.width, dc.height);
+          ctx.drawImage(cachedFrame, 0, 0, dc.width, dc.height);
+        }
+        dc.style.opacity = "1";
+      } else if (aligned) {
+        if (drawVideoFrameToDisplay()) captureCurrentFrame();
+        if (dc) dc.style.opacity = "1";
+      } else {
+        const now = performance.now();
+        if (now - lastScrubSeekAtRef.current >= SCRUB_VIDEO_SEEK_MS) {
+          seekVideoToTime(video, quantizedTime, SCRUB_SEEK_EPS_DRAG, true);
+          lastScrubSeekAtRef.current = now;
+        }
+        if (dc && !cachedFrame) dc.style.opacity = "1";
+      }
+
+      if (targetKey !== currentTimeKeyRef.current) {
+        currentTimeKeyRef.current = targetKey;
+        renderCachedAnnotations();
+        requestLandmarksForTimeKey(targetKey);
+      }
+    },
+    [captureCurrentFrame, drawVideoFrameToDisplay, renderCachedAnnotations, requestLandmarksForTimeKey],
+  );
 
   // ── Wheel-to-zoom ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1394,7 +1502,7 @@ export default function Face3DViewer({
     renderCachedAnnotations();
   }, [applyTransform, initialPanY, renderCachedAnnotations]);
 
-  // ── Pointer scrub: RAF seeks when decoder is ready (no seek pile-up) ───────
+  // ── Pointer: zoomed → pan; otherwise smooth turntable scrub via frame cache ─
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
@@ -1410,76 +1518,95 @@ export default function Face3DViewer({
 
     const startScrubLoop = () => {
       stopScrubLoop();
-      const tick = () => {
+      lastScrubTickAtRef.current = performance.now();
+      const tick = (now: number) => {
         scrubRaf = 0;
         if (!draggingRef.current) return;
-        const video = videoRef.current;
-        if (!video?.duration) return;
-        const yaw = scrubTargetYawRef.current;
-        yawRef.current = yaw;
-        const target = yawToVideoTime(yaw, video.duration);
-        const quantizedTime = quantizeFace3dTimelineTime(target);
-        const targetKey = face3dTimelineKey(quantizedTime);
-
-        const cachedFrame = findNearestFrame(
-          frameCacheRef.current,
-          targetKey,
-          FRAME_CACHE_MAX_KEY_DELTA,
-        );
-        const dc = displayCanvasRef.current;
-        const aligned = Math.abs(video.currentTime - quantizedTime) <= SCRUB_SEEK_EPS_DRAG;
-        if (cachedFrame && dc) {
-          const ctx = dc.getContext("2d");
-          if (ctx) {
-            ctx.clearRect(0, 0, dc.width, dc.height);
-            ctx.drawImage(cachedFrame, 0, 0, dc.width, dc.height);
-          }
-          dc.style.opacity = "1";
-        } else if (aligned) {
-          if (drawVideoFrameToDisplay()) captureCurrentFrame();
-          if (dc) dc.style.opacity = "1";
-        } else {
-          seekVideoPrecisely(video, quantizedTime, SCRUB_SEEK_EPS_DRAG);
-          // Let the live video show through until the seek lands (avoids frozen front frame).
-          if (dc) dc.style.opacity = "0";
-        }
-
-        if (targetKey !== currentTimeKeyRef.current) {
-          currentTimeKeyRef.current = targetKey;
-          renderCachedAnnotations();
-          requestLandmarksForTimeKey(targetKey);
-        }
+        const dt = Math.min(48, now - lastScrubTickAtRef.current);
+        lastScrubTickAtRef.current = now;
+        const alpha = 1 - Math.exp(-dt / SCRUB_YAW_SMOOTH_TAU_MS);
+        const targetYaw = scrubTargetYawRef.current;
+        const displayYaw =
+          scrubDisplayYawRef.current + (targetYaw - scrubDisplayYawRef.current) * alpha;
+        scrubDisplayYawRef.current = displayYaw;
+        publishScrubRatio(displayYaw);
+        paintScrubFrame(displayYaw);
         scrubRaf = requestAnimationFrame(tick);
       };
       scrubRaf = requestAnimationFrame(tick);
     };
 
     function onPointerDown(e: PointerEvent) {
+      if (e.button !== 0) return;
+      if ((e.target as HTMLElement).closest("button, a, input, summary")) return;
+      // Drawing mode: the annotate SVG owns pointer interaction; never rotate while inking.
+      if ((e.target as HTMLElement).closest(".avf-drawing-layer--active")) return;
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      viewer!.style.cursor = "grabbing";
+
+      if (zoomRef.current > minZoomRef.current + 0.02) {
+        panningRef.current = true;
+        panStartRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+          panX: panXRef.current,
+          panY: panYRef.current,
+        };
+        return;
+      }
+
       draggingRef.current = true;
+      onDragStartRef.current?.();
       dragStartX = e.clientX;
       dragStartYaw = yawRef.current;
       scrubTargetYawRef.current = dragStartYaw;
-      viewer!.style.cursor = "grabbing";
+      scrubDisplayYawRef.current = dragStartYaw;
+      lastScrubSeekAtRef.current = 0;
       const video = videoRef.current;
-      if (video) { video.pause(); safeSetPlaybackRate(video, 1); }
+      if (video) {
+        video.pause();
+        safeSetPlaybackRate(video, 1);
+        void ensureFrameCachePrimed(video, () => !draggingRef.current);
+      }
       if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "1";
       startScrubLoop();
     }
 
     function onPointerMove(e: PointerEvent) {
+      if (panningRef.current) {
+        const dx = e.clientX - panStartRef.current.x;
+        const dy = e.clientY - panStartRef.current.y;
+        panXRef.current = panStartRef.current.panX + dx;
+        panYRef.current = panStartRef.current.panY + dy;
+        applyTransform(panXRef.current, panYRef.current, zoomRef.current);
+        renderCachedAnnotations();
+        return;
+      }
       if (!draggingRef.current) return;
       const dx = e.clientX - dragStartX;
       scrubTargetYawRef.current = clampYaw(dragStartYaw - dx * DEG_PER_PX);
     }
 
-    function onPointerUp() {
+    function endPointer(e: PointerEvent) {
+      if (panningRef.current) {
+        panningRef.current = false;
+        viewer!.style.cursor = zoomRef.current > minZoomRef.current ? "grab" : "";
+        try {
+          viewer!.releasePointerCapture(e.pointerId);
+        } catch {
+          /* already released */
+        }
+        return;
+      }
       if (!draggingRef.current) return;
       draggingRef.current = false;
+      onDragEndRef.current?.();
       stopScrubLoop();
+      scrubDisplayYawRef.current = scrubTargetYawRef.current;
+      publishScrubRatio(scrubTargetYawRef.current);
       if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "0";
-      viewer!.style.cursor = "";
+      viewer!.style.cursor = zoomRef.current > minZoomRef.current ? "grab" : "";
       const video = videoRef.current;
       if (video?.duration) {
         const target = yawToVideoTime(scrubTargetYawRef.current, video.duration);
@@ -1491,27 +1618,33 @@ export default function Face3DViewer({
       if (autoRotateRef.current && video?.duration) {
         autoPlaybackControllerRef.current?.start(autoDirRef.current);
       }
+      try {
+        viewer!.releasePointerCapture(e.pointerId);
+      } catch {
+        /* already released */
+      }
     }
 
     viewer.addEventListener("pointerdown", onPointerDown);
     viewer.addEventListener("pointermove", onPointerMove);
-    viewer.addEventListener("pointerup", onPointerUp);
-    viewer.addEventListener("pointercancel", onPointerUp);
+    viewer.addEventListener("pointerup", endPointer);
+    viewer.addEventListener("pointercancel", endPointer);
 
     return () => {
       stopScrubLoop();
       viewer.removeEventListener("pointerdown", onPointerDown);
       viewer.removeEventListener("pointermove", onPointerMove);
-      viewer.removeEventListener("pointerup", onPointerUp);
-      viewer.removeEventListener("pointercancel", onPointerUp);
+      viewer.removeEventListener("pointerup", endPointer);
+      viewer.removeEventListener("pointercancel", endPointer);
     };
   }, [
     videoUrl,
     syncYawFromVideo,
-    renderCachedAnnotations,
     applyTransform,
-    requestLandmarksForTimeKey,
-    drawVideoFrameToDisplay,
+    paintScrubFrame,
+    publishScrubRatio,
+    ensureFrameCachePrimed,
+    renderCachedAnnotations,
   ]);
 
   return (
@@ -1523,7 +1656,7 @@ export default function Face3DViewer({
         onDoubleClick={zoom > 1 ? resetZoom : undefined}
         title={zoom > 1 ? "Double-click to reset zoom" : undefined}
       >
-        <div ref={zoomLayerRef} className="face3d-zoom-layer">
+        <div ref={setZoomLayerRef} className="face3d-zoom-layer">
           <div className="face3d-media-layer" style={{ opacity: mediaOpacity }}>
             <video
               ref={videoRef}
@@ -1535,7 +1668,9 @@ export default function Face3DViewer({
               playsInline
               crossOrigin="anonymous"
               className="face3d-display"
-              onError={() => setVideoError("3D preview video could not be loaded.")}
+              onLoadedMetadata={handleVideoReady}
+              onCanPlay={handleVideoReady}
+              onError={handleVideoError}
             />
             <canvas
               ref={displayCanvasRef}
@@ -1553,6 +1688,7 @@ export default function Face3DViewer({
               aria-hidden
             />
           )}
+          {drawOverlay ? <div className="face3d-draw-overlay">{drawOverlay}</div> : null}
           {videoError ? <div className="face3d-error">{videoError}</div> : null}
         </div>
       </div>

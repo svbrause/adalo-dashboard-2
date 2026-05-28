@@ -1,0 +1,114 @@
+.cdp-contact-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.cdp-contact-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-secondary, #64748b);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.cdp-contact-menu__trigger:hover,
+.cdp-contact-menu__trigger--open {
+  background: var(--theme-bg-subtle, #f8fafc);
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.35));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+}
+
+.cdp-contact-menu__trigger:focus-visible {
+  outline: 2px solid var(--theme-accent-indigo, #367588);
+  outline-offset: 2px;
+}
+
+.cdp-contact-menu__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1200;
+  min-width: 168px;
+  padding: 4px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--theme-bg-card, #fff);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.cdp-contact-menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text-primary, #111);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cdp-contact-menu__item:hover:not(:disabled) {
+  background: var(--theme-bg-subtle, #f8fafc);
+}
+
+.cdp-contact-menu__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cdp-contact-menu__hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--theme-text-muted, #64748b);
+}
+
+.cdp-contact-menu__hint--muted {
+  font-style: italic;
+}
+
+.cdp-dark .cdp-contact-menu__trigger {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.cdp-dark .cdp-contact-menu__trigger:hover,
+.cdp-dark .cdp-contact-menu__trigger--open {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.cdp-dark .cdp-contact-menu__panel {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.cdp-dark .cdp-contact-menu__item {
+  color: #f1f5f9;
+}
+
+.cdp-dark .cdp-contact-menu__item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cdp-dark .cdp-contact-menu__hint {
+  color: rgba(255, 255, 255, 0.5);
+}

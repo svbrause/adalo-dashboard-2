@@ -15,7 +15,8 @@ const PLATE_ALIGN: Record<AuraTanViewAngle, { scale: number; ox: number; oy: num
 const REF = PLATE_ALIGN.front;
 
 /** Scales 1024-space offsets to the dashboard face column (~400–520px wide). */
-const PLATE_PAN_SCALE = 0.52;
+const PLATE_PAN_SCALE_X = 0.36;
+const PLATE_PAN_SCALE_Y = 0.34;
 
 export function tanPhotoPlateAlignStyle(angle: AuraTanViewAngle): {
   transform: string;
@@ -23,8 +24,8 @@ export function tanPhotoPlateAlignStyle(angle: AuraTanViewAngle): {
 } {
   const plate = PLATE_ALIGN[angle];
   const scaleMul = plate.scale / REF.scale;
-  const panX = (plate.ox - REF.ox) * PLATE_PAN_SCALE;
-  const panY = (plate.oy - REF.oy) * PLATE_PAN_SCALE;
+  const panX = (plate.ox - REF.ox) * PLATE_PAN_SCALE_X;
+  const panY = (plate.oy - REF.oy) * PLATE_PAN_SCALE_Y;
   return {
     transform: `translate(${panX}px, ${panY}px) scale(${scaleMul})`,
     transformOrigin: "center center",

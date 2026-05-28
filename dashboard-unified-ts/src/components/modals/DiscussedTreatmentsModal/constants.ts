@@ -823,6 +823,48 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     region: "Other",
     treatments: [ENERGY_TREATMENT_CATEGORY, "Biostimulants", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
   },
+  {
+    keywords: ["whitehead", "blackhead", "acne", "blemish", "congestion"],
+    goal: "Exfoliate Skin",
+    region: "Other",
+    treatments: ["Facial Services", "Chemical Peel", ENERGY_TREATMENT_CATEGORY, "Skincare"],
+  },
+  {
+    keywords: ["uneven texture", "rough texture", "enlarged pore", "large pore", "open pore"],
+    goal: "Exfoliate Skin",
+    region: "Other",
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Microneedling", "Facial Services", "Skincare"],
+  },
+  {
+    keywords: ["sun damage", "hyperpigmentation", "melasma", "age spot", "liver spot", "pigmentation", "sun spot"],
+    goal: "Even Skin Tone",
+    region: "Other",
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Skincare", "Facial Services"],
+  },
+  {
+    keywords: ["dullness", "dull skin", "lacklustre", "lackluster"],
+    goal: "Exfoliate Skin",
+    region: "Other",
+    treatments: ["Facial Services", "Chemical Peel", ENERGY_TREATMENT_CATEGORY, "Skincare"],
+  },
+  {
+    keywords: ["redness", "rosacea", "diffuse redness", "facial redness"],
+    goal: "Even Skin Tone",
+    region: "Other",
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Skincare", "Facial Services"],
+  },
+  {
+    keywords: ["dehydration", "dehydrated skin", "dry skin"],
+    goal: "Hydrate Skin",
+    region: "Other",
+    treatments: ["Skincare", "Facial Services", "Filler"],
+  },
+  {
+    keywords: ["overall volume loss", "volume loss", "volume deficit"],
+    goal: "Improve Cheek Definition",
+    region: "Cheeks",
+    treatments: ["Filler", "Biostimulants"],
+  },
 ];
 
 /** All treatment interest options (full list – users can select any or Other) */

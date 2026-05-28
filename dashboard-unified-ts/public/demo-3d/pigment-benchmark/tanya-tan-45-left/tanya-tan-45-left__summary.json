@@ -1,0 +1,32 @@
+[
+  {
+    "method": "baseline_luminance",
+    "melasma_px": 26931,
+    "spot_px": 26931,
+    "note": "shadow-prone \u2014 expect false positives; roi=mediapipe cheek"
+  },
+  {
+    "method": "lab_relative",
+    "melasma_px": 24497,
+    "spot_px": 6548,
+    "note": "roi=mediapipe cheek"
+  },
+  {
+    "method": "lab_relative_tuned",
+    "melasma_px": 7096,
+    "spot_px": 1844,
+    "note": "stricter thresholds + nose/mouth excluded from ROI; roi=mediapipe cheek"
+  },
+  {
+    "method": "retinex_log",
+    "melasma_px": 97242,
+    "spot_px": 3983,
+    "note": "roi=mediapipe cheek"
+  },
+  {
+    "method": "clahe_blackhat",
+    "melasma_px": 190476,
+    "spot_px": 5496,
+    "note": "roi=mediapipe cheek"
+  }
+]

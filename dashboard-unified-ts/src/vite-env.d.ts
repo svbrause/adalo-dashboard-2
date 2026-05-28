@@ -87,6 +87,8 @@ interface ImportMetaEnv {
    */
   readonly VITE_SCAN_API_URL?: string;
   readonly VITE_BACKEND_API_URL?: string;
+  /** Clinic demo deck: default dashboard origin for live links (Vercel build). */
+  readonly VITE_DASHBOARD_ORIGIN?: string;
 }
 
 interface ImportMeta {

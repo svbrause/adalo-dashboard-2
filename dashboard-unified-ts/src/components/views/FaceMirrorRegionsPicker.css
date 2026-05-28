@@ -1,0 +1,225 @@
+.fmp-annotation-regions {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.fmp-annotation-regions > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-muted, #64748b);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  list-style: none;
+}
+
+.fmp-annotation-regions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fmp-annotation-regions > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.fmp-annotation-regions[open] > summary {
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.45));
+  background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.14));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+}
+
+.fmp-annotation-regions[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.fmp-annotation-regions__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: min(280px, calc(100vw - 28px));
+  padding: 10px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+  box-sizing: border-box;
+}
+
+.fmp-annotation-regions__actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.fmp-annotation-regions__actions button {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 7px;
+  background: var(--theme-bg-surface, #f8fafc);
+  color: var(--theme-text-muted, #64748b);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fmp-annotation-regions__actions button:hover {
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.45));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+}
+
+.fmp-annotation-regions__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.fmp-annotation-regions__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--theme-text-primary, #1e293b);
+  font-size: 12px;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.fmp-annotation-regions__item input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--theme-accent-soft-solid, #367588);
+  flex-shrink: 0;
+}
+
+.fmp-annotation-regions__item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Viewport overlay (beside Rotate) */
+.fmp-annotation-regions--overlay > summary {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.fmp-annotation-regions--overlay .fmp-annotation-regions__panel {
+  left: 0;
+  right: auto;
+}
+
+/* Aura right tool rail — beside auto-rotate */
+.fmp-annotation-regions--aura-rail {
+  width: 36px;
+}
+
+.fmp-annotation-regions--aura-rail > summary {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0;
+  box-shadow: none;
+}
+
+.fmp-annotation-regions--aura-rail > summary::after {
+  display: none;
+}
+
+.fmp-annotation-regions--aura-rail .fmp-regions-icon {
+  display: block;
+  opacity: 0.72;
+}
+
+.fmp-annotation-regions--aura-rail:hover > summary,
+.fmp-annotation-regions--aura-rail[open] > summary,
+.fmp-annotation-regions--aura-rail.fmp-annotation-regions--active > summary {
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.fmp-annotation-regions--aura-rail[open] > summary,
+.fmp-annotation-regions--aura-rail.fmp-annotation-regions--active > summary {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.fmp-annotation-regions--aura-rail:hover > summary .fmp-regions-icon,
+.fmp-annotation-regions--aura-rail[open] > summary .fmp-regions-icon,
+.fmp-annotation-regions--aura-rail.fmp-annotation-regions--active > summary .fmp-regions-icon {
+  opacity: 1;
+}
+
+.avf-root--embedded .fmp-annotation-regions--aura-rail {
+  width: 32px;
+}
+
+.avf-root--embedded .fmp-annotation-regions--aura-rail > summary {
+  width: 32px;
+  height: 32px;
+}
+
+.fmp-annotation-regions--aura-rail .fmp-annotation-regions__panel {
+  top: 50%;
+  right: calc(100% + 10px);
+  left: auto;
+  transform: translateY(-50%);
+  width: min(260px, calc(100vw - 80px));
+  background: rgba(12, 12, 14, 0.96);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+.fmp-annotation-regions--aura-rail .fmp-annotation-regions__actions button {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.fmp-annotation-regions--aura-rail .fmp-annotation-regions__item {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cdp-dark .fmp-annotation-regions--overlay > summary {
+  background: rgba(28, 28, 30, 0.94);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.cdp-dark .fmp-annotation-regions--overlay > summary:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.cdp-dark .fmp-annotation-regions--overlay[open] > summary {
+  background: rgba(54, 117, 136, 0.22);
+  color: #99f6e4;
+}
+
+.cdp-dark .fmp-annotation-regions__panel {
+  background: rgba(18, 18, 20, 0.98);
+  border-color: rgba(255, 255, 255, 0.1);
+}

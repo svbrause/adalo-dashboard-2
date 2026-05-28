@@ -1350,11 +1350,12 @@ body.theme-warm .kanban-cards.drag-over {
 
 /* Treatment plan on client detail — same shell as Facial Analysis / bordered sections */
 .detail-section-treatment-plan {
-  border-top: 2px solid var(--theme-border);
   margin-top: 20px;
-  background: #fafafa;
+  background: var(--theme-bg-card, #fff);
   padding: 20px;
   border-radius: 8px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-left: 4px solid var(--theme-accent);
 }
 
 .detail-section-title.detail-section-title-inline.detail-section-title-treatment-plan {
@@ -1369,6 +1370,36 @@ body.theme-warm .kanban-cards.drag-over {
   font-weight: 400;
   color: var(--theme-text-muted);
   line-height: 1.45;
+}
+
+.detail-section-treatment-plan .discussed-treatments-plan-sections-outer {
+  gap: 10px;
+}
+
+.detail-section-treatment-plan .share-tp-link-quote-section,
+.detail-section-treatment-plan .share-tp-link-quote-footer {
+  background: transparent;
+  border-color: var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+}
+
+.detail-section-treatment-plan .share-tp-link-quote-section-title,
+.detail-section-treatment-plan .share-tp-link-timeline-group-title,
+.detail-section-treatment-plan .share-tp-link-quote-subtotal,
+.detail-section-treatment-plan .share-tp-link-quote-total {
+  background: transparent;
+}
+
+.detail-section-treatment-plan .share-tp-link-quote-section-title {
+  padding-bottom: 6px;
+}
+
+.detail-section-treatment-plan .share-tp-link-timeline-group-title {
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.detail-section-treatment-plan .share-tp-link-quote-footer {
+  border-top-width: 1px;
 }
 
 /* Plan quote blocks — aligned with Share treatment plan modal (share-tp-link-quote-*) */
@@ -2430,7 +2461,7 @@ body.theme-warm .kanban-cards.drag-over {
   background: #fafafa;
   padding: 20px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .modal-header-with-photo {

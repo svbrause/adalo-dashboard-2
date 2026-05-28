@@ -10,7 +10,7 @@ Run **two terminals** from the repo root:
 
 ```bash
 npm run dev    # dashboard → http://localhost:5173
-npm run deck   # presentation → http://localhost:4177
+npm run deck   # presentation → http://localhost:4177/docs/presentations/clinic-demo-deck.html
 ```
 
 **Presentation URL:**

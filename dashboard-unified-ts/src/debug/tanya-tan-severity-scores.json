@@ -1,0 +1,688 @@
+{
+  "schema_version": 4,
+  "detector_type": "combined_production_detector+severity_v3",
+  "severity_normalized_scale": "0_to_1",
+  "v3_issue_count": 68,
+  "issues": {
+    "Asymmetric Chin": {
+      "predicted": true,
+      "probability": 0.916,
+      "severity": 0.916,
+      "severity_normalized_0_1": 0.916,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Asymmetric Jawline": {
+      "predicted": true,
+      "probability": 0.878,
+      "severity": 0.878,
+      "severity_normalized_0_1": 0.878,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Asymmetric Lips": {
+      "predicted": true,
+      "probability": 0.868,
+      "severity": 0.868,
+      "severity_normalized_0_1": 0.868,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Blackheads": {
+      "predicted": true,
+      "probability": 0.28,
+      "severity": 0.28,
+      "severity_normalized_0_1": 0.28,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Brow Asymmetry": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.044,
+      "severity_normalized_0_1": 0.044,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Brow Ptosis": {
+      "predicted": true,
+      "probability": 0.837,
+      "severity": 0.837,
+      "severity_normalized_0_1": 0.837,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Bunny Lines": {
+      "predicted": true,
+      "probability": 0.423,
+      "severity": 0.423,
+      "severity_normalized_0_1": 0.423,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "MobileNet Oct31 v1"
+    },
+    "Cheekbone - Not Prominent": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.193,
+      "severity_normalized_0_1": 0.193,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Crepey Skin": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.216,
+      "severity_normalized_0_1": 0.216,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Crooked Nose": {
+      "predicted": true,
+      "probability": 0.993,
+      "severity": 0.993,
+      "severity_normalized_0_1": 0.993,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Crow's Feet Wrinkles": {
+      "predicted": true,
+      "probability": 0.463,
+      "severity": 0.463,
+      "severity_normalized_0_1": 0.463,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Dark Spots": {
+      "predicted": true,
+      "probability": 0.259,
+      "severity": 0.259,
+      "severity_normalized_0_1": 0.259,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "Model 1"
+    },
+    "Dorsal Hump": {
+      "predicted": true,
+      "probability": 0.793,
+      "severity": 0.793,
+      "severity_normalized_0_1": 0.793,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Droopy Tip": {
+      "predicted": true,
+      "probability": 0.971,
+      "severity": 0.971,
+      "severity_normalized_0_1": 0.971,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Dry Lips": {
+      "predicted": true,
+      "probability": 0.844,
+      "severity": 0.844,
+      "severity_normalized_0_1": 0.844,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": "Model 1"
+    },
+    "Dry Skin": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.18,
+      "severity_normalized_0_1": 0.18,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Excess Upper Eyelid Skin": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.207,
+      "severity_normalized_0_1": 0.207,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Excess/Submental Fullness": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.127,
+      "severity_normalized_0_1": 0.127,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Flat Forehead": {
+      "predicted": true,
+      "probability": 0.795,
+      "severity": 0.795,
+      "severity_normalized_0_1": 0.795,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Forehead Wrinkles": {
+      "predicted": true,
+      "probability": 0.8,
+      "severity": 0.8,
+      "severity_normalized_0_1": 0.8,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Glabella Wrinkles": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.124,
+      "severity_normalized_0_1": 0.124,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Gummy Smile": {
+      "predicted": true,
+      "probability": 0.675,
+      "severity": 0.675,
+      "severity_normalized_0_1": 0.675,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Heavy Lateral Cheek": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.24,
+      "severity_normalized_0_1": 0.24,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Ill-Defined Jawline": {
+      "predicted": true,
+      "probability": 0.281,
+      "severity": 0.281,
+      "severity_normalized_0_1": 0.281,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Jowls": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.235,
+      "severity_normalized_0_1": 0.235,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Lacking Philtral Column": {
+      "predicted": true,
+      "probability": 0.478,
+      "severity": 0.478,
+      "severity_normalized_0_1": 0.478,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Lip Thinning When Smiling": {
+      "predicted": true,
+      "probability": 0.469,
+      "severity": 0.469,
+      "severity_normalized_0_1": 0.469,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Long Philtral Column": {
+      "predicted": true,
+      "probability": 0.685,
+      "severity": 0.685,
+      "severity_normalized_0_1": 0.685,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Loose Neck Skin": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.052,
+      "severity_normalized_0_1": 0.052,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Lower Cheeks - Over-Filled": {
+      "predicted": true,
+      "probability": 0.391,
+      "severity": 0.391,
+      "severity_normalized_0_1": 0.391,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Lower Cheeks - Volume Depletion": {
+      "predicted": true,
+      "probability": 0.286,
+      "severity": 0.286,
+      "severity_normalized_0_1": 0.286,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Lower Eyelid - Excess Skin": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.18,
+      "severity_normalized_0_1": 0.18,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Lower Eyelid Bags": {
+      "predicted": true,
+      "probability": 0.468,
+      "severity": 0.468,
+      "severity_normalized_0_1": 0.468,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "Model 1"
+    },
+    "Lower Eyelid Sag": {
+      "predicted": true,
+      "probability": 0.589,
+      "severity": 0.589,
+      "severity_normalized_0_1": 0.589,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": "Model 1"
+    },
+    "Marionette Lines": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.026,
+      "severity_normalized_0_1": 0.026,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Masseter Hypertrophy": {
+      "predicted": true,
+      "probability": 0.733,
+      "severity": 0.733,
+      "severity_normalized_0_1": 0.733,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Mid Cheek Flattening": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.051,
+      "severity_normalized_0_1": 0.051,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Narrow Jawline": {
+      "predicted": true,
+      "probability": 0.85,
+      "severity": 0.85,
+      "severity_normalized_0_1": 0.85,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Nasal Bone - Too Wide": {
+      "predicted": true,
+      "probability": 0.972,
+      "severity": 0.972,
+      "severity_normalized_0_1": 0.972,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Nasal Tip Too Narrow": {
+      "predicted": true,
+      "probability": 0.361,
+      "severity": 0.361,
+      "severity_normalized_0_1": 0.361,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Nasal Tip Too Wide": {
+      "predicted": true,
+      "probability": 0.84,
+      "severity": 0.84,
+      "severity_normalized_0_1": 0.84,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Nasolabial Folds": {
+      "predicted": true,
+      "probability": 0.381,
+      "severity": 0.381,
+      "severity_normalized_0_1": 0.381,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Neck Lines": {
+      "predicted": false,
+      "probability": 0.165,
+      "severity": 0.165,
+      "severity_normalized_0_1": 0.165,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Negative Canthal Tilt": {
+      "predicted": true,
+      "probability": 0.286,
+      "severity": 0.286,
+      "severity_normalized_0_1": 0.286,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Nostril Base - Too Wide": {
+      "predicted": true,
+      "probability": 0.98,
+      "severity": 0.98,
+      "severity_normalized_0_1": 0.98,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Oily": {
+      "predicted": true,
+      "probability": 0.775,
+      "severity": 0.775,
+      "severity_normalized_0_1": 0.775,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Over-Projected": {
+      "predicted": true,
+      "probability": 0.867,
+      "severity": 0.867,
+      "severity_normalized_0_1": 0.867,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Over-Projected Chin": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.102,
+      "severity_normalized_0_1": 0.102,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Over-Rotated": {
+      "predicted": true,
+      "probability": 0.858,
+      "severity": 0.858,
+      "severity_normalized_0_1": 0.858,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Perioral Wrinkles": {
+      "predicted": true,
+      "probability": 0.277,
+      "severity": 0.277,
+      "severity_normalized_0_1": 0.277,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Platysmal Bands": {
+      "predicted": true,
+      "probability": 0.953,
+      "severity": 0.953,
+      "severity_normalized_0_1": 0.953,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Prejowl Sulcus": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.151,
+      "severity_normalized_0_1": 0.151,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "MobileNet Oct31 v1"
+    },
+    "Red Spots": {
+      "predicted": false,
+      "probability": 0.174,
+      "severity": 0.174,
+      "severity_normalized_0_1": 0.174,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": "Model 1"
+    },
+    "Retruded Chin": {
+      "predicted": true,
+      "probability": 0.308,
+      "severity": 0.308,
+      "severity_normalized_0_1": 0.308,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Scars": {
+      "predicted": true,
+      "probability": 0.443,
+      "severity": 0.443,
+      "severity_normalized_0_1": 0.443,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Temporal Hollow": {
+      "predicted": true,
+      "probability": 0.775,
+      "severity": 0.775,
+      "severity_normalized_0_1": 0.775,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": "Model 2"
+    },
+    "Thin Lips": {
+      "predicted": true,
+      "probability": 0.36,
+      "severity": 0.36,
+      "severity_normalized_0_1": 0.36,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Tip Droop When Smiling": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.197,
+      "severity_normalized_0_1": 0.197,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Under Eye Dark Circles": {
+      "predicted": true,
+      "probability": 0.474,
+      "severity": 0.474,
+      "severity_normalized_0_1": 0.474,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "MediaPipe/CV"
+    },
+    "Under Eye Hollow": {
+      "predicted": true,
+      "probability": 0.682,
+      "severity": 0.682,
+      "severity_normalized_0_1": 0.682,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "moderate",
+      "source": "severity_v3",
+      "model_used": "Model 1"
+    },
+    "Under Eye Wrinkles": {
+      "predicted": true,
+      "probability": 0.309,
+      "severity": 0.309,
+      "severity_normalized_0_1": 0.309,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "New Model"
+    },
+    "Under-Projected": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.033,
+      "severity_normalized_0_1": 0.033,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Under-Rotated": {
+      "predicted": true,
+      "probability": 0.485,
+      "severity": 0.485,
+      "severity_normalized_0_1": 0.485,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Upper Eye Hollow": {
+      "predicted": true,
+      "probability": 0.318,
+      "severity": 0.318,
+      "severity_normalized_0_1": 0.318,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": "Model 1"
+    },
+    "Upper Eyelid Droop": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.091,
+      "severity_normalized_0_1": 0.091,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Whiteheads": {
+      "predicted": true,
+      "probability": 0.855,
+      "severity": 0.855,
+      "severity_normalized_0_1": 0.855,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "severe",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Wide Chin": {
+      "predicted": true,
+      "probability": 0.402,
+      "severity": 0.402,
+      "severity_normalized_0_1": 0.402,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3",
+      "model_used": null
+    },
+    "Wide Jawline": {
+      "predicted": false,
+      "probability": 0.0,
+      "severity": 0.205,
+      "severity_normalized_0_1": 0.205,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "none",
+      "source": "severity_v3",
+      "model_used": null
+    }
+  }
+}
