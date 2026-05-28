@@ -126,7 +126,7 @@ export interface AnalysisSeverityIssue {
   severity_normalized_0_1?: number;
   severity_level?: string;
   source?: string;
-  model_used?: string;
+  model_used?: string | null;
 }
 
 export interface AnalysisSeverityScoresData {
