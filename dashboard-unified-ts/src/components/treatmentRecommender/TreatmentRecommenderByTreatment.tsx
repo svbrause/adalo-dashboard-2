@@ -1407,6 +1407,9 @@ export interface TreatmentRecommenderByTreatmentProps {
   /** Open plan editor for this item once (e.g. “Fix in plan” from share link modal). */
   initialOpenPlanItemId?: string | null;
   onConsumedInitialOpenPlanItemId?: () => void;
+  /** Scroll to and highlight this treatment card once (e.g. “Learn more” from embedded recommender). */
+  initialFocusTreatmentName?: string | null;
+  onConsumedInitialFocusTreatmentName?: () => void;
 }
 
 export default function TreatmentRecommenderByTreatment({
@@ -1422,6 +1425,8 @@ export default function TreatmentRecommenderByTreatment({
   onShareTreatmentPlan,
   initialOpenPlanItemId,
   onConsumedInitialOpenPlanItemId,
+  initialFocusTreatmentName,
+  onConsumedInitialFocusTreatmentName,
 }: TreatmentRecommenderByTreatmentProps) {
   const { provider, setProvider } = useDashboard();
 
@@ -1680,6 +1685,10 @@ export default function TreatmentRecommenderByTreatment({
   const [showWellnestArticleShare, setShowWellnestArticleShare] =
     useState(false);
   const [treatmentSearchQuery, setTreatmentSearchQuery] = useState("");
+  /** Brief highlight when deep-linked from embedded recommender “Learn more”. */
+  const [focusedTreatmentHighlight, setFocusedTreatmentHighlight] = useState<
+    string | null
+  >(null);
   const [judgeMdTreatmentFocus, setJudgeMdTreatmentFocus] = useState<
     "all" | "nonsurgical" | "surgical"
   >("all");
@@ -3365,6 +3374,61 @@ export default function TreatmentRecommenderByTreatment({
   }, [editingPlanItemId, addToPlanForTreatment?.treatment]);
 
   useEffect(() => {
+    const name = initialFocusTreatmentName?.trim();
+    if (!name) return;
+
+    setTreatmentSearchQuery("");
+    if (isJudgeMdProviderCode(provider?.code)) {
+      if (isJudgeMdSurgeryPlanCategory(name)) {
+        setJudgeMdTreatmentFocus("surgical");
+      } else if (isJudgeMdNonsurgicalPlanBuilderTreatment(name)) {
+        setJudgeMdTreatmentFocus("nonsurgical");
+      } else {
+        setJudgeMdTreatmentFocus("all");
+      }
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 40;
+
+    const tryFocus = () => {
+      if (cancelled) return;
+      attempts += 1;
+      const el =
+        cardRefsMap.current[name] ??
+        document.getElementById(
+          `treatment-recommender-card-${planOptDomIdSuffix(name)}`,
+        );
+      if (el) {
+        setFocusedTreatmentHighlight(name);
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        window.setTimeout(() => {
+          if (!cancelled) setFocusedTreatmentHighlight(null);
+        }, 3200);
+        onConsumedInitialFocusTreatmentName?.();
+        return;
+      }
+      if (attempts < maxAttempts) {
+        window.setTimeout(tryFocus, 50);
+      } else {
+        onConsumedInitialFocusTreatmentName?.();
+      }
+    };
+
+    const startTimer = window.setTimeout(tryFocus, 80);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(startTimer);
+    };
+  }, [
+    initialFocusTreatmentName,
+    onConsumedInitialFocusTreatmentName,
+    provider?.code,
+    treatmentsToShow.length,
+  ]);
+
+  useEffect(() => {
     if (!addToPlanForTreatment) {
       setAddPlanToAddressOtherOpen(false);
       setAddPlanToAddressOtherSearch("");
@@ -4315,12 +4379,16 @@ export default function TreatmentRecommenderByTreatment({
                     id={
                       treatment === "Skincare"
                         ? "treatment-recommender-skincare-card"
-                        : undefined
+                        : `treatment-recommender-card-${planOptDomIdSuffix(treatment)}`
                     }
                     ref={(el) => {
                       cardRefsMap.current[treatment] = el;
                     }}
-                    className="treatment-recommender-by-treatment__card"
+                    className={`treatment-recommender-by-treatment__card${
+                      focusedTreatmentHighlight === treatment
+                        ? " treatment-recommender-by-treatment__card--focused"
+                        : ""
+                    }`}
                   >
                     <div className="treatment-recommender-by-treatment__card-top">
                       <div className="treatment-recommender-by-treatment__card-head">

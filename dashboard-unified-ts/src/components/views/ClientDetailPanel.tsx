@@ -315,6 +315,10 @@ export default function ClientDetailPanel({
   const [shareLinkPendingPlanEditId, setShareLinkPendingPlanEditId] = useState<
     string | null
   >(null);
+  /** “Learn more” from embedded recommender scrolls to this treatment once. */
+  const [pendingFocusTreatmentName, setPendingFocusTreatmentName] = useState<
+    string | null
+  >(null);
   /** Multi-angle URLs for the split-panel face mirror (Airtable or demo {@link Client.galleryPhotoSlots}). */
   const [faceMirrorPhotoSlots, setFaceMirrorPhotoSlots] = useState<
     ClientPhotoSlot[]
@@ -384,6 +388,10 @@ export default function ClientDetailPanel({
     setShareLinkPendingPlanEditId(null);
   }, []);
 
+  const handleConsumedPendingFocusTreatment = useCallback(() => {
+    setPendingFocusTreatmentName(null);
+  }, []);
+
   const handleShareLinkNavigateToPlanItem = useCallback(
     (discussedItemId: string) => {
       setShowShareTreatmentPlanLink(false);
@@ -423,6 +431,14 @@ export default function ClientDetailPanel({
     },
     [],
   );
+
+  /** Jump from embedded recommender “Learn more” to the matching treatment card. */
+  const openPlanBuilderForTreatment = useCallback((treatmentName: string) => {
+    const trimmed = treatmentName.trim();
+    if (!trimmed) return;
+    setPendingFocusTreatmentName(trimmed);
+    setRecommenderMode("by-treatment");
+  }, []);
 
   useEffect(() => {
     if (client) {
@@ -1087,6 +1103,16 @@ export default function ClientDetailPanel({
     ],
   );
 
+  useEffect(() => {
+    if (!focusedIssueForRecommender || expandedRecommenderCollapsed) return;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .getElementById("cdp-expanded-planbuilder")
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusedIssueForRecommender, expandedRecommenderCollapsed]);
+
   const expandedPlanBuilderPanel = useMemo(() => {
     const detectedIssueSet = client ? getDetectedIssuesFromClient(client) : new Set<string>();
     const activeCategoryDef = CATEGORIES.find((c) => c.key === auraActiveCategoryForPlan);
@@ -1148,7 +1174,23 @@ export default function ClientDetailPanel({
       ];
     })();
 
-    const findingsForRecommendations = prioritizedFindings.slice(0, 5);
+    const findingsForRecommendations = focusedIssueForRecommender
+      ? (() => {
+          const focusedNorm = normalizeIssue(focusedIssueForRecommender);
+          const match = allFindingsScored.find(
+            (f) => normalizeIssue(f.finding) === focusedNorm,
+          );
+          return match
+            ? [match]
+            : [
+                {
+                  finding: focusedIssueForRecommender,
+                  badness: 0,
+                  level: "detected",
+                },
+              ];
+        })()
+      : prioritizedFindings.slice(0, 5);
 
     const getFallbackMappingForIssue = (finding: string) => {
       const lowered = normalizeIssue(finding);
@@ -1224,12 +1266,21 @@ export default function ClientDetailPanel({
       .sort((a, b) => b.impactScore - a.impactScore)
       .slice(0, 4);
 
+    const focusedFindingEntry = focusedIssueForRecommender
+      ? findingsForRecommendations[0]
+      : null;
+
     return (
       <section
+        id="cdp-expanded-planbuilder"
         className={`cdp-expanded-planbuilder${
           expandedRecommenderCollapsed ? " cdp-expanded-planbuilder--collapsed" : ""
-        }`}
-        aria-label="Embedded plan builder"
+        }${focusedIssueForRecommender ? " cdp-expanded-planbuilder--finding-focused" : ""}`}
+        aria-label={
+          focusedIssueForRecommender
+            ? `Treatment recommender for ${focusedIssueForRecommender}`
+            : "Embedded plan builder"
+        }
       >
         <button
           type="button"
@@ -1243,8 +1294,19 @@ export default function ClientDetailPanel({
           }
         >
           <div className="cdp-expanded-planbuilder__header-main">
-            <h4 className="cdp-expanded-planbuilder__title">Treatment Recommender</h4>
-            {!expandedRecommenderCollapsed ? (
+            <h4 className="cdp-expanded-planbuilder__title">
+              {focusedIssueForRecommender
+                ? "Treat this finding"
+                : "Treatment Recommender"}
+            </h4>
+            {focusedIssueForRecommender ? (
+              <p className="cdp-expanded-planbuilder__subtitle cdp-expanded-planbuilder__subtitle--finding">
+                Recommendations for{" "}
+                <span className="cdp-expanded-planbuilder__subtitle-finding">
+                  {focusedIssueForRecommender}
+                </span>
+              </p>
+            ) : !expandedRecommenderCollapsed ? (
               <p className="cdp-expanded-planbuilder__subtitle">
                 Analysis-aware quick actions tailored to findings in view.
               </p>
@@ -1262,24 +1324,75 @@ export default function ClientDetailPanel({
           }`}
           aria-hidden={expandedRecommenderCollapsed}
         >
+        {focusedIssueForRecommender ? (
+          <div className="cdp-expanded-planbuilder__finding-context">
+            <div className="cdp-expanded-planbuilder__finding-context-main">
+              <span className="cdp-expanded-planbuilder__finding-context-label">
+                Selected finding
+              </span>
+              <span className="cdp-expanded-planbuilder__finding-context-name">
+                {focusedIssueForRecommender}
+              </span>
+              {focusedFindingEntry?.level ? (
+                <span
+                  className={`cdp-expanded-planbuilder__severity cdp-expanded-planbuilder__severity--${focusedFindingEntry.level.toLowerCase().replace(/\s+/g, "")}`}
+                >
+                  {focusedFindingEntry.level}
+                </span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="cdp-expanded-planbuilder__finding-context-clear"
+              onClick={() => setFocusedIssueForRecommender(null)}
+            >
+              Show all
+            </button>
+          </div>
+        ) : null}
         {highImpactTreatments.length > 0 ? (
           <div className="cdp-expanded-planbuilder__quick-add">
             <span className="cdp-expanded-planbuilder__analysis-label">
-              Recommended treatments
+              {focusedIssueForRecommender
+                ? "Suggested treatments"
+                : "Recommended treatments"}
             </span>
             <div className="cdp-expanded-planbuilder__quick-add-list">
               {highImpactTreatments.map((qa) => (
-                <div key={`${qa.treatment}-${qa.goal}`} className="cdp-expanded-planbuilder__quick-add-item">
+                <div
+                  key={`${qa.treatment}-${qa.goal}`}
+                  className={`cdp-expanded-planbuilder__quick-add-item${
+                    focusedIssueForRecommender
+                      ? " cdp-expanded-planbuilder__quick-add-item--for-focused-finding"
+                      : ""
+                  }`}
+                >
                   <span className="cdp-expanded-planbuilder__quick-add-title">
                     {qa.treatment}
                   </span>
                   <span className="cdp-expanded-planbuilder__quick-add-meta">
-                    {qa.goal} · addresses {qa.findings.length} finding{qa.findings.length !== 1 ? "s" : ""}
+                    {focusedIssueForRecommender
+                      ? `${qa.goal} · targets ${focusedIssueForRecommender}`
+                      : `${qa.goal} · addresses ${qa.findings.length} finding${qa.findings.length !== 1 ? "s" : ""}`}
                   </span>
                   <p className="cdp-expanded-planbuilder__quick-add-findings">
                     {qa.findings.slice(0, 3).map((f, i) => (
-                      <span key={`${qa.treatment}-${f.finding}`}>
-                        {i > 0 && <span className="cdp-expanded-planbuilder__quick-add-findings-sep"> · </span>}
+                      <span
+                        key={`${qa.treatment}-${f.finding}`}
+                        className={
+                          focusedIssueForRecommender &&
+                          normalizeIssue(f.finding) ===
+                            normalizeIssue(focusedIssueForRecommender)
+                            ? "cdp-expanded-planbuilder__quick-add-finding--focused"
+                            : undefined
+                        }
+                      >
+                        {i > 0 && (
+                          <span className="cdp-expanded-planbuilder__quick-add-findings-sep">
+                            {" "}
+                            ·{" "}
+                          </span>
+                        )}
                         {f.finding}
                       </span>
                     ))}
@@ -1288,7 +1401,7 @@ export default function ClientDetailPanel({
                     <button
                       type="button"
                       className="cdp-expanded-planbuilder__mini-btn"
-                      onClick={() => setRecommenderMode("by-treatment")}
+                      onClick={() => openPlanBuilderForTreatment(qa.treatment)}
                     >
                       Learn more
                     </button>
@@ -1313,7 +1426,9 @@ export default function ClientDetailPanel({
           </div>
         ) : (
           <p className="cdp-expanded-planbuilder__analysis-empty">
-            No treatment recommendations for this category yet.
+            {focusedIssueForRecommender
+              ? `No mapped treatments for "${focusedIssueForRecommender}" yet. Open the full plan builder to explore options.`
+              : "No treatment recommendations for this category yet."}
           </p>
         )}
         </div>
@@ -1326,6 +1441,7 @@ export default function ClientDetailPanel({
     expandedRecommenderCollapsed,
     auraActiveCategoryForPlan,
     focusedIssueForRecommender,
+    openPlanBuilderForTreatment,
   ]);
 
   return (
@@ -1438,6 +1554,10 @@ export default function ClientDetailPanel({
                   initialOpenPlanItemId={shareLinkPendingPlanEditId}
                   onConsumedInitialOpenPlanItemId={
                     handleConsumedShareLinkPlanEdit
+                  }
+                  initialFocusTreatmentName={pendingFocusTreatmentName}
+                  onConsumedInitialFocusTreatmentName={
+                    handleConsumedPendingFocusTreatment
                   }
                 />
               )}

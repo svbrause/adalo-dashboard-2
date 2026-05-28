@@ -139,7 +139,7 @@ export default function PatientMediaLibraryPanel({
         {!collapsed ? (
           <p className="patient-media-library__desc">
             {showTanyaLayout
-              ? "System scan assets (color, texture, analysis) and annotations you draw on the face."
+              ? "Original session photos, processed stills, clinical texture maps, and annotations you draw on the face."
               : "Original photos, 3D turntable video, and saved face annotations."}
           </p>
         ) : null}
@@ -182,7 +182,7 @@ export default function PatientMediaLibraryPanel({
               <section className="patient-media-library__section">
                 <h4 className="patient-media-library__section-title">System files</h4>
                 <p className="patient-media-library__section-desc">
-                  Captures and analysis outputs from the Aura scan pipeline — not edited by staff.
+                  Scan session assets from the Aura pipeline — not edited by staff.
                 </p>
                 {showTanyaLayout
                   ? TANYA_TAN_SYSTEM_MEDIA_ORDER.map((cat) => {

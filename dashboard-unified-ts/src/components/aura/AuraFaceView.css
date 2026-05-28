@@ -43,8 +43,18 @@
 
 .avf-root--embedded .avf-topbar {
   align-items: center;
-  padding-top: 2px;
+  padding-top: 0;
+  padding-bottom: 0;
   box-sizing: border-box;
+}
+
+/* Match client-detail 3D split chrome row (Analysis btn + patient name). */
+.client-detail-panel--3d-split .avf-root--embedded {
+  --avf-topbar-h: var(--cdp-aura-chrome-row-h, 52px);
+}
+
+.fmp-root--aura.fmp-root--viewport-expanded .avf-root--embedded {
+  --avf-topbar-h: var(--cdp-aura-chrome-row-h, 52px);
 }
 
 .avf-root--embedded .avf-rightnav {
@@ -88,6 +98,11 @@
   justify-content: center;
   transform-origin: center center;
   will-change: transform;
+}
+
+.avf-zoom-viewport.avf-zoom-viewport--panning .avf-diagnostic-overlay,
+.avf-zoom-viewport.avf-zoom-viewport--panning .avf-diagnostic-overlay * {
+  filter: none !important;
 }
 
 .avf-photo-align {

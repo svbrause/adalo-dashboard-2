@@ -28,7 +28,6 @@ export function useMirrorViewportZoom({
   const [zoom, setZoom] = useState(initialZoom);
   const panningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
-  const panRafRef = useRef(0);
 
   useEffect(() => {
     minZoomRef.current = Math.max(MIN_ZOOM, initialZoom);
@@ -100,6 +99,7 @@ export function useMirrorViewportZoom({
       if ((e.target as HTMLElement).closest("button, a, input, summary")) return;
       e.preventDefault();
       panningRef.current = true;
+      viewer.classList.add("avf-zoom-viewport--panning");
       panStartRef.current = {
         x: e.clientX,
         y: e.clientY,
@@ -116,20 +116,13 @@ export function useMirrorViewportZoom({
       const dy = e.clientY - panStartRef.current.y;
       panXRef.current = panStartRef.current.panX + dx;
       panYRef.current = panStartRef.current.panY + dy;
-      if (panRafRef.current) return;
-      panRafRef.current = requestAnimationFrame(() => {
-        panRafRef.current = 0;
-        applyTransform(panXRef.current, panYRef.current, zoomRef.current, false);
-      });
+      applyTransform(panXRef.current, panYRef.current, zoomRef.current, false);
     };
 
     const endPan = (e: PointerEvent) => {
       if (!panningRef.current) return;
       panningRef.current = false;
-      if (panRafRef.current) {
-        cancelAnimationFrame(panRafRef.current);
-        panRafRef.current = 0;
-      }
+      viewer.classList.remove("avf-zoom-viewport--panning");
       applyTransform(panXRef.current, panYRef.current, zoomRef.current, true);
       viewer.style.cursor = zoomRef.current > minZoomRef.current ? "grab" : "";
       try {
@@ -144,7 +137,6 @@ export function useMirrorViewportZoom({
     viewer.addEventListener("pointerup", endPan);
     viewer.addEventListener("pointercancel", endPan);
     return () => {
-      if (panRafRef.current) cancelAnimationFrame(panRafRef.current);
       viewer.removeEventListener("pointerdown", onPointerDown);
       viewer.removeEventListener("pointermove", onPointerMove);
       viewer.removeEventListener("pointerup", endPan);

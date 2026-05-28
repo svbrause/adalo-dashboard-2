@@ -1230,6 +1230,15 @@
   background: var(--theme-bg-card, #fff);
 }
 
+.treatment-recommender-by-treatment__card--focused {
+  border-color: var(--theme-accent, #3d9a8b);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #3d9a8b) 28%, transparent);
+  scroll-margin-block: 24px;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
 .treatment-recommender-by-treatment__card-top {
   display: flex;
   gap: 16px;

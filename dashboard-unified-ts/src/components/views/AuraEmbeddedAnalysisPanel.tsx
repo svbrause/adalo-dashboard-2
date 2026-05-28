@@ -517,11 +517,15 @@ export default function AuraEmbeddedAnalysisPanel({
                                     type="button"
                                     className="aura-embedded-panel__issue-toggle aura-embedded-panel__issue-treat-btn"
                                     aria-label={`Treat ${issue}`}
+                                    title={`Treat ${issue}`}
                                     onClick={() =>
                                       onOpenTreatmentForIssue(issue, activeCategory)
                                     }
                                   >
                                     <IconTreat />
+                                    <span className="aura-embedded-panel__issue-treat-label">
+                                      Treat
+                                    </span>
                                   </button>
                                 )}
                                 <button

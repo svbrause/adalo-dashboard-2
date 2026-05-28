@@ -229,10 +229,16 @@
 .fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__chrome {
   background: #111111;
   border-bottom-color: rgba(255, 255, 255, 0.07);
+  min-height: var(--cdp-aura-chrome-row-h, 52px);
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+  align-items: center;
 }
 
 .fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__issue {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__issue:hover {
@@ -243,13 +249,22 @@
   color: rgba(255, 255, 255, 0.45);
 }
 
-.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__issues-heading,
+.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__issues-heading {
+  color: rgba(255, 255, 255, 0.38);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__issue-group {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__issue-group-title {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__issue-name {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__issue-level--muted {
@@ -509,6 +524,10 @@
   white-space: nowrap;
 }
 
+.fmp-root--aura {
+  --cdp-aura-chrome-row-h: 52px;
+}
+
 .fmp-root--aura .fmp-toolbar {
   border-bottom-color: rgba(255 255 255 / 0.08);
   background: #0a0a0a;
@@ -518,12 +537,40 @@
 .fmp-root--aura:not(.fmp-root--viewport-expanded) .fmp-toolbar {
   position: absolute;
   right: 10px;
-  top: 8px;
+  top: 0;
   z-index: 30;
+  height: var(--cdp-aura-chrome-row-h, 52px);
   justify-content: flex-end;
+  align-items: center;
   padding: 0;
   border-bottom: none;
   background: transparent;
+}
+
+/* Expanded Aura: overlay Analysis btn on left-column topbar band (not above the split). */
+.fmp-root--aura.fmp-root--viewport-expanded .fmp-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 35;
+  width: 57.65%;
+  height: var(--cdp-aura-chrome-row-h, 52px);
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 10px 0 0;
+  border-bottom: none;
+  background: transparent;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.fmp-root--aura.fmp-root--viewport-expanded .fmp-toolbar-end {
+  pointer-events: auto;
+}
+
+.fmp-root--aura.fmp-root--viewport-expanded:has(.fmp-fullscreen-split--panel-collapsed)
+  .fmp-toolbar {
+  width: calc(100% - 40px);
 }
 
 .fmp-planbuilder-launcher {

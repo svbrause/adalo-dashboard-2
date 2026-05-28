@@ -868,7 +868,6 @@ export default function AuraFaceView({
   const [autoRotate, setAutoRotate] = useState(turntableOnly);
   const [drawingMode, setDrawingMode] = useState(false);
   const [blendRatio, setBlendRatio] = useState(0.5);
-  const [isDragging3D, setIsDragging3D] = useState(false);
   const [photoTransition, setPhotoTransition] = useState<PhotoTransition | null>(null);
   const autoRotateRef = useRef(autoRotate);
   const targetRatioRef = useRef(0.5);
@@ -1267,8 +1266,6 @@ export default function AuraFaceView({
                     }
                     controlledTimeAnimationMs={turntableOnly ? 0 : ANGLE_TRANSITION_MS}
                     onTimeRatioChange={handleTimeRatioChange}
-                    onDragStart={turntableOnly ? () => setIsDragging3D(true) : undefined}
-                    onDragEnd={turntableOnly ? () => setIsDragging3D(false) : undefined}
                     showAnnotations={showMirrorAnnotations}
                     highlightTerms={highlightTerms}
                     highlightedAnnotationRegionIds={highlightedRegionIds}
@@ -1301,7 +1298,6 @@ export default function AuraFaceView({
                           angleTimings={angleTimings}
                           visible={
                             scanOverlayVisible &&
-                            !isDragging3D &&
                             (turntableOnly || (activeTab !== "structure" && !autoRotate)) &&
                             !(turntableOnly && activeTab === "texture")
                           }

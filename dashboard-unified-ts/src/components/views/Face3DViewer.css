@@ -43,12 +43,16 @@
   transition: none;
 }
 
-/* Diagnostic SVG inside the overlay uses mix-blend-mode + a Gaussian-blur
- * filter; re-rasterizing them every frame breaks the GPU transform path and
- * makes pan stutter on Volume/Structure. Hide the overlay during pan — it
- * snaps back instantly on release. */
+/* Keep diagnostic overlays visible while panning; strip SVG filters so the
+ * zoom-layer transform stays on the GPU compositor (no snap on release). */
 .face3d-viewer.face3d-viewer--panning .face3d-content-overlay {
-  display: none;
+  visibility: visible;
+  opacity: 1;
+}
+
+.face3d-viewer.face3d-viewer--panning .avf-diagnostic-overlay,
+.face3d-viewer.face3d-viewer--panning .avf-diagnostic-overlay * {
+  filter: none !important;
 }
 
 .face3d-media-layer {

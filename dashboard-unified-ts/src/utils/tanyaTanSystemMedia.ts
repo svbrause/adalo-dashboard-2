@@ -2,12 +2,17 @@
  * Curated system-generated assets for the Tanya Tan Aura demo (public/demo-3d).
  * Shown under Patient files → System, separate from user-drawn annotations.
  */
-import { TANYA_TAN_GALLERY_PHOTO_SLOTS } from "./auraTanAnglePhotos";
+import {
+  TANYA_TAN_GALLERY_PHOTO_SLOTS,
+  TANYA_TAN_ORIGINAL_CAPTURES,
+  TANYA_TAN_VIEWER_ANGLE_ASSETS,
+  type AuraTanViewAngle,
+} from "./auraTanAnglePhotos";
 
 export type TanyaTanSystemMediaCategory =
   | "color_stills"
   | "texture_maps"
-  | "processed_analysis"
+  | "original_captures"
   | "scan_video";
 
 export type TanyaTanSystemMediaEntry = {
@@ -25,7 +30,7 @@ export const TANYA_TAN_SYSTEM_MEDIA_CATEGORY_LABELS: Record<
 > = {
   color_stills: "Color photos",
   texture_maps: "Clinical texture",
-  processed_analysis: "Processed analysis",
+  original_captures: "Original photos",
   scan_video: "3D scan",
 };
 
@@ -40,118 +45,50 @@ const COLOR_STILLS: TanyaTanSystemMediaEntry[] = TANYA_TAN_GALLERY_PHOTO_SLOTS.m
   }),
 );
 
-const TEXTURE_MAPS: TanyaTanSystemMediaEntry[] = [
-  {
-    id: "sys-texture-front",
-    category: "texture_maps",
-    kind: "photo",
-    title: "Front",
-    subtitle: "Grayscale texture plate",
-    url: "/demo-3d/tanya-tan-front-texture.png",
-  },
-  {
-    id: "sys-texture-45-left",
-    category: "texture_maps",
-    kind: "photo",
-    title: "Left ¾",
-    subtitle: "Grayscale texture plate",
-    url: "/demo-3d/tanya-tan-45-left-texture.png",
-  },
-  {
-    id: "sys-texture-45-right",
-    category: "texture_maps",
-    kind: "photo",
-    title: "Right ¾",
-    subtitle: "Grayscale texture plate",
-    url: "/demo-3d/tanya-tan-45-right-texture.png",
-  },
-  {
-    id: "sys-texture-profile-left",
-    category: "texture_maps",
-    kind: "photo",
-    title: "Left profile",
-    subtitle: "Grayscale texture plate",
-    url: "/demo-3d/tanya-tan-profile-left-texture.png",
-  },
-  {
-    id: "sys-texture-profile-right",
-    category: "texture_maps",
-    kind: "photo",
-    title: "Right profile",
-    subtitle: "Grayscale texture plate",
-    url: "/demo-3d/tanya-tan-profile-right-texture.png",
-  },
+const TEXTURE_MAP_ANGLES: { angle: AuraTanViewAngle; id: string; title: string }[] = [
+  { angle: "front", id: "sys-texture-front", title: "Front" },
+  { angle: "three-quarter-left", id: "sys-texture-45-left", title: "Left ¾" },
+  { angle: "three-quarter-right", id: "sys-texture-45-right", title: "Right ¾" },
+  { angle: "profile-left", id: "sys-texture-profile-left", title: "Left profile" },
+  { angle: "profile-right", id: "sys-texture-profile-right", title: "Right profile" },
 ];
 
-const PROCESSED_ANALYSIS: TanyaTanSystemMediaEntry[] = [
-  {
-    id: "sys-proc-front-pigment-annotated",
-    category: "processed_analysis",
-    kind: "photo",
-    title: "Front · pigment map",
-    subtitle: "Detected spots annotated",
-    url: "/demo-3d/tanya-tan-front-pigment-annotated.png",
+/** Same clinical texture plates as the Aura left-rail / Skin tab (viewer angle assets). */
+const TEXTURE_MAPS: TanyaTanSystemMediaEntry[] = TEXTURE_MAP_ANGLES.map(
+  ({ angle, id, title }) => {
+    const asset = TANYA_TAN_VIEWER_ANGLE_ASSETS[angle];
+    return {
+      id,
+      category: "texture_maps",
+      kind: "photo",
+      title,
+      subtitle: "Grayscale texture plate",
+      url: asset.srcTexture ?? asset.src,
+    };
   },
-  {
-    id: "sys-proc-front-pigment-overlay",
-    category: "processed_analysis",
-    kind: "photo",
-    title: "Front · pigment overlay",
-    subtitle: "Analysis overlay on color",
-    url: "/demo-3d/tanya-tan-front-pigment-overlay.png",
-  },
-  {
-    id: "sys-proc-45-left-pigment-annotated",
-    category: "processed_analysis",
-    kind: "photo",
-    title: "Left ¾ · pigment map",
-    subtitle: "Detected spots annotated",
-    url: "/demo-3d/tanya-tan-45-left-pigment-annotated.png",
-  },
-  {
-    id: "sys-proc-45-left-pigment-overlay",
-    category: "processed_analysis",
-    kind: "photo",
-    title: "Left ¾ · pigment overlay",
-    subtitle: "Analysis overlay on color",
-    url: "/demo-3d/tanya-tan-45-left-pigment-overlay.png",
-  },
-  {
-    id: "sys-proc-45-left-pigment-gray",
-    category: "processed_analysis",
-    kind: "photo",
-    title: "Left ¾ · pigment gray",
-    subtitle: "Grayscale analysis view",
-    url: "/demo-3d/tanya-tan-45-left-pigmentation-gray.png",
-  },
-  {
-    id: "sys-proc-45-left-pigment-mask",
-    category: "processed_analysis",
-    kind: "photo",
-    title: "Left ¾ · pigment mask",
-    subtitle: "Spot detection mask",
-    url: "/demo-3d/tanya-tan-45-left-pigmentation-mask.png",
-  },
-  {
-    id: "sys-proc-profile-right-texture-annotated",
-    category: "processed_analysis",
-    kind: "photo",
-    title: "Right profile · texture map",
-    subtitle: "Clinical overlay on grayscale",
-    url: encodeURI("/demo-3d/tanya-tan-profile-right-texture (1).png"),
-  },
-];
+);
+
+const ORIGINAL_CAPTURES: TanyaTanSystemMediaEntry[] = TANYA_TAN_ORIGINAL_CAPTURES.map(
+  ({ angle, label, url }) => ({
+    id: `sys-original-${angle}`,
+    category: "original_captures" as const,
+    kind: "photo" as const,
+    title: label,
+    subtitle: "Uncropped camera original (JPG)",
+    url,
+  }),
+);
 
 export const TANYA_TAN_SYSTEM_MEDIA: TanyaTanSystemMediaEntry[] = [
   ...COLOR_STILLS,
   ...TEXTURE_MAPS,
-  ...PROCESSED_ANALYSIS,
+  ...ORIGINAL_CAPTURES,
 ];
 
 export const TANYA_TAN_SYSTEM_MEDIA_ORDER: TanyaTanSystemMediaCategory[] = [
+  "original_captures",
   "color_stills",
   "texture_maps",
-  "processed_analysis",
   "scan_video",
 ];
 

@@ -8,6 +8,11 @@ import tanPng45Left from "../assets/images/tan_45_left.png";
 import tanPng45Right from "../assets/images/tan_45_right.png";
 import tanPng90Left from "../assets/images/tan_90_left.png";
 import tanPng90Right from "../assets/images/tan_90_right.png";
+import tanJpgFront from "../assets/images/tan_front.JPG";
+import tanJpg45Left from "../assets/images/tan_45_left.JPG";
+import tanJpg45Right from "../assets/images/tan_45_right.JPG";
+import tanJpg90Left from "../assets/images/tan_90_left.JPG";
+import tanJpg90Right from "../assets/images/tan_90_right.JPG";
 import tanPng45LeftRembg from "../assets/images/45-left-rembg.png";
 import tanPng90RightRembg from "../assets/images/tan_90_right_rembg.png";
 import tanPng90RightRembgTexture from "../assets/images/tan_90_right_rembg_texture.png";
@@ -123,6 +128,19 @@ export const TANYA_TAN_VIEWER_ANGLE_ASSETS: Record<AuraTanViewAngle, AuraTanView
     label: "Right profile",
   },
 };
+
+/** Uncropped in-camera JPGs from the original Aura capture session. */
+export const TANYA_TAN_ORIGINAL_CAPTURES: {
+  angle: AuraTanViewAngle;
+  label: string;
+  url: string;
+}[] = [
+  { angle: "profile-left", label: "Left profile", url: tanJpg90Left },
+  { angle: "three-quarter-left", label: "Left ¾", url: tanJpg45Left },
+  { angle: "front", label: "Front", url: tanJpgFront },
+  { angle: "three-quarter-right", label: "Right ¾", url: tanJpg45Right },
+  { angle: "profile-right", label: "Right profile", url: tanJpg90Right },
+];
 
 /** Public URLs for demo client gallery / modals (same angles as viewer assets). */
 export const TANYA_TAN_GALLERY_PHOTO_SLOTS: ClientPhotoSlot[] = [

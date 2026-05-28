@@ -29,15 +29,13 @@ export const ANNOTATE_COLOR_PRESETS = [
   { id: "white", label: "White", value: "#f8fafc" },
 ] as const;
 
+/** Screen-pixel stroke widths (`vectorEffect="non-scaling-stroke"` on the SVG layer). */
 const WIDTH_PRESETS = [
-  { id: "thin", label: "Thin", value: 0.6 },
-  { id: "medium", label: "Medium", value: 1.0 },
-  { id: "thick", label: "Thick", value: 1.8 },
-  { id: "bold", label: "Bold", value: 2.6 },
+  { id: "thin", label: "Thin", value: 2 },
+  { id: "medium", label: "Medium", value: 4 },
+  { id: "thick", label: "Thick", value: 7 },
+  { id: "bold", label: "Bold", value: 12 },
 ] as const;
-
-const WIDTH_MIN = 0.4;
-const WIDTH_MAX = 3.2;
 
 const DEFAULT_COLOR = ANNOTATE_COLOR_PRESETS[0].value;
 const DEFAULT_WIDTH = WIDTH_PRESETS[1].value;
@@ -81,6 +79,8 @@ export default function AnnotateDrawing({
   const [tool, setTool] = useState<AnnotateTool>("pen");
   const [color, setColor] = useState<string>(DEFAULT_COLOR);
   const [width, setWidth] = useState<number>(DEFAULT_WIDTH);
+  const [widthMenuOpen, setWidthMenuOpen] = useState(false);
+  const widthMenuRef = useRef<HTMLDivElement>(null);
   const [internalStrokes, setInternalStrokes] = useState<AnnotateStroke[]>([]);
   const [redoStack, setRedoStack] = useState<AnnotateStroke[]>([]);
   const [current, setCurrent] = useState<AnnotateStroke | null>(null);
@@ -171,6 +171,24 @@ export default function AnnotateDrawing({
     return () => window.removeEventListener("keydown", onKey);
   }, [active, undo, redo]);
 
+  useEffect(() => {
+    if (!widthMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (widthMenuRef.current?.contains(t)) return;
+      setWidthMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [widthMenuOpen]);
+
+  useEffect(() => {
+    if (!active) setWidthMenuOpen(false);
+  }, [active]);
+
+  const activeWidthPreset =
+    WIDTH_PRESETS.find((preset) => preset.value === width) ?? WIDTH_PRESETS[1];
+
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
     if (!active) return;
     e.preventDefault();
@@ -181,16 +199,23 @@ export default function AnnotateDrawing({
     setCurrent({
       d: `M ${x} ${y}`,
       color: tool === "eraser" ? "#000000" : color,
-      width: tool === "eraser" ? width * 2.4 : width,
+      width:
+        tool === "eraser"
+          ? width * 2.4
+          : tool === "highlighter"
+            ? width * 1.75
+            : width,
       opacity: strokeOpacity(tool),
       tool,
     });
   };
 
   const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
-    if (!active || !drawingRef.current || !current) return;
+    if (!active || !drawingRef.current) return;
     const { x, y } = svgPointFromPointer(e.currentTarget, e.clientX, e.clientY);
-    setCurrent({ ...current, d: `${current.d} L ${x} ${y}` });
+    setCurrent((stroke) =>
+      stroke ? { ...stroke, d: `${stroke.d} L ${x} ${y}` } : null,
+    );
   };
 
   const showCanvas = active || strokes.length > 0;
@@ -207,6 +232,27 @@ export default function AnnotateDrawing({
         <>
           <div className="avf-annotate-toolbar__cluster">
             <div className="avf-annotate-toolbar__tools">
+              <button
+                type="button"
+                className="avf-annotate-tool avf-annotate-tool--history"
+                title="Undo (⌘Z)"
+                aria-label="Undo"
+                disabled={!canUndo}
+                onClick={undo}
+              >
+                <IconUndo />
+              </button>
+              <button
+                type="button"
+                className="avf-annotate-tool avf-annotate-tool--history"
+                title="Redo (⌘⇧Z)"
+                aria-label="Redo"
+                disabled={!canRedo}
+                onClick={redo}
+              >
+                <IconRedo />
+              </button>
+              <span className="avf-annotate-toolbar__tools-divider" aria-hidden />
               <button
                 type="button"
                 className={`avf-annotate-tool${tool === "pen" ? " avf-annotate-tool--active" : ""}`}
@@ -267,64 +313,87 @@ export default function AnnotateDrawing({
             </label>
           </div>
           <span className="avf-annotate-toolbar__divider" aria-hidden />
-          <div className="avf-annotate-toolbar__cluster avf-annotate-toolbar__cluster--grow">
-            <input
-              type="range"
-              className="avf-annotate-slider"
-              min={WIDTH_MIN}
-              max={WIDTH_MAX}
-              step={0.05}
-              value={width}
-              aria-label={`Marker width ${width.toFixed(1)}`}
-              onChange={(e) => setWidth(Number(e.target.value))}
-            />
-            <span className="avf-annotate-width-value" aria-live="polite">
-              {width.toFixed(1)}
-            </span>
-            <div className="avf-annotate-toolbar__width-presets">
-              {WIDTH_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className={`avf-annotate-width-btn${Math.abs(width - preset.value) < 0.03 ? " avf-annotate-width-btn--active" : ""}`}
-                  title={`${preset.label} (${preset.value.toFixed(1)})`}
-                  aria-label={`${preset.label} width ${preset.value.toFixed(1)}`}
-                  onClick={() => setWidth(preset.value)}
-                >
-                  <span
-                    className="avf-annotate-width-dot"
-                    style={{ width: 4 + preset.value * 5, height: 4 + preset.value * 5 }}
-                  />
-                </button>
-              ))}
-            </div>
+          <div
+            ref={widthMenuRef}
+            className="avf-annotate-toolbar__cluster avf-annotate-width-trigger"
+          >
+            <button
+              type="button"
+              className={`avf-annotate-width-trigger-btn${widthMenuOpen ? " avf-annotate-width-trigger-btn--open" : ""}`}
+              title={`Line size: ${activeWidthPreset.label}`}
+              aria-label={`Line size: ${activeWidthPreset.label}`}
+              aria-haspopup="menu"
+              aria-expanded={widthMenuOpen}
+              onClick={() => setWidthMenuOpen((open) => !open)}
+            >
+              <span
+                className="avf-annotate-width-dot avf-annotate-width-dot--trigger"
+                style={{
+                  width: 4 + activeWidthPreset.value * 0.55,
+                  height: 4 + activeWidthPreset.value * 0.55,
+                }}
+              />
+              <span className="avf-annotate-width-trigger-label">{activeWidthPreset.label}</span>
+            </button>
+            {widthMenuOpen ? (
+              <div className="avf-annotate-width-menu" role="menu" aria-label="Line size">
+                {WIDTH_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={width === preset.value}
+                    className={`avf-annotate-width-menu-item${width === preset.value ? " avf-annotate-width-menu-item--active" : ""}`}
+                    title={preset.label}
+                    onClick={() => {
+                      setWidth(preset.value);
+                      setWidthMenuOpen(false);
+                    }}
+                  >
+                    <span
+                      className="avf-annotate-width-dot"
+                      style={{
+                        width: 4 + preset.value * 0.55,
+                        height: 4 + preset.value * 0.55,
+                      }}
+                    />
+                    <span>{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </>
-      ) : null}
+      ) : (
+        <div className="avf-annotate-toolbar__cluster">
+          <div className="avf-annotate-toolbar__tools">
+            <button
+              type="button"
+              className="avf-annotate-tool avf-annotate-tool--history"
+              title="Undo (⌘Z)"
+              aria-label="Undo"
+              disabled={!canUndo}
+              onClick={undo}
+            >
+              <IconUndo />
+            </button>
+            <button
+              type="button"
+              className="avf-annotate-tool avf-annotate-tool--history"
+              title="Redo (⌘⇧Z)"
+              aria-label="Redo"
+              disabled={!canRedo}
+              onClick={redo}
+            >
+              <IconRedo />
+            </button>
+          </div>
+        </div>
+      )}
 
       <span className="avf-annotate-toolbar__divider" aria-hidden />
 
-      <div className="avf-annotate-toolbar__cluster avf-annotate-toolbar__actions">
-        <button
-          type="button"
-          className="avf-annotate-action"
-          title="Undo (⌘Z)"
-          aria-label="Undo"
-          disabled={!canUndo}
-          onClick={undo}
-        >
-          <IconUndo />
-        </button>
-        <button
-          type="button"
-          className="avf-annotate-action"
-          title="Redo (⌘⇧Z)"
-          aria-label="Redo"
-          disabled={!canRedo}
-          onClick={redo}
-        >
-          <IconRedo />
-        </button>
+      <div className="avf-annotate-toolbar__cluster avf-annotate-toolbar__actions avf-annotate-toolbar__actions--secondary">
         <button
           type="button"
           className="avf-annotate-action avf-annotate-action--danger"

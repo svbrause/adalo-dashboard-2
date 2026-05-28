@@ -40,8 +40,6 @@ const MAX_DISPLAY_DIM = 1024;
 /** Turntable export: -65° (start) → 0° nose-front (mid) → +65° (end). */
 const MAX_YAW_DEG = 65;
 const DEG_PER_PX = (2 * MAX_YAW_DEG) / 380;
-/** Exponential smoothing for drag rotation (lower = snappier). */
-const SCRUB_YAW_SMOOTH_TAU_MS = 36;
 /** Throttle live video seeks while scrubbing — avoids decoder stutter. */
 const SCRUB_VIDEO_SEEK_MS = 28;
 const AUTO_SPEED = 22;
@@ -526,7 +524,6 @@ export default function Face3DViewer({
   const scrubTargetYawRef = useRef(0);
   const scrubDisplayYawRef = useRef(0);
   const lastScrubSeekAtRef = useRef(0);
-  const lastScrubTickAtRef = useRef(0);
   const lastDisplayedLandmarksRef = useRef<NormalizedLandmark[] | null>(null);
   const autoPlaybackControllerRef = useRef<{
     start: (preferredDir?: 1 | -1) => void;
@@ -1500,50 +1497,11 @@ export default function Face3DViewer({
 
     let dragStartX = 0;
     let dragStartYaw = 0;
-    let scrubRaf = 0;
-    let panRaf = 0;
     let resumeAutoAfterPan = false;
-
-    const stopPanRaf = () => {
-      if (panRaf) cancelAnimationFrame(panRaf);
-      panRaf = 0;
-    };
+    let resumeAutoAfterScrub = false;
 
     const flushPanTransform = () => {
       applyTransform(panXRef.current, panYRef.current, zoomRef.current);
-    };
-
-    const schedulePanTransform = () => {
-      if (panRaf) return;
-      panRaf = requestAnimationFrame(() => {
-        panRaf = 0;
-        flushPanTransform();
-      });
-    };
-
-    const stopScrubLoop = () => {
-      if (scrubRaf) cancelAnimationFrame(scrubRaf);
-      scrubRaf = 0;
-    };
-
-    const startScrubLoop = () => {
-      stopScrubLoop();
-      lastScrubTickAtRef.current = performance.now();
-      const tick = (now: number) => {
-        scrubRaf = 0;
-        if (!draggingRef.current) return;
-        const dt = Math.min(48, now - lastScrubTickAtRef.current);
-        lastScrubTickAtRef.current = now;
-        const alpha = 1 - Math.exp(-dt / SCRUB_YAW_SMOOTH_TAU_MS);
-        const targetYaw = scrubTargetYawRef.current;
-        const displayYaw =
-          scrubDisplayYawRef.current + (targetYaw - scrubDisplayYawRef.current) * alpha;
-        scrubDisplayYawRef.current = displayYaw;
-        publishScrubRatio(displayYaw);
-        applyScrubYaw(displayYaw);
-        scrubRaf = requestAnimationFrame(tick);
-      };
-      scrubRaf = requestAnimationFrame(tick);
     };
 
     function onPointerDown(e: PointerEvent) {
@@ -1579,6 +1537,10 @@ export default function Face3DViewer({
       scrubTargetYawRef.current = dragStartYaw;
       scrubDisplayYawRef.current = dragStartYaw;
       lastScrubSeekAtRef.current = 0;
+      resumeAutoAfterScrub = autoRotateRef.current;
+      if (resumeAutoAfterScrub) {
+        autoPlaybackControllerRef.current?.stop();
+      }
       const video = videoRef.current;
       if (video) {
         setActiveVideo("forward");
@@ -1586,7 +1548,6 @@ export default function Face3DViewer({
         safeSetPlaybackRate(video, 1);
         if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "0";
       }
-      startScrubLoop();
     }
 
     function onPointerMove(e: PointerEvent) {
@@ -1595,21 +1556,24 @@ export default function Face3DViewer({
         const dy = e.clientY - panStartRef.current.y;
         panXRef.current = panStartRef.current.panX + dx;
         panYRef.current = panStartRef.current.panY + dy;
-        schedulePanTransform();
+        flushPanTransform();
         return;
       }
       if (!draggingRef.current) return;
       const dx = e.clientX - dragStartX;
-      scrubTargetYawRef.current = clampYaw(dragStartYaw - dx * DEG_PER_PX);
+      const yaw = clampYaw(dragStartYaw - dx * DEG_PER_PX);
+      scrubTargetYawRef.current = yaw;
+      scrubDisplayYawRef.current = yaw;
+      publishScrubRatio(yaw);
+      applyScrubYaw(yaw);
     }
 
     function endPointer(e: PointerEvent) {
       if (panningRef.current) {
         panningRef.current = false;
         viewer!.classList.remove("face3d-viewer--panning");
-        stopPanRaf();
         flushPanTransform();
-        renderCachedAnnotations();
+        requestAnimationFrame(() => renderCachedAnnotations());
         viewer!.style.cursor = zoomRef.current > minZoomRef.current ? "grab" : "";
         if (resumeAutoAfterPan && videoRef.current?.duration) {
           autoPlaybackControllerRef.current?.start(autoDirRef.current);
@@ -1625,7 +1589,6 @@ export default function Face3DViewer({
       if (!draggingRef.current) return;
       draggingRef.current = false;
       onDragEndRef.current?.();
-      stopScrubLoop();
       scrubDisplayYawRef.current = scrubTargetYawRef.current;
       publishScrubRatio(scrubTargetYawRef.current);
       if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "0";
@@ -1638,9 +1601,10 @@ export default function Face3DViewer({
         syncYawFromVideo({ queueLandmarks: true });
       }
       autoDirRef.current = yawRef.current >= 0 ? 1 : -1;
-      if (autoRotateRef.current && video?.duration) {
+      if (resumeAutoAfterScrub && video?.duration) {
         autoPlaybackControllerRef.current?.start(autoDirRef.current);
       }
+      resumeAutoAfterScrub = false;
       try {
         viewer!.releasePointerCapture(e.pointerId);
       } catch {
@@ -1654,8 +1618,6 @@ export default function Face3DViewer({
     viewer.addEventListener("pointercancel", endPointer);
 
     return () => {
-      stopScrubLoop();
-      stopPanRaf();
       viewer.removeEventListener("pointerdown", onPointerDown);
       viewer.removeEventListener("pointermove", onPointerMove);
       viewer.removeEventListener("pointerup", endPointer);
