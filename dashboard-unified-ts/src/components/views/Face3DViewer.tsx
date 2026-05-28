@@ -1109,7 +1109,10 @@ export default function Face3DViewer({
           syncYawFromVideo({ queueLandmarks: false });
           if (reverse.currentTime >= reverseDuration - END_TIME_EPS || reverse.ended) {
             yawRef.current = -MAX_YAW_DEG;
-            video.currentTime = 0;
+            // Let startForward seek video to 0 and await 'seeked' before swapping
+            // opacity — sync-setting video.currentTime here bypasses that wait and
+            // flashes the stale right-extreme frame on the revealed forward video.
+            reverse.pause();
             reverse.currentTime = reverseDuration;
             autoDirRef.current = 1;
             startForward();

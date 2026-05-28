@@ -43,6 +43,14 @@
   transition: none;
 }
 
+/* Diagnostic SVG inside the overlay uses mix-blend-mode + a Gaussian-blur
+ * filter; re-rasterizing them every frame breaks the GPU transform path and
+ * makes pan stutter on Volume/Structure. Hide the overlay during pan — it
+ * snaps back instantly on release. */
+.face3d-viewer.face3d-viewer--panning .face3d-content-overlay {
+  display: none;
+}
+
 .face3d-media-layer {
   position: absolute;
   inset: 0;
