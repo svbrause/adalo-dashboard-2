@@ -366,39 +366,45 @@ html:has(.mbp-root) {
   min-height: 0;
 }
 
-/* Mobile blueprint hero: angles left, 3D center, Skin/Volume/Structure right. */
+/* Mobile blueprint hero: viewport on top, tabs + angles below. */
 @media (max-width: 860px) {
   .mbp-hero-face-wrap {
     height: 100%;
+    min-height: 360px;
   }
 
   .mbp-hero-face.avf-root {
-    --mbp-avf-rail-w: 48px;
-    --mbp-avf-tabs-w: 84px;
+    --mbp-avf-rail-w: 100%;
     display: grid;
-    grid-template-columns: var(--mbp-avf-rail-w) minmax(0, 1fr) var(--mbp-avf-tabs-w);
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: "leftnav viewport topbar";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "viewport"
+      "topbar"
+      "leftnav";
     height: 100%;
-    min-height: 0;
+    min-height: 360px;
     width: 100%;
     overflow: hidden;
   }
 
   .mbp-hero-face .avf-leftnav {
     grid-area: leftnav;
-    flex-direction: column;
-    justify-content: space-evenly;
+    flex-direction: row;
+    justify-content: center;
     align-items: center;
-    width: var(--mbp-avf-rail-w);
-    height: 100%;
+    width: fit-content;
+    max-width: calc(100% - 2rem);
+    height: auto;
     min-height: 0;
-    padding: 6px 0;
-    gap: 4px;
+    margin-inline: auto;
+    padding: 10px 0 12px;
+    gap: 8px;
     border-top: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    overflow-x: hidden;
-    overflow-y: auto;
+    border-right: none;
+    background: transparent;
+    overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -417,40 +423,57 @@ html:has(.mbp-root) {
 
   .mbp-hero-face .avf-topbar {
     grid-area: topbar;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: center;
-    align-items: stretch;
+    align-items: center;
     align-self: stretch;
-    height: 100%;
-    padding: 6px 6px 6px 4px;
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    height: auto;
+    padding: 10px 16px 4px;
+    border-left: none;
   }
 
   .mbp-hero-face .avf-pills {
-    flex-direction: column;
+    flex-direction: row;
     align-items: stretch;
-    border-radius: 10px;
-    padding: 3px;
-    gap: 2px;
-    background: rgba(255, 255, 255, 0.08);
+    justify-content: center;
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.06);
     overflow: visible;
   }
 
   .mbp-hero-face .avf-pill {
-    font-size: 10.5px;
+    flex: 1;
+    font-size: 11px;
     font-weight: 600;
-    padding: 10px 6px;
-    min-height: 44px;
+    padding: 10px 8px;
+    min-height: 40px;
     line-height: 1.15;
     text-align: center;
     letter-spacing: 0.04em;
+    border-radius: 9px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.78);
   }
 
-  .mbp-hero-face .avf-pill--active,
-  .mbp-hero-face .avf-pill--active:hover {
-    font-size: 10.5px;
-    padding: 10px 6px;
-    min-height: 44px;
+  .mbp-hero-face .avf-pill:hover:not(.avf-pill--active) {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .mbp-hero-face.avf-root--embedded .avf-pill--active,
+  .mbp-hero-face.avf-root--embedded .avf-pill--active:hover {
+    font-size: 11px;
+    padding: 10px 8px;
+    min-height: 40px;
+    color: #0a0a0e;
+    background: #f0f2f6;
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   }
 
   .mbp-hero-face .avf-rightnav {
@@ -458,22 +481,26 @@ html:has(.mbp-root) {
   }
 
   .mbp-hero-face .avf-angle-btn {
-    width: 44px;
-    min-height: 38px;
-    height: auto;
+    width: 40px;
+    min-height: 40px;
+    height: 40px;
     aspect-ratio: unset;
-    padding: 2px 0;
+    padding: 0;
     flex-shrink: 0;
   }
 
   .mbp-hero-face .avf-angle-btn--3d {
-    min-height: 38px;
-    height: 38px;
+    min-height: 40px;
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
   }
 
   .mbp-hero-face .avf-angle-btn:not(.avf-angle-btn--3d) {
     min-height: 44px;
-    border-radius: 10px;
+    height: 44px;
+    width: 36px;
+    border-radius: 8px;
   }
 
   .mbp-hero-face .avf-angle-btn:not(.avf-angle-btn--3d) .avf-angle-icon {
@@ -535,54 +562,125 @@ html:has(.mbp-root) {
 @media (max-width: 860px) {
   .mbp-plan-strip {
     display: block;
-    padding: 0;
+    padding: 1.75rem 1.35rem 1.5rem;
+    margin-top: 0.25rem;
+    background: transparent;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: none;
   }
 
-  .mbp-plan-strip-items {
-    grid-template-columns: repeat(2, 1fr);
-    width: 100%;
-    padding: 0;
+  .mbp-plan-strip-head {
+    margin-bottom: 1.15rem;
+  }
+
+  .mbp-plan-strip-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin: 0 0 0.4rem;
+    color: var(--mbp-text);
+  }
+
+  .mbp-plan-strip-sub {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--mbp-muted);
+    margin: 0;
+  }
+
+  .mbp-plan-strip-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--mbp-border);
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.02);
   }
 
   .mbp-plan-strip-item {
-    padding: 1rem 1.1rem;
-    gap: 0.7rem;
-    border-right-color: var(--mbp-border);
-    border-bottom-color: var(--mbp-border);
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1.05rem 1.1rem;
+    border: none;
+    border-bottom: 1px solid var(--mbp-border);
+    border-radius: 0;
+    background: transparent;
+    transition: background 0.15s;
+  }
+
+  .mbp-plan-strip-item:last-child {
+    border-bottom: none;
+  }
+
+  .mbp-plan-strip-item:active {
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .mbp-plan-strip-item .mbp-strip-num {
-    font-size: 0.68rem;
-    width: 22px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    width: 1.6rem;
+    flex-shrink: 0;
+  }
+
+  .mbp-plan-strip-item .mbp-strip-copy {
+    flex: 1;
+    min-width: 0;
   }
 
   .mbp-plan-strip-item .mbp-strip-name {
-    font-size: 0.88rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--mbp-text);
   }
 
   .mbp-plan-strip-item .mbp-strip-area {
-    font-size: 0.74rem;
-    margin-top: 0.15rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--mbp-muted);
+    margin-top: 0.2rem;
   }
 
-  .mbp-plan-strip-item:nth-child(2n) {
-    border-right-color: transparent;
+  .mbp-plan-strip-item .mbp-strip-chevron {
+    flex-shrink: 0;
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--mbp-muted);
+    opacity: 0.45;
   }
 
   .mbp-plan-strip-explore {
-    grid-column: 1 / -1;
-    display: flex;
-    justify-content: center;
-    padding: 1rem 1rem 0.6rem;
-    border: 1px solid transparent;
-    border-top-color: var(--mbp-border);
+    margin-top: 1.15rem;
+    padding: 0;
   }
 
   .mbp-plan-strip-explore-btn {
     display: inline-flex;
-    width: 100%;
+    align-items: center;
     justify-content: center;
-    gap: 0.35rem;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.88rem 1.25rem;
+    border: 1px solid rgba(45, 212, 191, 0.32);
+    border-radius: 100px;
+    background: rgba(45, 212, 191, 0.07);
+    color: var(--mbp-teal);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .mbp-plan-strip-explore-btn:active {
+    background: rgba(45, 212, 191, 0.14);
+    border-color: rgba(45, 212, 191, 0.45);
   }
 
   .mbp-plan-strip-explore-arrow {
@@ -597,11 +695,11 @@ html:has(.mbp-root) {
   }
 
   .mbp-treatments {
-    padding-top: 0.5rem;
+    padding-top: 1.25rem;
   }
 
   .mbp-treatments > [id^="treatment-"]:first-child .mbp-treatment {
-    padding-top: 1.5rem;
+    padding-top: 2.25rem;
   }
 }
 
@@ -682,12 +780,29 @@ html:has(.mbp-root) {
   border-bottom: 1px solid var(--mbp-border);
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-areas: "copy photo";
   gap: 5rem;
   align-items: start;
   position: relative;
   opacity: 1;
   transform: translateY(0);
   transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mbp-treatment--flip {
+  grid-template-areas: "photo copy";
+}
+
+.mbp-treatment-copy {
+  grid-area: copy;
+  position: relative;
+  z-index: 1;
+}
+
+.mbp-treatment-right {
+  grid-area: photo;
+  position: relative;
+  z-index: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -708,11 +823,6 @@ html:has(.mbp-root) {
   z-index: 0;
 }
 
-.mbp-treatment-left,
-.mbp-treatment-right {
-  position: relative;
-  z-index: 1;
-}
 
 .mbp-treatment-header {
   margin-bottom: 2rem;
@@ -874,20 +984,30 @@ html:has(.mbp-root) {
   position: relative;
   width: 100%;
   line-height: 0;
+  background: var(--mbp-bg2);
 }
 
 .mbp-face-hl-inner .ai-mirror-canvas {
   width: 100% !important;
   height: auto !important;
   display: block;
-  filter: saturate(0.88);
+  filter: saturate(0.86) brightness(0.88) contrast(1.04);
 }
 
 .mbp-face-hl-inner .ai-mirror-fallback-img {
   width: 100%;
   height: auto;
   display: block;
-  filter: saturate(0.82) brightness(0.9);
+  filter: saturate(0.82) brightness(0.84) contrast(1.04);
+}
+
+.mbp-face-hl-inner .ai-mirror-unavailable {
+  background: var(--mbp-bg2);
+  color: var(--mbp-muted);
+}
+
+.mbp-face-hl-inner .ai-mirror-unavailable strong {
+  color: var(--mbp-text);
 }
 
 /* Desktop: drop the global AiMirrorCanvas 360px cap; height is synced to the
@@ -1277,27 +1397,46 @@ html:has(.mbp-root) {
   }
   .mbp-treatment {
     grid-template-columns: 1fr;
-    gap: 2.5rem;
+    grid-template-areas:
+      "header"
+      "photo"
+      "body";
+    gap: 2rem;
     padding: 3rem 2.5rem;
   }
-  /* Mobile: always description → photo. Desktop zigzag DOM order would
-     stack two annotated photos back-to-back between sections. */
-  .mbp-treatment-left {
-    order: 1;
-    text-align: left;
+
+  .mbp-treatment--flip {
+    grid-template-areas:
+      "header"
+      "photo"
+      "body";
   }
-  .mbp-treatment-right {
-    order: 2;
+
+  .mbp-treatment-copy {
+    display: contents;
   }
+
   .mbp-treatment-header {
+    grid-area: header;
     width: 100%;
     max-width: none;
     margin-left: 0;
     margin-right: 0;
+    margin-bottom: 0;
     padding-inline: 0;
     box-sizing: border-box;
     text-align: left;
   }
+
+  .mbp-treatment-body {
+    grid-area: body;
+    text-align: left;
+  }
+
+  .mbp-treatment-right {
+    grid-area: photo;
+  }
+
   .mbp-treatment-tagline {
     max-width: none;
   }
@@ -1809,12 +1948,39 @@ html:has(.mbp-root) {
 
   .mbp-hero-right {
     order: 1;
-    height: 72vw;
-    min-height: 280px;
-    max-height: 380px;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .mbp-hero-face-wrap {
+    min-height: 400px;
+  }
+
+  .mbp-hero-face.avf-root {
+    min-height: 400px;
   }
 
   .mbp-hero-left {
+    display: none;
+  }
+
+  .mbp-header-patient {
+    font-size: 0.72rem;
+  }
+
+  .mbp-header-patient-lead,
+  .mbp-header-sep {
+    display: none;
+  }
+
+  .mbp-header-patient strong::before {
+    content: "Plan · ";
+    font-weight: 500;
+    color: var(--mbp-muted);
+  }
+
+  .mbp-book-bar-label {
     display: none;
   }
 

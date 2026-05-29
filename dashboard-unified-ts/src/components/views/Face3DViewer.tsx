@@ -1443,7 +1443,20 @@ export default function Face3DViewer({
       const afterSeek = () => {
         if (cancelled) return;
         syncYawFromVideo({ queueLandmarks: false });
-        if (autoRotateRef.current) beginAutoRotate();
+        if (autoRotateRef.current) {
+          beginAutoRotate();
+          return;
+        }
+        setActiveVideo("forward");
+        const v = videoRef.current;
+        if (v?.paused) {
+          // iOS/Safari may not paint a frame until play() has run at least once.
+          void v.play()
+            .then(() => {
+              v.pause();
+            })
+            .catch(() => {});
+        }
       };
       if (Math.abs(video.currentTime - target) < SCRUB_SEEK_EPS) afterSeek();
       else {
@@ -1630,6 +1643,17 @@ export default function Face3DViewer({
 
     if (ms === 0 || Math.abs(shortestDelta) < 0.03) {
       setFrame(target, true);
+      if (!autoRotateRef.current) {
+        setActiveVideo("forward");
+        const v = videoRef.current;
+        if (v?.paused) {
+          void v.play()
+            .then(() => {
+              v.pause();
+            })
+            .catch(() => {});
+        }
+      }
       return;
     }
 

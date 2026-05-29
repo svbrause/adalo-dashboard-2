@@ -15,6 +15,8 @@ import {
 import {
   avoidMirrorViewportOverlay,
   MIRROR_ANNOTATION_THEME,
+  mirrorAnnotationThemeFromAccent,
+  type MirrorAnnotationTheme,
   mirrorViewportOverlaySafeBottom,
 } from "../../constants/mirrorAnnotationTheme";
 import {
@@ -399,6 +401,7 @@ function drawSoftFeatureRegion(
   center: { x: number; y: number },
   width: number,
   height: number,
+  theme: MirrorAnnotationTheme,
 ): void {
   const base = Math.min(width, height);
   const isNasolabial = regionId.includes("NasolabialFold");
@@ -412,9 +415,9 @@ function drawSoftFeatureRegion(
   ctx.rotate(rotation);
 
   const gradient = ctx.createRadialGradient(0, 0, 1, 0, 0, Math.max(rx, ry));
-  gradient.addColorStop(0, MIRROR_ANNOTATION_THEME.softFillStart);
-  gradient.addColorStop(0.58, MIRROR_ANNOTATION_THEME.softFillMid);
-  gradient.addColorStop(1, MIRROR_ANNOTATION_THEME.softFillEnd);
+  gradient.addColorStop(0, theme.softFillStart);
+  gradient.addColorStop(0.58, theme.softFillMid);
+  gradient.addColorStop(1, theme.softFillEnd);
 
   ctx.beginPath();
   ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
@@ -423,7 +426,7 @@ function drawSoftFeatureRegion(
 
   ctx.beginPath();
   ctx.ellipse(0, 0, rx * 0.72, ry * 0.72, 0, 0, Math.PI * 2);
-  ctx.strokeStyle = MIRROR_ANNOTATION_THEME.softStroke;
+  ctx.strokeStyle = theme.softStroke;
   ctx.lineWidth = Math.max(1, base * 0.0014);
   ctx.stroke();
 
@@ -484,6 +487,7 @@ function drawAnnotatedFace(
   manualRegionIds: string[],
   logicalWidth: number,
   logicalHeight: number,
+  theme: MirrorAnnotationTheme = MIRROR_ANNOTATION_THEME,
 ): void {
   const cw = logicalWidth;
   const ch = logicalHeight;
@@ -507,7 +511,7 @@ function drawAnnotatedFace(
     if (isLinearFeatureRegion(id) && highlightedRegions.has(id)) {
       const center = softFeatureCenter(id, landmarks, cw, ch);
       if (center) {
-        drawSoftFeatureRegion(ctx, id, center, cw, ch);
+        drawSoftFeatureRegion(ctx, id, center, cw, ch, theme);
         regionLabels.push({
           label: REGION_DISPLAY_LABEL[id] ?? "Focus Area",
           x: center.x,
@@ -524,9 +528,9 @@ function drawAnnotatedFace(
     ctx.moveTo(poly[0].x, poly[0].y);
     for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
     ctx.closePath();
-    ctx.fillStyle = MIRROR_ANNOTATION_THEME.regionFill;
+    ctx.fillStyle = theme.regionFill;
     ctx.fill();
-    ctx.strokeStyle = MIRROR_ANNOTATION_THEME.regionStroke;
+    ctx.strokeStyle = theme.regionStroke;
     ctx.lineWidth = Math.max(1.3, Math.min(cw, ch) * 0.0022);
     ctx.stroke();
 
@@ -591,22 +595,22 @@ function drawAnnotatedFace(
       const anchorY = calloutY + boxH / 2;
 
       // Connector line from label box to highlighted region center.
-      ctx.strokeStyle = MIRROR_ANNOTATION_THEME.connector;
+      ctx.strokeStyle = theme.connector;
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(anchorX, anchorY);
       ctx.lineTo(row.x, row.y);
       ctx.stroke();
 
-      ctx.fillStyle = MIRROR_ANNOTATION_THEME.labelFill;
-      ctx.strokeStyle = MIRROR_ANNOTATION_THEME.labelStroke;
+      ctx.fillStyle = theme.labelFill;
+      ctx.strokeStyle = theme.labelStroke;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(resolvedX, calloutY, boxW, boxH, 999);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = MIRROR_ANNOTATION_THEME.labelText;
+      ctx.fillStyle = theme.labelText;
       const textPos = snapMirrorLabelTextPosition(resolvedX + padX, calloutY + boxH / 2);
       ctx.fillText(row.label, textPos.x, textPos.y);
     };
@@ -632,6 +636,8 @@ export interface AiMirrorCanvasProps {
   /** Manually selected regions — shared with 3D turntable. */
   highlightedRegionIds?: string[];
   showAnnotations?: boolean;
+  /** Treatment/chapter accent — tints region fills, strokes, and callout badges. */
+  annotationColor?: string;
 }
 
 /**
@@ -644,6 +650,7 @@ export function AiMirrorCanvas({
   highlightTerms = [],
   highlightedRegionIds = [],
   showAnnotations = true,
+  annotationColor,
 }: AiMirrorCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -654,6 +661,9 @@ export function AiMirrorCanvas({
   const manualRegionsFingerprint = highlightedRegionIdsFingerprint(highlightedRegionIds);
 
   useEffect(() => {
+    const annotationTheme = annotationColor
+      ? mirrorAnnotationThemeFromAccent(annotationColor)
+      : MIRROR_ANNOTATION_THEME;
     let cancelled = false;
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
@@ -713,6 +723,7 @@ export function AiMirrorCanvas({
             highlightedRegionIds,
             cw,
             ch,
+            annotationTheme,
           );
         }
         if (!cancelled) setStatus("ready");
@@ -751,7 +762,7 @@ export function AiMirrorCanvas({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- highlightTerms omitted on purpose:
     // compare via highlightFingerprint so new array refs from parents do not re-run MediaPipe.
-  }, [imageUrl, highlightFingerprint, manualRegionsFingerprint, showAnnotations]);
+  }, [imageUrl, highlightFingerprint, manualRegionsFingerprint, showAnnotations, annotationColor]);
 
   return (
     <div

@@ -225,8 +225,8 @@ function useSmoothSectionScroll() {
 
 /** Desktop: cap annotated photo card height to the adjacent text column. */
 function useMatchFaceCardToTextHeight(
-  textRef: RefObject<HTMLElement | null>,
-  faceInnerRef: RefObject<HTMLElement | null>,
+  textRef: RefObject<HTMLElement>,
+  faceInnerRef: RefObject<HTMLElement>,
 ) {
   useEffect(() => {
     const text = textRef.current;
@@ -275,7 +275,7 @@ function TreatmentFaceCard({
   color: string;
   dose: string;
   area: string;
-  faceInnerRef?: RefObject<HTMLDivElement | null>;
+  faceInnerRef?: RefObject<HTMLDivElement>;
 }) {
   return (
     <div className="mbp-face-hl">
@@ -285,6 +285,7 @@ function TreatmentFaceCard({
           alt="Tanya M — treatment area"
           highlightedRegionIds={TREATMENT_REGION_IDS[treatmentId] ?? []}
           showAnnotations
+          annotationColor={color}
         />
         <div className="mbp-face-hl-badge">
           <span className="mbp-face-hl-badge-area">{area}</span>
@@ -305,28 +306,30 @@ function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
   const faceInnerRef = useRef<HTMLDivElement>(null);
   useMatchFaceCardToTextHeight(textRef, faceInnerRef);
 
-  const textCol = (
-    <div className="mbp-treatment-left" ref={textRef}>
-      <div className="mbp-treatment-header">
-        <div className="mbp-treatment-num-row">
-          <span className="mbp-treatment-num">{t.number}</span>
-          <div className="mbp-treatment-accent-line" style={{ background: t.color }} />
-        </div>
-        <h2
-          className="mbp-treatment-name"
-          style={{
-            background: `linear-gradient(120deg, #f0f2f6 25%, ${t.color} 100%)`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}
-        >
-          {t.name}
-        </h2>
-        <p className="mbp-treatment-genus">{t.genus}</p>
-        <p className="mbp-treatment-tagline">{t.tagline}</p>
+  const headerBlock = (
+    <div className="mbp-treatment-header">
+      <div className="mbp-treatment-num-row">
+        <span className="mbp-treatment-num">{t.number}</span>
+        <div className="mbp-treatment-accent-line" style={{ background: t.color }} />
       </div>
+      <h2
+        className="mbp-treatment-name"
+        style={{
+          background: `linear-gradient(120deg, #f0f2f6 25%, ${t.color} 100%)`,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+        }}
+      >
+        {t.name}
+      </h2>
+      <p className="mbp-treatment-genus">{t.genus}</p>
+      <p className="mbp-treatment-tagline">{t.tagline}</p>
+    </div>
+  );
 
+  const bodyBlock = (
+    <div className="mbp-treatment-body">
       <p className="mbp-treatment-section-label" style={{ color: t.color }}>Why for Tanya M</p>
       <ul className="mbp-why-list">
         {t.whyForYou.map((reason) => (
@@ -366,10 +369,14 @@ function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
 
   return (
     <div
-      className={`mbp-treatment mbp-treatment--${t.id}`}
+      className={`mbp-treatment mbp-treatment--${t.id}${isEven ? "" : " mbp-treatment--flip"}`}
       style={{ background: isEven ? "var(--mbp-bg)" : "linear-gradient(160deg, var(--mbp-bg2) 0%, var(--mbp-bg) 100%)" }}
     >
-      {isEven ? <>{textCol}{faceCol}</> : <>{faceCol}{textCol}</>}
+      <div className="mbp-treatment-copy" ref={textRef}>
+        {headerBlock}
+        {bodyBlock}
+      </div>
+      {faceCol}
     </div>
   );
 }
@@ -681,7 +688,8 @@ export default function MerzBlueprintPage() {
           <img src="/branding/ponce-dark-mode.png" alt="Ponce AI" className="mbp-logo-img" />
           <div className="mbp-header-sep" />
           <span className="mbp-header-patient">
-            Treatment plan for <strong>Tanya M</strong>
+            <span className="mbp-header-patient-lead">Treatment plan for </span>
+            <strong>Tanya M</strong>
           </span>
         </div>
         <nav className="mbp-header-nav">
@@ -704,8 +712,8 @@ export default function MerzBlueprintPage() {
               embedded
               turntableOnly
               disableWheelZoom
-              initialZoom={1.18}
-              initialPanY={-28}
+              initialZoom={1.38}
+              initialPanY={-36}
             />
           </div>
         </div>
@@ -762,25 +770,35 @@ export default function MerzBlueprintPage() {
 
       {/* ── Plan strip — mobile only ──────────────────────────── */}
       <div className="mbp-plan-strip">
-        <div className="mbp-plan-strip-items">
+        <div className="mbp-plan-strip-head">
+          <h2 className="mbp-plan-strip-title">Your plan</h2>
+          <p className="mbp-plan-strip-sub">4 scan-backed treatments for Tanya M</p>
+        </div>
+        <div className="mbp-plan-strip-list">
           {TREATMENTS.map((t) => (
-            <a key={t.id} href={`#treatment-${t.id}`} className="mbp-plan-strip-item" style={{ textDecoration: "none" }}>
+            <a
+              key={t.id}
+              href={`#treatment-${t.id}`}
+              className="mbp-plan-strip-item"
+              style={{ textDecoration: "none" }}
+            >
               <span className="mbp-strip-num" style={{ color: t.color }}>{t.number}</span>
-              <div>
+              <div className="mbp-strip-copy">
                 <div className="mbp-strip-name">{t.name}</div>
                 <div className="mbp-strip-area">{planStripDetail(t)}</div>
               </div>
+              <span className="mbp-strip-chevron" aria-hidden="true">›</span>
             </a>
           ))}
-          <div className="mbp-plan-strip-explore">
-            <a
-              href="#treatment-xeomin"
-              className="mbp-btn mbp-btn--secondary mbp-btn--thin mbp-plan-strip-explore-btn mbp-hero-explore-btn--mobile"
-            >
-              Explore treatments
-              <span className="mbp-plan-strip-explore-arrow" aria-hidden="true">↓</span>
-            </a>
-          </div>
+        </div>
+        <div className="mbp-plan-strip-explore">
+          <a
+            href="#treatment-xeomin"
+            className="mbp-plan-strip-explore-btn mbp-hero-explore-btn--mobile"
+          >
+            Explore treatments
+            <span className="mbp-plan-strip-explore-arrow" aria-hidden="true">↓</span>
+          </a>
         </div>
       </div>
 

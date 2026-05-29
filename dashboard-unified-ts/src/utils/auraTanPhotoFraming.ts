@@ -5,11 +5,11 @@ import type { AuraTanViewAngle } from "./auraTanAnglePhotos";
  * Used as CSS transforms on full-res PNGs — no re-encoded assets.
  */
 const PLATE_ALIGN: Record<AuraTanViewAngle, { scale: number; ox: number; oy: number }> = {
-  front: { scale: 0.177, ox: 301, oy: 248 },
-  "profile-left": { scale: 0.148, ox: 551, oy: 272 },
-  "three-quarter-left": { scale: 0.148, ox: 500, oy: 252 },
+  front: { scale: 0.177, ox: 301, oy: 275 },
+  "profile-left": { scale: 0.148, ox: 245, oy: 345 },
+  "three-quarter-left": { scale: 0.142, ox: 260, oy: 372 },
   "three-quarter-right": { scale: 0.139, ox: 340, oy: 318 },
-  "profile-right": { scale: 0.147, ox: 380, oy: 295 },
+  "profile-right": { scale: 0.147, ox: 380, oy: 328 },
 };
 
 /** Fixed front baseline — per-angle oy/ox edits move that angle without shifting others. */

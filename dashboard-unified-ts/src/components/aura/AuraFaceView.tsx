@@ -1106,21 +1106,27 @@ export default function AuraFaceView({
   );
 
   const selectTurntable = useCallback(() => {
+    if (turntableOnly) {
+      setAutoRotate(true);
+    }
     setFaceSource("turntable");
     setRadarMode(false);
-  }, []);
+  }, [turntableOnly]);
 
   const selectPhotoAngle = useCallback((angle: ViewAngle) => {
     setAutoRotate(false);
     setRadarMode(false);
     if (turntableOnly) {
+      const ratio = tanAssetsForView(angle, true, viewerAngleAssets).timeRatio;
+      targetRatioRef.current = ratio;
+      setBlendRatio(ratio);
       setFaceSource(angle);
       setViewAngle(angle);
       return;
     }
     setFaceSource(angle);
     setViewAngle(angle);
-  }, [turntableOnly]);
+  }, [turntableOnly, viewerAngleAssets]);
 
   useEffect(() => {
     autoRotateRef.current = autoRotate;
@@ -1262,7 +1268,7 @@ export default function AuraFaceView({
           </button>
         ) : null}
         {(turntableOnly
-          ? [...navViewAngles].reverse()
+          ? [...navViewAngles]
           : [...ANGLE_CONTROLS].reverse().map((a) => a.id)
         ).map((angleId) => {
           const meta = ANGLE_CONTROLS.find((a) => a.id === angleId)!;
