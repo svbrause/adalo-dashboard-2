@@ -382,7 +382,6 @@ function BookingDrawer({
         role="dialog"
         aria-modal
         aria-hidden={!open}
-        inert={open ? undefined : ""}
         aria-label="Express interest in your treatment plan"
       >
         {/* Pull handle (mobile) */}
