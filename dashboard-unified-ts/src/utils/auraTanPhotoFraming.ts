@@ -5,14 +5,15 @@ import type { AuraTanViewAngle } from "./auraTanAnglePhotos";
  * Used as CSS transforms on full-res PNGs — no re-encoded assets.
  */
 const PLATE_ALIGN: Record<AuraTanViewAngle, { scale: number; ox: number; oy: number }> = {
-  front: { scale: 0.177, ox: 301, oy: 166 },
+  front: { scale: 0.177, ox: 301, oy: 248 },
   "profile-left": { scale: 0.148, ox: 551, oy: 272 },
   "three-quarter-left": { scale: 0.148, ox: 500, oy: 252 },
-  "three-quarter-right": { scale: 0.139, ox: 230, oy: 294 },
-  "profile-right": { scale: 0.147, ox: 159, oy: 271 },
+  "three-quarter-right": { scale: 0.139, ox: 340, oy: 318 },
+  "profile-right": { scale: 0.147, ox: 380, oy: 295 },
 };
 
-const REF = PLATE_ALIGN.front;
+/** Fixed front baseline — per-angle oy/ox edits move that angle without shifting others. */
+const REF = { scale: 0.177, ox: 301, oy: 166 };
 
 /** Scales 1024-space offsets to the dashboard face column (~400–520px wide). */
 const PLATE_PAN_SCALE_X = 0.36;

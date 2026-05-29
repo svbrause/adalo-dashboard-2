@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import AuraFaceView from "../aura/AuraFaceView";
 import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
 import "./MerzBlueprintPage.css";
@@ -143,6 +143,10 @@ function formatTotal(n: number) {
   return "$" + n.toLocaleString("en-US");
 }
 
+function planStripDetail(t: Treatment): string {
+  return t.id === "ultherapy" ? t.area : `${t.area} · ${t.dose}`;
+}
+
 // ── Scroll-reveal ─────────────────────────────────────────────────────────
 
 function useScrollReveal(selector: string) {
@@ -219,14 +223,63 @@ function useSmoothSectionScroll() {
   }, []);
 }
 
+/** Desktop: cap annotated photo card height to the adjacent text column. */
+function useMatchFaceCardToTextHeight(
+  textRef: RefObject<HTMLElement | null>,
+  faceInnerRef: RefObject<HTMLElement | null>,
+) {
+  useEffect(() => {
+    const text = textRef.current;
+    const face = faceInnerRef.current;
+    if (!text || !face) return undefined;
+
+    const mq = window.matchMedia("(min-width: 861px)");
+
+    const sync = () => {
+      if (!mq.matches) {
+        face.style.maxHeight = "";
+        face.style.height = "";
+        return;
+      }
+      const h = text.offsetHeight;
+      face.style.maxHeight = `${h}px`;
+      face.style.height = `${h}px`;
+    };
+
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(text);
+    mq.addEventListener("change", sync);
+    window.addEventListener("resize", sync);
+
+    return () => {
+      ro.disconnect();
+      mq.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+      face.style.maxHeight = "";
+      face.style.height = "";
+    };
+  }, [textRef, faceInnerRef]);
+}
+
 // ── Face region card ──────────────────────────────────────────────────────
 
-function TreatmentFaceCard({ treatmentId, color, dose, area }: {
-  treatmentId: string; color: string; dose: string; area: string;
+function TreatmentFaceCard({
+  treatmentId,
+  color,
+  dose,
+  area,
+  faceInnerRef,
+}: {
+  treatmentId: string;
+  color: string;
+  dose: string;
+  area: string;
+  faceInnerRef?: RefObject<HTMLDivElement | null>;
 }) {
   return (
     <div className="mbp-face-hl">
-      <div className="mbp-face-hl-inner">
+      <div className="mbp-face-hl-inner" ref={faceInnerRef}>
         <AiMirrorCanvas
           imageUrl="/demo-3d/tanya-tan-front.png"
           alt="Tanya M — treatment area"
@@ -248,9 +301,12 @@ function TreatmentFaceCard({ treatmentId, color, dose, area }: {
 
 function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
   const isEven = index % 2 === 0;
+  const textRef = useRef<HTMLDivElement>(null);
+  const faceInnerRef = useRef<HTMLDivElement>(null);
+  useMatchFaceCardToTextHeight(textRef, faceInnerRef);
 
   const textCol = (
-    <div className="mbp-treatment-left">
+    <div className="mbp-treatment-left" ref={textRef}>
       <div className="mbp-treatment-header">
         <div className="mbp-treatment-num-row">
           <span className="mbp-treatment-num">{t.number}</span>
@@ -298,7 +354,13 @@ function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
 
   const faceCol = (
     <div className="mbp-treatment-right">
-      <TreatmentFaceCard treatmentId={t.id} color={t.color} dose={t.dose} area={t.area} />
+      <TreatmentFaceCard
+        treatmentId={t.id}
+        color={t.color}
+        dose={t.dose}
+        area={t.area}
+        faceInnerRef={faceInnerRef}
+      />
     </div>
   );
 
@@ -309,6 +371,34 @@ function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
     >
       {isEven ? <>{textCol}{faceCol}</> : <>{faceCol}{textCol}</>}
     </div>
+  );
+}
+
+function TreatmentSectionScrollCue({
+  targetId,
+  label,
+  color,
+}: {
+  targetId: string;
+  label: string;
+  color: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="mbp-section-scroll-cue"
+      style={{ "--mbp-cue-color": color } as React.CSSProperties}
+      onClick={() => {
+        smoothScrollToSection(targetId);
+        history.replaceState(null, "", `#${targetId}`);
+      }}
+      aria-label={`Scroll to ${label}`}
+    >
+      <span className="mbp-section-scroll-cue-label">{label}</span>
+      <span className="mbp-section-scroll-cue-arrow" aria-hidden="true">
+        ↓
+      </span>
+    </button>
   );
 }
 
@@ -556,7 +646,7 @@ function StickyBookBar({ onOpen }: { onOpen: () => void }) {
   return (
     <div className="mbp-book-bar">
       <div className="mbp-book-bar-info">
-        <span className="mbp-book-bar-label">4 treatments · 1 visit</span>
+        <span className="mbp-book-bar-label">4 treatments</span>
         <span className="mbp-book-bar-total">$5,750</span>
       </div>
       <button className="mbp-book-bar-btn" onClick={onOpen}>
@@ -610,6 +700,7 @@ export default function MerzBlueprintPage() {
         <div className="mbp-hero-right">
           <div className="mbp-hero-face-wrap">
             <AuraFaceView
+              className="mbp-hero-face"
               embedded
               turntableOnly
               disableWheelZoom
@@ -627,10 +718,12 @@ export default function MerzBlueprintPage() {
             <span className="mbp-eyebrow-sub">Personalized treatment plan</span>
           </div>
 
-          <h1 className="mbp-hero-name">Tanya M</h1>
+          <div className="mbp-hero-title-row">
+            <h1 className="mbp-hero-name">Tanya M</h1>
+          </div>
 
           <p className="mbp-hero-tagline">
-            4 scan-backed treatments · one visit
+            4 scan-backed treatments
           </p>
 
           {/* Plan grid — desktop only (mobile uses the strip below) */}
@@ -654,7 +747,10 @@ export default function MerzBlueprintPage() {
           </div>
 
           <div className="mbp-hero-ctas">
-            <a href="#treatment-xeomin" className="mbp-btn mbp-btn--primary">
+            <a
+              href="#treatment-xeomin"
+              className="mbp-btn mbp-btn--primary mbp-hero-explore-btn mbp-hero-explore-btn--desktop"
+            >
               Explore plan ↓
             </a>
             <button className="mbp-btn mbp-btn--ghost" onClick={openDrawer}>
@@ -672,10 +768,19 @@ export default function MerzBlueprintPage() {
               <span className="mbp-strip-num" style={{ color: t.color }}>{t.number}</span>
               <div>
                 <div className="mbp-strip-name">{t.name}</div>
-                <div className="mbp-strip-area">{t.area} · {t.dose}</div>
+                <div className="mbp-strip-area">{planStripDetail(t)}</div>
               </div>
             </a>
           ))}
+          <div className="mbp-plan-strip-explore">
+            <a
+              href="#treatment-xeomin"
+              className="mbp-btn mbp-btn--secondary mbp-btn--thin mbp-plan-strip-explore-btn mbp-hero-explore-btn--mobile"
+            >
+              Explore treatments
+              <span className="mbp-plan-strip-explore-arrow" aria-hidden="true">↓</span>
+            </a>
+          </div>
         </div>
       </div>
 
@@ -684,6 +789,20 @@ export default function MerzBlueprintPage() {
         {TREATMENTS.map((t, i) => (
           <div key={t.id} id={`treatment-${t.id}`}>
             <TreatmentSection t={t} index={i} />
+            {t.id === "belotero" && (
+              <TreatmentSectionScrollCue
+                targetId="treatment-ultherapy"
+                label="Ultherapy Prime"
+                color={TREATMENTS[3].color}
+              />
+            )}
+            {t.id === "ultherapy" && (
+              <TreatmentSectionScrollCue
+                targetId="investment"
+                label="Your investment"
+                color="var(--mbp-gold)"
+              />
+            )}
           </div>
         ))}
       </section>
