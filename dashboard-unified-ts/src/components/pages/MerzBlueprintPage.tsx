@@ -3,6 +3,31 @@ import AuraFaceView from "../aura/AuraFaceView";
 import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
 import "./MerzBlueprintPage.css";
 
+/** Temporary layout aid — remove when breakpoint issues are resolved. */
+function ViewportWidthIndicator() {
+  const [width, setWidth] = useState(
+    () => (typeof window !== "undefined" ? window.innerWidth : 0),
+  );
+
+  useEffect(() => {
+    const sync = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
+
+  const bucket =
+    width <= 720 ? "≤720 mobile"
+      : width <= 860 ? "721–860 mobile"
+        : width <= 1100 ? "861–1100 tablet"
+          : "≥1101 desktop";
+
+  return (
+    <div className="mbp-viewport-debug" aria-hidden="true">
+      {width}px · {bucket}
+    </div>
+  );
+}
+
 // ── MediaPipe region IDs per treatment ────────────────────────────────────
 
 const TREATMENT_REGION_IDS: Record<string, string[]> = {
@@ -223,43 +248,87 @@ function useSmoothSectionScroll() {
   }, []);
 }
 
-/** Desktop: cap annotated photo card height to the adjacent text column. */
-function useMatchFaceCardToTextHeight(
-  textRef: RefObject<HTMLElement>,
-  faceInnerRef: RefObject<HTMLElement>,
+/** Sync annotated photo height: full copy column on desktop, header+intro on tablet. */
+function useMatchFaceCardHeight(
+  headerRef: RefObject<HTMLElement | null>,
+  introRef: RefObject<HTMLElement | null>,
+  factsRef: RefObject<HTMLElement | null>,
+  faceInnerRef: RefObject<HTMLElement | null>,
 ) {
   useEffect(() => {
-    const text = textRef.current;
-    const face = faceInnerRef.current;
-    if (!text || !face) return undefined;
-
-    const mq = window.matchMedia("(min-width: 861px)");
+    const mqTablet = window.matchMedia("(min-width: 861px)");
+    const mqDesktop = window.matchMedia("(min-width: 1101px)");
 
     const sync = () => {
-      if (!mq.matches) {
+      const face = faceInnerRef.current;
+      if (!face) return;
+
+      if (!mqTablet.matches) {
         face.style.maxHeight = "";
         face.style.height = "";
         return;
       }
-      const h = text.offsetHeight;
-      face.style.maxHeight = `${h}px`;
-      face.style.height = `${h}px`;
+
+      const intro = introRef.current;
+      if (!intro) return;
+
+      let targetH: number;
+
+      if (mqDesktop.matches) {
+        const header = headerRef.current;
+        const facts = factsRef.current;
+        if (!header || !facts) return;
+
+        const grid = header.closest(".mbp-treatment");
+        const gap = grid
+          ? Number.parseFloat(window.getComputedStyle(grid).rowGap || "0") || 0
+          : 0;
+        targetH =
+          header.offsetHeight
+          + intro.offsetHeight
+          + facts.offsetHeight
+          + gap * 2;
+      } else {
+        const header = headerRef.current;
+        if (!header) return;
+
+        const grid = header.closest(".mbp-treatment");
+        const gap = grid
+          ? Number.parseFloat(window.getComputedStyle(grid).rowGap || "0") || 0
+          : 0;
+        const stackH = header.offsetHeight + intro.offsetHeight + gap;
+        targetH = Math.max(Math.round(stackH * 1.08), stackH + 24);
+      }
+
+      face.style.maxHeight = `${targetH}px`;
+      face.style.height = `${targetH}px`;
     };
 
     sync();
+    const raf = requestAnimationFrame(sync);
+
     const ro = new ResizeObserver(sync);
-    ro.observe(text);
-    mq.addEventListener("change", sync);
+    for (const ref of [headerRef, introRef, factsRef]) {
+      if (ref.current) ro.observe(ref.current);
+    }
+
+    mqTablet.addEventListener("change", sync);
+    mqDesktop.addEventListener("change", sync);
     window.addEventListener("resize", sync);
 
     return () => {
+      cancelAnimationFrame(raf);
       ro.disconnect();
-      mq.removeEventListener("change", sync);
+      mqTablet.removeEventListener("change", sync);
+      mqDesktop.removeEventListener("change", sync);
       window.removeEventListener("resize", sync);
-      face.style.maxHeight = "";
-      face.style.height = "";
+      const face = faceInnerRef.current;
+      if (face) {
+        face.style.maxHeight = "";
+        face.style.height = "";
+      }
     };
-  }, [textRef, faceInnerRef]);
+  }, [headerRef, introRef, factsRef, faceInnerRef]);
 }
 
 // ── Face region card ──────────────────────────────────────────────────────
@@ -302,12 +371,14 @@ function TreatmentFaceCard({
 
 function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
   const isEven = index % 2 === 0;
-  const textRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const introRef = useRef<HTMLDivElement>(null);
+  const factsRef = useRef<HTMLDivElement>(null);
   const faceInnerRef = useRef<HTMLDivElement>(null);
-  useMatchFaceCardToTextHeight(textRef, faceInnerRef);
+  useMatchFaceCardHeight(headerRef, introRef, factsRef, faceInnerRef);
 
   const headerBlock = (
-    <div className="mbp-treatment-header">
+    <div className="mbp-treatment-header" ref={headerRef}>
       <div className="mbp-treatment-num-row">
         <span className="mbp-treatment-num">{t.number}</span>
         <div className="mbp-treatment-accent-line" style={{ background: t.color }} />
@@ -328,8 +399,8 @@ function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
     </div>
   );
 
-  const bodyBlock = (
-    <div className="mbp-treatment-body">
+  const introBlock = (
+    <div className="mbp-treatment-intro" ref={introRef}>
       <p className="mbp-treatment-section-label" style={{ color: t.color }}>Why for Tanya M</p>
       <ul className="mbp-why-list">
         {t.whyForYou.map((reason) => (
@@ -342,7 +413,11 @@ function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
 
       <p className="mbp-treatment-section-label" style={{ color: t.color }}>How it works</p>
       <p className="mbp-how-body">{t.howItWorks}</p>
+    </div>
+  );
 
+  const factsBlock = (
+    <div className="mbp-treatment-facts" ref={factsRef}>
       <p className="mbp-treatment-section-label" style={{ color: t.color }}>Quick facts</p>
       <div className="mbp-facts">
         {t.facts.map((f) => (
@@ -372,11 +447,10 @@ function TreatmentSection({ t, index }: { t: Treatment; index: number }) {
       className={`mbp-treatment mbp-treatment--${t.id}${isEven ? "" : " mbp-treatment--flip"}`}
       style={{ background: isEven ? "var(--mbp-bg)" : "linear-gradient(160deg, var(--mbp-bg2) 0%, var(--mbp-bg) 100%)" }}
     >
-      <div className="mbp-treatment-copy" ref={textRef}>
-        {headerBlock}
-        {bodyBlock}
-      </div>
+      {headerBlock}
+      {introBlock}
       {faceCol}
+      {factsBlock}
     </div>
   );
 }
@@ -681,6 +755,7 @@ export default function MerzBlueprintPage() {
 
   return (
     <div className="mbp-root">
+      <ViewportWidthIndicator />
 
       {/* ── Fixed header ─────────────────────────────────────── */}
       <header className="mbp-header">
@@ -692,13 +767,10 @@ export default function MerzBlueprintPage() {
             <strong>Tanya M</strong>
           </span>
         </div>
-        <nav className="mbp-header-nav">
+        <nav className="mbp-header-nav" aria-label="Jump to treatment">
           {TREATMENTS.map((t) => (
             <a key={t.id} href={`#treatment-${t.id}`} className="mbp-header-pill">{t.name}</a>
           ))}
-          <button className="mbp-header-pill mbp-header-pill--cta" onClick={openDrawer}>
-            Express interest
-          </button>
         </nav>
       </header>
 

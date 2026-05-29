@@ -657,8 +657,24 @@ export function AiMirrorCanvas({
   const [status, setStatus] = useState<MirrorStatus>("loading");
   const [fallbackImageUrl, setFallbackImageUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [layoutWidth, setLayoutWidth] = useState(0);
   const highlightFingerprint = highlightTermsFingerprint(highlightTerms);
   const manualRegionsFingerprint = highlightedRegionIdsFingerprint(highlightedRegionIds);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return undefined;
+
+    const syncWidth = () => {
+      const w = Math.round(wrap.getBoundingClientRect().width);
+      if (w > 0) setLayoutWidth(w);
+    };
+
+    syncWidth();
+    const ro = new ResizeObserver(syncWidth);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const annotationTheme = annotationColor
@@ -667,7 +683,7 @@ export function AiMirrorCanvas({
     let cancelled = false;
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
-    if (!canvas || !wrap || !imageUrl) return undefined;
+    if (!canvas || !wrap || !imageUrl || layoutWidth <= 0) return undefined;
 
     setStatus("loading");
     setFallbackImageUrl(null);
@@ -689,7 +705,7 @@ export function AiMirrorCanvas({
         const img = await loadImage(displayUrl, true);
         if (cancelled) return;
 
-        const maxW = Math.max(280, wrap.clientWidth || 560);
+        const maxW = Math.max(280, layoutWidth);
         const scale = Math.min(1, maxW / img.naturalWidth);
         const cw = Math.max(1, Math.round(img.naturalWidth * scale));
         const ch = Math.max(1, Math.round(img.naturalHeight * scale));
@@ -762,7 +778,7 @@ export function AiMirrorCanvas({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- highlightTerms omitted on purpose:
     // compare via highlightFingerprint so new array refs from parents do not re-run MediaPipe.
-  }, [imageUrl, highlightFingerprint, manualRegionsFingerprint, showAnnotations, annotationColor]);
+  }, [imageUrl, highlightFingerprint, manualRegionsFingerprint, showAnnotations, annotationColor, layoutWidth]);
 
   return (
     <div

@@ -39,6 +39,25 @@ html:has(.mbp-root) {
   padding-bottom: 80px;
 }
 
+/* Dev-only viewport width — remove when layout QA is done */
+.mbp-viewport-debug {
+  position: fixed;
+  bottom: 76px;
+  left: 12px;
+  z-index: 300;
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(240, 242, 246, 0.85);
+  background: rgba(6, 8, 16, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
 /* ── Fixed header ─────────────────────────────────────────── */
 
 .mbp-header {
@@ -61,6 +80,7 @@ html:has(.mbp-root) {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 /* Ponce dark-mode logo — white text, works directly on dark background */
@@ -93,6 +113,9 @@ html:has(.mbp-root) {
   font-size: 0.78rem;
   color: var(--mbp-muted);
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mbp-header-patient strong {
@@ -102,6 +125,8 @@ html:has(.mbp-root) {
 .mbp-header-nav {
   display: flex;
   gap: 0.35rem;
+  flex-shrink: 0;
+  align-items: center;
 }
 
 .mbp-header-pill {
@@ -117,6 +142,8 @@ html:has(.mbp-root) {
   cursor: pointer;
   text-decoration: none;
   transition: color 0.18s, border-color 0.18s, background 0.18s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .mbp-header-pill:hover {
@@ -780,7 +807,10 @@ html:has(.mbp-root) {
   border-bottom: 1px solid var(--mbp-border);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-areas: "copy photo";
+  grid-template-areas:
+    "header photo"
+    "intro photo"
+    "facts photo";
   gap: 5rem;
   align-items: start;
   position: relative;
@@ -790,19 +820,34 @@ html:has(.mbp-root) {
 }
 
 .mbp-treatment--flip {
-  grid-template-areas: "photo copy";
+  grid-template-areas:
+    "photo header"
+    "photo intro"
+    "photo facts";
 }
 
-.mbp-treatment-copy {
-  grid-area: copy;
-  position: relative;
-  z-index: 1;
+.mbp-treatment-header {
+  grid-area: header;
+  margin-bottom: 0;
+}
+
+.mbp-treatment-intro {
+  grid-area: intro;
+}
+
+.mbp-treatment-facts {
+  grid-area: facts;
+}
+
+.mbp-treatment-intro .mbp-treatment-section-label:first-child {
+  margin-top: 0;
 }
 
 .mbp-treatment-right {
   grid-area: photo;
   position: relative;
   z-index: 1;
+  align-self: start;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -823,10 +868,6 @@ html:has(.mbp-root) {
   z-index: 0;
 }
 
-
-.mbp-treatment-header {
-  margin-bottom: 2rem;
-}
 
 .mbp-treatment-num-row {
   display: flex;
@@ -1010,8 +1051,7 @@ html:has(.mbp-root) {
   color: var(--mbp-text);
 }
 
-/* Desktop: drop the global AiMirrorCanvas 360px cap; height is synced to the
-   adjacent text column in JS (see useMatchFaceCardToTextHeight). */
+/* Tablet/desktop: height synced to intro column; crop forehead via object-position. */
 @media (min-width: 861px) {
   .mbp-face-hl-inner {
     display: flex;
@@ -1021,19 +1061,33 @@ html:has(.mbp-root) {
   .mbp-face-hl-inner .ai-mirror-canvas-wrap {
     flex: 1;
     min-height: 0;
+    height: 100%;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .mbp-face-hl-inner .ai-mirror-canvas,
   .mbp-face-hl-inner .ai-mirror-fallback-img {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none;
+    object-fit: cover;
+    object-position: center 62%;
+  }
+}
+
+@media (min-width: 1101px) {
+  .mbp-treatment-right {
+    align-self: stretch;
+  }
+
+  .mbp-face-hl,
+  .mbp-face-hl-inner {
+    height: 100%;
+  }
+
+  .mbp-face-hl-inner .ai-mirror-canvas,
+  .mbp-face-hl-inner .ai-mirror-fallback-img {
+    object-position: center 58%;
   }
 }
 
@@ -1372,6 +1426,22 @@ html:has(.mbp-root) {
 /* ── Responsive ───────────────────────────────────────────── */
 
 @media (max-width: 1100px) {
+  .mbp-header-patient-lead,
+  .mbp-header-sep {
+    display: none;
+  }
+
+  .mbp-header-patient strong::before {
+    content: "Plan · ";
+    font-weight: 500;
+    color: var(--mbp-muted);
+  }
+
+  /* Treatment links live in the plan strip on tablet/mobile. */
+  .mbp-header-nav {
+    display: none;
+  }
+
   .mbp-hero {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
@@ -1396,45 +1466,40 @@ html:has(.mbp-root) {
     display: none;
   }
   .mbp-treatment {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 42%);
     grid-template-areas:
-      "header"
-      "photo"
-      "body";
+      "header photo"
+      "intro photo"
+      "facts facts";
     gap: 2rem;
     padding: 3rem 2.5rem;
   }
 
   .mbp-treatment--flip {
     grid-template-areas:
-      "header"
-      "photo"
-      "body";
-  }
-
-  .mbp-treatment-copy {
-    display: contents;
+      "photo header"
+      "photo intro"
+      "facts facts";
   }
 
   .mbp-treatment-header {
-    grid-area: header;
     width: 100%;
     max-width: none;
     margin-left: 0;
     margin-right: 0;
-    margin-bottom: 0;
     padding-inline: 0;
     box-sizing: border-box;
     text-align: left;
   }
 
-  .mbp-treatment-body {
-    grid-area: body;
+  .mbp-treatment-intro,
+  .mbp-treatment-facts {
     text-align: left;
+    min-width: 0;
   }
 
   .mbp-treatment-right {
-    grid-area: photo;
+    min-width: 280px;
   }
 
   .mbp-treatment-tagline {
@@ -1965,19 +2030,43 @@ html:has(.mbp-root) {
     display: none;
   }
 
+  .mbp-treatment {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "photo"
+      "intro"
+      "facts";
+  }
+
+  .mbp-treatment--flip {
+    grid-template-areas:
+      "header"
+      "photo"
+      "intro"
+      "facts";
+  }
+
+  .mbp-treatment-right {
+    min-width: 0;
+  }
+
+  .mbp-face-hl-inner {
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .mbp-face-hl-inner .ai-mirror-canvas,
+  .mbp-face-hl-inner .ai-mirror-fallback-img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none;
+    object-fit: contain;
+    object-position: center center;
+  }
+
   .mbp-header-patient {
     font-size: 0.72rem;
-  }
-
-  .mbp-header-patient-lead,
-  .mbp-header-sep {
-    display: none;
-  }
-
-  .mbp-header-patient strong::before {
-    content: "Plan · ";
-    font-weight: 500;
-    color: var(--mbp-muted);
   }
 
   .mbp-book-bar-label {
