@@ -39,25 +39,6 @@ html:has(.mbp-root) {
   padding-bottom: 80px;
 }
 
-/* Dev-only viewport width — remove when layout QA is done */
-.mbp-viewport-debug {
-  position: fixed;
-  bottom: 76px;
-  left: 12px;
-  z-index: 300;
-  padding: 0.35rem 0.55rem;
-  border-radius: 6px;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: rgba(240, 242, 246, 0.85);
-  background: rgba(6, 8, 16, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  pointer-events: none;
-  backdrop-filter: blur(8px);
-}
-
 /* ── Fixed header ─────────────────────────────────────────── */
 
 .mbp-header {

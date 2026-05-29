@@ -3,31 +3,6 @@ import AuraFaceView from "../aura/AuraFaceView";
 import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
 import "./MerzBlueprintPage.css";
 
-/** Temporary layout aid — remove when breakpoint issues are resolved. */
-function ViewportWidthIndicator() {
-  const [width, setWidth] = useState(
-    () => (typeof window !== "undefined" ? window.innerWidth : 0),
-  );
-
-  useEffect(() => {
-    const sync = () => setWidth(window.innerWidth);
-    window.addEventListener("resize", sync);
-    return () => window.removeEventListener("resize", sync);
-  }, []);
-
-  const bucket =
-    width <= 720 ? "≤720 mobile"
-      : width <= 860 ? "721–860 mobile"
-        : width <= 1100 ? "861–1100 tablet"
-          : "≥1101 desktop";
-
-  return (
-    <div className="mbp-viewport-debug" aria-hidden="true">
-      {width}px · {bucket}
-    </div>
-  );
-}
-
 // ── MediaPipe region IDs per treatment ────────────────────────────────────
 
 const TREATMENT_REGION_IDS: Record<string, string[]> = {
@@ -755,7 +730,6 @@ export default function MerzBlueprintPage() {
 
   return (
     <div className="mbp-root">
-      <ViewportWidthIndicator />
 
       {/* ── Fixed header ─────────────────────────────────────── */}
       <header className="mbp-header">
