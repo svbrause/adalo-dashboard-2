@@ -9,6 +9,8 @@ export type MirrorViewportZoomOptions = {
   initialZoom?: number;
   initialPanX?: number;
   initialPanY?: number;
+  /** When false, wheel events pass through for page scroll (public blueprint pages). */
+  wheelZoomEnabled?: boolean;
   /** Called after zoom/pan changes (e.g. redraw annotation canvas). */
   onTransformChange?: () => void;
 };
@@ -19,6 +21,7 @@ export function useMirrorViewportZoom({
   initialZoom = 1,
   initialPanX = 0,
   initialPanY = 0,
+  wheelZoomEnabled = true,
   onTransformChange,
 }: MirrorViewportZoomOptions) {
   const minZoomRef = useRef(Math.max(MIN_ZOOM, initialZoom));
@@ -64,14 +67,14 @@ export function useMirrorViewportZoom({
 
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (!viewer) return;
+    if (!viewer || !wheelZoomEnabled) return;
 
     const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
       const oldZoom = zoomRef.current;
       const newZoom = Math.max(minZoomRef.current, Math.min(MAX_ZOOM, oldZoom * factor));
       if (newZoom === oldZoom) return;
+      e.preventDefault();
       const rect = viewer.getBoundingClientRect();
       const cx = e.clientX - (rect.left + rect.width / 2);
       const cy = e.clientY - (rect.top + rect.height / 2);
@@ -88,7 +91,7 @@ export function useMirrorViewportZoom({
 
     viewer.addEventListener("wheel", onWheel, { passive: false });
     return () => viewer.removeEventListener("wheel", onWheel);
-  }, [viewerRef, applyTransform]);
+  }, [viewerRef, applyTransform, wheelZoomEnabled]);
 
   useEffect(() => {
     const viewer = viewerRef.current;

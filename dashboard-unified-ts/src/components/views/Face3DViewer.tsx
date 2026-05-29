@@ -95,6 +95,8 @@ interface Face3DViewerProps {
   annotateMeasureRootRef?: (el: HTMLElement | null) => void;
   /** Opacity for the video/canvas media layer (0–1). Useful when an overlay replaces the video at anchor angles. */
   mediaOpacity?: number;
+  /** When false, wheel scroll passes through to the page instead of zooming. */
+  wheelZoomEnabled?: boolean;
 }
 
 function clampYaw(yawDeg: number): number {
@@ -522,6 +524,7 @@ export default function Face3DViewer({
   drawOverlay,
   annotateMeasureRootRef,
   mediaOpacity = 1,
+  wheelZoomEnabled = true,
 }: Face3DViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const zoomLayerRef = useRef<HTMLDivElement | null>(null);
@@ -1701,13 +1704,13 @@ export default function Face3DViewer({
   // ── Wheel-to-zoom ─────────────────────────────────────────────────────────
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (!viewer) return;
+    if (!viewer || !wheelZoomEnabled) return;
     const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
       const oldZoom = zoomRef.current;
       const newZoom = Math.max(minZoomRef.current, Math.min(MAX_ZOOM, oldZoom * factor));
       if (newZoom === oldZoom) return;
+      e.preventDefault();
       const rect = viewer.getBoundingClientRect();
       const cx = e.clientX - (rect.left + rect.width / 2);
       const cy = e.clientY - (rect.top + rect.height / 2);
@@ -1724,7 +1727,7 @@ export default function Face3DViewer({
     };
     viewer.addEventListener("wheel", onWheel, { passive: false });
     return () => viewer.removeEventListener("wheel", onWheel);
-  }, [applyTransform, renderCachedAnnotations]);
+  }, [applyTransform, renderCachedAnnotations, wheelZoomEnabled]);
 
   const resetZoom = useCallback(() => {
     const z = minZoomRef.current;

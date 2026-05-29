@@ -281,6 +281,7 @@ function AuraStaticPhotoView({
   drawOverlay,
   measureRootRef,
   cvAnnotations,
+  disableWheelZoom = false,
 }: {
   angle: ViewAngle;
   activeTab: AnalysisTab;
@@ -294,6 +295,7 @@ function AuraStaticPhotoView({
   drawOverlay?: ReactNode;
   measureRootRef?: (el: HTMLDivElement | null) => void;
   cvAnnotations: AuraCvAnnotations;
+  disableWheelZoom?: boolean;
 }) {
   const asset = viewerAssets[angle];
   const src =
@@ -316,6 +318,7 @@ function AuraStaticPhotoView({
     zoomLayerRef,
     initialZoom: TURNTABLE_MATCH_ZOOM,
     initialPanY: TURNTABLE_MATCH_PAN_Y,
+    wheelZoomEnabled: !disableWheelZoom,
   });
 
   return (
@@ -834,6 +837,8 @@ export interface AuraFaceViewProps {
   initialZoom?: number;
   /** Override default turntable pan-Y in px (default: TURNTABLE_MATCH_PAN_Y = -96). */
   initialPanY?: number;
+  /** Public blueprint pages: let wheel scroll the page instead of zooming the face. */
+  disableWheelZoom?: boolean;
 }
 
 export default function AuraFaceView({
@@ -860,6 +865,7 @@ export default function AuraFaceView({
   topbarEnd,
   initialZoom: initialZoomProp,
   initialPanY: initialPanYProp,
+  disableWheelZoom = false,
 }: AuraFaceViewProps) {
   const viewerAngleAssets = viewerAngleAssetsProp ?? TANYA_TAN_VIEWER_ANGLE_ASSETS;
   const effectiveCvAnnotations = useMemo(
@@ -1326,6 +1332,7 @@ export default function AuraFaceView({
                     showHint={false}
                     initialZoom={initialZoomProp ?? TURNTABLE_MATCH_ZOOM}
                     initialPanY={initialPanYProp ?? TURNTABLE_MATCH_PAN_Y}
+                    wheelZoomEnabled={!disableWheelZoom}
                     mediaOpacity={mediaOpacity}
                     drawOverlay={annotateOverlay}
                     annotateMeasureRootRef={setAnnotateMeasureRoot}
@@ -1379,6 +1386,7 @@ export default function AuraFaceView({
                     drawOverlay={annotateOverlay}
                     measureRootRef={setAnnotateMeasureRoot}
                     cvAnnotations={effectiveCvAnnotations}
+                    disableWheelZoom={disableWheelZoom}
                   />
                 ) : (
                   <AuraStaticPhotoView
@@ -1396,6 +1404,7 @@ export default function AuraFaceView({
                     drawOverlay={annotateOverlay}
                     measureRootRef={setAnnotateMeasureRoot}
                     cvAnnotations={effectiveCvAnnotations}
+                    disableWheelZoom={disableWheelZoom}
                   />
                 )}
               </div>

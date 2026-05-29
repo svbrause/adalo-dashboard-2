@@ -24,13 +24,16 @@
   --mbp-font:         "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
+html:has(.mbp-root) {
+  scroll-padding-top: var(--mbp-header-h);
+}
+
 .mbp-root {
   min-height: 100vh;
   background: var(--mbp-bg);
   color: var(--mbp-text);
   font-family: var(--mbp-font);
   -webkit-font-smoothing: antialiased;
-  scroll-behavior: smooth;
   overflow-x: hidden;
   /* Room for sticky booking bar */
   padding-bottom: 80px;
@@ -140,7 +143,8 @@
 .mbp-hero {
   display: grid;
   /* Face column wider; text column is an overlay on the left */
-  grid-template-columns: 38fr 62fr;
+  /* Face column (first in DOM) gets more space; text column stays compact */
+  grid-template-columns: 62fr 38fr;
   min-height: 100vh;
   padding-top: var(--mbp-header-h);
   position: relative;
@@ -163,8 +167,8 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 0 2rem 4rem 3.5rem;
+  justify-content: center;
+  padding: 5rem 2.5rem 4rem 2.5rem;
   gap: 0;
 }
 
@@ -213,6 +217,60 @@
   color: var(--mbp-muted);
   letter-spacing: 0.04em;
   margin-bottom: 2rem;
+}
+
+/* ── Hero plan grid (desktop right column) ───────────────── */
+
+.mbp-hero-plan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-bottom: 1.75rem;
+}
+
+.mbp-hero-plan-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--mbp-border);
+  border-radius: 10px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.mbp-hero-plan-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.mbp-hero-plan-num {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  flex-shrink: 0;
+  padding-top: 0.15rem;
+}
+
+.mbp-hero-plan-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--mbp-text);
+  line-height: 1.2;
+  margin-bottom: 0.18rem;
+}
+
+.mbp-hero-plan-area {
+  font-size: 0.66rem;
+  color: var(--mbp-muted);
+  line-height: 1.3;
+}
+
+/* Hide on mobile — the strip handles it */
+@media (max-width: 860px) {
+  .mbp-hero-plan-grid {
+    display: none;
+  }
 }
 
 .mbp-hero-ctas {
@@ -279,15 +337,20 @@
 
 /* ── Treatment plan strip ─────────────────────────────────── */
 
+/* Strip is mobile-only — desktop uses the hero right column plan grid */
 .mbp-plan-strip {
+  display: none;
   background: var(--mbp-card);
   border-top: 1px solid var(--mbp-border);
   border-bottom: 1px solid var(--mbp-border);
-  padding: 1.35rem 4rem;
-  display: flex;
-  align-items: center;
-  gap: 0;
-  overflow: hidden;
+  padding: 0.85rem 1.25rem;
+  overflow-x: auto;
+}
+
+@media (max-width: 860px) {
+  .mbp-plan-strip {
+    display: block;
+  }
 }
 
 .mbp-plan-strip-label {
@@ -302,18 +365,20 @@
 }
 
 .mbp-plan-strip-items {
-  display: flex;
+  display: grid;
+  /* 2×2 on mobile */
+  grid-template-columns: repeat(2, 1fr);
   gap: 0;
-  flex: 1;
 }
 
 .mbp-plan-strip-item {
   display: flex;
-  align-items: center;
-  flex: 1;
-  gap: 0.75rem;
-  padding: 0 1.5rem;
-  border-left: 1px solid var(--mbp-border);
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid transparent;
+  border-bottom-color: var(--mbp-border);
+  border-right-color: var(--mbp-border);
 }
 
 .mbp-strip-num {
@@ -341,6 +406,10 @@
 
 .mbp-treatments {
   padding: 5rem 0 2rem;
+}
+
+.mbp-treatments [id^="treatment-"] {
+  scroll-margin-top: calc(var(--mbp-header-h) + 1.25rem);
 }
 
 .mbp-treatment {
@@ -554,6 +623,16 @@
   height: auto;
   display: block;
   filter: saturate(0.82) brightness(0.9);
+}
+
+/* Desktop: drop the global AiMirrorCanvas 360px cap so treatment photos scale
+   to column width and match the tall section layout (see PostVisitBlueprint hero). */
+@media (min-width: 861px) {
+  .mbp-face-hl-inner .ai-mirror-canvas,
+  .mbp-face-hl-inner .ai-mirror-fallback-img {
+    max-height: none;
+    object-fit: contain;
+  }
 }
 
 .mbp-face-hl-inner .ai-mirror-loading {
@@ -908,19 +987,11 @@
     height: 100%;
   }
   .mbp-plan-strip {
-    padding: 1.1rem 2rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    overflow-x: auto;
   }
-  .mbp-plan-strip-items {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  .mbp-plan-strip-item {
-    border-left: none;
-    border-top: 1px solid var(--mbp-border);
-    padding: 0.5rem 0;
+  .mbp-plan-strip-label {
+    display: none;
   }
   .mbp-treatment {
     grid-template-columns: 1fr;
@@ -1081,6 +1152,11 @@
 
 .mbp-drawer--open {
   transform: translateY(0);
+}
+
+/* Closed drawer is off-screen / invisible but must not intercept scroll or clicks. */
+.mbp-drawer:not(.mbp-drawer--open) {
+  pointer-events: none;
 }
 
 /* Desktop: centered modal */
@@ -1453,8 +1529,8 @@
     margin-bottom: 1rem;
   }
 
-  /* Show only the primary CTA on mobile */
-  .mbp-hero-ctas .mbp-btn--primary {
+  /* Sticky bar already has Express interest — hide the duplicate in the hero */
+  .mbp-hero-ctas .mbp-btn--ghost {
     display: none;
   }
 

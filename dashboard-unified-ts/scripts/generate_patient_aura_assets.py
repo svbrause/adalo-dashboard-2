@@ -605,6 +605,83 @@ def detect_pores(texture_rgb: np.ndarray, alpha: np.ndarray, *, max_pores: int =
     return [{"cx": cx, "cy": cy, "r": r} for _score, (cx, cy, r) in pores[:max_pores]]
 
 
+def render_pore_mask(
+    rgb: np.ndarray,
+    alpha: np.ndarray,
+    *,
+    angle: str,
+) -> np.ndarray:
+    """Return a brownish RGBA mask highlighting the darkest ~25% of skin pixels.
+
+    Pores appear as pixels darker than their local surroundings; the signal is
+    (local_average - gray) at a scale matched to pore size (~4 px sigma).
+    Same skin-mask / surface geometry as render_redness_mask.
+    """
+    h, w = rgb.shape[:2]
+    bbox = redness_face_bbox(rgb, alpha, angle)
+    x0, y0, x1, y1 = bbox
+    fw, fh = max(1, x1 - x0), max(1, y1 - y0)
+    yy, xx = np.mgrid[0:h, 0:w]
+    nx = (xx - x0) / fw
+    ny = (yy - y0) / fh
+
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    hue, sat, val = cv2.split(hsv)
+    r_ch = rgb[:, :, 0].astype(np.int16)
+    g_ch = rgb[:, :, 1].astype(np.int16)
+    b_ch = rgb[:, :, 2].astype(np.int16)
+    chroma_ok = (
+        (hue < 18) & (sat > 18) & (sat < 128) & (val > 68) & (val < 250)
+        & (r_ch >= g_ch - 22) & (r_ch >= b_ch - 16)
+    )
+    magenta_hair = ((hue > 145) & (sat > 70)) | ((r_ch > g_ch + 38) & (b_ch > g_ch + 18) & (sat > 110))
+    base_skin = (chroma_ok & ~magenta_hair).astype(np.float32)
+
+    if angle == "front":
+        surface = 1 - _smoothstep(0.88, 1.10, ((nx - 0.50) / 0.47) ** 2 + ((ny - 0.55) / 0.58) ** 2)
+        surface *= _smoothstep(0.13, 0.20, nx) * (1 - _smoothstep(0.80, 0.88, nx))
+        surface *= _smoothstep(0.23, 0.31, ny) * (1 - _smoothstep(0.86, 0.96, ny))
+        eyes = _gaussian_2d(nx, ny, 0.35, 0.40, 0.13, 0.055) + _gaussian_2d(nx, ny, 0.65, 0.40, 0.13, 0.055)
+        lips = _gaussian_2d(nx, ny, 0.50, 0.70, 0.20, 0.050)
+        brows = _gaussian_2d(nx, ny, 0.35, 0.33, 0.14, 0.035) + _gaussian_2d(nx, ny, 0.65, 0.33, 0.14, 0.035)
+        surface *= 1 - np.clip(0.95 * eyes + 0.88 * lips + 0.55 * brows, 0, 0.95)
+    else:
+        surface = 1 - _smoothstep(0.88, 1.10, ((nx - 0.66) / 0.40) ** 2 + ((ny - 0.55) / 0.58) ** 2)
+        surface *= _smoothstep(0.16, 0.42, nx) * (1 - _smoothstep(0.93, 1.02, nx))
+        surface *= _smoothstep(0.25, 0.33, ny) * (1 - _smoothstep(0.86, 0.96, ny))
+        eyes = _gaussian_2d(nx, ny, 0.73, 0.40, 0.12, 0.055)
+        lips = _gaussian_2d(nx, ny, 0.80, 0.68, 0.15, 0.050)
+        surface *= 1 - np.clip(0.95 * eyes + 0.80 * lips, 0, 0.95)
+
+    skin_binary = ((base_skin * surface) > 0.05).astype(np.uint8)
+    close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    skin_binary = cv2.morphologyEx(skin_binary, cv2.MORPH_CLOSE, close_kernel, 1)
+    skin = np.clip(cv2.GaussianBlur(skin_binary.astype(np.float32) * surface, (0, 0), 2.2), 0, 1)
+    valid = skin > 0.12
+    if int(valid.sum()) < 500:
+        return np.zeros((h, w, 4), np.uint8)
+
+    # Pore signal: how much darker is each pixel than its local surroundings.
+    # sigma=4 matches pore scale (~4-8 px width in typical facial photos).
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    local_avg = cv2.GaussianBlur(gray, (0, 0), 4.0)
+    darkness = np.maximum(local_avg - gray, 0.0) * skin
+
+    thresh = float(np.percentile(darkness[valid], 75))
+    peak   = float(np.percentile(darkness[valid], 99))
+    heat = np.clip((darkness - thresh) / max(peak - thresh, 1e-3), 0, 1) * skin
+    # Small blur: keep pores crisp, not smeared like the redness overlay.
+    heat = cv2.GaussianBlur(heat, (0, 0), 1.5)
+    mask_alpha = np.clip(heat * 0.55, 0, 0.45)
+
+    rgba = np.zeros((h, w, 4), np.uint8)
+    rgba[:, :, 0] = 72   # brownish-dark
+    rgba[:, :, 1] = 44
+    rgba[:, :, 2] = 22
+    rgba[:, :, 3] = np.clip(mask_alpha * 255, 0, 255).astype(np.uint8)
+    return rgba
+
+
 def build_cv_annotations(
     angle_images: dict[str, np.ndarray],
     angle_alphas: dict[str, np.ndarray],
@@ -616,6 +693,7 @@ def build_cv_annotations(
     dark_spots: dict[str, list[dict[str, float]]] = {}
     red_spots: dict[str, list[dict[str, float]]] = {}
     red_masks: dict[str, str] = {}
+    pore_masks: dict[str, str] = {}
     all_pores: list[dict[str, float]] = []
     for angle in ANGLES:
         rgb = angle_images.get(angle)
@@ -635,6 +713,11 @@ def build_cv_annotations(
                 mask_path = target_dir / f"{slug}-{angle}-redness-mask.png"
                 save_rgba_png(red_mask, mask_path)
                 red_masks[angle] = f"/demo-3d/{slug}/{mask_path.name}"
+            pore_mask = render_pore_mask(rgb, alpha, angle=angle)
+            if int((pore_mask[:, :, 3] > 6).sum()) > 100:
+                pmask_path = target_dir / f"{slug}-{angle}-pore-mask.png"
+                save_rgba_png(pore_mask, pmask_path)
+                pore_masks[angle] = f"/demo-3d/{slug}/{pmask_path.name}"
         if angle == "front" and texture is not None:
             all_pores = detect_pores(texture, alpha)
 
@@ -643,6 +726,7 @@ def build_cv_annotations(
         "volume": [],
         "redAreas": [],
         "redMaskByAngle": red_masks,
+        "poreMaskByAngle": pore_masks,
         "redSpotsByAngle": red_spots,
         "pores": all_pores,
         "darkSpotsByAngle": dark_spots,

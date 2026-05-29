@@ -164,6 +164,61 @@ function useScrollReveal(selector: string) {
   }, [selector]);
 }
 
+const MBP_SCROLL_HEADER_OFFSET = 60;
+const MBP_SCROLL_DURATION_MS = 950;
+
+function easeInOutCubic(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
+}
+
+function smoothScrollToSection(id: string) {
+  const target = document.getElementById(id);
+  if (!target) return;
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const top =
+    target.getBoundingClientRect().top + window.scrollY - MBP_SCROLL_HEADER_OFFSET;
+
+  if (prefersReducedMotion) {
+    window.scrollTo(0, top);
+    return;
+  }
+
+  const start = window.scrollY;
+  const distance = top - start;
+  if (Math.abs(distance) < 2) return;
+
+  const startTime = performance.now();
+
+  function step(now: number) {
+    const progress = Math.min((now - startTime) / MBP_SCROLL_DURATION_MS, 1);
+    window.scrollTo(0, start + distance * easeInOutCubic(progress));
+    if (progress < 1) requestAnimationFrame(step);
+  }
+
+  requestAnimationFrame(step);
+}
+
+/** Smooth in-page scroll for treatment section links (Explore plan, header pills, etc.). */
+function useSmoothSectionScroll() {
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      const link = (event.target as HTMLElement).closest('a[href^="#treatment-"]');
+      if (!(link instanceof HTMLAnchorElement)) return;
+
+      const id = link.hash.slice(1);
+      if (!id || !document.getElementById(id)) return;
+
+      event.preventDefault();
+      smoothScrollToSection(id);
+      history.replaceState(null, "", `#${id}`);
+    };
+
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+}
+
 // ── Face region card ──────────────────────────────────────────────────────
 
 function TreatmentFaceCard({ treatmentId, color, dose, area }: {
@@ -326,6 +381,8 @@ function BookingDrawer({
         className={`mbp-drawer${open ? " mbp-drawer--open" : ""}`}
         role="dialog"
         aria-modal
+        aria-hidden={!open}
+        inert={open ? undefined : ""}
         aria-label="Express interest in your treatment plan"
       >
         {/* Pull handle (mobile) */}
@@ -521,6 +578,7 @@ export default function MerzBlueprintPage() {
 
   useScrollReveal(".mbp-treatment");
   useScrollReveal(".mbp-investment");
+  useSmoothSectionScroll();
 
   const openDrawer  = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
@@ -555,13 +613,14 @@ export default function MerzBlueprintPage() {
             <AuraFaceView
               embedded
               turntableOnly
+              disableWheelZoom
               initialZoom={1.18}
               initialPanY={-28}
             />
           </div>
         </div>
 
-        {/* Minimal left overlay */}
+        {/* Right column — minimal text + plan items */}
         <div className="mbp-hero-left">
           <div className="mbp-hero-eyebrow">
             <span className="mbp-eyebrow-brand">Ponce AI</span>
@@ -575,6 +634,26 @@ export default function MerzBlueprintPage() {
             4 scan-backed treatments · one visit
           </p>
 
+          {/* Plan grid — desktop only (mobile uses the strip below) */}
+          <div className="mbp-hero-plan-grid" aria-label="Your plan">
+            {TREATMENTS.map((t) => (
+              <a
+                key={t.id}
+                href={`#treatment-${t.id}`}
+                className="mbp-hero-plan-item"
+                style={{ textDecoration: "none" }}
+              >
+                <span className="mbp-hero-plan-num" style={{ color: t.color }}>
+                  {t.number}
+                </span>
+                <div>
+                  <div className="mbp-hero-plan-name">{t.name}</div>
+                  <div className="mbp-hero-plan-area">{t.area} · {t.dose}</div>
+                </div>
+              </a>
+            ))}
+          </div>
+
           <div className="mbp-hero-ctas">
             <a href="#treatment-xeomin" className="mbp-btn mbp-btn--primary">
               Explore plan ↓
@@ -586,9 +665,8 @@ export default function MerzBlueprintPage() {
         </div>
       </section>
 
-      {/* ── Plan strip ───────────────────────────────────────── */}
+      {/* ── Plan strip — mobile only ──────────────────────────── */}
       <div className="mbp-plan-strip">
-        <span className="mbp-plan-strip-label">Your plan</span>
         <div className="mbp-plan-strip-items">
           {TREATMENTS.map((t) => (
             <a key={t.id} href={`#treatment-${t.id}`} className="mbp-plan-strip-item" style={{ textDecoration: "none" }}>
