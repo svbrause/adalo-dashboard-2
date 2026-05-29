@@ -28,7 +28,7 @@ export const TANYA_TAN_SYSTEM_MEDIA_CATEGORY_LABELS: Record<
   TanyaTanSystemMediaCategory,
   string
 > = {
-  color_stills: "Color photos",
+  color_stills: "Background removed",
   texture_maps: "Clinical texture",
   original_captures: "Original photos",
   scan_video: "3D scan",
@@ -40,7 +40,7 @@ const COLOR_STILLS: TanyaTanSystemMediaEntry[] = TANYA_TAN_GALLERY_PHOTO_SLOTS.m
     kind: "photo" as const,
     category: "color_stills" as const,
     title: slot.label,
-    subtitle: "Full-color capture",
+    subtitle: "Background removed",
     url: slot.url,
   }),
 );

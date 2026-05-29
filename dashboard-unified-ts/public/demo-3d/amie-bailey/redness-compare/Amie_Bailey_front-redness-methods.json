@@ -1,0 +1,36 @@
+{
+  "image": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/static/patient_photos/Amie_Bailey_front.jpg",
+  "roi": "mediapipe face mesh + HSV skin",
+  "methods": [
+    {
+      "name": "lab_local",
+      "spotCount": 40,
+      "note": "current-style LAB a* excess"
+    },
+    {
+      "name": "hemoglobin_ei",
+      "spotCount": 0,
+      "note": "Visia-style erythema index on flat-lit RGB"
+    },
+    {
+      "name": "log_rg_retinex",
+      "spotCount": 40,
+      "note": "illumination-normalized log(R/G)"
+    },
+    {
+      "name": "robust_a_star",
+      "spotCount": 38,
+      "note": "robust z-score on normalized a*"
+    },
+    {
+      "name": "green_residual",
+      "spotCount": 40,
+      "note": "R \u2212 local G (vascular emphasis)"
+    },
+    {
+      "name": "mp_diffuse_peaks",
+      "spotCount": 0,
+      "note": "MediaPipe ROI + diffuse flush + local peaks"
+    }
+  ]
+}

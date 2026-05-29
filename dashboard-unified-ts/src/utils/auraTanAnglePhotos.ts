@@ -143,6 +143,158 @@ export const TANYA_TAN_ORIGINAL_CAPTURES: {
 ];
 
 /** Public URLs for demo client gallery / modals (same angles as viewer assets). */
+const VIEWER_ANGLE_TIME_RATIOS: Record<AuraTanViewAngle, number> = {
+  "profile-left": 0.99,
+  "three-quarter-left": 0.76,
+  front: 0.5,
+  "three-quarter-right": 0.24,
+  "profile-right": 0,
+};
+
+const VIEWER_ANGLE_LABELS: Record<AuraTanViewAngle, string> = {
+  "profile-left": "Left profile",
+  "three-quarter-left": "Left three-quarter",
+  front: "Front",
+  "three-quarter-right": "Right three-quarter",
+  "profile-right": "Right profile",
+};
+
+function slotUrl(slots: ClientPhotoSlot[], ...ids: string[]): string | undefined {
+  for (const id of ids) {
+    const hit = slots.find((s) => s.id === id);
+    if (hit?.url) return hit.url;
+  }
+  return undefined;
+}
+
+function isConsentPhotoSlot(slot: ClientPhotoSlot): boolean {
+  const blob = `${slot.id} ${slot.label ?? ""}`.toLowerCase();
+  return blob.includes("consent");
+}
+
+type SideSlotKind = "front" | "left" | "right" | "generic-side" | "other";
+
+function classifyPhotoSlot(slot: ClientPhotoSlot): SideSlotKind {
+  const id = slot.id.toLowerCase();
+  const blob = `${slot.id} ${slot.label ?? ""}`.toLowerCase();
+
+  if (id === "front" || id === "front-form" || blob.includes("front")) return "front";
+  if (id === "left-form" || id === "profile-left" || blob.includes("profile-left")) return "left";
+  if (id === "side-form" || id === "profile-right" || blob.includes("profile-right")) return "right";
+  if (blob.includes("left") && (blob.includes("90") || blob.includes("profile") || blob.includes("side"))) {
+    return "left";
+  }
+  if (blob.includes("right") && (blob.includes("90") || blob.includes("profile") || blob.includes("side"))) {
+    return "right";
+  }
+  if (id === "side" || (blob.includes("side") && !blob.includes("left") && !blob.includes("right"))) {
+    return "generic-side";
+  }
+  if (blob.includes("left")) return "left";
+  if (blob.includes("right")) return "right";
+  return "other";
+}
+
+/**
+ * Maps patient gallery slots to Aura turntable anchor stills.
+ * Missing angles reuse the closest available photo (front fallback).
+ */
+/** Which turntable anchor stills the patient actually captured (excludes synthetic ¾ fills). */
+export function inferAvailableViewAnglesFromPhotoSlots(
+  slots: ClientPhotoSlot[],
+): AuraTanViewAngle[] {
+  const found = new Set<AuraTanViewAngle>();
+  const photoSlots = slots.filter((s) => Boolean(s.url) && !isConsentPhotoSlot(s));
+
+  let hasLeftProfile = false;
+  let hasRightProfile = false;
+  let hasGenericSide = false;
+
+  for (const slot of photoSlots) {
+    const blob = `${slot.id} ${slot.label ?? ""}`.toLowerCase();
+    const kind = classifyPhotoSlot(slot);
+
+    if (kind === "front") found.add("front");
+    if (blob.includes("left") && blob.includes("45")) found.add("three-quarter-left");
+    else if (blob.includes("right") && blob.includes("45")) found.add("three-quarter-right");
+    else if (blob.includes("three-quarter-left") || slot.id === "three-quarter-left") {
+      found.add("three-quarter-left");
+    } else if (blob.includes("three-quarter-right") || slot.id === "three-quarter-right") {
+      found.add("three-quarter-right");
+    }
+
+    if (kind === "left") hasLeftProfile = true;
+    else if (kind === "right") hasRightProfile = true;
+    else if (kind === "generic-side") hasGenericSide = true;
+  }
+
+  if (hasLeftProfile) found.add("profile-left");
+  if (hasRightProfile) found.add("profile-right");
+
+  if (hasGenericSide) {
+    if (!hasLeftProfile && !hasRightProfile) {
+      found.add("profile-right");
+    } else if (hasLeftProfile && !hasRightProfile) {
+      found.add("profile-right");
+    } else if (hasRightProfile && !hasLeftProfile) {
+      found.add("profile-left");
+    }
+  }
+
+  const sideUrls = new Set(
+    photoSlots
+      .filter((s) => {
+        const kind = classifyPhotoSlot(s);
+        return kind === "left" || kind === "right" || kind === "generic-side";
+      })
+      .map((s) => s.url),
+  );
+  if (sideUrls.size >= 2) {
+    found.add("profile-left");
+    found.add("profile-right");
+  }
+
+  if (found.size === 0 && photoSlots.length > 0) {
+    found.add("front");
+  }
+
+  return TANYA_TAN_LEFT_NAV_ORDER.filter((angle) => found.has(angle));
+}
+
+export function buildViewerAngleAssetsFromPhotoSlots(
+  slots: ClientPhotoSlot[],
+): Record<AuraTanViewAngle, AuraTanViewerAngleAsset> {
+  const fallbackUrl = slots.find((s) => s.url)?.url ?? "";
+  const pick = (angle: AuraTanViewAngle): string => {
+    switch (angle) {
+      case "profile-left":
+        return slotUrl(slots, "profile-left", "left-form") ?? fallbackUrl;
+      case "three-quarter-left":
+        return slotUrl(slots, "three-quarter-left", "left-form") ?? fallbackUrl;
+      case "front":
+        return slotUrl(slots, "front", "front-form") ?? fallbackUrl;
+      case "three-quarter-right":
+        return slotUrl(slots, "three-quarter-right", "side-form", "side") ?? fallbackUrl;
+      case "profile-right":
+        return slotUrl(slots, "profile-right", "side", "side-form") ?? fallbackUrl;
+      default:
+        return fallbackUrl;
+    }
+  };
+
+  const out = {} as Record<AuraTanViewAngle, AuraTanViewerAngleAsset>;
+  for (const angle of TANYA_TAN_LEFT_NAV_ORDER) {
+    const src = pick(angle);
+    out[angle] = {
+      src,
+      srcTexture: src,
+      timeRatio: VIEWER_ANGLE_TIME_RATIOS[angle],
+      label: VIEWER_ANGLE_LABELS[angle],
+    };
+  }
+  return out;
+}
+
 export const TANYA_TAN_GALLERY_PHOTO_SLOTS: ClientPhotoSlot[] = [
   {
     id: "profile-left",

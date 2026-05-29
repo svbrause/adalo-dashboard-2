@@ -1,0 +1,272 @@
+{
+  "rendering": "raster-redness-seeded-texture-mask-v8-diagnostic-red-composite",
+  "coordinateSpace": "source-image-percent",
+  "sourceFiles": {
+    "front": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/static/patient_photos/Amie_Bailey_front.jpg",
+    "profile-right": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/training_data_v3/images/side/Amie_Bailey_side.jpg"
+  },
+  "faceBoxesPx": {
+    "front": [
+      205,
+      166,
+      676,
+      676
+    ],
+    "profile-right": [
+      427,
+      162,
+      534,
+      534
+    ]
+  },
+  "redMaskByAngle": {
+    "front": "amie_front_redness_seeded_raster_v8_mask.png",
+    "profile-right": "amie_profile-right_redness_seeded_raster_v8_mask.png"
+  },
+  "redPreviewByAngle": {
+    "front": "amie_front_redness_seeded_raster_v8_preview.png",
+    "profile-right": "amie_profile-right_redness_seeded_raster_v8_preview.png"
+  },
+  "redComponentsByAngle": {
+    "front": [
+      {
+        "cx": 37.251,
+        "cy": 69.617,
+        "rx": 1.775,
+        "ry": 1.553,
+        "intensity": 0.446,
+        "areaPx": 241
+      },
+      {
+        "cx": 44.327,
+        "cy": 82.185,
+        "rx": 0.74,
+        "ry": 1.183,
+        "intensity": 0.488,
+        "areaPx": 37
+      },
+      {
+        "cx": 44.844,
+        "cy": 82.544,
+        "rx": 0.37,
+        "ry": 0.444,
+        "intensity": 0.491,
+        "areaPx": 14
+      },
+      {
+        "cx": 45.414,
+        "cy": 81.805,
+        "rx": 0.222,
+        "ry": 0.666,
+        "intensity": 0.493,
+        "areaPx": 11
+      },
+      {
+        "cx": 34.763,
+        "cy": 70.695,
+        "rx": 0.444,
+        "ry": 0.37,
+        "intensity": 0.498,
+        "areaPx": 10
+      },
+      {
+        "cx": 39.127,
+        "cy": 46.357,
+        "rx": 0.37,
+        "ry": 0.296,
+        "intensity": 0.406,
+        "areaPx": 8
+      },
+      {
+        "cx": 20.964,
+        "cy": 55.389,
+        "rx": 0.296,
+        "ry": 0.296,
+        "intensity": 0.422,
+        "areaPx": 7
+      },
+      {
+        "cx": 43.245,
+        "cy": 81.509,
+        "rx": 0.222,
+        "ry": 0.37,
+        "intensity": 0.468,
+        "areaPx": 6
+      },
+      {
+        "cx": 44.822,
+        "cy": 40.71,
+        "rx": 0.222,
+        "ry": 0.222,
+        "intensity": 0.404,
+        "areaPx": 5
+      },
+      {
+        "cx": 56.893,
+        "cy": 42.278,
+        "rx": 0.296,
+        "ry": 0.222,
+        "intensity": 0.422,
+        "areaPx": 5
+      },
+      {
+        "cx": 34.26,
+        "cy": 48.817,
+        "rx": 0.148,
+        "ry": 0.222,
+        "intensity": 0.402,
+        "areaPx": 5
+      },
+      {
+        "cx": 34.852,
+        "cy": 49.527,
+        "rx": 0.148,
+        "ry": 0.222,
+        "intensity": 0.433,
+        "areaPx": 5
+      },
+      {
+        "cx": 74.97,
+        "cy": 49.911,
+        "rx": 0.148,
+        "ry": 0.296,
+        "intensity": 0.39,
+        "areaPx": 5
+      },
+      {
+        "cx": 29.852,
+        "cy": 71.183,
+        "rx": 0.222,
+        "ry": 0.222,
+        "intensity": 0.417,
+        "areaPx": 5
+      },
+      {
+        "cx": 43.609,
+        "cy": 82.84,
+        "rx": 0.222,
+        "ry": 0.222,
+        "intensity": 0.421,
+        "areaPx": 5
+      },
+      {
+        "cx": 47.308,
+        "cy": 83.314,
+        "rx": 0.148,
+        "ry": 0.296,
+        "intensity": 0.435,
+        "areaPx": 5
+      },
+      {
+        "cx": 42.678,
+        "cy": 43.491,
+        "rx": 0.296,
+        "ry": 0.074,
+        "intensity": 0.425,
+        "areaPx": 4
+      },
+      {
+        "cx": 59.541,
+        "cy": 43.639,
+        "rx": 0.148,
+        "ry": 0.222,
+        "intensity": 0.385,
+        "areaPx": 4
+      },
+      {
+        "cx": 41.235,
+        "cy": 43.972,
+        "rx": 0.222,
+        "ry": 0.148,
+        "intensity": 0.396,
+        "areaPx": 4
+      },
+      {
+        "cx": 35.466,
+        "cy": 68.676,
+        "rx": 0.222,
+        "ry": 0.148,
+        "intensity": 0.412,
+        "areaPx": 4
+      },
+      {
+        "cx": 59.615,
+        "cy": 73.299,
+        "rx": 0.222,
+        "ry": 0.148,
+        "intensity": 0.415,
+        "areaPx": 4
+      },
+      {
+        "cx": 46.487,
+        "cy": 82.064,
+        "rx": 0.222,
+        "ry": 0.222,
+        "intensity": 0.461,
+        "areaPx": 4
+      }
+    ],
+    "profile-right": [
+      {
+        "cx": 69.288,
+        "cy": 73.908,
+        "rx": 0.281,
+        "ry": 0.375,
+        "intensity": 0.978,
+        "areaPx": 6
+      },
+      {
+        "cx": 66.854,
+        "cy": 38.951,
+        "rx": 0.281,
+        "ry": 0.281,
+        "intensity": 0.94,
+        "areaPx": 5
+      },
+      {
+        "cx": 39.963,
+        "cy": 43.783,
+        "rx": 0.281,
+        "ry": 0.281,
+        "intensity": 0.951,
+        "areaPx": 5
+      },
+      {
+        "cx": 64.382,
+        "cy": 74.345,
+        "rx": 0.375,
+        "ry": 0.281,
+        "intensity": 0.924,
+        "areaPx": 5
+      },
+      {
+        "cx": 64.232,
+        "cy": 39.654,
+        "rx": 0.281,
+        "ry": 0.187,
+        "intensity": 0.905,
+        "areaPx": 4
+      },
+      {
+        "cx": 36.376,
+        "cy": 50.936,
+        "rx": 0.187,
+        "ry": 0.281,
+        "intensity": 0.963,
+        "areaPx": 4
+      },
+      {
+        "cx": 32.865,
+        "cy": 73.783,
+        "rx": 0.187,
+        "ry": 0.281,
+        "intensity": 0.879,
+        "areaPx": 4
+      }
+    ]
+  },
+  "notes": [
+    "Uses the v7 anatomical raster mask, recomposited as a stronger diagnostic red annotation layer.",
+    "This is closer to the provided reference than ellipse glyphs because the annotation is a semi-transparent granular mask rather than discrete circles."
+  ]
+}

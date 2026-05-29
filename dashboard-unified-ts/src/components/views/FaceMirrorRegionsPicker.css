@@ -124,8 +124,8 @@
 }
 
 .fmp-annotation-regions--overlay .fmp-annotation-regions__panel {
-  left: 0;
-  right: auto;
+  right: 0;
+  left: auto;
 }
 
 /* Aura right tool rail — beside auto-rotate */

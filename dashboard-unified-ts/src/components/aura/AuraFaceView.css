@@ -48,6 +48,30 @@
   box-sizing: border-box;
 }
 
+.fmp-root--aura.fmp-root--viewport-expanded .avf-topbar {
+  height: var(--cdp-aura-chrome-row-h, 52px);
+  min-height: var(--cdp-aura-chrome-row-h, 52px);
+  max-height: var(--cdp-aura-chrome-row-h, 52px);
+}
+
+.avf-topbar-end {
+  position: absolute;
+  right: 10px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.avf-topbar-end .fmp-fullscreen-btn {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* Match client-detail 3D split chrome row (Analysis btn + patient name). */
 .client-detail-panel--3d-split .avf-root--embedded {
   --avf-topbar-h: var(--cdp-aura-chrome-row-h, 52px);
@@ -639,6 +663,13 @@
   height: 100%;
   min-height: 0;
   aspect-ratio: auto;
+  overflow: hidden;
+}
+
+.avf-root--embedded.avf-root--turntable-only .avf-3d-stage .face3d-display,
+.avf-root--embedded.avf-root--turntable-only .avf-3d-stage .face3d-frame-cache-layer {
+  object-fit: contain;
+  object-position: center center;
 }
 
 .avf-angle-photo-layer {
@@ -770,7 +801,11 @@
   mix-blend-mode: screen;
 }
 
-.avf-diagnostic-overlay--texture,
+.avf-diagnostic-overlay--texture {
+  mix-blend-mode: normal;
+  opacity: 0.94;
+}
+
 .avf-diagnostic-overlay--pigmentation {
   mix-blend-mode: screen;
   opacity: 0.9;
@@ -781,6 +816,39 @@
   stroke: rgba(255, 140, 80, 0.35);
   stroke-width: 0.12;
   vector-effect: non-scaling-stroke;
+}
+
+.avf-diagnostic-overlay--texture .avf-diagnostic-overlay__spots--texture ellipse {
+  fill: rgba(48, 28, 62, 0.92);
+  stroke: rgba(130, 90, 150, 0.45);
+}
+
+.avf-diagnostic-overlay__red-spots {
+  mix-blend-mode: multiply;
+}
+
+.avf-diagnostic-overlay__red-mask {
+  mix-blend-mode: multiply;
+  opacity: 0.98;
+}
+
+.avf-diagnostic-overlay__red-spots ellipse {
+  vector-effect: non-scaling-stroke;
+}
+
+.avf-diagnostic-overlay__red-wash {
+  fill: rgba(220, 0, 18, 0.82);
+  stroke: none;
+}
+
+.avf-diagnostic-overlay__red-halo {
+  fill: rgba(214, 0, 16, 0.76);
+  stroke: none;
+}
+
+.avf-diagnostic-overlay__red-core {
+  fill: rgba(174, 0, 12, 0.9);
+  stroke: none;
 }
 
 .avf-face-img {

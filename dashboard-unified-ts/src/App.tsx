@@ -17,6 +17,7 @@ import DebugClientDetailPage from "./components/debug/DebugClientDetailPage";
 import SkinQuizStandalonePage from "./components/pages/SkinQuizStandalonePage";
 import WellnessQuizStandalonePage from "./components/pages/WellnessQuizStandalonePage";
 import PostVisitBlueprintPage from "./components/pages/PostVisitBlueprintPage";
+import MerzBlueprintPage from "./components/pages/MerzBlueprintPage";
 import ProviderAdConceptsPage from "./components/pages/ProviderAdConceptsPage";
 import { isSkinQuizStandalonePath } from "./utils/skinQuizLink";
 import { isWellnessQuizStandalonePath } from "./utils/wellnessQuizLink";
@@ -135,6 +136,10 @@ function AppContent() {
   }
   // Public shared treatment plan (`/tp`, `/treatment-plan`, legacy `/post-visit-blueprint`) – no login
   if (isPostVisitBlueprintPath()) {
+    const _urlParams = new URLSearchParams(window.location.search);
+    if (_urlParams.get("t") === "merz-tanya") {
+      return <MerzBlueprintPage />;
+    }
     return <PostVisitBlueprintPage />;
   }
 

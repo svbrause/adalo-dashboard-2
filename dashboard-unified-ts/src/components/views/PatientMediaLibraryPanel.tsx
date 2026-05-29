@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Client, ClientPhotoSlot } from "../../types";
 import {
   deletePatientAnnotation,
@@ -12,7 +13,6 @@ import {
 import {
   annotationPreviewUrl,
   buildPatientMediaLibrary,
-  flattenPatientMediaLibrary,
   systemCategoryLabel,
   type PatientMediaItem,
 } from "../../utils/patientMediaLibrary";
@@ -21,6 +21,9 @@ import {
   TANYA_TAN_SYSTEM_MEDIA_ORDER,
   type TanyaTanSystemMediaCategory,
 } from "../../utils/tanyaTanSystemMedia";
+import PatientMediaViewerModal, {
+  type PatientMediaViewerSection,
+} from "./PatientMediaViewerModal";
 import "./PatientMediaLibraryPanel.css";
 
 export type PatientMediaLibraryPanelProps = {
@@ -28,11 +31,8 @@ export type PatientMediaLibraryPanelProps = {
   photoSlots?: ClientPhotoSlot[];
   turntableVideoUrl?: string | null;
   onLoadAnnotation?: (record: SavedPatientAnnotation) => void;
-  onOpenPhoto?: (url: string) => void;
   refreshKey?: number;
 };
-
-type SourceFilter = "all" | "system" | "user";
 
 function kindBadge(item: PatientMediaItem): string {
   if (item.source === "user") return "Your markup";
@@ -44,11 +44,10 @@ export default function PatientMediaLibraryPanel({
   photoSlots,
   turntableVideoUrl,
   onLoadAnnotation,
-  onOpenPhoto,
   refreshKey = 0,
 }: PatientMediaLibraryPanelProps) {
-  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [collapsed, setCollapsed] = useState(false);
+  const [viewerItemId, setViewerItemId] = useState<string | null>(null);
   const showTanyaLayout = isTanyaTanDemoClient(client);
 
   const savedAnnotations = useMemo(
@@ -67,30 +66,18 @@ export default function PatientMediaLibraryPanel({
     [client, photoSlots, turntableVideoUrl, savedAnnotations],
   );
 
-  const allItems = useMemo(() => flattenPatientMediaLibrary(sections), [sections]);
-
-  const filteredSections = useMemo(() => {
-    if (sourceFilter === "system") {
-      return { system: sections.system, user: [] as PatientMediaItem[] };
-    }
-    if (sourceFilter === "user") {
-      return { system: [] as PatientMediaItem[], user: sections.user };
-    }
-    return sections;
-  }, [sections, sourceFilter]);
-
   const systemByCategory = useMemo(() => {
     const map = new Map<TanyaTanSystemMediaCategory, PatientMediaItem[]>();
     for (const cat of TANYA_TAN_SYSTEM_MEDIA_ORDER) {
       map.set(cat, []);
     }
-    for (const item of filteredSections.system) {
+    for (const item of sections.system) {
       const cat = item.systemCategory ?? "color_stills";
       if (!map.has(cat)) map.set(cat, []);
       map.get(cat)!.push(item);
     }
     return map;
-  }, [filteredSections.system]);
+  }, [sections.system]);
 
   const handleDelete = (id: string) => {
     deletePatientAnnotation(id);
@@ -99,14 +86,43 @@ export default function PatientMediaLibraryPanel({
     );
   };
 
-  const counts = {
-    system: sections.system.length,
-    user: sections.user.length,
-    all: allItems.length,
-  };
+  const visibleCount = sections.system.length + sections.user.length;
 
-  const visibleCount =
-    filteredSections.system.length + filteredSections.user.length;
+  const viewerSections = useMemo((): PatientMediaViewerSection[] => {
+    const out: PatientMediaViewerSection[] = [];
+    if (sections.system.length > 0) {
+      if (showTanyaLayout) {
+        for (const cat of TANYA_TAN_SYSTEM_MEDIA_ORDER) {
+          const items = systemByCategory.get(cat) ?? [];
+          if (items.length === 0) continue;
+          out.push({
+            id: cat,
+            label: systemCategoryLabel(cat),
+            items,
+          });
+        }
+      } else {
+        out.push({
+          id: "system",
+          label: "System files",
+          items: sections.system,
+        });
+      }
+    }
+    if (sections.user.length > 0) {
+      out.push({
+        id: "user",
+        label: "Your annotations",
+        items: sections.user,
+      });
+    }
+    return out;
+  }, [sections, showTanyaLayout, systemByCategory]);
+
+  const openViewer = (item: PatientMediaItem) => {
+    if (item.kind === "annotation" && !item.annotation && !item.url) return;
+    setViewerItemId(item.id);
+  };
 
   return (
     <div className={`patient-media-library${collapsed ? " patient-media-library--collapsed" : ""}`}>
@@ -139,51 +155,25 @@ export default function PatientMediaLibraryPanel({
         {!collapsed ? (
           <p className="patient-media-library__desc">
             {showTanyaLayout
-              ? "Original session photos, processed stills, clinical texture maps, and annotations you draw on the face."
+              ? "Original session photos, background-removed stills, clinical texture maps, and annotations you draw on the face."
               : "Original photos, 3D turntable video, and saved face annotations."}
           </p>
         ) : null}
       </div>
 
       {!collapsed ? (
-        <div className="patient-media-library__filters" role="tablist" aria-label="File source">
-          {(
-            [
-              ["all", `All (${counts.all})`],
-              ["system", `System (${counts.system})`],
-              ["user", `Yours (${counts.user})`],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={sourceFilter === key}
-              className={`patient-media-library__filter${sourceFilter === key ? " patient-media-library__filter--active" : ""}`}
-              onClick={() => setSourceFilter(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {!collapsed ? (
         <div className="patient-media-library__scroll">
         {visibleCount === 0 ? (
           <p className="patient-media-library__empty">
-            {sourceFilter === "user"
-              ? "No saved annotations yet. Draw on the face and tap Save in the annotation toolbar."
-              : "No files in this category yet."}
+            No patient files yet.
           </p>
         ) : (
           <>
-            {filteredSections.system.length > 0 ? (
+            {sections.system.length > 0 ? (
               <section className="patient-media-library__section">
-                <h4 className="patient-media-library__section-title">System files</h4>
-                <p className="patient-media-library__section-desc">
-                  Scan session assets from the Aura pipeline — not edited by staff.
-                </p>
+                {!showTanyaLayout ? (
+                  <h4 className="patient-media-library__section-title">System files</h4>
+                ) : null}
                 {showTanyaLayout
                   ? TANYA_TAN_SYSTEM_MEDIA_ORDER.map((cat) => {
                       const items = systemByCategory.get(cat) ?? [];
@@ -199,7 +189,7 @@ export default function PatientMediaLibraryPanel({
                                 key={item.id}
                                 item={item}
                                 badge={kindBadge(item)}
-                                onOpenPhoto={onOpenPhoto}
+                                onView={openViewer}
                               />
                             ))}
                           </ul>
@@ -208,12 +198,12 @@ export default function PatientMediaLibraryPanel({
                     })
                   : (
                     <ul className="patient-media-library__grid">
-                      {filteredSections.system.map((item) => (
+                      {sections.system.map((item) => (
                         <MediaCard
                           key={item.id}
                           item={item}
                           badge={kindBadge(item)}
-                          onOpenPhoto={onOpenPhoto}
+                          onView={openViewer}
                         />
                       ))}
                     </ul>
@@ -221,19 +211,19 @@ export default function PatientMediaLibraryPanel({
               </section>
             ) : null}
 
-            {filteredSections.user.length > 0 ? (
+            {sections.user.length > 0 ? (
               <section className="patient-media-library__section">
                 <h4 className="patient-media-library__section-title">Your annotations</h4>
                 <p className="patient-media-library__section-desc">
                   Markup saved from the face mirror — load back onto the 3D view or download.
                 </p>
                 <ul className="patient-media-library__grid">
-                  {filteredSections.user.map((item) => (
+                  {sections.user.map((item) => (
                     <MediaCard
                       key={item.id}
                       item={item}
                       badge={kindBadge(item)}
-                      onOpenPhoto={onOpenPhoto}
+                      onView={openViewer}
                       onLoadAnnotation={onLoadAnnotation}
                       onDeleteAnnotation={handleDelete}
                     />
@@ -245,6 +235,18 @@ export default function PatientMediaLibraryPanel({
         )}
         </div>
       ) : null}
+
+      {viewerItemId && viewerSections.length > 0
+        ? createPortal(
+            <PatientMediaViewerModal
+              sections={viewerSections}
+              initialItemId={viewerItemId}
+              onClose={() => setViewerItemId(null)}
+              onLoadAnnotation={onLoadAnnotation}
+            />,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -252,13 +254,13 @@ export default function PatientMediaLibraryPanel({
 function MediaCard({
   item,
   badge,
-  onOpenPhoto,
+  onView,
   onLoadAnnotation,
   onDeleteAnnotation,
 }: {
   item: PatientMediaItem;
   badge: string;
-  onOpenPhoto?: (url: string) => void;
+  onView?: (item: PatientMediaItem) => void;
   onLoadAnnotation?: (record: SavedPatientAnnotation) => void;
   onDeleteAnnotation?: (id: string) => void;
 }) {
@@ -275,11 +277,36 @@ function MediaCard({
     downloadDataUrl(url, `${sanitizeDownloadFilename(ann.label)}.jpg`);
   };
 
+  const canView =
+    item.kind === "annotation"
+      ? Boolean(preview)
+      : Boolean(item.url);
+
+  const handleView = () => {
+    if (canView) onView?.(item);
+  };
+
   return (
     <li
-      className={`patient-media-card patient-media-card--${item.kind} patient-media-card--${item.source}`}
+      className={`patient-media-card patient-media-card--${item.kind} patient-media-card--${item.source}${canView ? " patient-media-card--viewable" : ""}`}
     >
-      <div className="patient-media-card__thumb-wrap">
+      <div
+        className="patient-media-card__thumb-wrap"
+        role={canView ? "button" : undefined}
+        tabIndex={canView ? 0 : undefined}
+        onClick={canView ? handleView : undefined}
+        onKeyDown={
+          canView
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleView();
+                }
+              }
+            : undefined
+        }
+        aria-label={canView ? `View ${item.title}` : undefined}
+      >
         {item.kind === "video" && item.url ? (
           <video
             className="patient-media-card__thumb patient-media-card__thumb--video"
@@ -331,11 +358,11 @@ function MediaCard({
               </button>
             </>
           ) : null}
-          {item.url && item.kind !== "annotation" ? (
+          {canView ? (
             <button
               type="button"
               className="patient-media-card__btn"
-              onClick={() => onOpenPhoto?.(item.url!)}
+              onClick={handleView}
             >
               {item.kind === "video" ? "Play" : "View"}
             </button>

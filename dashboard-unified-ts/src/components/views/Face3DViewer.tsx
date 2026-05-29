@@ -1729,7 +1729,9 @@ export default function Face3DViewer({
   const resetZoom = useCallback(() => {
     const z = minZoomRef.current;
     const py = initialPanY;
-    zoomRef.current = z; panXRef.current = 0; panYRef.current = py;
+    zoomRef.current = z;
+    panXRef.current = 0;
+    panYRef.current = py;
     applyTransform(0, py, z);
     setZoom(z);
     renderCachedAnnotations();

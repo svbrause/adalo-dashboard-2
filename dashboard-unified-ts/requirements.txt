@@ -8,3 +8,8 @@ modal>=0.62
 # Required for POST /api/scan/save-video (GCS upload):
 google-cloud-storage>=2.16
 google-auth>=2.29
+
+# Patient Aura asset pipeline (background removal, skin maps):
+opencv-python-headless>=4.8
+numpy>=1.24
+Pillow>=10.0

@@ -326,6 +326,15 @@
   color: #fff;
 }
 
+.patient-media-card--viewable .patient-media-card__thumb-wrap {
+  cursor: pointer;
+}
+
+.patient-media-card--viewable .patient-media-card__thumb-wrap:focus-visible {
+  outline: 2px solid rgba(94, 234, 212, 0.55);
+  outline-offset: 2px;
+}
+
 .aura-embedded-panel__files .patient-media-card {
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);

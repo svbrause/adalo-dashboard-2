@@ -304,6 +304,101 @@ def wrinkle_paths(rgba: np.ndarray, target_bbox: tuple[int, int, int, int]) -> l
     return dedupe_paths(paths)
 
 
+def redness_roi_mask(shape: tuple[int, int], target_bbox: tuple[int, int, int, int], angle: str) -> np.ndarray:
+    x, y, w, h = target_bbox
+    mask = np.zeros(shape, np.uint8)
+    # Nose / medial cheeks / perioral area, matching the style of the reference
+    # erythema map without filling the entire face.
+    mask[
+        clamp(round(y + h * 0.30), 0, shape[0]): clamp(round(y + h * 1.08), 0, shape[0]),
+        clamp(round(x - w * 0.18), 0, shape[1]): clamp(round(x + w * 1.18), 0, shape[1]),
+    ] = 255
+    if angle.startswith("profile"):
+        mid_x = x + w // 2
+        if angle == "profile-right":
+            mask[:, :mid_x] = 0
+        else:
+            mask[:, mid_x:] = 0
+    return mask
+
+
+def red_spots(rgba: np.ndarray, target_bbox: tuple[int, int, int, int], angle: str) -> list[dict[str, float]]:
+    rgb = rgba[:, :, :3]
+    alpha = rgba[:, :, 3]
+    roi = redness_roi_mask(alpha.shape, target_bbox, angle)
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    _hue, sat, val = cv2.split(hsv)
+    valid = (
+        (alpha > 120)
+        & (roi > 0)
+        & (val > 45)
+        & (val < 245)
+        & (sat > 6)
+        & (sat < 165)
+    )
+    if valid.sum() < 500:
+        return []
+
+    lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB)
+    l = lab[:, :, 0].astype(np.float32)
+    a = lab[:, :, 1].astype(np.float32)
+    local_a = cv2.GaussianBlur(a, (0, 0), 17)
+    local_red = np.maximum(a - local_a, 0)
+    global_red = np.maximum(a - float(np.median(a[valid])), 0)
+
+    red = rgb[:, :, 0].astype(np.float32)
+    green = rgb[:, :, 1].astype(np.float32)
+    blue = rgb[:, :, 2].astype(np.float32)
+    rgb_red = np.maximum(red - np.maximum(green, blue), 0)
+
+    med_l = float(np.median(l[valid]))
+    score = 0.34 * local_red + 0.42 * global_red + 0.24 * rgb_red
+    score[~valid] = 0
+    score[l < med_l - 34] = 0
+    score[l > med_l + 54] = 0
+
+    threshold = max(0.4, float(np.percentile(score[valid], 76)))
+    peaks = (score >= threshold).astype(np.uint8) * 255
+    peaks = cv2.morphologyEx(peaks, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)), iterations=1)
+    peaks = cv2.morphologyEx(peaks, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)), iterations=1)
+    n, _labels, stats, centroids = cv2.connectedComponentsWithStats(peaks, connectivity=8)
+
+    spots: list[tuple[float, dict[str, float]]] = []
+    for idx in range(1, n):
+        area = int(stats[idx, cv2.CC_STAT_AREA])
+        if area < 4 or area > 5200:
+            continue
+        x0 = int(stats[idx, cv2.CC_STAT_LEFT])
+        y0 = int(stats[idx, cv2.CC_STAT_TOP])
+        bw = int(stats[idx, cv2.CC_STAT_WIDTH])
+        bh = int(stats[idx, cv2.CC_STAT_HEIGHT])
+        if bw > target_bbox[2] * 0.42 or bh > target_bbox[3] * 0.36:
+            continue
+        cx_px, cy_px = centroids[idx]
+        if not (0 <= int(cx_px) < OUT_SIZE and 0 <= int(cy_px) < OUT_SIZE):
+            continue
+        cx = float(cx_px) / OUT_SIZE * 100
+        cy = float(cy_px) / OUT_SIZE * 100
+        if not (15 <= cx <= 85 and 25 <= cy <= 82):
+            continue
+        intensity = float(np.clip(score[int(cy_px), int(cx_px)] / max(threshold, 1e-3), 0.45, 1.0))
+        radius = float(np.clip(np.sqrt(area) / OUT_SIZE * 100 * 1.75, 0.16, 1.45))
+        aspect = float(np.clip(bw / max(1, bh), 0.55, 1.85))
+        spots.append((
+            intensity * (1 + min(area, 1600) / 4200),
+            {
+                "cx": round(cx, 3),
+                "cy": round(cy, 3),
+                "rx": round(radius * np.sqrt(aspect), 3),
+                "ry": round(radius / np.sqrt(aspect), 3),
+                "intensity": round(intensity, 3),
+            },
+        ))
+
+    spots.sort(key=lambda item: item[0], reverse=True)
+    return [spot for _score, spot in spots[:72]]
+
+
 def draw_wrinkle_paths(bgr: np.ndarray, paths: list[list[list[float]]]) -> np.ndarray:
     """Composite soft-glow wrinkle strokes onto the aligned plate."""
     h, w = bgr.shape[:2]
@@ -357,14 +452,25 @@ def main() -> None:
         out_wrinkles_name = f"aura-tan-{angle}-wrinkles.webp"
         bgr = save_plate_from_rgba(plate, IMAGE_DIR / out_name)
         paths = wrinkle_paths(plate, spec["target_bbox"])
+        redness = red_spots(plate, spec["target_bbox"], angle)
         save_plate(draw_wrinkle_paths(bgr, paths), IMAGE_DIR / out_wrinkles_name)
         annotations[angle] = {
             "image": out_name,
             "imageWrinkles": out_wrinkles_name,
             "targetBBox": spec["target_bbox"],
             "wrinkles": paths,
+            "redSpots": redness,
         }
-        print(f"{angle}: {len(paths)} wrinkle paths -> {out_name}, {out_wrinkles_name}", flush=True)
+        print(
+            f"{angle}: {len(paths)} wrinkle paths, {len(redness)} red spots -> {out_name}, {out_wrinkles_name}",
+            flush=True,
+        )
+
+    if not annotations["profile-right"].get("redSpots") and annotations["profile-left"].get("redSpots"):
+        annotations["profile-right"]["redSpots"] = [
+            {**spot, "cx": round(100 - float(spot["cx"]), 3)}
+            for spot in annotations["profile-left"]["redSpots"]
+        ]
     OUT_JSON.write_text(json.dumps(annotations, indent=2) + "\n")
 
 

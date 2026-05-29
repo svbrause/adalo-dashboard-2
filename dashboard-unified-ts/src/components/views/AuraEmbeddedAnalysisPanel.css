@@ -49,17 +49,59 @@
 
 .aura-embedded-panel__expandable-inner {
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  flex: 1 1 0%;
+}
+
+/* Expanded Aura split: tab panels fill remaining height and scroll internally. */
+.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__expandable {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__expandable-inner {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__category,
+.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__plan,
+.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__files {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Recommender closed: inner analysis scrolls inside full-height column. */
 .fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
+  .aura-embedded-panel__expandable {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
   .aura-embedded-panel__expandable-inner {
-  flex: 1;
+  flex: 1 1 0%;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
+  .aura-embedded-panel__category,
+.fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
+  .aura-embedded-panel__plan,
+.fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
+  .aura-embedded-panel__files {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -210,30 +252,10 @@
   padding: 12px 14px 24px;
 }
 
-/* Recommender open: main column scrolls; category grows naturally. */
-.fmp-fullscreen-split-overview:has(
-    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
-  )
-  .aura-embedded-panel {
-  height: auto;
-  min-height: min-content;
-}
-
-.fmp-fullscreen-split-overview:has(
-    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
-  )
-  .aura-embedded-panel__category,
-.fmp-fullscreen-split-overview:has(
-    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
-  )
-  .aura-embedded-panel__plan,
-.fmp-fullscreen-split-overview:has(
-    .cdp-expanded-planbuilder:not(.cdp-expanded-planbuilder--collapsed)
-  )
-  .aura-embedded-panel__files {
-  flex: none;
-  min-height: auto;
-  overflow: visible;
+.fmp-root--aura.fmp-root--viewport-expanded .aura-embedded-panel__files .patient-media-library {
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
 }
 
 .aura-embedded-panel__cat-header {
@@ -598,12 +620,12 @@
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  background: #0d0d0d;
+  background: var(--theme-bg-card, #fff);
 }
 
 .aura-embedded-panel__plan-header {
   padding: 14px 16px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--theme-border, #e2e8f0);
 }
 
 .aura-embedded-panel__plan-title {
@@ -612,13 +634,13 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #22d3ee;
+  color: var(--theme-accent-soft-fg, #2c5f6b);
 }
 
 .aura-embedded-panel__plan-subhead {
   margin: 3px 0 0;
   font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--theme-text-muted, #64748b);
 }
 
 .aura-embedded-panel__plan-list {
@@ -636,14 +658,14 @@
   gap: 5px;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--theme-border, #e2e8f0);
+  background: var(--theme-bg-inset, #f8fafc);
   transition: background 0.15s, border-color 0.15s;
 }
 
 .aura-embedded-panel__plan-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(34, 211, 238, 0.2);
+  background: var(--theme-bg-hover, #f0f0f0);
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.35));
 }
 
 .aura-embedded-panel__plan-item-top {
@@ -656,14 +678,14 @@
 .aura-embedded-panel__plan-item-name {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--theme-text-primary, #111);
   letter-spacing: -0.01em;
 }
 
 .aura-embedded-panel__plan-item-count {
   font-size: 0.62rem;
   font-weight: 600;
-  color: rgba(34, 211, 238, 0.8);
+  color: var(--theme-accent-soft-fg, #2c5f6b);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -682,14 +704,14 @@
   border-radius: 3px;
   font-size: 0.62rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: transparent;
+  color: var(--theme-text-secondary, #444);
+  border: 1px solid var(--theme-border, #e2e8f0);
+  background: var(--theme-bg-card, #fff);
 }
 
 .aura-embedded-panel__plan-item-issue--more {
-  color: rgba(34, 211, 238, 0.7);
-  border-color: rgba(34, 211, 238, 0.18);
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.35));
 }
 
 .aura-embedded-panel__plan-add-btn {
@@ -697,9 +719,9 @@
   min-height: 24px;
   padding: 3px 10px;
   border-radius: 5px;
-  border: 1px solid rgba(34, 211, 238, 0.35);
-  background: rgba(34, 211, 238, 0.08);
-  color: #22d3ee;
+  border: 1px solid var(--theme-accent-soft-border, rgba(54, 117, 136, 0.45));
+  background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.1));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
   font-size: 0.64rem;
   font-weight: 600;
   cursor: pointer;
@@ -708,8 +730,8 @@
 }
 
 .aura-embedded-panel__plan-add-btn:hover {
-  background: rgba(34, 211, 238, 0.16);
-  border-color: rgba(34, 211, 238, 0.55);
+  background: var(--theme-accent-soft-bg-hover, rgba(54, 117, 136, 0.16));
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.55));
 }
 
 .aura-embedded-panel__plan-open-btn {
@@ -718,9 +740,9 @@
   margin: 0 14px 14px;
   padding: 9px 14px;
   border-radius: 7px;
-  border: 1px solid rgba(34, 211, 238, 0.3);
-  background: rgba(34, 211, 238, 0.06);
-  color: #22d3ee;
+  border: 1px solid var(--theme-accent-soft-border, rgba(54, 117, 136, 0.35));
+  background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.08));
+  color: var(--theme-accent-soft-fg, #2c5f6b);
   font-size: 0.72rem;
   font-weight: 600;
   text-align: center;
@@ -730,8 +752,8 @@
 }
 
 .aura-embedded-panel__plan-open-btn:hover {
-  background: rgba(34, 211, 238, 0.13);
-  border-color: rgba(34, 211, 238, 0.5);
+  background: var(--theme-accent-soft-bg-hover, rgba(54, 117, 136, 0.14));
+  border-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.5));
 }
 
 /* ── Dark mode ──────────────────────────────────────────────────────────────── */
@@ -777,6 +799,73 @@
   background: rgba(34, 211, 238, 0.18);
   border-color: rgba(34, 211, 238, 0.48);
   color: #a5f3fc;
+}
+
+.cdp-dark .aura-embedded-panel__plan {
+  background: #0d0d0d;
+}
+
+.cdp-dark .aura-embedded-panel__plan-header {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+.cdp-dark .aura-embedded-panel__plan-title {
+  color: #22d3ee;
+}
+
+.cdp-dark .aura-embedded-panel__plan-subhead {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.cdp-dark .aura-embedded-panel__plan-item {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cdp-dark .aura-embedded-panel__plan-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(34, 211, 238, 0.2);
+}
+
+.cdp-dark .aura-embedded-panel__plan-item-name {
+  color: #ffffff;
+}
+
+.cdp-dark .aura-embedded-panel__plan-item-count {
+  color: rgba(34, 211, 238, 0.8);
+}
+
+.cdp-dark .aura-embedded-panel__plan-item-issue {
+  color: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: transparent;
+}
+
+.cdp-dark .aura-embedded-panel__plan-item-issue--more {
+  color: rgba(34, 211, 238, 0.7);
+  border-color: rgba(34, 211, 238, 0.18);
+}
+
+.cdp-dark .aura-embedded-panel__plan-add-btn {
+  border-color: rgba(34, 211, 238, 0.35);
+  background: rgba(34, 211, 238, 0.08);
+  color: #22d3ee;
+}
+
+.cdp-dark .aura-embedded-panel__plan-add-btn:hover {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(34, 211, 238, 0.55);
+}
+
+.cdp-dark .aura-embedded-panel__plan-open-btn {
+  border-color: rgba(34, 211, 238, 0.3);
+  background: rgba(34, 211, 238, 0.06);
+  color: #22d3ee;
+}
+
+.cdp-dark .aura-embedded-panel__plan-open-btn:hover {
+  background: rgba(34, 211, 238, 0.13);
+  border-color: rgba(34, 211, 238, 0.5);
 }
 
 .aura-embedded-panel__priority {

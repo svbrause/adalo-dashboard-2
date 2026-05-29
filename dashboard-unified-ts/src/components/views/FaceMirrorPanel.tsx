@@ -23,12 +23,26 @@ import FaceMirrorRegionsPicker, {
 } from "./FaceMirrorRegionsPicker";
 import AuraFaceView, { type AnnotateSavePayload } from "../aura/AuraFaceView";
 import type { AnnotateStroke } from "../aura/AnnotateDrawing";
-import { clientUsesAuraScan } from "../../utils/auraScanConfig";
+import {
+  clientUsesAuraInterface,
+  clientUsesAuraScan,
+} from "../../utils/auraScanConfig";
 import {
   savePatientAnnotation,
   type SavedPatientAnnotation,
 } from "../../utils/patientAnnotationsStorage";
-import { TANYA_TAN_VIEWER_ANGLE_ASSETS } from "../../utils/auraTanAnglePhotos";
+import {
+  buildViewerAngleAssetsFromManifest,
+  fetchPatientAuraManifestFromDisk,
+  getAvailableViewAngles,
+  getPatientAuraManifest,
+  setPatientAuraManifest,
+  type PatientAuraAssetManifest,
+} from "../../utils/patientAuraAssets";
+import {
+  buildViewerAngleAssetsFromPhotoSlots,
+  TANYA_TAN_VIEWER_ANGLE_ASSETS,
+} from "../../utils/auraTanAnglePhotos";
 import {
   issueToMirrorHighlightTerm,
   type AuraOverviewCategoryKey,
@@ -39,7 +53,7 @@ import {
   loadFaceMirrorHighlightedRegions,
   saveFaceMirrorHighlightedRegions,
 } from "../../utils/faceMirrorHighlightStorage";
-import { getScanApiBaseUrl } from "../../utils/scanApi";
+import { fetchScanJobStatus, getScanApiBaseUrl } from "../../utils/scanApi";
 import "./FaceMirrorPanel.css";
 
 // ---------------------------------------------------------------------------
@@ -447,7 +461,10 @@ interface FaceMirrorPanelProps {
   /** Fires whenever the Aura analysis tab (Skin / Volume / Structure) changes. */
   onAuraActiveCategoryChange?: (category: AuraOverviewCategoryKey) => void;
   /** Called when a new turntable video has been generated for this client. */
-  onScanGenerated?: (videoUrl: string) => void;
+  onScanGenerated?: (result: {
+    videoUrl: string;
+    auraAssets?: PatientAuraAssetManifest;
+  }) => void;
 }
 
 export default function FaceMirrorPanel({
@@ -490,11 +507,42 @@ export default function FaceMirrorPanel({
   const [scanState, setScanState] = useState<ScanState>({ phase: "idle" });
   const [scanQuality, setScanQuality] = useState<ScanQuality>("standard");
   const [overrideGlbUrl, setOverrideGlbUrl] = useState<string | null>(null);
+  const [patientAuraManifest, setPatientAuraManifestState] =
+    useState<PatientAuraAssetManifest | null>(() => getPatientAuraManifest(patientName));
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    setPatientAuraManifestState(getPatientAuraManifest(patientName));
+  }, [patientName]);
+
+  useEffect(() => {
+    const onAuraAssetsChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ clientName?: string }>).detail;
+      if (detail?.clientName === patientName.trim()) {
+        setPatientAuraManifestState(getPatientAuraManifest(patientName));
+      }
+    };
+    window.addEventListener("patient-aura-assets-changed", onAuraAssetsChanged);
+    return () => window.removeEventListener("patient-aura-assets-changed", onAuraAssetsChanged);
+  }, [patientName]);
 
   const effectiveVideoUrl = overrideGlbUrl ?? videoUrlProp ?? null;
   const has3D = Boolean(effectiveVideoUrl);
-  const useAuraScan = clientUsesAuraScan(patientName) && Boolean(effectiveVideoUrl);
+  const useAuraScan = clientUsesAuraInterface(effectiveVideoUrl);
+  const patientGeneratedAura = useAuraScan && !clientUsesAuraScan(patientName);
+
+  useEffect(() => {
+    if (clientUsesAuraScan(patientName)) return;
+    if (patientAuraManifest) return;
+    if (!effectiveVideoUrl) return;
+    let cancelled = false;
+    void fetchPatientAuraManifestFromDisk(patientName).then((manifest) => {
+      if (!cancelled && manifest) setPatientAuraManifestState(manifest);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [patientName, effectiveVideoUrl, patientAuraManifest]);
 
   useEffect(() => {
     setManualHighlightedRegionIds(
@@ -621,6 +669,37 @@ export default function FaceMirrorPanel({
     return [];
   }, [photoSlots, photoUrl]);
 
+  const viewerAngleAssets = useMemo(() => {
+    if (clientUsesAuraScan(patientName)) return TANYA_TAN_VIEWER_ANGLE_ASSETS;
+    const slotAssets = buildViewerAngleAssetsFromPhotoSlots(angleSlots);
+    if (!patientAuraManifest?.angles) return slotAssets;
+
+    const fallback = angleSlots.find((s) => s.url)?.url ?? "";
+    const assets = buildViewerAngleAssetsFromManifest(patientAuraManifest, fallback);
+    const avail = getAvailableViewAngles(patientAuraManifest, angleSlots);
+    for (const angle of avail ?? []) {
+      const slotSrc = slotAssets[angle]?.src;
+      if (!slotSrc) continue;
+      const manifestAngle = patientAuraManifest.angles[angle];
+      if (manifestAngle?.fromPhoto) continue;
+      if (manifestAngle?.src && manifestAngle.src !== fallback) continue;
+      assets[angle] = {
+        ...assets[angle],
+        src: slotSrc,
+        srcTexture: assets[angle].srcTexture ?? slotSrc,
+      };
+    }
+    return assets;
+  }, [patientName, angleSlots, patientAuraManifest]);
+
+  const availableViewAngles = useMemo(
+    () =>
+      clientUsesAuraScan(patientName)
+        ? undefined
+        : getAvailableViewAngles(patientAuraManifest, angleSlots),
+    [patientName, patientAuraManifest, angleSlots],
+  );
+
   const simplifiedSlots = useMemo(() => simplifyToFrontSideSlots(angleSlots), [angleSlots]);
 
   const slotKey = useMemo(
@@ -738,21 +817,11 @@ export default function FaceMirrorPanel({
 
   /** Start polling /api/scan/status/:jobId. Call after submit or on remount to resume. */
   const startPolling = useCallback((jobId: string) => {
-    type ProgressEvent = {
-      status: string;
-      progress?: number;
-      message?: string;
-      remaining?: number;
-      videoUrl?: string;
-      videoBase64?: string;
-      error?: string;
-    };
-
     stopPolling();
     pollRef.current = setInterval(async () => {
       try {
-        const r = await fetch(`${SCAN_API}/api/scan/status/${jobId}`);
-        const d = await r.json() as ProgressEvent;
+        const d = await fetchScanJobStatus(SCAN_API, jobId);
+        if (!d) return;
 
         if (d.status === "done") {
           stopPolling();
@@ -763,10 +832,17 @@ export default function FaceMirrorPanel({
             videoUrl = URL.createObjectURL(new Blob([bytes], { type: "video/mp4" }));
           }
           if (videoUrl) {
+            const auraAssets = d.auraAssets as PatientAuraAssetManifest | undefined;
+            if (auraAssets) {
+              setPatientAuraManifestState(auraAssets);
+              setPatientAuraManifest(patientName, auraAssets);
+            }
             setOverrideGlbUrl(videoUrl);
             setScanState({ phase: "done", videoUrl });
             setMode("3d");
-            onScanGenerated?.(videoUrl);
+            setViewportExpanded(true);
+            onScanGenerated?.({ videoUrl, auraAssets });
+            const savedAuraAssets = auraAssets;
             if (airtableRecordId && airtableTableName) {
               fetch(`${SCAN_API}/api/scan/save-video`, {
                 method: "POST",
@@ -774,10 +850,17 @@ export default function FaceMirrorPanel({
                 body: JSON.stringify({ jobId, recordId: airtableRecordId, tableName: airtableTableName }),
               })
                 .then((r) => r.json())
-                .then((saved: { videoUrl?: string }) => {
+                .then((saved: { videoUrl?: string; auraAssets?: PatientAuraAssetManifest }) => {
+                  if (saved.auraAssets) {
+                    setPatientAuraManifestState(saved.auraAssets);
+                    setPatientAuraManifest(patientName, saved.auraAssets);
+                  }
                   if (saved.videoUrl) {
                     setOverrideGlbUrl(saved.videoUrl);
-                    onScanGenerated?.(saved.videoUrl);
+                    onScanGenerated?.({
+                      videoUrl: saved.videoUrl,
+                      auraAssets: saved.auraAssets ?? savedAuraAssets,
+                    });
                   }
                 })
                 .catch(() => { /* non-fatal */ });
@@ -800,7 +883,7 @@ export default function FaceMirrorPanel({
         // transient network error — keep polling
       }
     }, 2500);
-  }, [SCAN_API, stopPolling, airtableRecordId, airtableTableName, onScanGenerated]);
+  }, [SCAN_API, stopPolling, airtableRecordId, airtableTableName, onScanGenerated, patientName]);
 
   /** Submit photos to /api/scan/submit, then poll for progress. */
   const startScan = useCallback(async () => {
@@ -873,7 +956,43 @@ export default function FaceMirrorPanel({
     ? "Hide analysis (Esc)"
     : "Show analysis";
 
+  const expandAnalysisButton = (
+    <button
+      type="button"
+      className="fmp-fullscreen-btn"
+      onClick={toggleViewportExpanded}
+      aria-pressed={viewportExpanded}
+      title={expandBtnLabel}
+    >
+      {viewportExpanded ? (
+        <>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M5 5 12 12M19 5 12 12M19 19 12 12M5 19 12 12" />
+          </svg>
+          Hide analysis
+        </>
+      ) : (
+        <>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M15 3h6v6" />
+            <path d="M9 21H3v-6" />
+            <path d="M21 15v6h-6" />
+            <path d="M3 9V3h6" />
+          </svg>
+          Show analysis
+        </>
+      )}
+    </button>
+  );
+
+  const auraExpandedTopbarEnd =
+    useAuraScan && viewportExpanded ? expandAnalysisButton : undefined;
+
   const scanning = scanState.phase === "running" || scanState.phase === "submitting";
+
+  const showOverlayToolbar =
+    (has3D || hasPhoto || canGenerate) &&
+    !(useAuraScan && viewportExpanded && !scanning);
 
   const toolbar = (
     <div className="fmp-toolbar">
@@ -979,32 +1098,7 @@ export default function FaceMirrorPanel({
             Cancel
           </button>
         )}
-        <button
-          type="button"
-          className="fmp-fullscreen-btn"
-          onClick={toggleViewportExpanded}
-          aria-pressed={viewportExpanded}
-          title={expandBtnLabel}
-        >
-          {viewportExpanded ? (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M5 5 12 12M19 5 12 12M19 19 12 12M5 19 12 12" />
-              </svg>
-              Hide analysis
-            </>
-          ) : (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M15 3h6v6" />
-                <path d="M9 21H3v-6" />
-                <path d="M21 15v6h-6" />
-                <path d="M3 9V3h6" />
-              </svg>
-              Analysis
-            </>
-          )}
-        </button>
+        {!auraExpandedTopbarEnd ? expandAnalysisButton : null}
       </div>
     </div>
   );
@@ -1033,7 +1127,21 @@ export default function FaceMirrorPanel({
         embedded
         turntableOnly
         videoUrl={effectiveVideoUrl}
-        viewerAngleAssets={TANYA_TAN_VIEWER_ANGLE_ASSETS}
+        textureVideoUrl={
+          clientUsesAuraScan(patientName)
+            ? undefined
+            : patientAuraManifest?.textureVideoUrl
+        }
+        pigmentationVideoUrl={
+          clientUsesAuraScan(patientName)
+            ? undefined
+            : patientAuraManifest?.pigmentationVideoUrl
+        }
+        viewerAngleAssets={viewerAngleAssets}
+        useBundledCvAnnotations={clientUsesAuraScan(patientName)}
+        cvAnnotations={patientAuraManifest?.cvAnnotations}
+        disableDemoTurntableFallback={patientGeneratedAura}
+        availableViewAngles={availableViewAngles}
         highlightTerms={highlightTermsForView}
         highlightedRegionIds={manualRegionsForView}
         overviewCategory={
@@ -1054,6 +1162,7 @@ export default function FaceMirrorPanel({
               }
             : undefined
         }
+        topbarEnd={auraExpandedTopbarEnd}
       />
     ) : (
       <Face3DViewer
@@ -1084,7 +1193,7 @@ export default function FaceMirrorPanel({
       className={`fmp-root${viewportExpanded ? " fmp-root--viewport-expanded" : ""}${useAuraScan ? " fmp-root--aura" : ""}`}
     >
       {/* Toolbar: expand always available; Aura collapsed hides extra chrome via CSS */}
-      {(has3D || hasPhoto || canGenerate) && toolbar}
+      {(has3D || hasPhoto || canGenerate) && showOverlayToolbar && toolbar}
 
       {/* Config sheet: slides in between toolbar and body */}
       {scanState.phase === "config" && (
@@ -1171,7 +1280,7 @@ export default function FaceMirrorPanel({
         <button
           type="button"
           className="fmp-planbuilder-launcher"
-          onClick={onOpenPlanBuilder}
+          onClick={() => onOpenPlanBuilder()}
           title="Open full plan builder"
         >
           Plan Builder

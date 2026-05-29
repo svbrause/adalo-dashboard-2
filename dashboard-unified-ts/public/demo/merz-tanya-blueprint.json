@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "token": "merz-tanya",
+  "createdAt": "2026-05-29T12:00:00.000Z",
+  "clinicName": "Merz Aesthetics",
+  "providerName": "Your provider",
+  "providerCode": "admin",
+  "patient": {
+    "id": "admin-demo-tanya",
+    "name": "Tanya M",
+    "tableSource": "Patients",
+    "ageRange": "30-39",
+    "skinType": "Combination",
+    "skinTone": "Medium",
+    "frontPhoto": "/demo-3d/tanya-tan-front.png"
+  },
+  "discussedItems": [
+    {
+      "id": "merz-tanya-xeomin",
+      "treatment": "Xeomin",
+      "interest": "Expression Lines",
+      "findings": ["Forehead Lines", "Crow's Feet", "Glabellar Lines"],
+      "region": "Upper Face",
+      "timeline": "Now",
+      "quantity": "24 units"
+    },
+    {
+      "id": "merz-tanya-radiesse",
+      "treatment": "Radiesse",
+      "interest": "Volume Restoration",
+      "findings": ["Midface Volume Loss", "Cheek Contour"],
+      "region": "Midface",
+      "timeline": "Now",
+      "quantity": "1.5 cc"
+    },
+    {
+      "id": "merz-tanya-belotero",
+      "treatment": "Belotero Plus",
+      "interest": "Nasolabial Folds",
+      "findings": ["Nasolabial Folds", "Perioral Lines"],
+      "region": "Lower Face",
+      "timeline": "Now",
+      "quantity": "1 cc"
+    },
+    {
+      "id": "merz-tanya-ultherapy",
+      "treatment": "Ultherapy Prime",
+      "interest": "Skin Tightening & Lift",
+      "findings": ["Jawline Laxity", "Brow Heaviness", "Neck Laxity"],
+      "region": "Full Face + Neck",
+      "timeline": "Now",
+      "quantity": "1 treatment"
+    }
+  ],
+  "quote": {
+    "lineItems": [
+      { "label": "Xeomin — Upper Face (24 units)", "price": 600, "displayPrice": "$600" },
+      { "label": "Radiesse — Midface (1.5 cc)", "price": 1100, "displayPrice": "$1,100" },
+      { "label": "Belotero Plus — Lower Face (1 cc)", "price": 850, "displayPrice": "$850" },
+      { "label": "Ultherapy Prime — Full Face + Neck", "price": 3200, "displayPrice": "$3,200" }
+    ],
+    "total": 5750,
+    "totalAfterDiscount": 5750,
+    "hasUnknownPrices": false,
+    "isMintMember": false
+  },
+  "cta": {
+    "bookingUrl": "https://merzaesthetics.com"
+  }
+}

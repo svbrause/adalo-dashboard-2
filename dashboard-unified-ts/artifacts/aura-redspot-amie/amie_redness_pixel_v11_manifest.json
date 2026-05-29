@@ -1,0 +1,41 @@
+{
+  "rendering": "pixel-redness-v11-cheek-driven",
+  "sourceFiles": {
+    "front": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/static/patient_photos/Amie_Bailey_front.jpg",
+    "profile-right": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/training_data_v3/images/side/Amie_Bailey_side.jpg"
+  },
+  "faceBoxesPx": {
+    "front": [
+      205,
+      166,
+      676,
+      676
+    ],
+    "profile-right": [
+      427,
+      162,
+      534,
+      534
+    ]
+  },
+  "redMaskByAngle": {
+    "front": "amie_front_redness_pixel_v11_mask.png",
+    "profile-right": "amie_profile-right_redness_pixel_v11_mask.png"
+  },
+  "redPreviewByAngle": {
+    "front": "amie_front_redness_pixel_v11_preview.png",
+    "profile-right": "amie_profile-right_redness_pixel_v11_preview.png"
+  },
+  "frontRegionStats": {
+    "cheek_mean_nose_mean_cheek_p90_nose_p90": [
+      0.3973731877511857,
+      0.20959031260229222,
+      0.9277576629377329,
+      0.6432663693571006
+    ]
+  },
+  "notes": [
+    "Pixel redness driven; no nose-specific boost.",
+    "Heat uses LAB a-channel, local a-channel excess, and red excess, with highlight damping."
+  ]
+}

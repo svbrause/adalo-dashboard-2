@@ -9,8 +9,16 @@ const ISSUE_SYNONYMS: Record<string, string> = {
   "under eye hollowing": "under eye hollow",
 };
 
-export function normalizeIssue(name: string): string {
-  const key = name
+export function normalizeIssue(name: unknown): string {
+  if (name == null) return "";
+  const text =
+    typeof name === "string"
+      ? name
+      : typeof name === "number" || typeof name === "boolean"
+        ? String(name)
+        : "";
+  if (!text) return "";
+  const key = text
     .toLowerCase()
     .trim()
     .replace(/['']/g, "")

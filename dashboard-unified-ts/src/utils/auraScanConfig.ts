@@ -32,6 +32,13 @@ export function clientUsesAuraScan(clientName: string | null | undefined): boole
   return auraScanVideoForName(clientName) !== null;
 }
 
+/** True when the dashboard should use AuraFaceView (turntable + annotation UI). */
+export function clientUsesAuraInterface(
+  turntableVideoUrl: string | null | undefined,
+): boolean {
+  return Boolean(turntableVideoUrl?.trim());
+}
+
 export function getAuraScanVideoUrl(clientName: string | null | undefined): string | null {
   if (!clientName) return null;
   return auraScanVideoForName(clientName);

@@ -66,8 +66,9 @@ QUALITY_PRESETS: dict[str, dict[str, Any]] = {
 # ---------------------------------------------------------------------------
 # In-memory job store
 # ---------------------------------------------------------------------------
-# job_id -> {status, started_at, quality, video_url, error}
+# job_id -> {status, started_at, quality, video_url, error, auraAssets, ...}
 _jobs: dict[str, dict[str, Any]] = {}
+_jobs_lock = threading.Lock()
 
 
 def _progress_message(p: float) -> str:
@@ -118,6 +119,11 @@ def _make_seek_friendly_turntable(src: Path, dest: Path) -> bool:
         return False
 
 
+def _set_job(job_id: str, **fields: Any) -> None:
+    with _jobs_lock:
+        _jobs[job_id].update(fields)
+
+
 def _run_modal_job(
     job_id: str,
     photos: dict[str, bytes],
@@ -127,7 +133,7 @@ def _run_modal_job(
     """Background thread: calls Modal via function lookup, writes turntable.mp4."""
     try:
         q = QUALITY_PRESETS.get(quality, QUALITY_PRESETS["standard"])
-        _jobs[job_id]["status"] = "running"
+        _set_job(job_id, status="running")
 
         # Step 1: reconstruct — returns gaussians.ply + raw turntable (white bg)
         fn_reconstruct = _modal.Function.from_name(_MODAL_APP_NAME, _MODAL_FN_NAME)
@@ -162,13 +168,66 @@ def _run_modal_job(
         out_path.write_bytes(video_bytes)
         seek_path = PUBLIC_3D / f"{safe}-turntable-seek.mp4"
         video_path = seek_path if _make_seek_friendly_turntable(out_path, seek_path) else out_path
+        video_url = f"/demo-3d/{video_path.name}"
 
-        _jobs[job_id]["status"] = "done"
-        _jobs[job_id]["video_url"] = f"/demo-3d/{video_path.name}"
+        gcs_turntable = _upload_to_gcs(out_path, f"turntables/{safe}-turntable.mp4")
+        if gcs_turntable:
+            video_url = gcs_turntable
+            seek_gcs = _upload_to_gcs(seek_path, f"turntables/{safe}-turntable-seek.mp4") if seek_path.exists() else None
+            if seek_gcs:
+                video_url = seek_gcs
+
+        aura_manifest: dict[str, Any] | None = None
+        _set_job(job_id, message="Generating skin maps & background removal…", progress=0.96)
+        try:
+            import importlib.util
+
+            scripts_dir = Path(__file__).parent / "scripts"
+
+            script_path = scripts_dir / "generate_patient_aura_assets.py"
+            spec = importlib.util.spec_from_file_location("generate_patient_aura_assets", script_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Cannot load {script_path}")
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            aura_manifest = mod.generate_aura_assets(
+                slug=safe,
+                turntable_video_path=out_path,
+                photo_bytes=photos,
+                turntable_video_url=video_url,
+            )
+
+            gcs_spec = importlib.util.spec_from_file_location(
+                "scan_aura_gcs",
+                scripts_dir / "scan_aura_gcs.py",
+            )
+            if gcs_spec and gcs_spec.loader:
+                gcs_mod = importlib.util.module_from_spec(gcs_spec)
+                gcs_spec.loader.exec_module(gcs_mod)
+                uploaded = gcs_mod.upload_aura_manifest_to_gcs(
+                    safe,
+                    PUBLIC_3D / safe,
+                    aura_manifest,
+                )
+                if uploaded:
+                    aura_manifest = uploaded
+                    aura_manifest["turntableVideoUrl"] = video_url
+        except Exception as aura_exc:
+            import traceback
+
+            print(f"[server] Aura asset generation failed for {safe}: {aura_exc}")
+            traceback.print_exc()
+
+        _set_job(
+            job_id,
+            status="done",
+            video_url=video_url,
+            auraAssets=aura_manifest,
+            progress=1.0,
+        )
 
     except Exception as exc:
-        _jobs[job_id]["status"] = "error"
-        _jobs[job_id]["error"] = str(exc)
+        _set_job(job_id, status="error", error=str(exc))
         print(f"[server] Job {job_id} failed: {exc}")
 
 
@@ -223,13 +282,17 @@ async def submit_scan(body: dict) -> dict:
     photos: dict[str, bytes] = dict(pairs)
 
     job_id = str(uuid.uuid4())
-    _jobs[job_id] = {
-        "status": "queued",
-        "started_at": time.time(),
-        "quality": quality,
-        "video_url": None,
-        "error": None,
-    }
+    with _jobs_lock:
+        _jobs[job_id] = {
+            "status": "queued",
+            "started_at": time.time(),
+            "quality": quality,
+            "video_url": None,
+            "auraAssets": None,
+            "error": None,
+            "message": None,
+            "progress": 0.0,
+        }
 
     thread = threading.Thread(
         target=_run_modal_job,
@@ -244,46 +307,56 @@ async def submit_scan(body: dict) -> dict:
     }
 
 
+def _job_status_payload(job: dict[str, Any]) -> dict[str, Any]:
+    status = job.get("status", "queued")
+    elapsed = time.time() - job.get("started_at", time.time())
+    q = QUALITY_PRESETS.get(job.get("quality", "standard"), QUALITY_PRESETS["standard"])
+    estimated: int = q["estimated"]
+
+    if status == "done":
+        payload: dict[str, Any] = {
+            "status": "done",
+            "progress": 1.0,
+            "videoUrl": job.get("video_url"),
+        }
+        if job.get("auraAssets"):
+            payload["auraAssets"] = job["auraAssets"]
+        return payload
+
+    if status == "error":
+        return {"status": "error", "error": job.get("error", "Unknown error")}
+
+    if status == "queued":
+        return {"status": "queued", "progress": 0.01, "message": "Queued…"}
+
+    raw = elapsed / max(estimated, 1)
+    progress = round(min(0.95, 1.0 - 1.0 / (1.0 + raw * 2.6)), 3)
+    remaining = max(0, int(estimated - elapsed))
+    return {
+        "status": "running",
+        "progress": job.get("progress") or progress,
+        "elapsed": int(elapsed),
+        "remaining": remaining,
+        "message": job.get("message") or _progress_message(progress),
+    }
+
+
 @app.get("/api/scan/status/{job_id}")
 async def scan_status(job_id: str) -> StreamingResponse:
     """Server-Sent Events stream with progress updates every ~1.5 s."""
 
     async def _stream() -> Any:
         while True:
-            job = _jobs.get(job_id)
+            with _jobs_lock:
+                job = _jobs.get(job_id)
             if not job:
                 yield f"data: {json.dumps({'status': 'error', 'error': 'Job not found'})}\n\n"
                 return
 
-            status = job["status"]
-            elapsed = time.time() - job["started_at"]
-            q = QUALITY_PRESETS.get(job.get("quality", "standard"), QUALITY_PRESETS["standard"])
-            estimated: int = q["estimated"]
-
-            if status == "done":
-                yield f"data: {json.dumps({'status': 'done', 'progress': 1.0, 'videoUrl': job['video_url']})}\n\n"
-                return
-
-            if status == "error":
-                yield f"data: {json.dumps({'status': 'error', 'error': job.get('error', 'Unknown error')})}\n\n"
-                return
-
-            if status == "queued":
-                data = {"status": "queued", "progress": 0.01, "message": "Queued…"}
-            else:  # running
-                # Sigmoid-style ramp: approaches 0.95 asymptotically
-                raw = elapsed / max(estimated, 1)
-                progress = round(min(0.95, 1.0 - 1.0 / (1.0 + raw * 2.6)), 3)
-                remaining = max(0, int(estimated - elapsed))
-                data = {
-                    "status": "running",
-                    "progress": progress,
-                    "elapsed": int(elapsed),
-                    "remaining": remaining,
-                    "message": _progress_message(progress),
-                }
-
+            data = _job_status_payload(job)
             yield f"data: {json.dumps(data)}\n\n"
+            if data["status"] in ("done", "error"):
+                return
             await asyncio.sleep(1.5)
 
     return StreamingResponse(
@@ -291,6 +364,16 @@ async def scan_status(job_id: str) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.get("/api/scan/status/{job_id}/json")
+async def scan_status_json(job_id: str) -> dict[str, Any]:
+    """JSON snapshot of job progress (for simple client polling)."""
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found")
+    return _job_status_payload(job)
 
 
 @app.get("/api/scan/jobs")
@@ -431,7 +514,35 @@ async def save_video(body: dict) -> dict:
         return {"videoUrl": local_url, "persisted": False}
 
     persisted = await asyncio.to_thread(_update_airtable_turntable_url, record_id, table_name, gcs_url)
-    return {"videoUrl": gcs_url, "persisted": persisted}
+
+    aura_assets = job.get("auraAssets")
+    if aura_assets and isinstance(aura_assets, dict):
+        slug = local_path.stem.replace("-turntable-seek", "").replace("-turntable", "")
+        aura_dir = PUBLIC_3D / slug
+        if aura_dir.exists():
+            try:
+                import importlib.util
+
+                gcs_spec = importlib.util.spec_from_file_location(
+                    "scan_aura_gcs",
+                    Path(__file__).parent / "scripts" / "scan_aura_gcs.py",
+                )
+                if gcs_spec and gcs_spec.loader:
+                    gcs_mod = importlib.util.module_from_spec(gcs_spec)
+                    gcs_spec.loader.exec_module(gcs_mod)
+                    uploaded = gcs_mod.upload_aura_manifest_to_gcs(
+                        slug,
+                        aura_dir,
+                        aura_assets,
+                    )
+                    if uploaded:
+                        aura_assets = uploaded
+                        aura_assets["turntableVideoUrl"] = gcs_url
+                        job["auraAssets"] = aura_assets
+            except Exception as exc:
+                print(f"[server] Aura GCS upload on save-video failed: {exc}")
+
+    return {"videoUrl": gcs_url, "persisted": persisted, "auraAssets": aura_assets}
 
 
 if __name__ == "__main__":

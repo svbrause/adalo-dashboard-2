@@ -1612,7 +1612,7 @@ export default function AnalysisOverviewModal({
               categories={categories}
               detectedIssues={detectedIssues}
               bridge={auraBridge}
-              onOpenPlanBuilder={onOpenTreatmentRecommender}
+              onOpenPlanBuilder={() => onOpenTreatmentRecommender?.()}
               onOpenTreatmentForIssue={onOpenTreatmentRecommender}
             />
           ) : (

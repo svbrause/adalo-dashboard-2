@@ -404,7 +404,7 @@ export default function AuraEmbeddedAnalysisPanel({
                 <button
                   type="button"
                   className="aura-embedded-panel__plan-open-btn"
-                  onClick={onOpenPlanBuilder}
+                  onClick={() => onOpenPlanBuilder()}
                 >
                   Open Full Plan Builder →
                 </button>
@@ -421,7 +421,6 @@ export default function AuraEmbeddedAnalysisPanel({
                   patientFiles.onLoadAnnotation(record);
                   setRightView("analysis");
                 }}
-                onOpenPhoto={(url) => window.open(url, "_blank", "noopener,noreferrer")}
               />
             </div>
           ) : activeCat ? (

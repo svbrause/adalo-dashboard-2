@@ -143,7 +143,12 @@ import FaceMirrorPanel from "./FaceMirrorPanel";
 import PatientMediaLibraryPanel from "./PatientMediaLibraryPanel";
 import type { SavedPatientAnnotation } from "../../utils/patientAnnotationsStorage";
 import { clientHas3DModel, getClientGlbUrl, setGeneratedClientGlbUrl } from "../../utils/client3dConfig";
-import { clientUsesAuraScan } from "../../utils/auraScanConfig";
+import {
+  setPatientAuraManifest,
+  type PatientAuraAssetManifest,
+} from "../../utils/patientAuraAssets";
+import { clientUsesAuraInterface } from "../../utils/auraScanConfig";
+import { isTanyaTanDemoClient } from "../../utils/tanyaTanSystemMedia";
 import type { ClientDetailSection } from "../../utils/dashboardRoutes";
 import { useClientDetailDeepLink } from "../../hooks/useClientDetailDeepLink";
 import { loadClientGalleryPhotoSlots } from "../../utils/clientGalleryPhotos";
@@ -358,8 +363,10 @@ export default function ClientDetailPanel({
     if (
       !client ||
       recommenderMode ||
-      clientUsesAuraScan(client.name) ||
-      (!clientHas3DModel(client.name) && !hasFrontPhoto)
+      (isTanyaTanDemoClient(client) && client.galleryPhotoSlots?.length) ||
+      (!clientHas3DModel(client.name) &&
+        !client.turntableVideoUrl &&
+        !hasFrontPhoto)
     ) {
       setFaceMirrorPhotoSlots([]);
       return;
@@ -817,15 +824,22 @@ export default function ClientDetailPanel({
     [activeAnalysisTerm],
   );
 
-  const auraScanOnly = clientUsesAuraScan(client.name);
-  const photoUrlForMirror = auraScanOnly
+  const usesAuraInterface = clientUsesAuraInterface(glbUrl);
+  const auraScanOnly = usesAuraInterface;
+  const photoUrlForMirror = usesAuraInterface
     ? null
     : (frontPhotoUrl ?? getClientFrontPhotoDisplayUrl(client.frontPhoto));
 
-  const handleScanGenerated = useCallback((videoUrl: string) => {
-    setGeneratedClientGlbUrl(client.name, videoUrl);
-    onUpdate();
-  }, [client.name, onUpdate]);
+  const handleScanGenerated = useCallback(
+    (result: { videoUrl: string; auraAssets?: PatientAuraAssetManifest }) => {
+      setGeneratedClientGlbUrl(client.name, result.videoUrl);
+      if (result.auraAssets) {
+        setPatientAuraManifest(client.name, result.auraAssets);
+      }
+      onUpdate();
+    },
+    [client.name, onUpdate],
+  );
 
 
   const treatmentPlanSection = useMemo(
@@ -1134,7 +1148,10 @@ export default function ClientDetailPanel({
         : fallbackAllFindings;
     const findings = Array.from(
       new Map(
-        findingsBase.map((finding) => [normalizeIssue(finding), finding.trim()]),
+        findingsBase.map((finding) => {
+          const label = typeof finding === "string" ? finding.trim() : String(finding ?? "").trim();
+          return [normalizeIssue(label), label] as const;
+        }),
       ).values(),
     );
     const severityIssues = client?.severityScoresFromAnalyses?.issues ?? {};
@@ -1467,7 +1484,7 @@ export default function ClientDetailPanel({
 
           {/* 3D split: left face mirror column */}
           {is3DSplit && (
-            <div className={`cdp-face-col${clientUsesAuraScan(client.name) ? " cdp-face-col--aura" : ""}`}>
+            <div className={`cdp-face-col${usesAuraInterface ? " cdp-face-col--aura" : ""}`}>
               <FaceMirrorPanel
                 photoUrl={auraScanOnly ? null : photoUrlForMirror}
                 photoSlots={faceMirrorPhotoSlots}
@@ -1486,7 +1503,9 @@ export default function ClientDetailPanel({
                 analysisOverviewOnAddToPlanDirect={appendDiscussedItemFromPrefill}
                 analysisOverviewOnOpenTreatmentRecommender={(issue, category) => {
                   if (category) setAuraActiveCategoryForPlan(category);
-                  setFocusedIssueForRecommender(issue ?? null);
+                  setFocusedIssueForRecommender(
+                    typeof issue === "string" && issue.trim() ? issue.trim() : null,
+                  );
                   setExpandedRecommenderCollapsed(false);
                 }}
                 expandedLowerRightContent={expandedPlanBuilderPanel}
@@ -2488,9 +2507,6 @@ export default function ClientDetailPanel({
                             }),
                           );
                         }}
-                        onOpenPhoto={(url) =>
-                          window.open(url, "_blank", "noopener,noreferrer")
-                        }
                       />
                     </div>
                   )}

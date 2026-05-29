@@ -1,0 +1,840 @@
+{
+  "rendering": "raster-redness-texture-mask-v1",
+  "coordinateSpace": "source-image-percent",
+  "sourceFiles": {
+    "front": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/static/patient_photos/Amie_Bailey_front.jpg",
+    "profile-right": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/training_data_v3/images/side/Amie_Bailey_side.jpg"
+  },
+  "faceBoxesPx": {
+    "front": [
+      205,
+      166,
+      676,
+      676
+    ],
+    "profile-right": [
+      427,
+      162,
+      534,
+      534
+    ]
+  },
+  "redMaskByAngle": {
+    "front": "amie_front_redness_raster_mask.png",
+    "profile-right": "amie_profile-right_redness_raster_mask.png"
+  },
+  "redComponentsByAngle": {
+    "front": [
+      {
+        "cx": 35.913,
+        "cy": 82.221,
+        "rx": 2.155,
+        "ry": 2.155,
+        "intensity": 0.651,
+        "areaPx": 580
+      },
+      {
+        "cx": 64.519,
+        "cy": 78.738,
+        "rx": 0.862,
+        "ry": 0.814,
+        "intensity": 0.643,
+        "areaPx": 85
+      },
+      {
+        "cx": 29.716,
+        "cy": 69.435,
+        "rx": 0.383,
+        "ry": 0.814,
+        "intensity": 0.635,
+        "areaPx": 59
+      },
+      {
+        "cx": 34.926,
+        "cy": 79.476,
+        "rx": 0.431,
+        "ry": 0.67,
+        "intensity": 0.631,
+        "areaPx": 59
+      },
+      {
+        "cx": 76.198,
+        "cy": 56.176,
+        "rx": 0.479,
+        "ry": 0.862,
+        "intensity": 0.616,
+        "areaPx": 55
+      },
+      {
+        "cx": 26.042,
+        "cy": 57.411,
+        "rx": 0.239,
+        "ry": 0.527,
+        "intensity": 0.682,
+        "areaPx": 32
+      },
+      {
+        "cx": 40.042,
+        "cy": 86.487,
+        "rx": 0.383,
+        "ry": 0.335,
+        "intensity": 0.596,
+        "areaPx": 26
+      },
+      {
+        "cx": 29.789,
+        "cy": 67.787,
+        "rx": 0.335,
+        "ry": 0.383,
+        "intensity": 0.616,
+        "areaPx": 23
+      },
+      {
+        "cx": 39.393,
+        "cy": 86.074,
+        "rx": 0.335,
+        "ry": 0.287,
+        "intensity": 0.606,
+        "areaPx": 23
+      },
+      {
+        "cx": 34.856,
+        "cy": 78.574,
+        "rx": 0.335,
+        "ry": 0.287,
+        "intensity": 0.616,
+        "areaPx": 19
+      },
+      {
+        "cx": 76.291,
+        "cy": 63.178,
+        "rx": 0.239,
+        "ry": 0.383,
+        "intensity": 0.61,
+        "areaPx": 19
+      },
+      {
+        "cx": 28.665,
+        "cy": 68.34,
+        "rx": 0.192,
+        "ry": 0.287,
+        "intensity": 0.659,
+        "areaPx": 15
+      },
+      {
+        "cx": 46.277,
+        "cy": 66.75,
+        "rx": 0.383,
+        "ry": 0.144,
+        "intensity": 0.633,
+        "areaPx": 15
+      },
+      {
+        "cx": 26.013,
+        "cy": 56.411,
+        "rx": 0.096,
+        "ry": 0.383,
+        "intensity": 0.672,
+        "areaPx": 14
+      },
+      {
+        "cx": 26.984,
+        "cy": 58.381,
+        "rx": 0.192,
+        "ry": 0.192,
+        "intensity": 0.664,
+        "areaPx": 14
+      },
+      {
+        "cx": 55.371,
+        "cy": 56.979,
+        "rx": 0.383,
+        "ry": 0.239,
+        "intensity": 0.61,
+        "areaPx": 14
+      },
+      {
+        "cx": 50.144,
+        "cy": 84.435,
+        "rx": 0.192,
+        "ry": 0.192,
+        "intensity": 0.655,
+        "areaPx": 12
+      },
+      {
+        "cx": 31.882,
+        "cy": 78.957,
+        "rx": 0.239,
+        "ry": 0.287,
+        "intensity": 0.576,
+        "areaPx": 13
+      },
+      {
+        "cx": 61.766,
+        "cy": 81.386,
+        "rx": 0.239,
+        "ry": 0.335,
+        "intensity": 0.62,
+        "areaPx": 12
+      },
+      {
+        "cx": 41.539,
+        "cy": 81.96,
+        "rx": 0.239,
+        "ry": 0.239,
+        "intensity": 0.62,
+        "areaPx": 12
+      },
+      {
+        "cx": 31.521,
+        "cy": 78.408,
+        "rx": 0.239,
+        "ry": 0.239,
+        "intensity": 0.596,
+        "areaPx": 12
+      },
+      {
+        "cx": 32.889,
+        "cy": 80.199,
+        "rx": 0.287,
+        "ry": 0.192,
+        "intensity": 0.596,
+        "areaPx": 11
+      },
+      {
+        "cx": 34.1,
+        "cy": 81.466,
+        "rx": 0.144,
+        "ry": 0.192,
+        "intensity": 0.617,
+        "areaPx": 10
+      },
+      {
+        "cx": 33.266,
+        "cy": 80.508,
+        "rx": 0.192,
+        "ry": 0.192,
+        "intensity": 0.591,
+        "areaPx": 10
+      },
+      {
+        "cx": 51.799,
+        "cy": 52.597,
+        "rx": 0.239,
+        "ry": 0.144,
+        "intensity": 0.655,
+        "areaPx": 9
+      },
+      {
+        "cx": 28.65,
+        "cy": 65.57,
+        "rx": 0.144,
+        "ry": 0.192,
+        "intensity": 0.62,
+        "areaPx": 9
+      },
+      {
+        "cx": 34.738,
+        "cy": 78.118,
+        "rx": 0.144,
+        "ry": 0.192,
+        "intensity": 0.604,
+        "areaPx": 9
+      },
+      {
+        "cx": 26.233,
+        "cy": 54.909,
+        "rx": 0.096,
+        "ry": 0.335,
+        "intensity": 0.678,
+        "areaPx": 8
+      },
+      {
+        "cx": 72.593,
+        "cy": 58.465,
+        "rx": 0.239,
+        "ry": 0.096,
+        "intensity": 0.624,
+        "areaPx": 8
+      },
+      {
+        "cx": 28.472,
+        "cy": 64.703,
+        "rx": 0.144,
+        "ry": 0.192,
+        "intensity": 0.611,
+        "areaPx": 8
+      },
+      {
+        "cx": 31.058,
+        "cy": 71.42,
+        "rx": 0.192,
+        "ry": 0.192,
+        "intensity": 0.604,
+        "areaPx": 8
+      },
+      {
+        "cx": 76.054,
+        "cy": 63.59,
+        "rx": 0.144,
+        "ry": 0.239,
+        "intensity": 0.602,
+        "areaPx": 8
+      },
+      {
+        "cx": 32.387,
+        "cy": 79.682,
+        "rx": 0.144,
+        "ry": 0.144,
+        "intensity": 0.596,
+        "areaPx": 8
+      },
+      {
+        "cx": 33.776,
+        "cy": 81.094,
+        "rx": 0.192,
+        "ry": 0.144,
+        "intensity": 0.592,
+        "areaPx": 8
+      },
+      {
+        "cx": 38.853,
+        "cy": 85.788,
+        "rx": 0.192,
+        "ry": 0.144,
+        "intensity": 0.581,
+        "areaPx": 8
+      },
+      {
+        "cx": 60.8,
+        "cy": 87.859,
+        "rx": 0.239,
+        "ry": 0.192,
+        "intensity": 0.573,
+        "areaPx": 8
+      },
+      {
+        "cx": 53.476,
+        "cy": 61.084,
+        "rx": 0.192,
+        "ry": 0.144,
+        "intensity": 0.624,
+        "areaPx": 7
+      },
+      {
+        "cx": 63.218,
+        "cy": 80.049,
+        "rx": 0.144,
+        "ry": 0.144,
+        "intensity": 0.616,
+        "areaPx": 7
+      },
+      {
+        "cx": 47.893,
+        "cy": 84.483,
+        "rx": 0.144,
+        "ry": 0.144,
+        "intensity": 0.612,
+        "areaPx": 7
+      },
+      {
+        "cx": 24.856,
+        "cy": 55.651,
+        "rx": 0.096,
+        "ry": 0.144,
+        "intensity": 0.671,
+        "areaPx": 6
+      },
+      {
+        "cx": 26.628,
+        "cy": 53.592,
+        "rx": 0.048,
+        "ry": 0.287,
+        "intensity": 0.659,
+        "areaPx": 6
+      },
+      {
+        "cx": 77.506,
+        "cy": 56.114,
+        "rx": 0.144,
+        "ry": 0.144,
+        "intensity": 0.646,
+        "areaPx": 6
+      },
+      {
+        "cx": 74.489,
+        "cy": 65.852,
+        "rx": 0.096,
+        "ry": 0.192,
+        "intensity": 0.646,
+        "areaPx": 6
+      },
+      {
+        "cx": 77.953,
+        "cy": 58.844,
+        "rx": 0.144,
+        "ry": 0.192,
+        "intensity": 0.63,
+        "areaPx": 6
+      },
+      {
+        "cx": 67.656,
+        "cy": 80.412,
+        "rx": 0.192,
+        "ry": 0.096,
+        "intensity": 0.602,
+        "areaPx": 6
+      },
+      {
+        "cx": 52.714,
+        "cy": 52.235,
+        "rx": 0.192,
+        "ry": 0.096,
+        "intensity": 0.6,
+        "areaPx": 6
+      },
+      {
+        "cx": 75.351,
+        "cy": 61.159,
+        "rx": 0.096,
+        "ry": 0.287,
+        "intensity": 0.586,
+        "areaPx": 6
+      },
+      {
+        "cx": 67.8,
+        "cy": 79.965,
+        "rx": 0.144,
+        "ry": 0.144,
+        "intensity": 0.576,
+        "areaPx": 6
+      },
+      {
+        "cx": 57.893,
+        "cy": 59.08,
+        "rx": 0.096,
+        "ry": 0.144,
+        "intensity": 0.631,
+        "areaPx": 5
+      },
+      {
+        "cx": 58.697,
+        "cy": 67.567,
+        "rx": 0.144,
+        "ry": 0.096,
+        "intensity": 0.616,
+        "areaPx": 5
+      },
+      {
+        "cx": 30.594,
+        "cy": 72.395,
+        "rx": 0.096,
+        "ry": 0.144,
+        "intensity": 0.616,
+        "areaPx": 5
+      },
+      {
+        "cx": 64.387,
+        "cy": 86.475,
+        "rx": 0.144,
+        "ry": 0.144,
+        "intensity": 0.616,
+        "areaPx": 5
+      },
+      {
+        "cx": 30.249,
+        "cy": 63.103,
+        "rx": 0.144,
+        "ry": 0.144,
+        "intensity": 0.604,
+        "areaPx": 5
+      },
+      {
+        "cx": 74.306,
+        "cy": 66.307,
+        "rx": 0.096,
+        "ry": 0.144,
+        "intensity": 0.665,
+        "areaPx": 4
+      },
+      {
+        "cx": 25.431,
+        "cy": 55.412,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.644,
+        "areaPx": 4
+      },
+      {
+        "cx": 48.228,
+        "cy": 52.251,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.63,
+        "areaPx": 4
+      },
+      {
+        "cx": 41.092,
+        "cy": 87.189,
+        "rx": 0.144,
+        "ry": 0.096,
+        "intensity": 0.575,
+        "areaPx": 4
+      },
+      {
+        "cx": 25.0,
+        "cy": 55.268,
+        "rx": 0.048,
+        "ry": 0.144,
+        "intensity": 0.669,
+        "areaPx": 3
+      },
+      {
+        "cx": 26.245,
+        "cy": 58.142,
+        "rx": 0.048,
+        "ry": 0.144,
+        "intensity": 0.647,
+        "areaPx": 3
+      },
+      {
+        "cx": 49.84,
+        "cy": 84.132,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.637,
+        "areaPx": 3
+      },
+      {
+        "cx": 53.672,
+        "cy": 84.132,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.622,
+        "areaPx": 3
+      },
+      {
+        "cx": 52.427,
+        "cy": 52.618,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.616,
+        "areaPx": 3
+      },
+      {
+        "cx": 32.982,
+        "cy": 73.978,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.614,
+        "areaPx": 3
+      },
+      {
+        "cx": 74.17,
+        "cy": 53.863,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.612,
+        "areaPx": 3
+      },
+      {
+        "cx": 49.457,
+        "cy": 56.737,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.608,
+        "areaPx": 3
+      },
+      {
+        "cx": 52.522,
+        "cy": 84.227,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.606,
+        "areaPx": 3
+      },
+      {
+        "cx": 48.595,
+        "cy": 66.986,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.602,
+        "areaPx": 3
+      },
+      {
+        "cx": 31.354,
+        "cy": 71.775,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.6,
+        "areaPx": 3
+      },
+      {
+        "cx": 36.143,
+        "cy": 81.258,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.594,
+        "areaPx": 3
+      },
+      {
+        "cx": 36.526,
+        "cy": 81.833,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.592,
+        "areaPx": 3
+      },
+      {
+        "cx": 28.863,
+        "cy": 65.837,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.588,
+        "areaPx": 3
+      },
+      {
+        "cx": 44.668,
+        "cy": 84.227,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.588,
+        "areaPx": 3
+      },
+      {
+        "cx": 79.438,
+        "cy": 52.331,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.582,
+        "areaPx": 3
+      },
+      {
+        "cx": 48.499,
+        "cy": 56.641,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.582,
+        "areaPx": 3
+      },
+      {
+        "cx": 69.093,
+        "cy": 76.086,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.58,
+        "areaPx": 3
+      },
+      {
+        "cx": 37.388,
+        "cy": 79.342,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.578,
+        "areaPx": 3
+      },
+      {
+        "cx": 55.396,
+        "cy": 84.802,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.578,
+        "areaPx": 3
+      },
+      {
+        "cx": 54.342,
+        "cy": 57.599,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.576,
+        "areaPx": 3
+      },
+      {
+        "cx": 67.848,
+        "cy": 79.438,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.563,
+        "areaPx": 3
+      },
+      {
+        "cx": 32.695,
+        "cy": 79.821,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.563,
+        "areaPx": 3
+      },
+      {
+        "cx": 33.557,
+        "cy": 80.683,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.563,
+        "areaPx": 3
+      },
+      {
+        "cx": 37.963,
+        "cy": 85.377,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.563,
+        "areaPx": 3
+      },
+      {
+        "cx": 28.496,
+        "cy": 69.205,
+        "rx": 0.096,
+        "ry": 0.096,
+        "intensity": 0.611,
+        "areaPx": 2
+      },
+      {
+        "cx": 47.366,
+        "cy": 56.226,
+        "rx": 0.096,
+        "ry": 0.048,
+        "intensity": 0.604,
+        "areaPx": 2
+      },
+      {
+        "cx": 34.722,
+        "cy": 82.471,
+        "rx": 0.096,
+        "ry": 0.048,
+        "intensity": 0.603,
+        "areaPx": 2
+      },
+      {
+        "cx": 62.261,
+        "cy": 80.891,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.595,
+        "areaPx": 2
+      },
+      {
+        "cx": 72.893,
+        "cy": 56.466,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.592,
+        "areaPx": 2
+      },
+      {
+        "cx": 28.736,
+        "cy": 52.73,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.589,
+        "areaPx": 2
+      },
+      {
+        "cx": 30.029,
+        "cy": 68.295,
+        "rx": 0.096,
+        "ry": 0.048,
+        "intensity": 0.584,
+        "areaPx": 2
+      },
+      {
+        "cx": 79.598,
+        "cy": 52.634,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.581,
+        "areaPx": 2
+      },
+      {
+        "cx": 60.489,
+        "cy": 88.218,
+        "rx": 0.096,
+        "ry": 0.048,
+        "intensity": 0.58,
+        "areaPx": 2
+      },
+      {
+        "cx": 54.693,
+        "cy": 57.423,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.575,
+        "areaPx": 2
+      },
+      {
+        "cx": 77.395,
+        "cy": 62.021,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.573,
+        "areaPx": 2
+      },
+      {
+        "cx": 28.065,
+        "cy": 62.596,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.573,
+        "areaPx": 2
+      },
+      {
+        "cx": 76.245,
+        "cy": 62.692,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.565,
+        "areaPx": 2
+      },
+      {
+        "cx": 25.192,
+        "cy": 55.508,
+        "rx": 0.048,
+        "ry": 0.096,
+        "intensity": 0.507,
+        "areaPx": 2
+      }
+    ],
+    "profile-right": [
+      {
+        "cx": 79.705,
+        "cy": 51.111,
+        "rx": 0.42,
+        "ry": 0.383,
+        "intensity": 0.596,
+        "areaPx": 30
+      },
+      {
+        "cx": 77.006,
+        "cy": 56.466,
+        "rx": 0.093,
+        "ry": 0.096,
+        "intensity": 0.615,
+        "areaPx": 4
+      },
+      {
+        "cx": 51.15,
+        "cy": 62.771,
+        "rx": 0.093,
+        "ry": 0.096,
+        "intensity": 0.625,
+        "areaPx": 3
+      },
+      {
+        "cx": 61.847,
+        "cy": 70.115,
+        "rx": 0.14,
+        "ry": 0.048,
+        "intensity": 0.578,
+        "areaPx": 3
+      },
+      {
+        "cx": 79.509,
+        "cy": 50.798,
+        "rx": 0.093,
+        "ry": 0.096,
+        "intensity": 0.563,
+        "areaPx": 3
+      }
+    ]
+  }
+}

@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import { formatPhoneDisplay } from "../../utils/validation";
 import "./ClientContactMenu.css";
 
 export type ClientContactMenuProps = {
-  phone?: string | null;
-  email?: string | null;
+  phone?: string | number | null;
+  email?: string | number | null;
   onCall: () => void;
   onEmail: () => void;
   onMessages: () => void;
 };
+
+function contactText(value: string | number | null | undefined): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value).trim();
+  return "";
+}
 
 function IconPhone() {
   return (
@@ -26,8 +34,11 @@ export default function ClientContactMenu({
 }: ClientContactMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const hasPhone = Boolean(phone?.trim());
-  const hasEmail = Boolean(email?.trim());
+  const phoneText = contactText(phone);
+  const emailText = contactText(email);
+  const phoneDisplay = phoneText ? formatPhoneDisplay(phoneText) || phoneText : "";
+  const hasPhone = Boolean(phoneText);
+  const hasEmail = Boolean(emailText);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -76,7 +87,7 @@ export default function ClientContactMenu({
             Call
             {hasPhone ? (
               <span className="cdp-contact-menu__hint cdp-contact-menu__hint--value">
-                {phone!.trim()}
+                {phoneDisplay}
               </span>
             ) : (
               <span className="cdp-contact-menu__hint cdp-contact-menu__hint--muted">
@@ -94,7 +105,7 @@ export default function ClientContactMenu({
             Email
             {hasEmail ? (
               <span className="cdp-contact-menu__hint cdp-contact-menu__hint--value">
-                {email!.trim()}
+                {emailText}
               </span>
             ) : (
               <span className="cdp-contact-menu__hint cdp-contact-menu__hint--muted">

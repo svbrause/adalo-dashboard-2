@@ -7,12 +7,12 @@
   gap: 16px;
   padding: 20px;
   border-top: 1px solid var(--theme-border);
-  background: white;
+  background: var(--theme-bg-card);
 }
 
 .pagination-info {
   font-size: 14px;
-  color: #666;
+  color: var(--theme-text-muted);
 }
 
 .pagination-controls {
@@ -23,8 +23,13 @@
 
 .pagination-page-info {
   font-size: 14px;
-  color: #666;
+  color: var(--theme-text-muted);
   padding: 0 12px;
+}
+
+.pagination-controls .btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn-sm {
