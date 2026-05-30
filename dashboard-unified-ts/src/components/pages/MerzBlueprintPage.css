@@ -3270,6 +3270,62 @@ html:has(.mbp-root) {
   line-height: 1.4;
 }
 
+/* Mobile before/after disclosure */
+.mbp-ba-disclosure-btn {
+  display: none;
+}
+
+.mbp-ba-disclosure-thumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.mbp-ba-disclosure-thumb {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 54px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mbp-ba-disclosure-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 8%;
+}
+
+.mbp-ba-disclosure-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.mbp-ba-disclosure-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mbp-text);
+}
+
+.mbp-ba-disclosure-sub {
+  font-size: 0.66rem;
+  color: var(--mbp-muted);
+  line-height: 1.25;
+}
+
+.mbp-ba-disclosure-icon {
+  flex-shrink: 0;
+}
+
 /* ── Slider list ──────────────────────────────────────────── */
 
 /* Side by side on tablet/desktop; stacked only on mobile */
@@ -3376,12 +3432,37 @@ html:has(.mbp-root) {
 
 /* Mobile: stack vertically without letting photos become full-bleed. */
 @media (max-width: 860px) {
-  .mbp-slider-list {
-    flex-direction: column;
+  .mbp-ba-disclosure-btn {
+    display: flex;
+    align-items: center;
     gap: 0.75rem;
     width: calc(100% + 2rem);
     max-width: min(calc(100% + 2rem), 460px);
-    margin-inline: -1rem;
+    margin: 0 -1rem 0.75rem;
+    padding: 0.72rem 0.85rem;
+    border: 1px solid;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.025);
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--mbp-font);
+  }
+
+  .mbp-ba-disclosure-btn:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .mbp-slider-list {
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(100%, 260px);
+    max-width: 260px;
+    margin-inline: auto;
+  }
+
+  .mbp-slider-list--collapsed,
+  .mbp-edu-ba-disclaimer--mobile-hidden {
+    display: none;
   }
 
   .mbp-slider-wrap {
@@ -3393,7 +3474,7 @@ html:has(.mbp-root) {
     border-radius: 12px;
     margin: 0;
     width: 100%;
-    aspect-ratio: 3/4;
+    aspect-ratio: 4/5;
   }
 }
 

@@ -820,8 +820,10 @@ function EduCitations({ treatmentId, color }: { treatmentId: string; color: stri
 }
 
 function TreatmentEduRow({ t }: { t: Treatment }) {
+  const [photosOpen, setPhotosOpen] = useState(false);
   const baItems = BEFORE_AFTER[t.id] ?? [];
   const hasRealPhotos = baItems.some((i) => i.beforeUrl && i.afterUrl);
+  const realPhotoItems = baItems.filter((i) => i.beforeUrl && i.afterUrl);
 
   return (
     <div className="mbp-treatment-edu-layout mbp-treatment-edu-layout--stacked">
@@ -836,13 +838,42 @@ function TreatmentEduRow({ t }: { t: Treatment }) {
           </p>
         )}
         {hasRealPhotos ? (
-          <div className="mbp-slider-list">
-            {baItems.filter((i) => i.beforeUrl && i.afterUrl).map((item, i) => (
+          <>
+            <button
+              type="button"
+              className="mbp-ba-disclosure-btn"
+              style={{ borderColor: `${t.color}44`, color: t.color }}
+              onClick={() => setPhotosOpen((open) => !open)}
+              aria-expanded={photosOpen}
+            >
+              <span className="mbp-ba-disclosure-thumbs" aria-hidden>
+                {realPhotoItems.slice(0, 2).map((item) => (
+                  <span key={item.caption} className="mbp-ba-disclosure-thumb">
+                    <img src={item.beforeUrl} alt="" loading="lazy" decoding="async" />
+                    <img src={item.afterUrl} alt="" loading="lazy" decoding="async" />
+                  </span>
+                ))}
+              </span>
+              <span className="mbp-ba-disclosure-copy">
+                <span className="mbp-ba-disclosure-title">
+                  {photosOpen ? "Hide before & after photos" : "View before & after photos"}
+                </span>
+                <span className="mbp-ba-disclosure-sub">
+                  {realPhotoItems.length} patient examples
+                </span>
+              </span>
+              <svg className="mbp-ba-disclosure-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                <polyline points={photosOpen ? "3 8.5 7 4.5 11 8.5" : "3 5.5 7 9.5 11 5.5"} />
+              </svg>
+            </button>
+            <div className={`mbp-slider-list${photosOpen ? " mbp-slider-list--open" : " mbp-slider-list--collapsed"}`}>
+              {realPhotoItems.map((item, i) => (
               <div key={i} className="mbp-slider-wrap">
                 <BeforeAfterSlider {...item} color={t.color} />
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         ) : (
           <div className="mbp-ba-grid mbp-ba-grid--wide">
             {baItems.map((item, i) => (
@@ -850,7 +881,7 @@ function TreatmentEduRow({ t }: { t: Treatment }) {
             ))}
           </div>
         )}
-        <p className="mbp-edu-ba-disclaimer">
+        <p className={`mbp-edu-ba-disclaimer${hasRealPhotos && !photosOpen ? " mbp-edu-ba-disclaimer--mobile-hidden" : ""}`}>
           Actual patients from Merz-published galleries. Individual results may vary.
         </p>
       </div>
