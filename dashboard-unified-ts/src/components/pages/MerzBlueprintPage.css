@@ -97,10 +97,13 @@ html:has(.mbp-root) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.45;
+  padding-block: 0.12em;
 }
 
 .mbp-header-patient strong {
   color: var(--mbp-text);
+  line-height: inherit;
 }
 
 .mbp-header-nav {
@@ -211,17 +214,23 @@ html:has(.mbp-root) {
 .mbp-hero-name {
   font-size: clamp(3rem, 5.5vw, 5.25rem);
   font-weight: 700;
-  line-height: 1.0;
+  line-height: 1.12;
   letter-spacing: -0.03em;
-  margin-bottom: 0.55rem;
+  margin-bottom: 0;
+  padding-bottom: 0.06em;
+  overflow: visible;
+  display: block;
   background: linear-gradient(135deg, #f0f2f6 30%, var(--mbp-gold2) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .mbp-hero-title-row {
   display: block;
+  overflow: visible;
 }
 
 .mbp-hero-explore-btn--mobile {
@@ -236,16 +245,41 @@ html:has(.mbp-root) {
   font-size: 0.88rem;
   color: var(--mbp-muted);
   letter-spacing: 0.04em;
-  margin-bottom: 2rem;
+  margin-top: 0.65rem;
+  margin-bottom: 1.75rem;
+}
+
+/* Desktop: copy col hidden wrapper; stack is intro → grid → CTAs */
+.mbp-hero-left-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.mbp-hero-copy-col {
+  display: contents;
+}
+
+.mbp-hero-intro-head {
+  display: block;
+  order: 1;
+}
+
+.mbp-hero-ctas {
+  order: 3;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 /* ── Hero plan grid (desktop right column) ───────────────── */
 
 .mbp-hero-plan-grid {
+  order: 2;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.45rem;
-  margin-bottom: 1.75rem;
+  margin-bottom: 0.85rem;
 }
 
 .mbp-hero-plan-item {
@@ -291,12 +325,6 @@ html:has(.mbp-root) {
   .mbp-hero-plan-grid {
     display: none;
   }
-}
-
-.mbp-hero-ctas {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 
 .mbp-btn {
@@ -592,9 +620,10 @@ html:has(.mbp-root) {
 
   .mbp-plan-strip-sub {
     font-size: 0.88rem;
-    line-height: 1.45;
+    line-height: 1.5;
     color: var(--mbp-muted);
     margin: 0;
+    padding-bottom: 0.08em;
   }
 
   .mbp-plan-strip-list {
@@ -791,7 +820,8 @@ html:has(.mbp-root) {
   grid-template-areas:
     "header photo"
     "intro photo"
-    "facts photo";
+    "facts photo"
+    "edu edu";
   gap: 5rem;
   align-items: start;
   position: relative;
@@ -874,8 +904,10 @@ html:has(.mbp-root) {
   font-size: clamp(2.2rem, 3.8vw, 3.4rem);
   font-weight: 700;
   letter-spacing: -0.025em;
-  line-height: 1.05;
+  line-height: 1.12;
   margin-bottom: 0.3rem;
+  padding-bottom: 0.06em;
+  overflow: visible;
 }
 
 .mbp-treatment-genus {
@@ -1431,6 +1463,7 @@ html:has(.mbp-root) {
     padding: 3rem 2.5rem 2rem;
     min-height: 0;
   }
+
   .mbp-hero-right {
     height: 70vw;
     min-height: 420px;
@@ -1451,7 +1484,8 @@ html:has(.mbp-root) {
     grid-template-areas:
       "header photo"
       "intro photo"
-      "facts facts";
+      "facts facts"
+      "edu edu";
     gap: 2rem;
     padding: 3rem 2.5rem;
   }
@@ -1460,7 +1494,9 @@ html:has(.mbp-root) {
     grid-template-areas:
       "photo header"
       "photo intro"
-      "facts facts";
+      "facts facts"
+      "edu edu"
+      "clinical clinical";
   }
 
   .mbp-treatment-header {
@@ -1500,6 +1536,99 @@ html:has(.mbp-root) {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
+  }
+}
+
+/* Tablet hero: intro + CTAs left, 2×2 plan grid right (e.g. ~968px). */
+@media (min-width: 861px) and (max-width: 1100px) {
+  /* Shorter face so the text column gets ~280px+ of breathing room */
+  .mbp-hero-right {
+    height: 52vw;
+    max-height: 460px;
+  }
+
+  .mbp-hero-left {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    column-gap: 1.75rem;
+    row-gap: 0;
+    align-content: center;
+    align-items: start;
+    padding: 2rem 2.5rem 2rem;
+    margin-top: 0;
+  }
+
+  .mbp-hero-eyebrow {
+    grid-column: 1 / -1;
+    margin-bottom: 1rem;
+  }
+
+  .mbp-hero-left-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    column-gap: 1.75rem;
+    align-items: start;
+    grid-column: 1 / -1;
+  }
+
+  .mbp-hero-copy-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* More breathing room between name, tagline, and buttons */
+    gap: 0.85rem;
+    grid-column: 1;
+    align-self: start;
+  }
+
+  .mbp-hero-intro-head,
+  .mbp-hero-plan-grid,
+  .mbp-hero-ctas {
+    order: unset;
+  }
+
+  .mbp-hero-intro-head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  .mbp-hero-name {
+    font-size: clamp(2.35rem, 4.2vw, 3.15rem);
+    margin-bottom: 0;
+    line-height: 1.06;
+    padding-bottom: 0.04em;
+  }
+
+  .mbp-hero-tagline {
+    /* Use gap from parent instead of margin — margin reset to 0 */
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .mbp-hero-plan-grid {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    margin-bottom: 0;
+    gap: 0.4rem;
+  }
+
+  .mbp-hero-plan-item {
+    padding: 0.55rem 0.65rem;
+  }
+
+  .mbp-hero-plan-name {
+    font-size: 0.76rem;
+  }
+
+  .mbp-hero-plan-area {
+    font-size: 0.62rem;
+  }
+
+  .mbp-hero-ctas {
+    margin-top: 0.25rem;
   }
 }
 
@@ -2017,7 +2146,8 @@ html:has(.mbp-root) {
       "header"
       "photo"
       "intro"
-      "facts";
+      "facts"
+      "edu";
   }
 
   .mbp-treatment--flip {
@@ -2025,25 +2155,38 @@ html:has(.mbp-root) {
       "header"
       "photo"
       "intro"
-      "facts";
+      "facts"
+      "edu";
   }
 
   .mbp-treatment-right {
     min-width: 0;
   }
 
-  .mbp-face-hl-inner {
+  .mbp-treatment .mbp-face-hl-inner {
+    display: flex;
+    flex-direction: column;
+    aspect-ratio: 4 / 3.85;
     height: auto !important;
     max-height: none !important;
+    overflow: hidden;
   }
 
-  .mbp-face-hl-inner .ai-mirror-canvas,
-  .mbp-face-hl-inner .ai-mirror-fallback-img {
+  .mbp-treatment .mbp-face-hl-inner .ai-mirror-canvas-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    transform: translateY(-5%);
+    height: 110%;
+  }
+
+  .mbp-treatment .mbp-face-hl-inner .ai-mirror-canvas,
+  .mbp-treatment .mbp-face-hl-inner .ai-mirror-fallback-img {
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;
     max-height: none;
-    object-fit: contain;
-    object-position: center center;
+    object-fit: cover;
+    object-position: center 72%;
   }
 
   .mbp-header-patient {
@@ -2119,3 +2262,928 @@ html:has(.mbp-root) {
   }
 }
 
+
+/* ── Research insight card ────────────────────────────────── */
+
+.mbp-research-card {
+  margin-top: 1.75rem;
+  border: 1px solid;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.mbp-research-header {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mbp-research-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mbp-muted);
+}
+
+.mbp-research-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mbp-research-stat {
+  padding: 0.85rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mbp-research-stat:last-child {
+  border-right: none;
+}
+
+.mbp-research-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.mbp-research-stat-label {
+  font-size: 0.65rem;
+  color: var(--mbp-muted);
+  line-height: 1.35;
+}
+
+/* "Understand this research" trigger */
+.mbp-research-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-family: var(--mbp-font);
+  text-align: left;
+  transition: background 0.18s;
+}
+
+.mbp-research-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* AI panel */
+.mbp-research-ai-panel {
+  border-top: 1px solid;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.mbp-research-ai-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mbp-research-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: 0.25rem;
+  animation: mbp-cursor-pulse 1s ease-in-out infinite;
+}
+
+@keyframes mbp-cursor-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+.mbp-research-ai-body {
+  padding: 0.65rem 1rem 1rem;
+}
+
+.mbp-research-ai-para {
+  font-size: 0.82rem;
+  color: rgba(240, 242, 246, 0.78);
+  line-height: 1.65;
+  margin-bottom: 0.85rem;
+}
+
+.mbp-research-ai-para:last-child {
+  margin-bottom: 0;
+}
+
+.mbp-research-type-cursor {
+  display: inline;
+  font-size: 0.82rem;
+  color: var(--mbp-teal);
+  animation: mbp-blink 0.7s step-end infinite;
+}
+
+@keyframes mbp-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Treatment edu row (overview + before/after) ─────────── */
+
+.mbp-treatment-edu-wrap {
+  grid-area: edu;
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--mbp-border);
+  margin-top: 0.5rem;
+}
+
+.mbp-treatment-edu-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2.5rem 0;
+}
+
+@media (min-width: 1101px) {
+  .mbp-treatment-edu-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 3.5rem;
+    align-items: start;
+  }
+
+  .mbp-treatment-edu-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    min-width: 0;
+  }
+
+  .mbp-treatment-edu-left .mbp-tinfo-panel-wrap {
+    border-top: 1px solid var(--mbp-border);
+    padding-top: 0.35rem;
+  }
+
+  .mbp-edu-ba {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .mbp-treatment-edu-layout {
+    padding: 2rem 0;
+  }
+
+  .mbp-treatment-edu-left {
+    display: contents;
+  }
+
+  .mbp-edu-overview {
+    order: 1;
+  }
+
+  .mbp-edu-ba {
+    order: 2;
+  }
+
+  .mbp-treatment-edu-layout > .mbp-tinfo-panel-wrap,
+  .mbp-treatment-edu-left .mbp-tinfo-panel-wrap {
+    order: 3;
+    border-top: 1px solid var(--mbp-border);
+    padding-top: 0.5rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .mbp-treatment-edu-layout {
+    padding: 2rem 0;
+  }
+}
+
+/* Overview text */
+.mbp-edu-overview {}
+
+.mbp-edu-body {
+  font-size: 0.88rem;
+  color: rgba(240, 242, 246, 0.72);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+
+.mbp-edu-citations {
+  margin-top: 0.15rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mbp-edu-citations-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 0.55rem;
+}
+
+.mbp-edu-citations-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  counter-reset: edu-cite;
+}
+
+.mbp-edu-citation {
+  counter-increment: edu-cite;
+  display: grid;
+  grid-template-columns: 1.35rem 1fr;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--mbp-muted);
+}
+
+.mbp-edu-citation::before {
+  content: counter(edu-cite) ".";
+  color: rgba(240, 242, 246, 0.38);
+  font-variant-numeric: tabular-nums;
+}
+
+.mbp-edu-citation-link {
+  color: rgba(240, 242, 246, 0.58);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.mbp-edu-citation-link:hover {
+  color: var(--mbp-teal);
+  text-decoration: underline;
+}
+
+.mbp-edu-source-note {
+  font-size: 0.66rem;
+  color: var(--mbp-muted);
+  letter-spacing: 0.04em;
+}
+
+/* Before / after section */
+.mbp-edu-ba-note {
+  font-size: 0.72rem;
+  color: var(--mbp-muted);
+  margin-bottom: 1rem;
+  line-height: 1.45;
+}
+
+.mbp-ba-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 500px) {
+  .mbp-ba-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Individual B/A card */
+.mbp-ba-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.mbp-ba-photos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.mbp-ba-photo {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--mbp-border);
+  aspect-ratio: 3/4;
+  background: rgba(255, 255, 255, 0.025);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mbp-ba-photo--after {
+  border-width: 1px;
+  border-style: solid;
+}
+
+.mbp-ba-img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mbp-ba-img-placeholder--after {
+  /* accent tinted for the "after" state */
+}
+
+.mbp-ba-face-icon {
+  width: 48px;
+  height: 58px;
+  opacity: 0.45;
+}
+
+.mbp-ba-photo-label {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mbp-muted);
+  background: rgba(6, 8, 16, 0.72);
+  padding: 0.2rem 0.5rem;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.mbp-ba-caption {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--mbp-text);
+  line-height: 1.35;
+}
+
+.mbp-ba-source {
+  font-size: 0.64rem;
+  color: var(--mbp-muted);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.mbp-ba-source:hover {
+  color: var(--mbp-teal);
+  text-decoration: underline;
+}
+
+/* ── Treatment infographic gallery ───────────────────────── */
+
+.mbp-infographic-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .mbp-infographic-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mbp-infographic-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-decoration: none;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--mbp-border);
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.mbp-infographic-item:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.mbp-infographic-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 11px 11px 0 0;
+}
+
+.mbp-infographic-caption {
+  font-size: 0.64rem;
+  color: var(--mbp-muted);
+  letter-spacing: 0.04em;
+  padding: 0.4rem 0.65rem 0.55rem;
+  line-height: 1.35;
+}
+
+/* Real before/after photo */
+.mbp-ba-real-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 8% from top: heads are at 0–6% in source images so this brings the
+     hairline flush to the top of the card without cutting it off */
+  object-position: center 8%;
+  display: block;
+}
+
+/* Infographic strip — full-width below the B/A row */
+.mbp-infographic-strip {
+  border-top: 1px solid var(--mbp-border);
+  padding: 2rem 0 2.5rem;
+}
+
+.mbp-infographic-strip .mbp-treatment-section-label {
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.mbp-infographic-grid--strip {
+  padding: 0 4rem;
+}
+
+@media (max-width: 1100px) {
+  .mbp-infographic-strip .mbp-treatment-section-label,
+  .mbp-infographic-grid--strip {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .mbp-infographic-strip .mbp-treatment-section-label,
+  .mbp-infographic-grid--strip {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+
+/* ── Clinical detail panel (all treatments) ──────────────── */
+
+.mbp-tinfo-panel-wrap {
+  min-width: 0;
+}
+
+/* ── Collapsible toggle ───────────────────────────────────── */
+
+.mbp-tinfo-wrap {
+  width: 100%;
+}
+
+.mbp-tinfo-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  background: rgba(255, 255, 255, 0.018);
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--mbp-font);
+  transition: background 0.18s, border-color 0.18s;
+}
+
+.mbp-tinfo-toggle:hover {
+  background: rgba(255, 255, 255, 0.032);
+}
+
+.mbp-tinfo-wrap--open .mbp-tinfo-toggle {
+  border-bottom-color: var(--mbp-border);
+}
+
+.mbp-tinfo-toggle-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.mbp-tinfo-toggle-kicker {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.mbp-tinfo-toggle-stats {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.mbp-tinfo-toggle-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.mbp-tinfo-toggle-stat strong {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.mbp-tinfo-toggle-stat span {
+  font-size: 0.68rem;
+  color: var(--mbp-muted);
+  line-height: 1.3;
+  max-width: none;
+}
+
+.mbp-tinfo-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.38rem 0.85rem;
+  border-radius: 100px;
+  border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.16s;
+}
+
+.mbp-tinfo-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Expanded content — fade + slide in */
+.mbp-tinfo-expand {
+  animation: mbp-tinfo-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes mbp-tinfo-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Panel interior ───────────────────────────────────────── */
+
+.mbp-tinfo-panel {
+  padding: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.mbp-tinfo-section-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+  display: block;
+}
+
+.mbp-tinfo-sublabel {
+  font-size: 0.68rem;
+  color: var(--mbp-muted);
+  line-height: 1.45;
+}
+
+.mbp-tinfo-body {
+  font-size: 0.85rem;
+  color: rgba(240, 242, 246, 0.7);
+  line-height: 1.65;
+  max-width: none;
+  margin-bottom: 0.85rem;
+}
+
+.mbp-tinfo-claims {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.mbp-tinfo-claim {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.81rem;
+  color: rgba(240, 242, 246, 0.68);
+  line-height: 1.45;
+}
+
+.mbp-tinfo-claim svg { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Top row: what it is + indications ───────────────────── */
+
+.mbp-tinfo-top-row {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .mbp-tinfo-top-row { grid-template-columns: 1fr; gap: 1.75rem; }
+}
+
+.mbp-tinfo-area-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.mbp-tinfo-area-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--mbp-text);
+}
+
+.mbp-tinfo-area-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.mbp-tinfo-new-badge {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+/* Tissue depth diagram */
+.mbp-tinfo-tissue-wrap {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.85rem 1rem 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.mbp-tinfo-tissue-wrap .mbp-tinfo-sublabel {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.mbp-tinfo-tissue-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Protocol (Ultherapy) ─────────────────────────────────── */
+
+.mbp-tinfo-protocol-steps {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+}
+
+.mbp-tinfo-protocol-step {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+}
+
+.mbp-tinfo-step-arrow {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.2);
+  padding: 0 0.5rem;
+  margin-top: 0.55rem;
+  flex-shrink: 0;
+}
+
+.mbp-tinfo-step-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mbp-tinfo-step-name {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.85rem;
+  border-radius: 100px;
+  border: 1.5px solid;
+  align-self: flex-start;
+}
+
+.mbp-tinfo-step-desc {
+  font-size: 0.78rem;
+  color: rgba(240, 242, 246, 0.62);
+  line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .mbp-tinfo-protocol-steps { flex-direction: column; gap: 1rem; }
+  .mbp-tinfo-step-arrow { display: none; }
+}
+
+/* ── Why choose it ────────────────────────────────────────── */
+
+.mbp-tinfo-why-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+}
+
+@media (max-width: 600px) {
+  .mbp-tinfo-why-grid { grid-template-columns: 1fr; }
+}
+
+.mbp-tinfo-why-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--mbp-border);
+  border-radius: 10px;
+}
+
+.mbp-tinfo-why-dot {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mbp-tinfo-why-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--mbp-text);
+  margin-bottom: 0.2rem;
+}
+
+.mbp-tinfo-why-detail {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--mbp-muted);
+  line-height: 1.4;
+}
+
+/* ── What to expect ───────────────────────────────────────── */
+
+.mbp-tinfo-expect-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.6rem;
+  margin-top: 0.65rem;
+}
+
+@media (max-width: 900px) { .mbp-tinfo-expect-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .mbp-tinfo-expect-grid { grid-template-columns: 1fr 1fr; } }
+
+.mbp-tinfo-expect-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.72rem 0.8rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid;
+  border-radius: 10px;
+}
+
+.mbp-tinfo-expect-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--mbp-text);
+  line-height: 1.25;
+}
+
+.mbp-tinfo-expect-detail {
+  font-size: 0.67rem;
+  color: var(--mbp-muted);
+  line-height: 1.4;
+}
+
+/* ── Disclaimer ───────────────────────────────────────────── */
+
+.mbp-tinfo-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.8rem 0.95rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--mbp-border);
+  border-radius: 10px;
+  color: var(--mbp-muted);
+}
+
+.mbp-tinfo-disclaimer svg { flex-shrink: 0; margin-top: 1px; }
+.mbp-tinfo-disclaimer p { font-size: 0.72rem; line-height: 1.5; }
+
+/* ── Responsive toggle padding ────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .mbp-tinfo-toggle { padding: 1rem 0; }
+  .mbp-tinfo-panel { padding: 1.75rem 0; }
+}
+
+@media (max-width: 720px) {
+  .mbp-tinfo-toggle { padding: 0.9rem 0; }
+  .mbp-tinfo-toggle-stats { gap: 1rem; }
+  .mbp-tinfo-panel { padding: 1.5rem 0; }
+}
+
+/* ── Edu row stacked (B/A full width + collapsible below) ─── */
+
+.mbp-treatment-edu-layout--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mbp-edu-ba-full {
+  padding: 2.5rem 4rem;
+  border-bottom: 1px solid var(--mbp-border);
+}
+
+@media (max-width: 1100px) { .mbp-edu-ba-full { padding: 1.5rem 2.5rem 2rem; } }
+/* On mobile the treatment outer padding (1.5rem) already handles horizontal spacing —
+   zero it out here so the B/A section aligns with the content above it */
+@media (max-width: 860px)  { .mbp-edu-ba-full { padding: 1.25rem 0 1.5rem; } }
+
+/* Wider B/A grid now that photos have full width to breathe */
+.mbp-ba-grid--wide {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+/* Taller photo cards when full-width */
+.mbp-ba-grid--wide .mbp-ba-photo {
+  aspect-ratio: 4/5;
+}
+
+/* Mobile: single column so each pair fills the screen width */
+@media (max-width: 600px) {
+  .mbp-ba-grid--wide {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-top: 0;
+  }
+
+  /* Square crop on mobile — photos fill full row width */
+  .mbp-ba-grid--wide .mbp-ba-photo {
+    aspect-ratio: 1/1;
+  }
+
+  /* Hide the label and note — photos speak for themselves on mobile,
+     and removing them closes the gap between the section above and the head */
+  .mbp-edu-ba-full > .mbp-treatment-section-label,
+  .mbp-edu-ba-full > .mbp-edu-ba-note {
+    display: none;
+  }
+}
+
+/* Overview block at top of collapsible panel */
+.mbp-tinfo-overview-block {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--mbp-border);
+}
+
+.mbp-tinfo-overview-body {
+  font-size: 0.88rem;
+  color: rgba(240, 242, 246, 0.72);
+  line-height: 1.7;
+  max-width: 680px;
+}
