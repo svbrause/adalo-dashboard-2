@@ -621,6 +621,74 @@ function BaFacePlaceholder({ color }: { color: string }) {
   );
 }
 
+// ── Interactive before/after slider ──────────────────────────────────────
+
+function BeforeAfterSlider({
+  beforeUrl, afterUrl, beforeAlt, afterAlt, caption, source, sourceUrl, color,
+}: BeforeAfterItem & { color: string }) {
+  const [pct, setPct] = useState(50);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const move = useCallback((clientX: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { left, width } = el.getBoundingClientRect();
+    setPct(Math.max(2, Math.min(98, ((clientX - left) / width) * 100)));
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => { if (dragging.current) move(e.clientX); };
+    const onTouch = (e: TouchEvent) => { if (dragging.current && e.touches[0]) move(e.touches[0].clientX); };
+    const onUp = () => { dragging.current = false; };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onTouch, { passive: true });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouch);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [move]);
+
+  return (
+    <div className="mbp-slider-wrap-inner">
+      <div
+        ref={containerRef}
+        className="mbp-slider"
+        onMouseDown={(e) => { dragging.current = true; move(e.clientX); e.preventDefault(); }}
+        onTouchStart={(e) => { dragging.current = true; if (e.touches[0]) move(e.touches[0].clientX); }}
+        style={{ cursor: "col-resize" }}
+      >
+        {/* Before (full, clipped on right) */}
+        <div className="mbp-slider-before">
+          <img src={beforeUrl} alt={beforeAlt ?? "Before"} draggable={false} loading="lazy" />
+        </div>
+        {/* After (revealed left→right) */}
+        <div className="mbp-slider-after" style={{ clipPath: `inset(0 ${100 - pct}% 0 0)` }}>
+          <img src={afterUrl} alt={afterAlt ?? "After"} draggable={false} loading="lazy" />
+        </div>
+        {/* Divider + handle */}
+        <div className="mbp-slider-divider" style={{ left: `${pct}%` }}>
+          <div className="mbp-slider-handle" style={{ borderColor: `${color}66` }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+              <path d="M6 4 L2 9 L6 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 4 L16 9 L12 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        {/* Labels */}
+        <span className="mbp-slider-label mbp-slider-label--before">Before</span>
+        <span className="mbp-slider-label mbp-slider-label--after" style={{ color }}>After</span>
+      </div>
+      <p className="mbp-ba-caption">{caption}</p>
+      <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="mbp-ba-source">{source}</a>
+    </div>
+  );
+}
+
 function BeforeAfterCard({
   caption,
   source,
@@ -691,7 +759,6 @@ function BeforeAfterCard({
 
 function CollapsibleClinicalDetail({ t }: { t: Treatment }) {
   const [open, setOpen] = useState(false);
-  const stats = RESEARCH_STATS[t.id] ?? [];
 
   return (
     <div className={`mbp-tinfo-wrap${open ? " mbp-tinfo-wrap--open" : ""}`}>
@@ -701,21 +768,11 @@ function CollapsibleClinicalDetail({ t }: { t: Treatment }) {
         aria-expanded={open}
         style={{ borderColor: open ? `${t.color}28` : undefined }}
       >
-        <div className="mbp-tinfo-toggle-left">
-          <span className="mbp-tinfo-toggle-kicker" style={{ color: t.color }}>
-            More detail · {t.name}
-          </span>
-          <div className="mbp-tinfo-toggle-stats">
-            {stats.map((s) => (
-              <span key={s.label} className="mbp-tinfo-toggle-stat">
-                <strong style={{ color: t.color }}>{s.value}</strong>
-                <span>{s.label}</span>
-              </span>
-            ))}
-          </div>
-        </div>
+        <span className="mbp-tinfo-toggle-kicker" style={{ color: t.color }}>
+          Learn more about {t.name}
+        </span>
         <span className="mbp-tinfo-toggle-btn" style={{ color: t.color, borderColor: `${t.color}44` }}>
-          {open ? "Collapse" : "Learn more"}
+          {open ? "Collapse" : "Show detail"}
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
             {open
               ? <polyline points="2 8 6 4 10 8" />
@@ -764,25 +821,41 @@ function EduCitations({ treatmentId, color }: { treatmentId: string; color: stri
 
 function TreatmentEduRow({ t }: { t: Treatment }) {
   const baItems = BEFORE_AFTER[t.id] ?? [];
+  const hasRealPhotos = baItems.some((i) => i.beforeUrl && i.afterUrl);
 
   return (
     <div className="mbp-treatment-edu-layout mbp-treatment-edu-layout--stacked">
-      {/* Full-width before/after — visual evidence first, no competing text column */}
+      {/* Before & after — interactive slider or placeholder cards */}
       <div className="mbp-edu-ba-full">
-        <p className="mbp-treatment-section-label" style={{ color: t.color }}>
-          Clinical results
+        <p className="mbp-edu-ba-heading" style={{ color: t.color }}>
+          Before &amp; after photos
         </p>
-        <p className="mbp-edu-ba-note">
-          Actual patients from Merz-published before &amp; after galleries. Individual results may vary.
+        {!hasRealPhotos && (
+          <p className="mbp-edu-ba-note">
+            Merz-published clinical photography — approved images to be inserted.
+          </p>
+        )}
+        {hasRealPhotos ? (
+          <div className="mbp-slider-list">
+            {baItems.filter((i) => i.beforeUrl && i.afterUrl).map((item, i) => (
+              <div key={i} className="mbp-slider-wrap">
+                <BeforeAfterSlider {...item} color={t.color} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mbp-ba-grid mbp-ba-grid--wide">
+            {baItems.map((item, i) => (
+              <BeforeAfterCard key={i} {...item} color={t.color} />
+            ))}
+          </div>
+        )}
+        <p className="mbp-edu-ba-disclaimer">
+          Actual patients from Merz-published galleries. Individual results may vary.
         </p>
-        <div className="mbp-ba-grid mbp-ba-grid--wide">
-          {baItems.map((item, i) => (
-            <BeforeAfterCard key={i} {...item} color={t.color} />
-          ))}
-        </div>
       </div>
 
-      {/* Single collapsible "Learn more" — treatment overview + mechanism + FDA + expectations */}
+      {/* Single collapsible "Learn more" */}
       <div className="mbp-tinfo-panel-wrap">
         <CollapsibleClinicalDetail t={t} />
       </div>
@@ -1527,6 +1600,7 @@ export default function MerzBlueprintPage() {
               disableWheelZoom
               initialZoom={1.38}
               initialPanY={-36}
+              defaultTab="volume"
             />
           </div>
         </div>

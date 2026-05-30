@@ -3127,14 +3127,58 @@ html:has(.mbp-root) {
 /* ── Edu row stacked (B/A full width + collapsible below) ─── */
 
 .mbp-treatment-edu-layout--stacked {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+
+/* Force children to fill full width — overrides any grid-derived sizing */
+.mbp-treatment-edu-layout--stacked > * {
+  width: 100% !important;
+  max-width: none !important;
+  grid-column: unset !important;
 }
 
 .mbp-edu-ba-full {
   padding: 2.5rem 4rem;
   border-bottom: 1px solid var(--mbp-border);
+}
+
+@media (min-width: 861px) {
+  .mbp-treatment-edu-layout--stacked {
+    align-items: center;
+    --mbp-edu-content-max: 640px;
+  }
+
+  .mbp-edu-ba-full {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .mbp-edu-ba-full .mbp-slider-list,
+  .mbp-edu-ba-full .mbp-ba-grid--wide {
+    width: 100%;
+    max-width: var(--mbp-edu-content-max);
+  }
+
+  .mbp-edu-ba-full > .mbp-edu-ba-heading,
+  .mbp-edu-ba-full > .mbp-edu-ba-note,
+  .mbp-edu-ba-full > .mbp-edu-ba-disclaimer {
+    width: 100%;
+    max-width: var(--mbp-edu-content-max);
+    text-align: center;
+  }
+
+  .mbp-treatment-edu-layout--stacked > .mbp-tinfo-panel-wrap {
+    max-width: var(--mbp-edu-content-max) !important;
+  }
+}
+
+@media (min-width: 1101px) {
+  .mbp-treatment-edu-layout--stacked {
+    --mbp-edu-content-max: 680px;
+  }
 }
 
 @media (max-width: 1100px) { .mbp-edu-ba-full { padding: 1.5rem 2.5rem 2rem; } }
@@ -3186,4 +3230,176 @@ html:has(.mbp-root) {
   color: rgba(240, 242, 246, 0.72);
   line-height: 1.7;
   max-width: 680px;
+}
+
+/* ── Hero face viewer: color video, no tab bar, no right tools ─ */
+
+.mbp-hero-face-wrap .avf-topbar {
+  display: none;
+}
+
+.mbp-hero-face-wrap .avf-root {
+  --avf-topbar-h: 0px;
+}
+
+/* Hide right tool rail in hero — not needed for a showcase viewer */
+.mbp-hero-face-wrap .avf-rightnav {
+  display: none;
+}
+
+/* ── B/A heading (replaces the section label) ─────────────── */
+
+.mbp-edu-ba-heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.mbp-edu-ba-disclaimer {
+  font-size: 0.65rem;
+  color: var(--mbp-muted);
+  margin-top: 0.65rem;
+  line-height: 1.4;
+}
+
+/* ── Slider list ──────────────────────────────────────────── */
+
+/* Side by side on tablet/desktop; stacked only on mobile */
+.mbp-slider-list {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.mbp-slider-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Before/after interactive slider ─────────────────────── */
+
+.mbp-slider-wrap-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mbp-slider {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/5;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #000;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mbp-slider-before,
+.mbp-slider-after {
+  position: absolute;
+  inset: 0;
+}
+
+.mbp-slider-before img,
+.mbp-slider-after img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 8%;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* Divider line */
+.mbp-slider-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(-50%);
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Circular handle */
+.mbp-slider-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  color: #222;
+  pointer-events: none;
+}
+
+/* Before / After labels */
+.mbp-slider-label {
+  position: absolute;
+  bottom: 0.7rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(6, 8, 16, 0.72);
+  color: rgba(240, 242, 246, 0.9);
+  border-radius: 4px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+.mbp-slider-label--before { left: 0.7rem; }
+.mbp-slider-label--after  { right: 0.7rem; }
+
+/* Mobile: stack vertically and go full-bleed */
+@media (max-width: 860px) {
+  .mbp-slider-list {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .mbp-slider-wrap {
+    flex: none;
+    width: 100%;
+  }
+
+  .mbp-slider {
+    border-radius: 0;
+    margin: 0 -2.5rem;
+    width: calc(100% + 5rem);
+    aspect-ratio: 3/4;
+  }
+}
+
+@media (max-width: 720px) {
+  .mbp-slider {
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
+  }
+}
+
+/* ── Simplified "Learn more" toggle (stats removed) ──────── */
+
+.mbp-tinfo-toggle {
+  /* override the existing flex layout to be simpler now that stats are gone */
+  gap: 1rem;
+}
+
+.mbp-tinfo-toggle-kicker {
+  /* was inside mbp-tinfo-toggle-left; now direct child */
 }

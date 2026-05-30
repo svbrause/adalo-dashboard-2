@@ -839,6 +839,11 @@ export interface AuraFaceViewProps {
   initialPanY?: number;
   /** Public blueprint pages: let wheel scroll the page instead of zooming the face. */
   disableWheelZoom?: boolean;
+  /**
+   * Override the initial analysis tab without controlling it. Defaults to "texture"
+   * (skin-gray turntable). Pass "volume" or "structure" to start on the color video.
+   */
+  defaultTab?: "texture" | "volume" | "structure";
 }
 
 export default function AuraFaceView({
@@ -866,6 +871,7 @@ export default function AuraFaceView({
   initialZoom: initialZoomProp,
   initialPanY: initialPanYProp,
   disableWheelZoom = false,
+  defaultTab,
 }: AuraFaceViewProps) {
   const viewerAngleAssets = viewerAngleAssetsProp ?? TANYA_TAN_VIEWER_ANGLE_ASSETS;
   const effectiveCvAnnotations = useMemo(
@@ -885,7 +891,7 @@ export default function AuraFaceView({
   );
   const overviewControlled =
     overviewCategory !== undefined && onOverviewCategoryChange !== undefined;
-  const [internalActiveTab, setInternalActiveTab] = useState<AnalysisTab>("texture");
+  const [internalActiveTab, setInternalActiveTab] = useState<AnalysisTab>(defaultTab ?? "texture");
   const activeTab = overviewControlled
     ? overviewCategoryToAuraFaceTab(overviewCategory)
     : internalActiveTab;
