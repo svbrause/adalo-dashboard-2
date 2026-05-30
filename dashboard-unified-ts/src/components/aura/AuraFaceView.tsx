@@ -839,6 +839,8 @@ export interface AuraFaceViewProps {
   initialPanY?: number;
   /** Public blueprint pages: let wheel scroll the page instead of zooming the face. */
   disableWheelZoom?: boolean;
+  /** Embedded/public views can suppress the diagnostic status chip while keeping the selected tab/video. */
+  showNoIssuesMessage?: boolean;
   /**
    * Override the initial analysis tab without controlling it. Defaults to "texture"
    * (skin-gray turntable). Pass "volume" or "structure" to start on the color video.
@@ -871,6 +873,7 @@ export default function AuraFaceView({
   initialZoom: initialZoomProp,
   initialPanY: initialPanYProp,
   disableWheelZoom = false,
+  showNoIssuesMessage = true,
   defaultTab,
 }: AuraFaceViewProps) {
   const viewerAngleAssets = viewerAngleAssetsProp ?? TANYA_TAN_VIEWER_ANGLE_ASSETS;
@@ -1421,7 +1424,7 @@ export default function AuraFaceView({
                 )}
               </div>
             </div>
-            {noIssuesMessage ? <NoIssuesMessage message={noIssuesMessage} /> : null}
+            {showNoIssuesMessage && noIssuesMessage ? <NoIssuesMessage message={noIssuesMessage} /> : null}
             {!embedded ? (
               <MinimapPanel activeTab={activeTab} suppressed={!!noIssuesMessage} />
             ) : null}

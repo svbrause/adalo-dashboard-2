@@ -662,13 +662,13 @@ function BeforeAfterSlider({
         onTouchStart={(e) => { dragging.current = true; if (e.touches[0]) move(e.touches[0].clientX); }}
         style={{ cursor: "col-resize" }}
       >
-        {/* Before (full, clipped on right) */}
-        <div className="mbp-slider-before">
-          <img src={beforeUrl} alt={beforeAlt ?? "Before"} draggable={false} loading="lazy" />
-        </div>
-        {/* After (revealed left→right) */}
-        <div className="mbp-slider-after" style={{ clipPath: `inset(0 ${100 - pct}% 0 0)` }}>
+        {/* After sits underneath — RIGHT side visible through Before clip */}
+        <div className="mbp-slider-after">
           <img src={afterUrl} alt={afterAlt ?? "After"} draggable={false} loading="lazy" />
+        </div>
+        {/* Before on top, clipped from the right at the handle — LEFT = Before */}
+        <div className="mbp-slider-before" style={{ clipPath: `inset(0 ${100 - pct}% 0 0)` }}>
+          <img src={beforeUrl} alt={beforeAlt ?? "Before"} draggable={false} loading="lazy" />
         </div>
         {/* Divider + handle */}
         <div className="mbp-slider-divider" style={{ left: `${pct}%` }}>
@@ -1601,6 +1601,7 @@ export default function MerzBlueprintPage() {
               initialZoom={1.38}
               initialPanY={-36}
               defaultTab="volume"
+              showNoIssuesMessage={false}
             />
           </div>
         </div>

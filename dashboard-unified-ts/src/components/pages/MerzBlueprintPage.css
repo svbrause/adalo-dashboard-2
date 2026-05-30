@@ -3156,7 +3156,11 @@ html:has(.mbp-root) {
     align-items: center;
   }
 
-  .mbp-edu-ba-full .mbp-slider-list,
+  .mbp-edu-ba-full .mbp-slider-list {
+    width: 100%;
+    max-width: 460px;
+  }
+
   .mbp-edu-ba-full .mbp-ba-grid--wide {
     width: 100%;
     max-width: var(--mbp-edu-content-max);
@@ -3242,8 +3246,9 @@ html:has(.mbp-root) {
   --avf-topbar-h: 0px;
 }
 
-/* Hide right tool rail in hero — not needed for a showcase viewer */
-.mbp-hero-face-wrap .avf-rightnav {
+/* Hide right tool rail and diagnostic overlays in hero */
+.mbp-hero-face-wrap .avf-rightnav,
+.mbp-hero-face-wrap .avf-no-issues {
   display: none;
 }
 
@@ -3270,8 +3275,10 @@ html:has(.mbp-root) {
 .mbp-slider-list {
   display: flex;
   flex-direction: row;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: flex-start;
+  /* Keep the two-photo row compact inside each treatment section. */
+  max-width: 460px;
 }
 
 .mbp-slider-wrap {
@@ -3366,11 +3373,14 @@ html:has(.mbp-root) {
 .mbp-slider-label--before { left: 0.7rem; }
 .mbp-slider-label--after  { right: 0.7rem; }
 
-/* Mobile: stack vertically and go full-bleed */
+/* Mobile: stack vertically without letting photos become full-bleed. */
 @media (max-width: 860px) {
   .mbp-slider-list {
     flex-direction: column;
     gap: 0.75rem;
+    width: calc(100% + 2rem);
+    max-width: min(calc(100% + 2rem), 460px);
+    margin-inline: -1rem;
   }
 
   .mbp-slider-wrap {
@@ -3379,17 +3389,17 @@ html:has(.mbp-root) {
   }
 
   .mbp-slider {
-    border-radius: 0;
-    margin: 0 -2.5rem;
-    width: calc(100% + 5rem);
+    border-radius: 12px;
+    margin: 0;
+    width: 100%;
     aspect-ratio: 3/4;
   }
 }
 
 @media (max-width: 720px) {
   .mbp-slider {
-    margin: 0 -1.5rem;
-    width: calc(100% + 3rem);
+    margin: 0;
+    width: 100%;
   }
 }
 
