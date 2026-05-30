@@ -3175,7 +3175,8 @@ html:has(.mbp-root) {
   }
 
   .mbp-treatment-edu-layout--stacked > .mbp-tinfo-panel-wrap {
-    max-width: var(--mbp-edu-content-max) !important;
+    width: 100%;
+    max-width: 460px !important;
   }
 }
 
@@ -3408,8 +3409,30 @@ html:has(.mbp-root) {
 .mbp-tinfo-toggle {
   /* override the existing flex layout to be simpler now that stats are gone */
   gap: 1rem;
+  padding: 1.1rem 1.15rem 1.1rem 1.25rem;
 }
 
 .mbp-tinfo-toggle-kicker {
   /* was inside mbp-tinfo-toggle-left; now direct child */
+  padding-left: 0.1rem;
+}
+
+@media (max-width: 1100px) {
+  .mbp-tinfo-toggle {
+    padding: 1rem 1.15rem 1rem 1.25rem;
+  }
+}
+
+@media (max-width: 860px) {
+  .mbp-treatment-edu-layout--stacked > .mbp-tinfo-panel-wrap {
+    width: calc(100% + 2rem) !important;
+    max-width: min(calc(100% + 2rem), 460px) !important;
+    margin-inline: -1rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .mbp-tinfo-toggle {
+    padding: 0.95rem 1.15rem 0.95rem 1.25rem;
+  }
 }
