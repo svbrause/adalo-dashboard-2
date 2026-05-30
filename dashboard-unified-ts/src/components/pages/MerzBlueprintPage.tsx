@@ -417,6 +417,7 @@ function TreatmentInfoPanel({ id, color }: { id: string; color: string }) {
         <div className="mbp-tinfo-overview-block">
           <p className="mbp-tinfo-section-label" style={{ color }}>How it works</p>
           <p className="mbp-tinfo-overview-body">{overview}</p>
+          <EduCitations treatmentId={id} color={color} />
         </div>
       )}
 
@@ -740,7 +741,7 @@ function EduCitations({ treatmentId, color }: { treatmentId: string; color: stri
     <div className="mbp-edu-citations">
       <p className="mbp-edu-citations-label" style={{ color }}>References</p>
       <ol className="mbp-edu-citations-list">
-        {citations.map((cite, i) => (
+        {citations.map((cite) => (
           <li key={cite.label} className="mbp-edu-citation">
             {cite.url ? (
               <a
