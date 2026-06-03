@@ -104,6 +104,7 @@ export default function AuraCategoryRadarCard({
           size={200}
           animate={animate}
           showLabels
+          showScoreValues
           className="aura-embedded-panel__radar"
           labelClassName="aura-embedded-panel__radar-label"
         />

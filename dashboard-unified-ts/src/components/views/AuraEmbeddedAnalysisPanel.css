@@ -16,10 +16,10 @@
 .aura-embedded-panel__chrome--rail {
   flex: 1;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-start;
   gap: 0;
-  padding: 12px 0;
+  padding: 8px 2px;
   border-bottom: none;
   min-height: 0;
 }

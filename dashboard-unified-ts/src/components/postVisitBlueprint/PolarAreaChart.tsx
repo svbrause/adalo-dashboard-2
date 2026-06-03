@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   CHART_AXIS_MAX,
   CHART_AXIS_MIN,
-  formatSeverityAxisValue,
   healthScoreToSeverityAxis,
   SCORE_VALUE_MAX,
   SCORE_VALUE_MIN,
@@ -227,7 +226,7 @@ export function PolarAreaChart({
               className={`ao-polar-area__value${isActive ? " ao-polar-area__value--active" : " ao-polar-area__value--inactive"}`}
               fillOpacity={isActive ? 1 : 0.45}
             >
-              {formatSeverityAxisValue(score)}
+              {Math.round(d.score)}
             </text>
           );
         })}

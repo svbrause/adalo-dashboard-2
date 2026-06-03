@@ -1446,7 +1446,9 @@ export default function FaceMirrorPanel({
           </div>
         ) : null}
 
-        {expandAnalysisButton}
+        {/* expandAnalysisButton is rendered inside AuraFaceView topbarEnd for Aura clients;
+            for non-Aura clients it shows here so they can also trigger the analysis view. */}
+        {!useAuraView ? expandAnalysisButton : null}
       </div>
     </div>
   );
@@ -1507,6 +1509,9 @@ export default function FaceMirrorPanel({
         }
       : undefined,
     showNoIssuesMessage: !clientUsesAuraScan(patientName),
+    // Keep the Show/Hide Analysis button inside the AuraFaceView topbar so it
+    // doesn't jump when the panel expands (the topbar is stable in both states).
+    topbarEnd: analysisOverviewClient ? expandAnalysisButton : undefined,
   };
 
   const viewer3D =

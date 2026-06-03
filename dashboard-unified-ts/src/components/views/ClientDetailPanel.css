@@ -69,6 +69,9 @@
   max-width: none;
   margin: 0;
   box-sizing: border-box;
+  /* Pin header to exactly the variable height so fmp-root padding-top aligns flush. */
+  height: var(--cdp-panel-header-h, 72px);
+  overflow: hidden;
 }
 
 /* Face mirror left column */

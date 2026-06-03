@@ -25,6 +25,7 @@ export function RadarChart({
   className,
   labelClassName = "ao-radar__label",
   showRingValues = false,
+  showScoreValues = false,
 }: {
   data: RadarChartDatum[];
   size?: number;
@@ -35,6 +36,8 @@ export function RadarChart({
   labelClassName?: string;
   /** Show 25/50/75/100 ring labels (skin lens radar). */
   showRingValues?: boolean;
+  /** Show numeric score next to each axis label (volume/structure). */
+  showScoreValues?: boolean;
 }) {
   /* Extra inset when labeled: side anchors need room for text (textAnchor middle extends both ways). */
   const padding = showLabels
@@ -181,10 +184,10 @@ export function RadarChart({
                 dominantBaseline="middle"
                 className={labelClassName}
               >
-                <tspan x={p.x} dy={lensColored ? "-0.45em" : 0} fill={d.color ?? "currentColor"}>
+                <tspan x={p.x} dy={(lensColored || showScoreValues) ? "-0.45em" : 0} fill={d.color ?? "currentColor"}>
                   {d.name}
                 </tspan>
-                {lensColored ? (
+                {(lensColored || showScoreValues) ? (
                   <tspan
                     x={p.x}
                     dy="1.15em"

@@ -229,6 +229,26 @@
   background: var(--theme-bg-card, #fff);
 }
 
+/* When the right panel collapses (40px rail), keep the button near the boundary. */
+.fmp-fullscreen-split--panel-collapsed .avf-topbar-end {
+  right: 50px;
+}
+
+/* Collapsed rail in expanded analysis: override the chrome height/alignment so the
+   button sits flush at the right edge instead of being locked to a 52px centered row. */
+.fmp-root--aura.fmp-root--viewport-expanded
+  .fmp-fullscreen-split--panel-collapsed
+  .aura-embedded-panel__chrome {
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 8px 4px;
+  border-bottom: none;
+}
+
 /* Expanded Aura overview column — theme tokens (light default) */
 .fmp-root--aura.fmp-root--viewport-expanded .fmp-fullscreen-split-overview,
 .fmp-root--aura.fmp-root--viewport-expanded .fmp-fullscreen-split-overview-main {
@@ -567,6 +587,13 @@
   justify-content: center;
   align-items: center;
   padding: 12px;
+}
+
+/* Aura view fills flush — no padding so avf-topbar aligns with the right panel's chrome row. */
+.fmp-root--aura.fmp-root--viewport-expanded .fmp-canvas-area--3d {
+  padding: 0;
+  justify-content: stretch;
+  align-items: stretch;
 }
 
 .fmp-root--viewport-expanded .face3d-wrap {
