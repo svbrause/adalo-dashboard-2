@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getAdminDemoClients } from "../debug/adminDemoClients";
 import { COURTNEY_BELLAMY_SEVERITY_ISSUES } from "../debug/adminDemoSeverityOverlay";
 import { computeCategories } from "../config/analysisOverviewConfig";
 import {
@@ -12,17 +13,11 @@ import {
 import type { Client } from "../types";
 
 function courtneyClient(): Client {
-  return {
-    id: "admin-demo-courtney",
-    name: "Courtney Bellamy",
-    email: "courtney@example.com",
-    phone: "",
-    tableSource: "Patients",
-    archived: false,
-    discussedItems: [],
-    severityScoresFromAnalyses: null,
-    allIssues: "",
-  } as Client;
+  const client = getAdminDemoClients().find((c) => c.id === "admin-demo-courtney");
+  if (!client) {
+    throw new Error("Courtney Bellamy admin demo client not found");
+  }
+  return client;
 }
 
 function minPairwiseGap(values: number[]): number {
