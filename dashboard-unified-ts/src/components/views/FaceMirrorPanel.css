@@ -229,9 +229,9 @@
   background: var(--theme-bg-card, #fff);
 }
 
-/* When the right panel collapses (40px rail), keep the button near the boundary. */
+/* When the right panel collapses (40px rail), sit the button at the face edge. */
 .fmp-fullscreen-split--panel-collapsed .avf-topbar-end {
-  right: 50px;
+  right: 6px;
 }
 
 /* Collapsed rail in expanded analysis: override the chrome height/alignment so the
