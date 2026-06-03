@@ -35,13 +35,13 @@
       "model_used": "New Model"
     },
     "Blackheads": {
-      "predicted": false,
-      "probability": 0,
-      "severity": 0.04,
-      "severity_normalized_0_1": 0.04,
+      "predicted": true,
+      "probability": 0.64,
+      "severity": 0.44,
+      "severity_normalized_0_1": 0.44,
       "severity_normalization_method": "severity_0_to_1",
-      "severity_level": "none",
-      "source": "severity_v3+demo_openai_curation_rejected",
+      "severity_level": "mild",
+      "source": "severity_v3+demo_skin_lens",
       "model_used": null
     },
     "Brow Asymmetry": {
@@ -115,13 +115,13 @@
       "model_used": "New Model"
     },
     "Dark Spots": {
-      "predicted": false,
-      "probability": 0,
-      "severity": 0.04,
-      "severity_normalized_0_1": 0.04,
+      "predicted": true,
+      "probability": 0.72,
+      "severity": 0.58,
+      "severity_normalized_0_1": 0.58,
       "severity_normalization_method": "severity_0_to_1",
-      "severity_level": "none",
-      "source": "severity_v3+demo_openai_curation_rejected",
+      "severity_level": "mild-moderate",
+      "source": "severity_v3",
       "model_used": "Model 1"
     },
     "Dorsal Hump": {
@@ -525,13 +525,23 @@
       "model_used": "MobileNet Oct31 v1"
     },
     "Red Spots": {
-      "predicted": false,
-      "probability": 0.174,
-      "severity": 0.174,
-      "severity_normalized_0_1": 0.174,
+      "predicted": true,
+      "probability": 0.72,
+      "severity": 0.5,
+      "severity_normalized_0_1": 0.5,
       "severity_normalization_method": "severity_0_to_1",
-      "severity_level": "none",
-      "source": "severity_v3",
+      "severity_level": "mild",
+      "source": "severity_v3+demo_skin_lens",
+      "model_used": "Model 1"
+    },
+    "Rosacea": {
+      "predicted": true,
+      "probability": 0.61,
+      "severity": 0.48,
+      "severity_normalized_0_1": 0.48,
+      "severity_normalization_method": "severity_0_to_1",
+      "severity_level": "mild",
+      "source": "severity_v3+demo_skin_lens",
       "model_used": "Model 1"
     },
     "Retruded Chin": {
@@ -656,12 +666,12 @@
     },
     "Whiteheads": {
       "predicted": true,
-      "probability": 0.43,
-      "severity": 0.43,
-      "severity_normalized_0_1": 0.43,
+      "probability": 0.67,
+      "severity": 0.46,
+      "severity_normalized_0_1": 0.46,
       "severity_normalization_method": "severity_0_to_1",
       "severity_level": "mild",
-      "source": "severity_v3+demo_openai_curation",
+      "source": "severity_v3+demo_skin_lens",
       "model_used": null
     },
     "Wide Chin": {

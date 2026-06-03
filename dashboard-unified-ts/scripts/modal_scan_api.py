@@ -40,10 +40,10 @@ CROP_FN = "_crop_ply"
 RENDER_FN = "render_turntable_black"
 
 QUALITY_PRESETS: dict[str, dict[str, int]] = {
-    "ultra": {"step_2d": 8, "estimated": 55},
-    "draft": {"step_2d": 30, "estimated": 120},
-    "standard": {"step_2d": 62, "estimated": 210},
-    "high": {"step_2d": 100, "estimated": 330},
+    "ultra": {"step_2d": 8, "estimated": 180},
+    "draft": {"step_2d": 30, "estimated": 480},
+    "standard": {"step_2d": 62, "estimated": 600},
+    "high": {"step_2d": 100, "estimated": 720},
 }
 
 image = (
@@ -86,8 +86,8 @@ def _progress_message(p: float) -> str:
         return "Generating 3D model…"
     if p < 0.80:
         return "Refining details…"
-    if p < 0.92:
-        return "Rendering turntable…"
+    if p < 0.90:
+        return "Processing turntable video…"
     if p < 0.97:
         return "Generating skin maps & background removal…"
     return "Finalising…"
@@ -97,6 +97,11 @@ def _set_job(job_id: str, **fields: Any) -> None:
     current = dict(jobs.get(job_id, {}))
     current.update(fields)
     jobs[job_id] = current
+
+
+def _job_was_cancelled(job_id: str) -> bool:
+    job = jobs.get(job_id, {})
+    return job.get("status") == "error" and job.get("message") == "Cancelled"
 
 
 def _upload_file_to_gcs(local_path: Path, blob_name: str, content_type: str) -> str | None:
@@ -120,7 +125,12 @@ def _upload_file_to_gcs(local_path: Path, blob_name: str, content_type: str) -> 
     client = gcs_storage.Client(credentials=creds, project=sa_info.get("project_id"))
     blob = client.bucket(bucket_name).blob(blob_name)
     blob.upload_from_filename(str(local_path), content_type=content_type)
-    blob.make_public()
+    try:
+        blob.make_public()
+    except Exception as exc:
+        # Uniform bucket-level access disables per-object ACLs. The scan bucket
+        # is already publicly readable, so keep the public URL and continue.
+        print(f"[scan-api] make_public skipped for {blob_name}: {exc}", flush=True)
     public_base = (
         os.environ.get("GCS_BLUEPRINT_PUBLIC_BASE_URL", "").strip().rstrip("/")
         or f"https://storage.googleapis.com/{bucket_name}"
@@ -143,6 +153,31 @@ def _make_seek_friendly_turntable(src: Path, dest: Path) -> bool:
         return dest.exists() and dest.stat().st_size > 0
     except Exception as exc:
         print(f"[scan-api] seek turntable failed: {exc}", flush=True)
+        return False
+
+
+def _make_pingpong_turntable(src: Path, dest: Path) -> bool:
+    """Stitch forward + reversed frames into a single ping-pong MP4.
+
+    The player loops this video forward; the face oscillates left↔right
+    with the backward half at the same quality as the forward half.
+    All-keyframes so seeks anywhere in the video are instant.
+    """
+    cmd = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(src),
+        "-filter_complex", "[0:v]reverse[r];[0:v][r]concat=n=2:v=1[out]",
+        "-map", "[out]",
+        "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+        "-g", "1", "-keyint_min", "1", "-sc_threshold", "0",
+        "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+        str(dest),
+    ]
+    try:
+        subprocess.run(cmd, check=True)
+        return dest.exists() and dest.stat().st_size > 0
+    except Exception as exc:
+        print(f"[scan-api] ping-pong turntable failed: {exc}", flush=True)
         return False
 
 
@@ -193,10 +228,17 @@ def process_scan_job(
 
         _set_job(job_id, progress=0.15, message=_progress_message(0.15))
 
+        # Update message before the blocking reconstruct call so the UI shows
+        # meaningful progress (not "Uploading photos…") during GPU processing.
+        _set_job(job_id, progress=0.20, message="Generating 3D model…")
+
         fn_reconstruct = modal.Function.from_name(FACELIFT_APP, RECONSTRUCT_FN)
         result: dict[str, bytes] = fn_reconstruct.remote(photos, step_2d=q["step_2d"])
 
         _set_job(job_id, progress=0.72, message=_progress_message(0.72))
+
+        if _job_was_cancelled(job_id):
+            return
 
         ply_bytes = result.get("gaussians.ply")
         if ply_bytes:
@@ -204,7 +246,7 @@ def process_scan_job(
             fn_render = modal.Function.from_name(FACELIFT_APP, RENDER_FN)
             cropped_ply = fn_crop.remote(ply_bytes)
             video_bytes = fn_render.remote(
-                cropped_ply, resolution=2048, num_views=120, fps=30, sweep_deg=130,
+                cropped_ply, resolution=1024, num_views=90, fps=30, sweep_deg=130,
             )
         elif "turntable.mp4" in result:
             video_bytes = result["turntable.mp4"]
@@ -213,6 +255,9 @@ def process_scan_job(
 
         _set_job(job_id, progress=0.88, message=_progress_message(0.88))
 
+        if _job_was_cancelled(job_id):
+            return
+
         with tempfile.TemporaryDirectory(prefix="scan-") as tmp:
             tmp_path = Path(tmp)
             turntable_path = tmp_path / f"{slug}-turntable.mp4"
@@ -220,19 +265,47 @@ def process_scan_job(
             turntable_path.write_bytes(video_bytes)
             video_path = seek_path if _make_seek_friendly_turntable(turntable_path, seek_path) else turntable_path
 
+            _set_job(job_id, progress=0.89, message="Generating ping-pong turntable…")
+            pingpong_path = tmp_path / f"{slug}-turntable-seek-pingpong.mp4"
+            _make_pingpong_turntable(video_path, pingpong_path)
+            # Use the ping-pong version as the primary video if it was created successfully.
+            if pingpong_path.exists() and pingpong_path.stat().st_size > 0:
+                video_path = pingpong_path
+
+            _set_job(job_id, progress=0.90, message="Uploading turntable…")
             video_url = _upload_file_to_gcs(video_path, f"turntables/{slug}-turntable-seek.mp4", "video/mp4")
             if not video_url:
                 video_url = _upload_file_to_gcs(turntable_path, f"turntables/{slug}-turntable.mp4", "video/mp4")
 
+            # Turntable is playable — expose URL before aura stills finish so the UI can preload.
+            if video_url:
+                _set_job(
+                    job_id,
+                    status="running",
+                    progress=0.91,
+                    message="Turntable ready — generating skin maps…",
+                    videoUrl=video_url,
+                )
+
+            _set_job(job_id, progress=0.92, message=_progress_message(0.92))
             aura_dir = tmp_path / slug
             aura_mod = _load_aura_module("generate_patient_aura_assets", Path("/root/scripts/generate_patient_aura_assets.py"))
+
+            def aura_progress(progress: float, message: str) -> None:
+                _set_job(job_id, progress=progress, message=message)
+
             aura_manifest = aura_mod.generate_aura_assets(
                 slug=slug,
                 turntable_video_path=turntable_path,
                 photo_bytes=photos,
                 turntable_video_url=video_url or f"/demo-3d/{slug}-turntable.mp4",
                 out_dir=aura_dir,
+                skip_videos=False,
+                scan_optimized=False,
+                on_progress=aura_progress,
             )
+
+            _set_job(job_id, progress=0.97, message=_progress_message(0.97))
 
             gcs_mod = _load_aura_module("scan_aura_gcs", Path("/root/scripts/scan_aura_gcs.py"))
             uploaded = gcs_mod.upload_aura_manifest_to_gcs(slug, aura_dir, aura_manifest)
@@ -262,13 +335,18 @@ def process_scan_job(
 @app.function(image=image)
 @modal.asgi_app()
 def web_app():
-    from fastapi import FastAPI, HTTPException, Request
+    from fastapi import Body, FastAPI, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
 
     api = FastAPI()
+    api.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-    @api.post("/submit")
-    async def submit(request: Request) -> dict[str, Any]:
-        body = await request.json()
+    async def submit_scan(body: dict[str, Any]) -> dict[str, Any]:
         client_name: str = body.get("clientName", "client")
         quality: str = body.get("quality", "standard")
         photo_urls: dict[str, str] = body.get("photos") or {}
@@ -287,11 +365,19 @@ def web_app():
             "message": "Queued",
             "estimatedSeconds": estimated,
         }
-        process_scan_job.spawn(job_id, client_name, quality, photo_urls)
+        call = process_scan_job.spawn(job_id, client_name, quality, photo_urls)
+        jobs[job_id] = {**jobs[job_id], "callId": call.object_id}
         return {"jobId": job_id, "estimatedSeconds": estimated}
 
-    @api.get("/status")
-    def status(job_id: str) -> dict[str, Any]:
+    @api.post("/submit")
+    async def submit(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        return await submit_scan(body)
+
+    @api.post("/api/scan/submit")
+    async def submit_api(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        return await submit_scan(body)
+
+    def scan_status(job_id: str) -> dict[str, Any]:
         job = jobs.get(job_id)
         if not job:
             return {"status": "error", "error": "Job not found"}
@@ -326,6 +412,55 @@ def web_app():
             "message": job.get("message") or _progress_message(progress),
             "remaining": remaining,
             "elapsed": int(elapsed),
+            **({"videoUrl": job["videoUrl"]} if job.get("videoUrl") else {}),
+            **({"auraAssets": job["auraAssets"]} if job.get("auraAssets") else {}),
+        }
+
+    @api.get("/status")
+    def status(job_id: str) -> dict[str, Any]:
+        return scan_status(job_id)
+
+    @api.get("/api/scan/status/{job_id}")
+    def status_api(job_id: str) -> dict[str, Any]:
+        return scan_status(job_id)
+
+    @api.post("/api/scan/cancel/{job_id}")
+    def cancel_api(job_id: str) -> dict[str, Any]:
+        job = jobs.get(job_id)
+        if not job:
+            raise HTTPException(404, "Job not found")
+        status_val = job.get("status", "queued")
+        if status_val in ("done", "error"):
+            return {"ok": True, "status": status_val}
+
+        call_id = job.get("callId")
+        if call_id:
+            try:
+                from modal.functions import FunctionCall
+
+                FunctionCall.from_id(call_id).cancel()
+            except Exception as exc:
+                print(f"[scan-api] cancel call {call_id}: {exc}", flush=True)
+
+        _set_job(
+            job_id,
+            status="error",
+            error="Cancelled",
+            progress=1.0,
+            message="Cancelled",
+        )
+        return {"ok": True, "status": "cancelled"}
+
+    @api.post("/api/scan/save-video")
+    async def save_video(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        job_id = body.get("jobId")
+        job = jobs.get(job_id) if job_id else None
+        if not job:
+            return {"persisted": False}
+        return {
+            "videoUrl": job.get("videoUrl"),
+            "persisted": False,
+            "auraAssets": job.get("auraAssets"),
         }
 
     return api

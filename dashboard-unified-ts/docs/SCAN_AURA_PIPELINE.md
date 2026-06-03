@@ -13,6 +13,16 @@ After Modal reconstructs a patient turntable, the scan server runs **`scripts/ge
 
 Files are written under `public/demo-3d/{slug}/`. When GCS is configured, they are uploaded to `gs://{bucket}/aura/{slug}/` and the job returns **`auraAssets`** with public URLs.
 
+## Airtable linking
+
+The client detail page can load stored Aura assets from any of these patient fields:
+
+- **Turntable Video URL** — direct MP4 URL; the dashboard derives the manifest bucket from it.
+- **Aura Manifest URL** or **Aura Asset Manifest URL** — direct URL to `{slug}-aura-manifest.json`.
+- **Aura GCS Prefix**, **Aura Asset Prefix**, or **Aura Assets Prefix** — folder such as `gs://test-deploy-august25/aura/courtney-bellamy/`.
+
+For local/staging fallback, set `VITE_GCS_AURA_BUCKET=test-deploy-august25`; the dashboard will also probe `https://storage.googleapis.com/{bucket}/aura/{slug}/{slug}-aura-manifest.json`.
+
 ## Deploy to `ponce-patient-backend`
 
 The dashboard calls **`https://ponce-patient-backend.vercel.app/api/scan/*`**. That service must include the same logic as this repo’s **`server.py`**:

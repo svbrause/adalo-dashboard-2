@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 
 const repoRoot = resolve(__dirname, "..");
 const dashboardOrigin = (
-  process.env.DASHBOARD_ORIGIN || "https://dashboard-unified-ts.vercel.app"
+  process.env.DASHBOARD_ORIGIN || "https://adalo-dashboard-2.vercel.app"
 ).replace(/\/$/, "");
 
 export default defineConfig({

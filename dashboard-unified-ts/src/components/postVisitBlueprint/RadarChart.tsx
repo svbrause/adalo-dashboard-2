@@ -1,5 +1,21 @@
+import type { AuraSkinLens } from "../../utils/auraAnalysisBridge";
+
+export type RadarChartDatum = {
+  name: string;
+  score: number;
+  /** Plotted petal score on 1.2–2.8 axis when set (skin lens coxcomb). */
+  severityAxis?: number;
+  /** Per-axis color (skin lens radar). */
+  color?: string;
+  /** Score number color (tier); defaults to `color`. */
+  scoreColor?: string;
+  /** Skin scan lens key (Texture / Redness / Pores / Wrinkles). */
+  lens?: AuraSkinLens;
+};
+
 /**
- * SVG radar / spider chart — shared by Analysis Overview modal and Post-Visit Blueprint.
+ * SVG radar chart — shared by Analysis Overview modal and Post-Visit Blueprint.
+ * When every datum has `color`, renders color-coded wedges per axis (skin lens mode).
  */
 export function RadarChart({
   data,
@@ -8,14 +24,17 @@ export function RadarChart({
   showLabels = true,
   className,
   labelClassName = "ao-radar__label",
+  showRingValues = false,
 }: {
-  data: { name: string; score: number }[];
+  data: RadarChartDatum[];
   size?: number;
   animate: boolean;
   showLabels?: boolean;
   className?: string;
   /** e.g. `pvb-radar__label` on blueprint page */
   labelClassName?: string;
+  /** Show 25/50/75/100 ring labels (skin lens radar). */
+  showRingValues?: boolean;
 }) {
   /* Extra inset when labeled: side anchors need room for text (textAnchor middle extends both ways). */
   const padding = showLabels
@@ -46,11 +65,14 @@ export function RadarChart({
     return "middle";
   };
 
+  const lensColored = data.length > 0 && data.every((d) => d.color);
   const dataPoints = data.map((d, i) => pointAt(i, animate ? d.score : 0));
   const polygon = dataPoints.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
-    <div className={`ao-radar ${className ?? ""}`.trim()}>
+    <div
+      className={`ao-radar${lensColored ? " ao-radar--skin-lens" : ""} ${className ?? ""}`.trim()}
+    >
       <svg
         width={svgSize}
         height={svgSize}
@@ -69,7 +91,41 @@ export function RadarChart({
             strokeWidth="1"
           />
         ))}
-        {data.map((_, i) => {
+        {showRingValues &&
+          rings.map((ringVal) => {
+            const p = pointAt(0, ringVal);
+            return (
+              <text
+                key={`ring-${ringVal}`}
+                x={p.x - 10}
+                y={p.y}
+                textAnchor="end"
+                dominantBaseline="middle"
+                className="ao-radar__ring-value"
+                fontSize="9"
+                fill="var(--ao-radar-ring-label, rgba(100, 116, 139, 0.85))"
+              >
+                {ringVal}
+              </text>
+            );
+          })}
+        {lensColored
+          ? data.map((d, i) => {
+              const pScore = dataPoints[i];
+              const pNext = dataPoints[(i + 1) % n];
+              return (
+                <path
+                  key={`wedge-${d.name}`}
+                  d={`M ${cx} ${cy} L ${pScore.x} ${pScore.y} L ${pNext.x} ${pNext.y} Z`}
+                  fill={d.color}
+                  fillOpacity={animate ? 0.2 : 0}
+                  stroke="none"
+                  style={{ transition: "fill-opacity 0.6s ease-out" }}
+                />
+              );
+            })
+          : null}
+        {data.map((d, i) => {
           const p = pointAt(i, 100);
           return (
             <line
@@ -78,15 +134,24 @@ export function RadarChart({
               y1={cy}
               x2={p.x}
               y2={p.y}
-              stroke="var(--ao-radar-axis-stroke, rgba(0, 0, 0, 0.12))"
-              strokeWidth="1"
+              stroke={d.color ?? "var(--ao-radar-axis-stroke, rgba(0, 0, 0, 0.12))"}
+              strokeWidth={lensColored ? 1.25 : 1}
+              strokeOpacity={lensColored ? 0.55 : 1}
             />
           );
         })}
         <polygon
           points={polygon}
-          fill="var(--ao-radar-data-fill, rgba(59, 130, 246, 0.15))"
-          stroke="var(--ao-radar-data-stroke, #3b82f6)"
+          fill={
+            lensColored
+              ? "rgba(255, 255, 255, 0.06)"
+              : "var(--ao-radar-data-fill, rgba(59, 130, 246, 0.15))"
+          }
+          stroke={
+            lensColored
+              ? "rgba(148, 163, 184, 0.45)"
+              : "var(--ao-radar-data-stroke, #3b82f6)"
+          }
           strokeWidth={showLabels ? 2 : 1.5}
           style={{ transition: "all 0.6s ease-out" }}
         />
@@ -95,8 +160,10 @@ export function RadarChart({
             key={i}
             cx={p.x}
             cy={p.y}
-            r={showLabels ? 3.5 : 2}
-            fill="var(--ao-radar-point-fill, #3b82f6)"
+            r={showLabels ? 4 : 2}
+            fill={data[i].color ?? "var(--ao-radar-point-fill, #3b82f6)"}
+            stroke={lensColored ? "#fff" : "none"}
+            strokeWidth={lensColored ? 1.5 : 0}
             style={{ transition: "all 0.6s ease-out" }}
           />
         ))}
@@ -104,6 +171,7 @@ export function RadarChart({
           data.map((d, i) => {
             const p = pointAt(i, labelRadiusPct);
             const anchor = labelTextAnchor(p.x);
+            const scoreFill = d.scoreColor ?? d.color ?? "currentColor";
             return (
               <text
                 key={d.name}
@@ -113,7 +181,20 @@ export function RadarChart({
                 dominantBaseline="middle"
                 className={labelClassName}
               >
-                {d.name}
+                <tspan x={p.x} dy={lensColored ? "-0.45em" : 0} fill={d.color ?? "currentColor"}>
+                  {d.name}
+                </tspan>
+                {lensColored ? (
+                  <tspan
+                    x={p.x}
+                    dy="1.15em"
+                    fill={scoreFill}
+                    fontWeight={700}
+                    className="ao-radar__score-value"
+                  >
+                    {Math.round(animate ? d.score : 0)}
+                  </tspan>
+                ) : null}
               </text>
             );
           })}

@@ -94,6 +94,11 @@
   margin-left: 76px;
 }
 
+/* Keep ViewControls mounted while a client is open so it reappears instantly on close. */
+.view-controls-hidden {
+  display: none;
+}
+
 /* Wrapper so views can fill remaining height and manage internal scroll (e.g. SMS messages) */
 .dashboard-views-wrap {
   flex: 1;
@@ -101,6 +106,34 @@
   display: flex;
   flex-direction: column;
   overflow: auto;
+}
+
+.dashboard-client-detail-placeholder {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--theme-bg-card);
+  color: var(--theme-text-primary);
+  text-align: center;
+  padding: 24px;
+}
+
+.dashboard-client-detail-placeholder__card {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-client-detail-placeholder__card h2,
+.dashboard-client-detail-placeholder__card p {
+  margin: 0;
 }
 
 @media (max-width: 768px) {

@@ -144,6 +144,11 @@ import PatientMediaLibraryPanel from "./PatientMediaLibraryPanel";
 import type { SavedPatientAnnotation } from "../../utils/patientAnnotationsStorage";
 import { clientHas3DModel, getClientGlbUrl, setGeneratedClientGlbUrl } from "../../utils/client3dConfig";
 import {
+  fetchPatientAuraManifestFromConfiguredBucket,
+  fetchPatientAuraManifestFromGcs,
+  fetchPatientAuraManifestFromGcsPrefix,
+  fetchPatientAuraManifestFromUrl,
+  getPatientAuraManifest,
   setPatientAuraManifest,
   type PatientAuraAssetManifest,
 } from "../../utils/patientAuraAssets";
@@ -329,6 +334,10 @@ export default function ClientDetailPanel({
     ClientPhotoSlot[]
   >([]);
   const [patientFilesRefreshKey, setPatientFilesRefreshKey] = useState(0);
+  const [clientAuraManifest, setClientAuraManifest] =
+    useState<PatientAuraAssetManifest | null>(() =>
+      getPatientAuraManifest(client?.name),
+    );
   const { optimisticTimelines, handleVisitModeToggleItem } =
     useVisitModePlanSync({ client, onUpdate });
   const scanDropdownRef = useRef<HTMLDivElement>(null);
@@ -811,8 +820,58 @@ export default function ClientDetailPanel({
 
   useAddClientAcquisitionFunnelScan(client, Boolean(facialAnalysisFormHasData));
 
-  // 3D face mirror — Airtable persistent URL wins, then localStorage cache, then null
-  const glbUrl = client.turntableVideoUrl || getClientGlbUrl(client.name) || null;
+  useEffect(() => {
+    if (!client) {
+      setClientAuraManifest(null);
+      return;
+    }
+    setClientAuraManifest(getPatientAuraManifest(client.name));
+    let cancelled = false;
+    void (async () => {
+      let manifest: PatientAuraAssetManifest | null = null;
+      manifest = await fetchPatientAuraManifestFromUrl(
+        client.name,
+        client.auraManifestUrl,
+      );
+      if (!manifest) {
+        manifest = await fetchPatientAuraManifestFromGcsPrefix(
+          client.name,
+          client.auraGcsPrefix,
+        );
+      }
+      if (
+        !manifest &&
+        client.turntableVideoUrl?.startsWith("https://storage.googleapis.com")
+      ) {
+        manifest = await fetchPatientAuraManifestFromGcs(
+          client.name,
+          client.turntableVideoUrl,
+        );
+      }
+      if (!manifest) {
+        manifest = await fetchPatientAuraManifestFromConfiguredBucket(
+          client.name,
+        );
+      }
+      if (!cancelled && manifest) setClientAuraManifest(manifest);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    client?.id,
+    client?.name,
+    client?.auraManifestUrl,
+    client?.auraGcsPrefix,
+    client?.turntableVideoUrl,
+  ]);
+
+  // 3D face mirror — Airtable URL wins, then Aura manifest, then localStorage cache.
+  const glbUrl =
+    client.turntableVideoUrl ||
+    clientAuraManifest?.turntableVideoUrl ||
+    getClientGlbUrl(client.name) ||
+    null;
   const photoUrlForMirrorCheck =
     frontPhotoUrl ?? getClientFrontPhotoDisplayUrl(client.frontPhoto);
   const is3DSplit = (Boolean(glbUrl) || clientHas3DModel(client.name) || faceMirrorPhotoSlots.length > 0 || Boolean(photoUrlForMirrorCheck)) && !recommenderMode;
@@ -1489,6 +1548,9 @@ export default function ClientDetailPanel({
                 photoUrl={auraScanOnly ? null : photoUrlForMirror}
                 photoSlots={faceMirrorPhotoSlots}
                 glbUrl={glbUrl}
+                auraManifestUrl={client.auraManifestUrl}
+                auraGcsPrefix={client.auraGcsPrefix}
+                initialAuraManifest={clientAuraManifest}
                 highlightTerms={effectiveMirrorTerms}
                 patientName={client.name}
                 airtableRecordId={client.id}
@@ -2493,24 +2555,6 @@ export default function ClientDetailPanel({
                     </div>
                   )}
 
-                  {is3DSplit && client && (
-                    <div className="detail-section detail-section-patient-files">
-                      <PatientMediaLibraryPanel
-                        client={client}
-                        photoSlots={faceMirrorPhotoSlots}
-                        turntableVideoUrl={glbUrl}
-                        refreshKey={patientFilesRefreshKey}
-                        onLoadAnnotation={(record: SavedPatientAnnotation) => {
-                          window.dispatchEvent(
-                            new CustomEvent("patient-annotation-load-request", {
-                              detail: { clientId: client.id, record },
-                            }),
-                          );
-                        }}
-                      />
-                    </div>
-                  )}
-
                   {/* Facial Analysis Section */}
                   <div className="detail-section detail-section-facial-analysis">
                     <div className="detail-section-header-flex detail-section-facial-analysis-header">
@@ -2864,6 +2908,24 @@ export default function ClientDetailPanel({
                         )}
                       </div>
                     </>
+                  )}
+
+                  {is3DSplit && client && (
+                    <div className="detail-section detail-section-patient-files">
+                      <PatientMediaLibraryPanel
+                        client={client}
+                        photoSlots={faceMirrorPhotoSlots}
+                        turntableVideoUrl={glbUrl}
+                        refreshKey={patientFilesRefreshKey}
+                        onLoadAnnotation={(record: SavedPatientAnnotation) => {
+                          window.dispatchEvent(
+                            new CustomEvent("patient-annotation-load-request", {
+                              detail: { clientId: client.id, record },
+                            }),
+                          );
+                        }}
+                      />
+                    </div>
                   )}
 
                   {/* Appointment Info */}

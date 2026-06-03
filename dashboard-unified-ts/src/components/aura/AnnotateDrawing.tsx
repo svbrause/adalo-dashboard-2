@@ -4,20 +4,35 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import "./AnnotateDrawing.css";
 
-export type AnnotateTool = "pen" | "highlighter" | "eraser";
+export type AnnotateTool = "pen" | "highlighter" | "eraser" | "text";
 
-export type AnnotateStroke = {
+export type AnnotateInkStroke = {
+  kind?: "stroke";
   d: string;
   color: string;
   width: number;
   opacity: number;
-  tool: AnnotateTool;
+  tool: Exclude<AnnotateTool, "text">;
 };
+
+export type AnnotateTextMark = {
+  kind: "text";
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  fontSize: number;
+  opacity: number;
+  tool: "text";
+};
+
+export type AnnotateStroke = AnnotateInkStroke | AnnotateTextMark;
 
 export const ANNOTATE_COLOR_PRESETS = [
   { id: "coral", label: "Coral", value: "#ff7a45" },
@@ -38,6 +53,7 @@ const WIDTH_PRESETS = [
 
 const DEFAULT_COLOR = ANNOTATE_COLOR_PRESETS[0].value;
 const DEFAULT_WIDTH = WIDTH_PRESETS[1].value;
+const TEXT_EDITOR_WIDTH = 38;
 
 function svgPointFromPointer(svg: SVGSVGElement, clientX: number, clientY: number) {
   const pt = svg.createSVGPoint();
@@ -56,7 +72,7 @@ type Point = [number, number];
 
 type HistoryEntry =
   | { type: "add"; stroke: AnnotateStroke }
-  | { type: "erase"; strokes: AnnotateStroke[] };
+  | { type: "erase"; strokes: AnnotateInkStroke[] };
 
 /** Parse M/L paths produced by this canvas (viewBox 0–100). */
 function pathToPoints(d: string): Point[] {
@@ -93,7 +109,7 @@ function eraserHitRadius(inkWidth: number, eraserWidth: number): number {
 }
 
 function strokeHitByEraser(
-  stroke: AnnotateStroke,
+  stroke: AnnotateInkStroke,
   eraserPath: string,
   eraserWidth: number,
 ): boolean {
@@ -105,6 +121,29 @@ function strokeHitByEraser(
     minDistanceBetweenPolylines(inkPts, eraserPts) <=
     eraserHitRadius(stroke.width, eraserWidth)
   );
+}
+
+function isInkStroke(mark: AnnotateStroke): mark is AnnotateInkStroke {
+  return mark.kind !== "text";
+}
+
+function isVisibleMark(mark: AnnotateStroke): boolean {
+  return mark.tool !== "eraser";
+}
+
+function textFontSize(width: number): number {
+  if (width <= 3) return 2.25;
+  if (width <= 6) return 2.75;
+  if (width <= 11) return 3.35;
+  return 4.15;
+}
+
+function clampTextX(x: number): number {
+  return Math.min(88, Math.max(4, x));
+}
+
+function clampTextY(y: number): number {
+  return Math.min(94, Math.max(6, y));
 }
 
 type AnnotateDrawingProps = {
@@ -138,9 +177,14 @@ export default function AnnotateDrawing({
   const [internalStrokes, setInternalStrokes] = useState<AnnotateStroke[]>([]);
   const [undoStack, setUndoStack] = useState<HistoryEntry[]>([]);
   const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
-  const [current, setCurrent] = useState<AnnotateStroke | null>(null);
+  const [current, setCurrent] = useState<AnnotateInkStroke | null>(null);
+  const [draftText, setDraftText] = useState<{
+    x: number;
+    y: number;
+    value: string;
+  } | null>(null);
   const drawingRef = useRef(false);
-  const eraseGestureRemovedRef = useRef<AnnotateStroke[]>([]);
+  const eraseGestureRemovedRef = useRef<AnnotateInkStroke[]>([]);
 
   const controlled = onStrokesChange !== undefined;
   const strokes = controlled ? (strokesProp ?? []) : internalStrokes;
@@ -154,16 +198,21 @@ export default function AnnotateDrawing({
     [controlled, onStrokesChange, strokes],
   );
 
-  const inkStrokes = strokes.filter((s) => s.tool !== "eraser");
+  const visibleMarks = strokes.filter(isVisibleMark);
+  const inkStrokes = strokes.filter((s): s is AnnotateInkStroke => isInkStroke(s) && s.tool !== "eraser");
+  const textMarks = strokes.filter((s): s is AnnotateTextMark => s.kind === "text");
   const canUndo = undoStack.length > 0;
   const canRedo = redoStack.length > 0;
+  const activeTextFontSize = textFontSize(width);
+  const activeTextEditorHeight = Math.max(4.2, activeTextFontSize * 1.65);
 
   const eraseAlongPath = useCallback(
     (eraserPath: string, eraserWidth: number) => {
       setStrokes((prev) => {
         const ink = prev.filter((s) => s.tool !== "eraser");
-        const removed: AnnotateStroke[] = [];
+        const removed: AnnotateInkStroke[] = [];
         const kept = ink.filter((stroke) => {
+          if (!isInkStroke(stroke)) return true;
           if (strokeHitByEraser(stroke, eraserPath, eraserWidth)) {
             removed.push(stroke);
             return false;
@@ -234,7 +283,7 @@ export default function AnnotateDrawing({
         setStrokes((prev) => [...prev, entry.stroke]);
       } else {
         setStrokes((prev) => {
-          const removeSet = new Set(entry.strokes);
+          const removeSet = new Set<AnnotateStroke>(entry.strokes);
           return prev.filter((s) => !removeSet.has(s));
         });
       }
@@ -250,11 +299,37 @@ export default function AnnotateDrawing({
     setRedoStack([]);
     eraseGestureRemovedRef.current = [];
     setCurrent(null);
+    setDraftText(null);
   }, [strokes.length, setStrokes]);
+
+  const commitDraftText = useCallback(() => {
+    setDraftText((draft) => {
+      const text = draft?.value.trim();
+      if (!draft || !text) return null;
+      const mark: AnnotateTextMark = {
+        kind: "text",
+        x: draft.x,
+        y: draft.y,
+        text,
+        color,
+        fontSize: textFontSize(width),
+        opacity: 0.94,
+        tool: "text",
+      };
+      setStrokes((prev) => [...prev, mark]);
+      setUndoStack((u) => [...u, { type: "add", stroke: mark }]);
+      setRedoStack([]);
+      return null;
+    });
+  }, [color, setStrokes, width]);
+
+  const cancelDraftText = useCallback(() => {
+    setDraftText(null);
+  }, []);
 
   useEffect(() => {
     if (!active) return;
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -271,6 +346,7 @@ export default function AnnotateDrawing({
       if (k === "p") setTool("pen");
       else if (k === "h") setTool("highlighter");
       else if (k === "e") setTool("eraser");
+      else if (k === "t") setTool("text");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -281,8 +357,16 @@ export default function AnnotateDrawing({
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
-    drawingRef.current = true;
     const { x, y } = svgPointFromPointer(e.currentTarget, e.clientX, e.clientY);
+    if (tool === "text") {
+      setDraftText({ x: clampTextX(x), y: clampTextY(y), value: "" });
+      drawingRef.current = false;
+      setCurrent(null);
+      return;
+    }
+
+    commitDraftText();
+    drawingRef.current = true;
     if (tool === "eraser") {
       eraseGestureRemovedRef.current = [];
       setCurrent({
@@ -319,9 +403,20 @@ export default function AnnotateDrawing({
     });
   };
 
+  const onDraftKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitDraftText();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      cancelDraftText();
+    }
+  };
+
   const showCanvas = active || strokes.length > 0;
   const showToolbar =
-    active || (inkStrokes.length > 0 && Boolean(onSave || onDownload));
+    active || (visibleMarks.length > 0 && Boolean(onSave || onDownload));
 
   const toolbar = showToolbar ? (
     <div
@@ -372,6 +467,15 @@ export default function AnnotateDrawing({
                 onClick={() => setTool("highlighter")}
               >
                 <IconHighlighter />
+              </button>
+              <button
+                type="button"
+                className={`avf-annotate-tool${tool === "text" ? " avf-annotate-tool--active" : ""}`}
+                title="Text (T)"
+                aria-pressed={tool === "text"}
+                onClick={() => setTool("text")}
+              >
+                <IconText />
               </button>
               <button
                 type="button"
@@ -476,7 +580,7 @@ export default function AnnotateDrawing({
           className="avf-annotate-action avf-annotate-action--danger"
           title="Clear all marks"
           aria-label="Clear all"
-          disabled={inkStrokes.length === 0}
+          disabled={visibleMarks.length === 0}
           onClick={clearAll}
         >
           <IconTrash />
@@ -487,7 +591,7 @@ export default function AnnotateDrawing({
             className="avf-annotate-action avf-annotate-action--download"
             title="Download annotated image"
             aria-label="Download"
-            disabled={inkStrokes.length === 0}
+            disabled={visibleMarks.length === 0}
             onClick={onDownload}
           >
             <IconDownload />
@@ -498,7 +602,7 @@ export default function AnnotateDrawing({
             type="button"
             className="avf-annotate-action avf-annotate-action--save"
             title="Save to patient files"
-            disabled={inkStrokes.length === 0}
+            disabled={visibleMarks.length === 0}
             onClick={onSave}
           >
             {saveLabel}
@@ -548,6 +652,49 @@ export default function AnnotateDrawing({
               className="avf-drawing-layer__stroke"
             />
           ))}
+          {textMarks.map((mark, i) => (
+            <text
+              key={`text-${i}`}
+              x={mark.x}
+              y={mark.y}
+              fill={mark.color}
+              fillOpacity={mark.opacity}
+              fontSize={mark.fontSize}
+              fontWeight={650}
+              stroke="rgba(0, 0, 0, 0.74)"
+              strokeWidth={0.26}
+              paintOrder="stroke"
+              className="avf-drawing-layer__text"
+            >
+              {mark.text}
+            </text>
+          ))}
+          {draftText ? (
+            <foreignObject
+              x={draftText.x}
+              y={Math.max(1, draftText.y - activeTextEditorHeight + 0.5)}
+              width={Math.min(TEXT_EDITOR_WIDTH, 98 - draftText.x)}
+              height={activeTextEditorHeight}
+              className="avf-drawing-layer__text-editor-wrap"
+            >
+              <input
+                className="avf-drawing-layer__text-editor"
+                value={draftText.value}
+                placeholder="Text"
+                style={{
+                  color,
+                  fontSize: `${Math.max(11, activeTextFontSize * 4.3)}px`,
+                }}
+                autoFocus
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
+                onChange={(e) => setDraftText((draft) => draft ? { ...draft, value: e.target.value } : draft)}
+                onKeyDown={onDraftKeyDown}
+                onBlur={commitDraftText}
+              />
+            </foreignObject>
+          ) : null}
           {current && current.tool !== "eraser" ? (
             <path
               d={current.d}
@@ -596,6 +743,16 @@ function IconHighlighter() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
       <path d="M9 11l-6 6v3h3l6-6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="m22 2-7 7-3-3 7-7 3 3z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconText() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M5 5h14" strokeLinecap="round" />
+      <path d="M12 5v14" strokeLinecap="round" />
+      <path d="M9 19h6" strokeLinecap="round" />
     </svg>
   );
 }

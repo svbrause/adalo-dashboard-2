@@ -109,6 +109,7 @@
 }
 
 .fmp-fullscreen-split-overview {
+  --fmp-collapsed-recommender-h: 53px;
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
@@ -174,9 +175,16 @@
 }
 
 /* When recommender is collapsed, dock it to bottom and let analysis fill height. */
+.fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed) {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
   .fmp-fullscreen-split-overview-main {
-  flex: 1 1 0%;
+  flex: 1 1 calc(100% - var(--fmp-collapsed-recommender-h));
   min-height: 0;
   max-height: none;
   overflow: hidden;
@@ -185,11 +193,13 @@
 }
 
 .fmp-fullscreen-split-overview-lower:has(.cdp-expanded-planbuilder--collapsed) {
-  flex: 0 0 auto;
+  flex: 0 0 var(--fmp-collapsed-recommender-h);
   min-height: 0;
+  height: var(--fmp-collapsed-recommender-h);
   max-height: none;
-  overflow: visible;
-  display: block;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .fmp-fullscreen-split-overview--solo {
@@ -633,21 +643,24 @@
   background: #0a0a0a;
 }
 
-/* Collapsed Aura column: expand only (no mode tabs / badges). */
+/* Collapsed Aura column: spans full width so start (Generate) is top-left,
+   end (expand) is top-right. */
 .fmp-root--aura:not(.fmp-root--viewport-expanded) .fmp-toolbar {
   position: absolute;
-  right: 10px;
+  left: 0;
+  right: 0;
   top: 0;
   z-index: 30;
   height: var(--cdp-aura-chrome-row-h, 52px);
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  padding: 0;
+  padding: 0 10px;
   border-bottom: none;
   background: transparent;
+  pointer-events: none;
 }
 
-/* Expanded Aura: overlay Analysis btn on left-column topbar band (not above the split). */
+/* Expanded Aura: overlay left-column topbar band. */
 .fmp-root--aura.fmp-root--viewport-expanded .fmp-toolbar {
   position: absolute;
   top: 0;
@@ -655,16 +668,17 @@
   z-index: 35;
   width: 57.65%;
   height: var(--cdp-aura-chrome-row-h, 52px);
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  padding: 0 10px 0 0;
+  padding: 0 10px;
   border-bottom: none;
   background: transparent;
   box-sizing: border-box;
   pointer-events: none;
 }
 
-.fmp-root--aura.fmp-root--viewport-expanded .fmp-toolbar-end {
+.fmp-root--aura .fmp-toolbar-start,
+.fmp-root--aura .fmp-toolbar-end {
   pointer-events: auto;
 }
 
@@ -695,9 +709,7 @@
   background: color-mix(in srgb, var(--theme-accent-indigo-bg-active, rgba(54, 117, 136, 0.16)) 84%, white);
 }
 
-.fmp-root--aura:not(.fmp-root--viewport-expanded) .fmp-toolbar-start {
-  display: none;
-}
+/* fmp-toolbar-start is now visible in both Aura states (Generate/Regenerate button). */
 
 .fmp-root--aura .fmp-fullscreen-btn {
   background: rgba(255 255 255 / 0.06);
@@ -727,8 +739,78 @@
 .fmp-toolbar-end {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
+  position: relative;
+}
+
+.fmp-toolbar-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  background: var(--theme-bg-surface, #f8fafc);
+}
+
+.fmp-toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--theme-border, #e2e8f0);
+  flex-shrink: 0;
+}
+
+.fmp-toolbar-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--theme-text-muted, #64748b);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.fmp-toolbar-tool-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.fmp-toolbar-tool-btn--active {
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.fmp-root--aura .fmp-toolbar-tools {
+  border-color: rgba(255 255 255 / 0.12);
+  background: rgba(255 255 255 / 0.06);
+}
+
+.fmp-root--aura .fmp-toolbar-divider {
+  background: rgba(255 255 255 / 0.14);
+}
+
+.fmp-root--aura .fmp-toolbar-tool-btn {
+  color: rgba(255 255 255 / 0.72);
+}
+
+.fmp-root--aura .fmp-toolbar-tool-btn:hover {
+  background: rgba(255 255 255 / 0.08);
+  color: rgba(255 255 255 / 0.92);
+}
+
+.fmp-root--aura .fmp-toolbar-tool-btn--active {
+  background: rgba(255 255 255 / 0.12);
+  color: #fff;
+  box-shadow: none;
 }
 
 .fmp-fullscreen-btn {
@@ -1103,6 +1185,25 @@
   background: var(--theme-accent-indigo-bg);
   border-color: var(--theme-accent-indigo-border);
   color: var(--theme-accent-indigo-fg);
+}
+
+/* In the Aura dark toolbar, use light-on-dark colours so the button is visible. */
+.fmp-root--aura .fmp-regenerate-3d-btn {
+  border-color: rgba(255 255 255 / 0.22);
+  color: rgba(255 255 255 / 0.75);
+}
+
+.fmp-root--aura .fmp-generate-3d-btn {
+  border-color: rgba(255 255 255 / 0.22);
+  background: rgba(255 255 255 / 0.07);
+  color: rgba(255 255 255 / 0.9);
+}
+
+.fmp-root--aura .fmp-regenerate-3d-btn:hover,
+.fmp-root--aura .fmp-generate-3d-btn:hover {
+  background: rgba(255 255 255 / 0.14);
+  border-color: rgba(255 255 255 / 0.38);
+  color: #fff;
 }
 
 /* ── Scan progress bar (in toolbar, while running) ────────────────────── */

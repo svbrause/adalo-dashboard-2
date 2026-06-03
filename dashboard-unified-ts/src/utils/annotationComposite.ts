@@ -1,4 +1,8 @@
-import type { AnnotateStroke } from "../components/aura/AnnotateDrawing";
+import type {
+  AnnotateInkStroke,
+  AnnotateStroke,
+  AnnotateTextMark,
+} from "../components/aura/AnnotateDrawing";
 
 const STROKE_RASTER_SIZE = 1000;
 
@@ -21,13 +25,20 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 export function strokesToSvgMarkup(strokes: AnnotateStroke[], viewBox = "0 0 100 100"): string {
-  const ink = strokes.filter((s) => s.tool !== "eraser");
-  const erasers = strokes.filter((s) => s.tool === "eraser");
+  const ink = strokes.filter((s): s is AnnotateInkStroke => s.kind !== "text" && s.tool !== "eraser");
+  const text = strokes.filter((s): s is AnnotateTextMark => s.kind === "text");
+  const erasers = strokes.filter((s): s is AnnotateInkStroke => s.kind !== "text" && s.tool === "eraser");
   const paths = ink
     .map(
       (s) =>
         `<path d="${s.d}" fill="none" stroke="${s.color}" stroke-width="${s.width}" stroke-opacity="${s.opacity}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`,
     )
+    .join("");
+  const textNodes = text
+    .map((s) => {
+      const escaped = escapeXml(s.text);
+      return `<text x="${s.x}" y="${s.y}" fill="${s.color}" fill-opacity="${s.opacity}" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="${s.fontSize}" font-weight="650" letter-spacing="0" stroke="rgba(0,0,0,0.74)" stroke-width="0.26" paint-order="stroke">${escaped}</text>`;
+    })
     .join("");
   const eraserPaths = erasers
     .map(
@@ -41,9 +52,17 @@ export function strokesToSvgMarkup(strokes: AnnotateStroke[], viewBox = "0 0 100
       : "";
   const maskedPaths =
     erasers.length > 0
-      ? `<g mask="url(#erase)">${paths}</g>`
-      : paths;
+      ? `<g mask="url(#erase)">${paths}${textNodes}</g>`
+      : `${paths}${textNodes}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet">${mask}${maskedPaths}</svg>`;
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /** Map overlay-normalized ink (viewBox 0–100) onto the face image using measured layout. */
@@ -126,8 +145,8 @@ export async function compositeAnnotationOnImage(
 
   ctx.drawImage(img, 0, 0);
 
-  const ink = strokes.filter((s) => s.tool !== "eraser");
-  if (ink.length === 0) {
+  const visible = strokes.filter((s) => s.tool !== "eraser");
+  if (visible.length === 0) {
     return canvas.toDataURL("image/jpeg", 0.92);
   }
 

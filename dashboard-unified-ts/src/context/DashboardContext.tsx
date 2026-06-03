@@ -93,6 +93,11 @@ const PATIENTS_LIST_FIELDS: string[] = [
   "Contacted",
   "Record ID (from Providers)",
   "Turntable Video URL",
+  "Aura Manifest URL",
+  "Aura Asset Manifest URL",
+  "Aura GCS Prefix",
+  "Aura Asset Prefix",
+  "Aura Assets Prefix",
 ];
 
 const WEB_POPUP_LEADS_LIST_FIELDS: string[] = [

@@ -222,6 +222,10 @@ export interface Client {
   galleryPhotoSlots?: ClientPhotoSlot[];
   /** GCS URL of the patient's 3D turntable video (from "Turntable Video URL" Airtable field). Persists across devices. */
   turntableVideoUrl?: string | null;
+  /** Optional direct URL to `{slug}-aura-manifest.json` in GCS/CDN. */
+  auraManifestUrl?: string | null;
+  /** Optional GCS/HTTPS prefix for the patient's Aura folder, e.g. `gs://bucket/aura/slug/`. */
+  auraGcsPrefix?: string | null;
 }
 
 /** One selectable photo angle in the client detail face mirror. */

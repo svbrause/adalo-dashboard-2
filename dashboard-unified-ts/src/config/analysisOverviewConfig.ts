@@ -285,6 +285,30 @@ export const AREAS: AreaDef[] = [
   },
 ];
 
+const CANONICAL_ISSUE_LABEL_BY_KEY = (() => {
+  const map = new Map<string, string>();
+  for (const cat of CATEGORIES) {
+    for (const sub of cat.subScores) {
+      for (const issue of sub.issues) {
+        map.set(normalizeIssue(issue), issue);
+      }
+    }
+  }
+  for (const area of AREAS) {
+    for (const issue of area.issues) {
+      map.set(normalizeIssue(issue), issue);
+    }
+  }
+  return map;
+})();
+
+/** Canonical dashboard label for a detected issue (handles normalized / lowercase keys). */
+export function canonicalIssueDisplayLabel(issue: string): string {
+  const trimmed = issue.trim();
+  if (!trimmed) return trimmed;
+  return CANONICAL_ISSUE_LABEL_BY_KEY.get(normalizeIssue(trimmed)) ?? trimmed;
+}
+
 export type ScoreTier = "excellent" | "good" | "moderate" | "attention";
 
 export function scoreTier(score: number): ScoreTier {

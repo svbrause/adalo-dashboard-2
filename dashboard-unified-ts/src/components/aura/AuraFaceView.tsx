@@ -8,11 +8,9 @@ import {
 } from "react";
 import Face3DViewer from "../views/Face3DViewer";
 import auraTurntableVideo from "../../assets/images/turntable_1024_black_scrub.mp4";
-import auraTurntableReverseVideo from "../../assets/images/turntable_1024_black_scrub_reverse.mp4";
 import auraTurntableSkinGrayVideo from "../../assets/images/turntable_1024_black_skin_gray_scrub.mp4";
-import auraTurntableSkinGrayReverseVideo from "../../assets/images/turntable_1024_black_skin_gray_scrub_reverse.mp4";
 import auraTurntablePigmentationVideo from "../../assets/images/turntable_1024_black_pigmentation_brown_scrub.mp4";
-import auraTurntablePigmentationReverseVideo from "../../assets/images/turntable_1024_black_pigmentation_brown_scrub_reverse.mp4";
+import auraTurntableWrinklesVideo from "../../assets/images/turntable_1024_black_wrinkles_scrub.mp4";
 import aura90LeftIcon from "../../assets/images/aura-90degrees-left.png";
 import aura45LeftIcon from "../../assets/images/aura-45degrees-left.png";
 import aura45LeftSkinIcon from "../../assets/images/45-left-rembg.png";
@@ -30,6 +28,7 @@ import {
 import {
   EMPTY_AURA_CV_ANNOTATIONS,
   TANYA_AURA_CV_ANNOTATIONS,
+  wrinklePathsForAngle,
   type AuraCvAnnotations,
 } from "../../utils/auraCvAnnotations";
 import { tanPhotoPlateAlignStyle } from "../../utils/auraTanPhotoFraming";
@@ -63,7 +62,12 @@ export type AnnotateSavePayload = {
 };
 
 type AnalysisTab = "texture" | "pigmentation" | "volume" | "structure";
+type SkinSubMode = "texture" | "redness" | "pores" | "wrinkles";
 type ViewAngle = "profile-left" | "three-quarter-left" | "front" | "three-quarter-right" | "profile-right";
+
+function isTexturePlateMode(mode: SkinSubMode): boolean {
+  return mode === "texture";
+}
 
 const ANALYSIS_TABS: { id: AnalysisTab; label: string }[] = [
   { id: "texture", label: "Skin" },
@@ -84,12 +88,15 @@ const LEFT_NAV_ANGLE_ORDER: ViewAngle[] = TANYA_TAN_LEFT_NAV_ORDER;
 
 /** Glowing head silhouette — left-rail 3D turntable control (public/demo-3d). */
 const AURA_3D_TURNTABLE_ICON = "/demo-3d/aura-3d-turntable-icon.png";
-
+const TANYA_TAN_REDNESS_TURNTABLE_VIDEO = "/demo-3d/tanya-tan/tanya-tan-turntable-redness.mp4";
+const TANYA_TAN_PORES_TURNTABLE_VIDEO = "/demo-3d/tanya-tan/tanya-tan-turntable-pores.mp4";
 type FaceSource = "turntable" | ViewAngle;
 
-/** Fill the panel while keeping the full turntable frame (mask fix prevents profile nose clip). */
-const TURNTABLE_MATCH_ZOOM = 1.72;
-const TURNTABLE_MATCH_PAN_Y = -96;
+/** Fill the panel without clipping the nose tip at profile extremes. */
+const TURNTABLE_MATCH_ZOOM = 1.42;
+const TURNTABLE_MATCH_PAN_Y = -72;
+/** Photo-backed patients often use tight crops; generic turntables need extra zoom. */
+const PHOTO_PATIENT_TURNTABLE_ZOOM = 1.9;
 
 const ANGLE_ICON_SRC: Record<ViewAngle, string> = {
   "profile-left": aura90LeftIcon,
@@ -110,6 +117,9 @@ const TAB_COLORS: Record<AnalysisTab, string> = {
   volume: "#60a5fa",
   structure: "#a7f36d",
 };
+
+/** Fine crease highlights on grayscale texture / wrinkles lens (not pore dots). */
+const WRINKLE_LENS_COLOR = "#f2e2c8";
 
 const RADAR_DATA: { label: string; value: number }[] = [
   { label: "Texture", value: 1.3 },
@@ -278,10 +288,13 @@ function AuraStaticPhotoView({
   highlightedRegionIds,
   viewerAssets,
   photoVariant,
+  skinSubMode = "texture",
   drawOverlay,
   measureRootRef,
   cvAnnotations,
   disableWheelZoom = false,
+  photoInitialZoom,
+  initialPanY: initialPanYProp,
 }: {
   angle: ViewAngle;
   activeTab: AnalysisTab;
@@ -292,62 +305,135 @@ function AuraStaticPhotoView({
   viewerAssets: ViewerAngleAssets;
   /** Dashboard toggles: color still vs clinical texture plate (overrides tab default). */
   photoVariant?: "normal" | "texture" | "pigmentation";
+  skinSubMode?: SkinSubMode;
   drawOverlay?: ReactNode;
   measureRootRef?: (el: HTMLDivElement | null) => void;
   cvAnnotations: AuraCvAnnotations;
   disableWheelZoom?: boolean;
+  photoInitialZoom?: number;
+  initialPanY?: number;
 }) {
   const asset = viewerAssets[angle];
+  // When baked images exist (srcRedness / srcPores), use them directly — they
+  // already have the overlay composited at full quality, like the contact sheet.
+  const hasBakedRedness = Boolean(asset.srcRedness);
+  const hasBakedPores = Boolean(asset.srcPores);
+  const hasBakedWrinkles = Boolean(asset.srcWrinkles || asset.srcWrinklesView);
+  const hasWrinkleView = Boolean(asset.srcWrinklesView);
+  const wrinkleLensActive =
+    activeTab === "texture" && skinSubMode === "wrinkles";
+  const wrinkleLineOverlay =
+    wrinkleLensActive && hasBakedWrinkles && !hasWrinkleView;
   const src =
-    photoVariant === "texture"
-      ? asset.srcTexture ?? asset.src
-      : photoVariant === "pigmentation"
-        ? asset.srcPigmentation ?? asset.srcTexture ?? asset.src
-      : photoVariant === "normal"
-        ? asset.src
-        : activeTab === "pigmentation"
-          ? asset.srcPigmentation ?? asset.srcTexture ?? asset.src
-        : activeTab === "texture"
+    activeTab === "texture" && skinSubMode === "redness" && hasBakedRedness
+      ? asset.srcRedness!
+      : activeTab === "texture" && skinSubMode === "pores" && hasBakedPores
+        ? asset.srcPores!
+        : wrinkleLensActive && asset.srcWrinklesView
+          ? asset.srcWrinklesView
+        : wrinkleLensActive && asset.srcCutout
+          ? asset.srcCutout
+        : photoVariant === "texture"
           ? asset.srcTexture ?? asset.src
-          : asset.src;
+          : photoVariant === "pigmentation"
+            ? asset.srcPigmentation ?? asset.srcTexture ?? asset.src
+          : photoVariant === "normal"
+            ? asset.src
+            : activeTab === "pigmentation"
+              ? asset.srcPigmentation ?? asset.srcTexture ?? asset.src
+            : activeTab === "texture" && isTexturePlateMode(skinSubMode)
+              ? asset.srcTexture ?? asset.src
+              : asset.src;
   const viewerRef = useRef<HTMLDivElement>(null);
   const zoomLayerRef = useRef<HTMLDivElement>(null);
-  const alignStyle = tanPhotoPlateAlignStyle(angle);
+  const alignStyle = asset.cssTransform
+    ? { transform: asset.cssTransform, transformOrigin: "center center" }
+    : tanPhotoPlateAlignStyle(angle);
+  const stillZoom =
+    asset.photoZoom ?? photoInitialZoom ?? TURNTABLE_MATCH_ZOOM;
+  const stillPanX = asset.initialPanX ?? 0;
+  const stillPanY = asset.initialPanY ?? initialPanYProp ?? TURNTABLE_MATCH_PAN_Y;
+  const displaySrc =
+    wrinkleLensActive && asset.srcWrinklesView
+      ? `${src}${src.includes("?") ? "&" : "?"}v=4`
+      : src;
   const { zoom, resetTransform, minZoom } = useMirrorViewportZoom({
     viewerRef,
     zoomLayerRef,
-    initialZoom: TURNTABLE_MATCH_ZOOM,
-    initialPanY: TURNTABLE_MATCH_PAN_Y,
+    initialZoom: stillZoom,
+    initialPanX: stillPanX,
+    initialPanY: stillPanY,
+    allowPanAtMinZoom: true,
     wheelZoomEnabled: !disableWheelZoom,
   });
+  const panHint = "Double-click to reset zoom · scroll to zoom · drag to pan";
 
   return (
     <div
       ref={viewerRef}
       className="avf-static-photo avf-zoom-viewport"
       onDoubleClick={zoom > minZoom + 0.02 ? resetTransform : undefined}
-      title={zoom > minZoom + 0.02 ? "Double-click to reset zoom · scroll to zoom · drag to pan" : "Scroll to zoom"}
+      title={panHint}
     >
       <div ref={zoomLayerRef} className="avf-static-photo__zoom">
         <div ref={measureRootRef} className="avf-photo-align" style={alignStyle}>
           {showMirrorAnnotations ? (
             <AiMirrorCanvas
-              imageUrl={src}
+              imageUrl={displaySrc}
               alt=""
               highlightTerms={highlightTerms}
               highlightedRegionIds={highlightedRegionIds}
               showAnnotations
             />
+          ) : wrinkleLineOverlay ? (
+            <div className="avf-photo-stack">
+              <img src={displaySrc} alt="" className="avf-static-photo__img" draggable={false} />
+              <img
+                src={`${asset.srcWrinkles!}${asset.srcWrinkles!.includes("?") ? "&" : "?"}v=2`}
+                alt=""
+                className="avf-photo-stack__overlay avf-photo-mask-overlay--wrinkles"
+                aria-hidden
+                draggable={false}
+              />
+            </div>
           ) : (
-            <img src={src} alt="" className="avf-static-photo__img" draggable={false} />
+            <img src={displaySrc} alt="" className="avf-static-photo__img" draggable={false} />
           )}
+          {/* Redness / pore masks rendered as img elements so they inherit the
+              photo's object-fit layout and align correctly regardless of aspect ratio. */}
+          {showAuraDiagnostics && activeTab === "texture" && skinSubMode === "redness" && !hasBakedRedness && cvAnnotations.redMaskByAngle?.[angle] ? (
+            <img
+              src={cvAnnotations.redMaskByAngle[angle]}
+              alt=""
+              className="avf-photo-mask-overlay"
+              aria-hidden
+              draggable={false}
+            />
+          ) : null}
+          {showAuraDiagnostics && activeTab === "texture" && skinSubMode === "pores" && !hasBakedPores && cvAnnotations.poreMaskByAngle?.[angle] ? (
+            <img
+              src={cvAnnotations.poreMaskByAngle[angle]}
+              alt=""
+              className="avf-photo-mask-overlay avf-photo-mask-overlay--pores"
+              aria-hidden
+              draggable={false}
+            />
+          ) : null}
           <AuraAnnotationOverlay
             activeTab={activeTab}
             turntableRatio={asset.timeRatio}
-            visible={showAuraDiagnostics}
+            visible={
+              showAuraDiagnostics &&
+              (skinSubMode === "texture" ||
+                (skinSubMode === "wrinkles" && !hasBakedWrinkles))
+            }
             includeWrinkles
+            skinSubMode={skinSubMode}
             fixedAngle={angle}
             annotations={cvAnnotations}
+            hasBakedWrinklePlate={(a) =>
+              Boolean(viewerAssets[a]?.srcWrinkles || viewerAssets[a]?.srcWrinklesView)
+            }
           />
           {drawOverlay}
         </div>
@@ -377,7 +463,9 @@ function AuraTexturePhotoLayer({
       {LEFT_NAV_ANGLE_ORDER.map((angle) => {
         const opacity = angleAnchorOpacity(angle, turntableRatio, photoTransition, timings);
         const asset = viewerAssets[angle];
-        const alignStyle = tanPhotoPlateAlignStyle(angle as AuraTanViewAngle);
+        const alignStyle = asset.cssTransform
+          ? { transform: asset.cssTransform, transformOrigin: "center center" }
+          : tanPhotoPlateAlignStyle(angle as AuraTanViewAngle);
         return (
           <div
             key={`texture-${angle}`}
@@ -445,28 +533,39 @@ function AnnotationAngleContent({
   activeTab,
   angle,
   includeWrinkles,
-  includeTexturePores,
   glowId,
   annotations,
+  skinSubMode = "texture",
+  bakedWrinklePlate = false,
 }: {
   activeTab: AnalysisTab;
   angle: ViewAngle;
   includeWrinkles: boolean;
-  /** Cyan pore dots — demo /aura stills only; hidden on patient 3D Skin view. */
-  includeTexturePores: boolean;
   glowId: string;
   annotations: AuraCvAnnotations;
+  skinSubMode?: SkinSubMode;
+  /** Baked wrinkle still is shown — skip duplicate SVG creases. */
+  bakedWrinklePlate?: boolean;
 }) {
   const transform = angleOverlayTransform(angle);
   const redMask = annotations.redMaskByAngle?.[angle];
-  const redSpots = annotations.redSpotsByAngle?.[angle] ?? [];
+  const poreMask = annotations.poreMaskByAngle?.[angle];
+  const wrinkleLensMode = activeTab === "texture" && skinSubMode === "wrinkles";
+  const wrinklePaths = wrinklePathsForAngle(annotations, angle);
+  const showWrinkleLines =
+    !bakedWrinklePlate &&
+    wrinklePaths.length > 0 &&
+    ((activeTab === "structure" && includeWrinkles) || wrinkleLensMode);
+  const wrinkleFilterId = wrinkleLensMode ? `${glowId}_wrinkle` : glowId;
 
   return (
     <>
-      {activeTab === "structure" && includeWrinkles ? (
-        <g transform={transform} filter={`url(#${glowId})`}>
-          <g className="avf-diagnostic-overlay__wrinkles">
-            {annotations.wrinkles.map((d, index) => (
+      {showWrinkleLines ? (
+        <g transform={transform} filter={`url(#${wrinkleFilterId})`}>
+          <g
+            className={`avf-diagnostic-overlay__wrinkles${wrinkleLensMode ? " avf-diagnostic-overlay__wrinkles--lens" : ""}`}
+          >
+            {wrinklePaths.map((d, index) => (
               <path key={index} d={d} />
             ))}
           </g>
@@ -483,7 +582,23 @@ function AnnotationAngleContent({
       ) : null}
       {activeTab === "texture" ? (
         <>
-          {redMask ? (
+          {skinSubMode === "texture" &&
+          annotations.pores.length > 0 &&
+          !Object.values(annotations.poreMaskByAngle ?? {}).some(Boolean) ? (
+            <g transform={transform} filter={`url(#${glowId})`}>
+              <g className="avf-diagnostic-overlay__pores">
+                {annotations.pores.map((pore, index) => (
+                  <circle
+                    key={`texture-pore-${index}`}
+                    cx={pore.cx}
+                    cy={pore.cy}
+                    r={pore.r * 1.35}
+                  />
+                ))}
+              </g>
+            </g>
+          ) : null}
+          {skinSubMode === "redness" && redMask ? (
             <image
               className="avf-diagnostic-overlay__red-mask"
               href={redMask}
@@ -491,68 +606,20 @@ function AnnotationAngleContent({
               y={0}
               width={100}
               height={100}
-              preserveAspectRatio="none"
+              preserveAspectRatio="xMidYMid meet"
             />
           ) : null}
-          <g transform={transform} filter={`url(#${glowId})`}>
-          {includeTexturePores && !redMask && redSpots.length === 0 ? (
-            <g className="avf-diagnostic-overlay__pores">
-              {annotations.pores.map((pore, index) => (
-                <circle
-                  key={`texture-pore-${index}`}
-                  cx={pore.cx}
-                  cy={pore.cy}
-                  r={pore.r * 2.35}
-                />
-              ))}
-            </g>
+          {skinSubMode === "pores" && poreMask ? (
+            <image
+              className="avf-diagnostic-overlay__pore-mask"
+              href={poreMask}
+              x={0}
+              y={0}
+              width={100}
+              height={100}
+              preserveAspectRatio="xMidYMid meet"
+            />
           ) : null}
-          {redMask ? null : redSpots.length > 0 ? (
-            <g className="avf-diagnostic-overlay__red-spots">
-              {redSpots.map((spot, index) => (
-                <g key={`red-spot-${index}`}>
-                  <ellipse
-                    className="avf-diagnostic-overlay__red-wash"
-                    cx={spot.cx}
-                    cy={spot.cy}
-                    rx={Math.max(spot.rx * 4.2, 0.56)}
-                    ry={Math.max(spot.ry * 4.2, 0.56)}
-                    opacity={0.045 + spot.intensity * 0.07}
-                  />
-                  <ellipse
-                    className="avf-diagnostic-overlay__red-halo"
-                    cx={spot.cx}
-                    cy={spot.cy}
-                    rx={Math.max(spot.rx * 1.2, 0.18)}
-                    ry={Math.max(spot.ry * 1.2, 0.18)}
-                    opacity={0.08 + spot.intensity * 0.08}
-                  />
-                  <ellipse
-                    className="avf-diagnostic-overlay__red-core"
-                    cx={spot.cx}
-                    cy={spot.cy}
-                    rx={Math.max(spot.rx * 0.46, 0.055)}
-                    ry={Math.max(spot.ry * 0.46, 0.055)}
-                    opacity={0.18 + spot.intensity * 0.2}
-                  />
-                </g>
-              ))}
-            </g>
-          ) : (
-            <g className="avf-diagnostic-overlay__spots avf-diagnostic-overlay__spots--texture">
-              {(annotations.darkSpotsByAngle[angle] ?? []).map((spot, index) => (
-                <ellipse
-                  key={`texture-spot-${index}`}
-                  cx={spot.cx}
-                  cy={spot.cy}
-                  rx={spot.rx * 1.45}
-                  ry={spot.ry * 1.45}
-                  fillOpacity={0.52 + spot.intensity * 0.32}
-                />
-              ))}
-            </g>
-          )}
-          </g>
         </>
       ) : null}
       {activeTab === "pigmentation" ? (
@@ -580,25 +647,30 @@ function AuraAnnotationOverlay({
   turntableRatio,
   visible,
   includeWrinkles = false,
-  includeTexturePores = false,
+  skinSubMode = "texture",
   fixedAngle,
   angleTimings = AURA_TAN_ANGLE_ASSETS,
   annotations,
+  hasBakedWrinklePlate,
 }: {
   activeTab: AnalysisTab;
   turntableRatio: number;
   visible: boolean;
   includeWrinkles?: boolean;
-  includeTexturePores?: boolean;
+  skinSubMode?: SkinSubMode;
   /** When set (static photo view), use this angle instead of inferring from ratio. */
   fixedAngle?: ViewAngle;
   /** Turntable anchor times (dashboard viewer vs /aura studio plates). */
   angleTimings?: AngleTimings;
   annotations: AuraCvAnnotations;
+  hasBakedWrinklePlate?: (angle: ViewAngle) => boolean;
 }) {
   if (!visible) return null;
-  const color = TAB_COLORS[activeTab];
+  const wrinkleLensMode = activeTab === "texture" && skinSubMode === "wrinkles";
+  const color = wrinkleLensMode ? WRINKLE_LENS_COLOR : TAB_COLORS[activeTab];
+  const overlayTone = wrinkleLensMode ? "wrinkles-lens" : activeTab;
   const glowId = "avf_diag_glow";
+  const wrinkleGlowId = `${glowId}_wrinkle`;
 
   const renderAtAngle = (angle: ViewAngle, opacity: number, layerKey: string) => (
     <g key={layerKey} opacity={opacity} style={{ pointerEvents: "none" }}>
@@ -606,9 +678,10 @@ function AuraAnnotationOverlay({
         activeTab={activeTab}
         angle={angle}
         includeWrinkles={includeWrinkles}
-        includeTexturePores={includeTexturePores}
         glowId={glowId}
         annotations={annotations}
+        skinSubMode={skinSubMode}
+        bakedWrinklePlate={hasBakedWrinklePlate?.(angle) ?? false}
       />
     </g>
   );
@@ -636,7 +709,7 @@ function AuraAnnotationOverlay({
 
   return (
     <svg
-      className={`avf-diagnostic-overlay avf-diagnostic-overlay--${activeTab}`}
+      className={`avf-diagnostic-overlay avf-diagnostic-overlay--${overlayTone}`}
       viewBox="0 0 100 100"
       preserveAspectRatio="xMidYMid meet"
       aria-hidden
@@ -645,6 +718,13 @@ function AuraAnnotationOverlay({
       <defs>
         <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="0.45" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id={wrinkleGlowId} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="0.22" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -800,6 +880,12 @@ export interface AuraFaceViewProps {
   textureVideoUrl?: string;
   /** Patient-specific pigmentation turntable (Pigmentation tab). Falls back to bundled Tanya demo. */
   pigmentationVideoUrl?: string;
+  /** Turntable with redness baked per-frame (Skin → Redness sub-mode). */
+  rednessVideoUrl?: string;
+  /** Turntable with pore darkening baked per-frame (Skin → Pores sub-mode). */
+  poresVideoUrl?: string;
+  /** Turntable with wrinkle creases baked per-frame (Skin → Wrinkles sub-mode). */
+  wrinklesVideoUrl?: string;
   /**
    * Full-resolution angle stills for the left rail (dashboard Tanya Tan demo).
    * Defaults to bundled 2316×3088 PNGs.
@@ -825,6 +911,9 @@ export interface AuraFaceViewProps {
    */
   overviewCategory?: AuraOverviewCategoryKey;
   onOverviewCategoryChange?: (key: AuraOverviewCategoryKey) => void;
+  /** Synced with embedded analysis panel scan lens chips (Skin → Texture / Redness / Pores). */
+  activeSkinLens?: SkinSubMode;
+  onActiveSkinLensChange?: (lens: SkinSubMode) => void;
   /** Lifted ink for save / reload from patient files. */
   annotateStrokes?: AnnotateStroke[];
   onAnnotateStrokesChange?: (strokes: AnnotateStroke[]) => void;
@@ -833,9 +922,11 @@ export interface AuraFaceViewProps {
   regionPicker?: Omit<FaceMirrorRegionsPickerProps, "variant">;
   /** Embedded expanded split: actions aligned in the top bar row (e.g. Hide analysis). */
   topbarEnd?: ReactNode;
-  /** Override default turntable zoom (default: TURNTABLE_MATCH_ZOOM = 1.72). */
+  /** Override default turntable zoom (default: TURNTABLE_MATCH_ZOOM). */
   initialZoom?: number;
-  /** Override default turntable pan-Y in px (default: TURNTABLE_MATCH_PAN_Y = -96). */
+  /** Viewport zoom for angle stills (defaults to initialZoom / TURNTABLE_MATCH_ZOOM). */
+  photoInitialZoom?: number;
+  /** Override default turntable pan-Y in px (default: TURNTABLE_MATCH_PAN_Y). */
   initialPanY?: number;
   /** Public blueprint pages: let wheel scroll the page instead of zooming the face. */
   disableWheelZoom?: boolean;
@@ -856,6 +947,9 @@ export default function AuraFaceView({
   videoUrl = auraTurntableVideo,
   textureVideoUrl,
   pigmentationVideoUrl,
+  rednessVideoUrl,
+  poresVideoUrl,
+  wrinklesVideoUrl,
   viewerAngleAssets: viewerAngleAssetsProp,
   useBundledCvAnnotations = true,
   cvAnnotations: cvAnnotationsProp,
@@ -865,17 +959,26 @@ export default function AuraFaceView({
   highlightedRegionIds = [],
   overviewCategory,
   onOverviewCategoryChange,
+  activeSkinLens,
+  onActiveSkinLensChange,
   annotateStrokes,
   onAnnotateStrokesChange,
   onAnnotateSave,
   regionPicker,
   topbarEnd,
   initialZoom: initialZoomProp,
+  photoInitialZoom: photoInitialZoomProp,
   initialPanY: initialPanYProp,
   disableWheelZoom = false,
   showNoIssuesMessage = true,
   defaultTab,
 }: AuraFaceViewProps) {
+  const turntableZoom =
+    initialZoomProp ??
+    (disableDemoTurntableFallback
+      ? PHOTO_PATIENT_TURNTABLE_ZOOM
+      : TURNTABLE_MATCH_ZOOM);
+  const photoZoom = photoInitialZoomProp ?? TURNTABLE_MATCH_ZOOM;
   const viewerAngleAssets = viewerAngleAssetsProp ?? TANYA_TAN_VIEWER_ANGLE_ASSETS;
   const effectiveCvAnnotations = useMemo(
     () =>
@@ -912,9 +1015,22 @@ export default function AuraFaceView({
   const [faceSource, setFaceSource] = useState<FaceSource>(
     turntableOnly ? "turntable" : "front",
   );
+  const [turntableSelected, setTurntableSelected] = useState(turntableOnly);
   const [radarMode, setRadarMode] = useState(showRadar);
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [autoRotate, setAutoRotate] = useState(turntableOnly);
+  const skinLensControlled =
+    activeSkinLens !== undefined && onActiveSkinLensChange !== undefined;
+  const [internalSkinSubMode, setInternalSkinSubMode] =
+    useState<SkinSubMode>("texture");
+  const skinSubMode = skinLensControlled ? activeSkinLens : internalSkinSubMode;
+  const setSkinSubMode = useCallback(
+    (mode: SkinSubMode) => {
+      if (skinLensControlled) onActiveSkinLensChange!(mode);
+      else setInternalSkinSubMode(mode);
+    },
+    [skinLensControlled, onActiveSkinLensChange],
+  );
   const [drawingMode, setDrawingMode] = useState(false);
   const [blendRatio, setBlendRatio] = useState(0.5);
   const [photoTransition, setPhotoTransition] = useState<PhotoTransition | null>(null);
@@ -941,21 +1057,21 @@ export default function AuraFaceView({
   );
 
   const embeddedPhotoStills =
-    embedded && turntableOnly && faceSource !== "turntable";
-  /** Skin tab → texture stills; Volume & Structure → color stills. */
+    embedded && turntableOnly && !turntableSelected;
+  /** Skin tab → texture stills only in texture sub-mode; redness/pores use colour stills. */
   const embeddedStillVariant: "normal" | "texture" | "pigmentation" =
-    activeTab === "texture"
+    activeTab === "texture" && isTexturePlateMode(skinSubMode)
       ? "texture"
       : activeTab === "pigmentation"
         ? "pigmentation"
         : "normal";
   const isTurntableView =
     turntableOnly && embedded
-      ? !embeddedPhotoStills
+      ? turntableSelected
       : !turntableOnly || faceSource === "turntable";
   const activePhotoAngle: ViewAngle =
-    turntableOnly && faceSource !== "turntable"
-      ? faceSource
+    turntableOnly && !turntableSelected
+      ? viewAngle
       : embeddedPhotoStills
         ? viewAngle
         : viewAngle;
@@ -965,37 +1081,56 @@ export default function AuraFaceView({
     ? tanAssetsForView(activePhotoAngle, true, viewerAngleAssets).timeRatio
     : activeAngleMeta.timeRatio;
   const noIssuesMessage = TAB_NO_ISSUES[activeTab] ?? null;
-  /** Tanya demo bakes pigment into the gray turntable; generated patients need SVG spots on Skin. */
-  const showSkinTabDiagnostics = !useBundledCvAnnotations;
+  /** Tanya demo texture turntable already has its own pipeline look; avoid bright SVG dot overlay there. */
+  const patientHasBakedSkinMaps = Boolean(
+    cvAnnotationsProp?.poreMaskByAngle &&
+      Object.values(cvAnnotationsProp.poreMaskByAngle).some(Boolean),
+  );
+  const showSkinTabDiagnostics =
+    !useBundledCvAnnotations && !patientHasBakedSkinMaps;
   const annotationsActive = showAnnotations && !noIssuesMessage;
   /** UV grayscale helps on still /aura page; on live turntable it muddies pigment marks. */
   const uvMode = activeTab === "texture" && annotationsActive && !turntableOnly;
   /** Client-detail turntable: video only. Full /aura page may still blend plates when on texture. */
   const texturePlateMode =
     turntableOnly ? false : isTurntableView && activeTab === "texture";
-  const scanOverlayVisible = annotationsActive && !texturePlateMode;
-  const textureTurntableMode = isTurntableView && activeTab === "texture";
+  const scanOverlayVisible =
+    annotationsActive && (!texturePlateMode || isTexturePlateMode(skinSubMode) || skinSubMode === "wrinkles");
+  const textureTurntableMode =
+    isTurntableView && activeTab === "texture" && skinSubMode === "texture";
+  const wrinkleTurntableMode =
+    isTurntableView && activeTab === "texture" && skinSubMode === "wrinkles";
+  const redednessTurntableMode = isTurntableView && activeTab === "texture" && skinSubMode === "redness";
+  const poresTurntableMode = isTurntableView && activeTab === "texture" && skinSubMode === "pores";
   const pigmentationTurntableMode = isTurntableView && activeTab === "pigmentation";
   const activeVideoUrl =
     textureTurntableMode
       ? (textureVideoUrl ??
           (disableDemoTurntableFallback ? videoUrl : auraTurntableSkinGrayVideo))
-      : pigmentationTurntableMode
-        ? (pigmentationVideoUrl ??
-            (disableDemoTurntableFallback ? videoUrl : auraTurntablePigmentationVideo))
-        : videoUrl;
-  const activeReverseVideoUrl =
-    textureTurntableMode
-      ? textureVideoUrl || disableDemoTurntableFallback
-        ? undefined
-        : auraTurntableSkinGrayReverseVideo
-      : pigmentationTurntableMode
-        ? pigmentationVideoUrl || disableDemoTurntableFallback
-          ? undefined
-          : auraTurntablePigmentationReverseVideo
-        : activeVideoUrl === auraTurntableVideo
-          ? auraTurntableReverseVideo
-          : undefined;
+      : wrinkleTurntableMode
+        ? (wrinklesVideoUrl ??
+            (disableDemoTurntableFallback
+              ? videoUrl
+              : auraTurntableWrinklesVideo))
+        : redednessTurntableMode
+          ? (rednessVideoUrl ??
+              (disableDemoTurntableFallback ? videoUrl : TANYA_TAN_REDNESS_TURNTABLE_VIDEO))
+          : poresTurntableMode
+            ? (poresVideoUrl ??
+                (disableDemoTurntableFallback ? videoUrl : TANYA_TAN_PORES_TURNTABLE_VIDEO))
+            : pigmentationTurntableMode
+              ? (pigmentationVideoUrl ??
+                  (disableDemoTurntableFallback ? videoUrl : auraTurntablePigmentationVideo))
+              : videoUrl;
+  // Bundled demo videos are already forward+reverse encoded. Patient GCS videos
+  // may be one-way sweeps, so Face3DViewer should ping-pong those in code.
+  const activeIsBundledTurntable =
+    activeVideoUrl === auraTurntableVideo ||
+    activeVideoUrl === auraTurntableSkinGrayVideo ||
+    activeVideoUrl === auraTurntablePigmentationVideo ||
+    activeVideoUrl === auraTurntableWrinklesVideo;
+  const activeIsPingPong =
+    activeIsBundledTurntable;
 
   const annotateExportAngle = embeddedPhotoStills ? activePhotoAngle : activeTurntableAngle;
   const annotateAngleLabel =
@@ -1010,6 +1145,9 @@ export default function AuraFaceView({
         ? aura45LeftSkinIcon
         : null;
     if (embeddedPhotoStills) {
+      if (activeTab === "texture" && skinSubMode === "wrinkles") {
+        return asset.srcWrinklesView ?? asset.srcCutout ?? asset.src;
+      }
       if (embeddedStillVariant === "texture") {
         return left45SkinOverride ?? asset.srcTexture ?? asset.src;
       }
@@ -1018,6 +1156,9 @@ export default function AuraFaceView({
     }
     if (textureTurntableMode) {
       return left45SkinOverride ?? asset.srcTexture ?? asset.src;
+    }
+    if (wrinkleTurntableMode) {
+      return asset.srcWrinklesView ?? asset.src;
     }
     if (pigmentationTurntableMode) {
       return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
@@ -1029,6 +1170,8 @@ export default function AuraFaceView({
     viewerAngleAssets,
     embeddedStillVariant,
     textureTurntableMode,
+    wrinkleTurntableMode,
+    skinSubMode,
     pigmentationTurntableMode,
   ]);
 
@@ -1118,6 +1261,7 @@ export default function AuraFaceView({
     if (turntableOnly) {
       setAutoRotate(true);
     }
+    setTurntableSelected(true);
     setFaceSource("turntable");
     setRadarMode(false);
   }, [turntableOnly]);
@@ -1129,6 +1273,7 @@ export default function AuraFaceView({
       const ratio = tanAssetsForView(angle, true, viewerAngleAssets).timeRatio;
       targetRatioRef.current = ratio;
       setBlendRatio(ratio);
+      setTurntableSelected(false);
       setFaceSource(angle);
       setViewAngle(angle);
       return;
@@ -1142,6 +1287,15 @@ export default function AuraFaceView({
   }, [autoRotate]);
 
   useEffect(() => {
+    if (turntableOnly) {
+      if (turntableSelected || navViewAngles.includes(viewAngle)) return;
+      const fallback = navViewAngles.includes("front")
+        ? "front"
+        : (navViewAngles[0] ?? "front");
+      setFaceSource(fallback);
+      setViewAngle(fallback);
+      return;
+    }
     if (faceSource === "turntable") return;
     if (navViewAngles.includes(faceSource)) return;
     const fallback = navViewAngles.includes("front")
@@ -1149,7 +1303,7 @@ export default function AuraFaceView({
       : (navViewAngles[0] ?? "front");
     setFaceSource(fallback);
     setViewAngle(fallback);
-  }, [faceSource, navViewAngles]);
+  }, [faceSource, navViewAngles, turntableOnly, turntableSelected, viewAngle]);
 
   const handleTimeRatioChange = useCallback((ratio: number) => {
     targetRatioRef.current = ratio;
@@ -1262,7 +1416,7 @@ export default function AuraFaceView({
           <button
             type="button"
             className={`avf-angle-btn avf-angle-btn--3d${
-              faceSource === "turntable" ? " avf-angle-btn--active" : ""
+              turntableSelected ? " avf-angle-btn--active" : ""
             }`}
             onClick={selectTurntable}
             aria-label="3D turntable"
@@ -1276,14 +1430,14 @@ export default function AuraFaceView({
             />
           </button>
         ) : null}
-        {(turntableOnly
+        {(turntableOnly || availableViewAngles != null
           ? [...navViewAngles]
           : [...ANGLE_CONTROLS].reverse().map((a) => a.id)
         ).map((angleId) => {
           const meta = ANGLE_CONTROLS.find((a) => a.id === angleId)!;
           const active =
             turntableOnly && embedded
-              ? faceSource === angleId
+              ? !turntableSelected && viewAngle === angleId
               : turntableOnly
                 ? faceSource === "turntable" && activeTurntableAngle === angleId
                 : viewAngle === angleId;
@@ -1316,6 +1470,26 @@ export default function AuraFaceView({
       </nav>
 
       <main className="avf-viewport">
+        {activeTab === "texture" && !radarMode ? (
+          <nav className="avf-skin-sub-tabs" aria-label="Skin analysis mode">
+            {(
+              [
+                { mode: "texture", label: "Texture" },
+                { mode: "redness", label: "Redness" },
+                { mode: "pores", label: "Pores" },
+                { mode: "wrinkles", label: "Wrinkles" },
+              ] as const
+            ).map(({ mode, label }) => (
+              <button
+                key={mode}
+                className={`avf-skin-sub-tab${skinSubMode === mode ? " avf-skin-sub-tab--active" : ""}`}
+                onClick={() => setSkinSubMode(mode)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
         {radarMode ? (
           <div className="avf-radar-wrap">
             <RadarChart />
@@ -1334,7 +1508,7 @@ export default function AuraFaceView({
                   <Face3DViewer
                     key={activeVideoUrl}
                     videoUrl={activeVideoUrl}
-                    reverseVideoUrl={activeReverseVideoUrl}
+                    pingPong={activeIsPingPong}
                     autoRotate={autoRotate}
                     controlledTimeRatio={
                       autoRotate ? undefined : turntableOnly ? blendRatio : activeTimeRatio
@@ -1345,7 +1519,7 @@ export default function AuraFaceView({
                     highlightTerms={highlightTerms}
                     highlightedAnnotationRegionIds={highlightedRegionIds}
                     showHint={false}
-                    initialZoom={initialZoomProp ?? TURNTABLE_MATCH_ZOOM}
+                    initialZoom={turntableZoom}
                     initialPanY={initialPanYProp ?? TURNTABLE_MATCH_PAN_Y}
                     wheelZoomEnabled={!disableWheelZoom}
                     mediaOpacity={mediaOpacity}
@@ -1374,52 +1548,80 @@ export default function AuraFaceView({
                           angleTimings={angleTimings}
                           visible={
                             scanOverlayVisible &&
+                            // Redness/pores/wrinkles are baked into the video — no SVG overlay needed.
+                            !redednessTurntableMode &&
+                            !poresTurntableMode &&
+                            !wrinkleTurntableMode &&
                             (turntableOnly || (activeTab !== "structure" && !autoRotate)) &&
-                            !(turntableOnly && activeTab === "texture" && !showSkinTabDiagnostics)
+                            !(
+                              activeTab === "texture" &&
+                              !showSkinTabDiagnostics &&
+                              skinSubMode === "texture"
+                            )
                           }
-                          includeWrinkles={turntableOnly}
-                          includeTexturePores={useBundledCvAnnotations}
+                          includeWrinkles={
+                            turntableOnly && !wrinkleTurntableMode
+                          }
+                          skinSubMode={skinSubMode}
                           annotations={effectiveCvAnnotations}
+                          hasBakedWrinklePlate={(angle) =>
+                            Boolean(
+                              viewerAngleAssets[angle]?.srcWrinkles ||
+                                viewerAngleAssets[angle]?.srcWrinklesView,
+                            )
+                          }
                         />
                       </>
                     }
                   />
                 ) : embeddedPhotoStills ? (
                   <AuraStaticPhotoView
-                    key={`${activeTab}-${activePhotoAngle}`}
+                    key={`${activeTab}-${skinSubMode}-${activePhotoAngle}`}
                     angle={activePhotoAngle}
                     activeTab={activeTab}
                     showAuraDiagnostics={
                       annotationsActive &&
-                      (activeTab !== "texture" || showSkinTabDiagnostics)
+                      (activeTab !== "texture" ||
+                        showSkinTabDiagnostics ||
+                        skinSubMode === "wrinkles" ||
+                        skinSubMode !== "texture")
                     }
                     showMirrorAnnotations={showMirrorAnnotations}
                     highlightTerms={highlightTerms}
                     highlightedRegionIds={highlightedRegionIds}
                     viewerAssets={viewerAngleAssets}
                     photoVariant={embeddedStillVariant}
+                    skinSubMode={skinSubMode}
                     drawOverlay={annotateOverlay}
                     measureRootRef={setAnnotateMeasureRoot}
                     cvAnnotations={effectiveCvAnnotations}
                     disableWheelZoom={disableWheelZoom}
+                    photoInitialZoom={photoZoom}
+                    initialPanY={initialPanYProp}
                   />
                 ) : (
                   <AuraStaticPhotoView
-                    key={faceSource}
+                    key={`${faceSource}-${skinSubMode}`}
                     angle={faceSource === "turntable" ? viewAngle : faceSource}
                     activeTab={activeTab}
                     showAuraDiagnostics={
                       annotationsActive &&
-                      (activeTab !== "texture" || showSkinTabDiagnostics)
+                      (activeTab !== "texture" ||
+                        showSkinTabDiagnostics ||
+                        skinSubMode === "wrinkles" ||
+                        skinSubMode !== "texture")
                     }
                     showMirrorAnnotations={showMirrorAnnotations}
                     highlightTerms={highlightTerms}
                     highlightedRegionIds={highlightedRegionIds}
                     viewerAssets={viewerAngleAssets}
+                    skinSubMode={skinSubMode}
                     drawOverlay={annotateOverlay}
                     measureRootRef={setAnnotateMeasureRoot}
                     cvAnnotations={effectiveCvAnnotations}
                     disableWheelZoom={disableWheelZoom}
+                    photoInitialZoom={photoZoom}
+                    initialPanY={initialPanYProp}
                   />
                 )}
               </div>

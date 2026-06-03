@@ -755,20 +755,92 @@ export function getChemicalPeelTypesFromPriceList(): string[] {
 }
 
 /**
- * Normalize peel area text so variants like "Face, Neck & Chest" / "Face & Neck or Chest"
- * / "Face, Neck or Chest" collapse to one entry (PDF uses inconsistent punctuation).
+ * Normalize treatment area text so variants like "Face, Neck & Chest" / "Face & Neck or Chest"
+ * / "Full Face + Neck" collapse to one comparable key (PDF uses inconsistent punctuation).
  */
-function normalizeChemicalPeelAreaDedupeKey(area: string): string {
+function normalizeTreatmentAreaKey(area: string): string {
   return area
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u2019']/g, "")
     .replace(/,/g, " ")
-    .replace(/&/g, " ")
-    .replace(/\s+or\s+/gi, " ")
-    .replace(/\s+and\s+/gi, " ")
+    .replace(/\s*&\s*/g, " and ")
+    .replace(/\s*\+\s*/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function treatmentAreaMatchesSkuArea(
+  skuArea: string | null | undefined,
+  selectedArea: string,
+): boolean {
+  if (!skuArea?.trim() || !selectedArea.trim()) return false;
+  return normalizeTreatmentAreaKey(skuArea) === normalizeTreatmentAreaKey(selectedArea);
+}
+
+function getLaserDevicePrefixFromProduct(product: string): string | null {
+  const p = product.trim();
+  if (/moxi\s*\+\s*bbl|bbl\s*\+\s*moxi/i.test(p)) return "BBL + Moxi";
+  if (/^bbl/i.test(p)) return "BBL";
+  if (/^moxi/i.test(p)) return "Moxi";
+  return null;
+}
+
+function getLaserPrefixFromSkuName(skuName: string): string | null {
+  if (/^BBL\s*\+\s*Moxi/i.test(skuName)) return "BBL + Moxi";
+  if (/^Moxi/i.test(skuName)) return "Moxi";
+  if (/^BBL/i.test(skuName)) return "BBL";
+  return null;
+}
+
+function extractLaserAreaFromSkuName(skuName: string): string | null {
+  const m = skuName.match(/^(?:BBL\s*\+\s*Moxi|Moxi|BBL)\s+(.+?)(?:\s+\d+\s*PK)?$/i);
+  return m?.[1]?.trim() ?? null;
+}
+
+function extractDeviceDashAreaFromSkuName(skuName: string): string | null {
+  const m = skuName.match(/^(?:Sofwave|Ultherapy)\s*[–-]\s*(.+)$/i);
+  return m?.[1]?.trim() ?? null;
+}
+
+function matchEnergyTreatmentSku(
+  product: string,
+  region: string,
+  skus: SkuWithCategory[],
+): SkuWithCategory | null {
+  const area = region.trim();
+  const device = product.trim();
+  if (!device || !area) return null;
+
+  const laserPrefix = getLaserDevicePrefixFromProduct(device);
+  if (laserPrefix) {
+    const match = skus.find((s) => {
+      if (/\d+\s*PK/i.test(s.name)) return false;
+      if (getLaserPrefixFromSkuName(s.name) !== laserPrefix) return false;
+      return treatmentAreaMatchesSkuArea(extractLaserAreaFromSkuName(s.name), area);
+    });
+    if (match) return match;
+  }
+
+  if (/^sofwave/i.test(device)) {
+    const match = skus.find(
+      (s) =>
+        /^Sofwave\s*[–-]/i.test(s.name) &&
+        treatmentAreaMatchesSkuArea(extractDeviceDashAreaFromSkuName(s.name), area),
+    );
+    if (match) return match;
+  }
+
+  if (/^ultherapy/i.test(device)) {
+    const match = skus.find(
+      (s) =>
+        /^Ultherapy\s*[–-]/i.test(s.name) &&
+        treatmentAreaMatchesSkuArea(extractDeviceDashAreaFromSkuName(s.name), area),
+    );
+    if (match) return match;
+  }
+
+  return null;
 }
 
 /** Chemical peel area names from the 2025 price list (e.g. Full Face, Full Back). */
@@ -780,7 +852,7 @@ export function getChemicalPeelAreasFromPriceList(): string[] {
     const raw = splitChemicalPeelTypeAndArea(item.name).area;
     if (!raw?.trim()) continue;
     const trimmed = raw.trim();
-    const key = normalizeChemicalPeelAreaDedupeKey(trimmed);
+    const key = normalizeTreatmentAreaKey(trimmed);
     const prev = byKey.get(key);
     if (!prev || trimmed.length < prev.length) {
       byKey.set(key, trimmed);
@@ -1375,11 +1447,21 @@ export function matchPlanItemToSku(
     }
   }
 
+  // Energy Treatment: device type + area must match the priced SKU (not fuzzy "moxi" → first row).
+  if (treatment === "Energy Treatment" && product && region) {
+    const energyMatch = matchEnergyTreatmentSku(product, region, skus);
+    if (energyMatch) return { sku: energyMatch, totalPrice: energyMatch.price };
+  }
+
   // Chemical Peel: when both type and area are selected, require both to match the SKU.
   if (treatment === "Chemical Peel" && product && region) {
-    const byTypeAndArea = skus.find(
-      (s) => skuNameMatches(s.name, product) && skuNameMatches(s.name, region)
-    );
+    const byTypeAndArea = skus.find((s) => {
+      const { type, area: skuArea } = splitChemicalPeelTypeAndArea(s.name);
+      return (
+        skuNameMatches(type || s.name, product) &&
+        treatmentAreaMatchesSkuArea(skuArea, region)
+      );
+    });
     if (byTypeAndArea) return { sku: byTypeAndArea, totalPrice: byTypeAndArea.price };
   }
 

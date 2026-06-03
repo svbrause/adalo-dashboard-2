@@ -14,7 +14,7 @@ import {
   DashboardPlanIcon,
   DashboardQuizIcon,
 } from "../common/DashboardSectionIcons";
-import { warmClientFrontPhoto } from "../../utils/photoLoading";
+import { warmClientFrontPhoto, clearStaleClientPhotos } from "../../utils/photoLoading";
 import { useRouteSyncedClientSelection } from "../../hooks/useRouteSyncedClientSelection";
 import "./ListView.css";
 
@@ -74,6 +74,9 @@ export default function ListView() {
   useEffect(() => {
     if (paginatedClients.length === 0) return;
     const t = window.setTimeout(() => {
+      // Clear any cached Airtable URLs that have expired since last fetch so
+      // warmClientFrontPhoto triggers a fresh API round-trip for those clients.
+      clearStaleClientPhotos(paginatedClients);
       paginatedClients.forEach((client) => warmClientFrontPhoto(client, "low"));
     }, 100);
     return () => window.clearTimeout(t);

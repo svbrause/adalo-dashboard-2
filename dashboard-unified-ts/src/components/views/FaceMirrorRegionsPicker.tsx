@@ -61,8 +61,8 @@ export type FaceMirrorRegionsPickerProps = {
   manualHighlightedRegionIds: string[];
   onSetManualHighlightedRegionIds: (ids: string[]) => void;
   onToggleAnnotationRegionHighlight: (regionId: string) => void;
-  /** Compact pill on the face viewport (default). */
-  variant?: "overlay" | "aura-rail";
+  /** Compact pill on the face viewport (default) or unified top toolbar. */
+  variant?: "overlay" | "aura-rail" | "toolbar";
 };
 
 export default function FaceMirrorRegionsPicker({

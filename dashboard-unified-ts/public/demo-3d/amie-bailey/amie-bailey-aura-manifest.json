@@ -1,0 +1,41 @@
+{
+  "turntableVideoUrl": "",
+  "availableViewAngles": [
+    "front",
+    "profile-right"
+  ],
+  "cvAnnotations": {
+    "redMaskByAngle": {
+      "front": "/demo-3d/amie-bailey/amie-bailey-front-redness-mask.png",
+      "profile-right": "/demo-3d/amie-bailey/amie-bailey-profile-right-redness-mask.png"
+    },
+    "poreMaskByAngle": {
+      "front": "/demo-3d/amie-bailey/amie-bailey-front-pore-mask.png",
+      "profile-right": "/demo-3d/amie-bailey/amie-bailey-profile-right-pore-mask.png"
+    },
+    "redSpotsByAngle": {},
+    "darkSpotsByAngle": {},
+    "wrinkles": [],
+    "volume": [],
+    "redAreas": [],
+    "pores": []
+  },
+  "angles": {
+    "front": {
+      "src": "/demo-3d/amie-bailey/pipeline-test/amie-bailey-front-color.jpg",
+      "srcOriginal": "/demo-3d/amie-bailey/pipeline-test/amie-bailey-front-color.jpg",
+      "srcTexture": "/demo-3d/amie-bailey/pipeline-test/amie-bailey-front-color.jpg",
+      "timeRatio": 0.5,
+      "label": "Front",
+      "fromPhoto": true
+    },
+    "profile-right": {
+      "src": "/demo-3d/amie-bailey/pipeline-test/amie-bailey-side-color.jpg",
+      "srcOriginal": "/demo-3d/amie-bailey/pipeline-test/amie-bailey-side-color.jpg",
+      "srcTexture": "/demo-3d/amie-bailey/pipeline-test/amie-bailey-side-color.jpg",
+      "timeRatio": 0.0,
+      "label": "Right profile",
+      "fromPhoto": true
+    }
+  }
+}

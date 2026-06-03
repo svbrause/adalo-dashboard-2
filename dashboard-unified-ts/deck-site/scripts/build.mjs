@@ -17,14 +17,18 @@ const repoRoot = path.resolve(deckSiteRoot, "..");
 const outDir = path.join(deckSiteRoot, "public");
 
 const DASHBOARD_ORIGIN = (
-  process.env.DASHBOARD_ORIGIN || "https://dashboard-unified-ts.vercel.app"
+  process.env.DASHBOARD_ORIGIN || "https://adalo-dashboard-2.vercel.app"
 ).replace(/\/$/, "");
 
 /** `public/…` files exposed at site root (`assetSrc` strips the `public/` prefix). */
 const DECK_PUBLIC_ASSETS = [
   "public/demo-3d/dark_mode_logo.png",
   "public/demo-3d/tanya-tan-front.png",
+  "public/demo-3d/tanya-tan-45-left-pigmentation-gray.png",
   "public/demo/gravitas-tanya-blueprint.json",
+  "public/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg",
+  "public/demo-3d/morgan-westmoreland/morgan-westmoreland-front-redness-mask.png",
+  "public/demo-3d/morgan-westmoreland/morgan-westmoreland-front-pore-mask.png",
 ];
 
 /** Repo paths kept at their source URL path (e.g. `/src/assets/images/…`). */

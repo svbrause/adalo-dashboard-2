@@ -2,7 +2,7 @@
  * Clients that use the Aura face mirror (turntable + Aura UI overlays, no photo blend).
  * Video URL is merged into getClientGlbUrl() so the existing 3D split layout applies.
  */
-import auraTurntableVideo from "../assets/images/turntable_2048_black.mp4";
+import auraTurntableVideo from "../assets/images/turntable_1024_black_scrub.mp4";
 
 import { ADMIN_DEMO_NAME_COLLISION_SUFFIX } from "../debug/adminDemoClients";
 

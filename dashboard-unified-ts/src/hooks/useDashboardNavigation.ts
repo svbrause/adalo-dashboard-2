@@ -7,6 +7,16 @@ import {
   type DashboardRoute,
 } from "../utils/dashboardRoutes";
 
+/** Views that show the patient list search / filter / sort bar and highlight Clients in the sidebar. */
+const PATIENT_LIST_VIEWS = new Set<ViewType>([
+  "list",
+  "leads",
+  "cards",
+  "kanban",
+  "facial-analysis",
+  "archived",
+]);
+
 export type DashboardNavigationState = {
   routeClientId: string | null;
   routeSection: ClientDetailSection | null;
@@ -49,6 +59,7 @@ export function useDashboardNavigation({
   enabled,
 }: UseDashboardNavigationArgs): DashboardNavigationState {
   const suppressUrlSyncRef = useRef(false);
+  const viewBeforeClientRef = useRef<ViewType>("list");
 
   const navigateDashboard = useCallback(
     (route: DashboardRoute, options?: { replace?: boolean }) => {
@@ -76,6 +87,9 @@ export function useDashboardNavigation({
         replace?: boolean;
       },
     ) => {
+      if (PATIENT_LIST_VIEWS.has(currentView)) {
+        viewBeforeClientRef.current = currentView;
+      }
       navigateDashboard(
         {
           view: options?.view ?? currentView,
@@ -90,7 +104,11 @@ export function useDashboardNavigation({
 
   const closeClient = useCallback(
     (options?: { view?: ViewType }) => {
-      navigateDashboard({ view: options?.view ?? currentView });
+      let view = options?.view ?? viewBeforeClientRef.current ?? currentView;
+      if (!PATIENT_LIST_VIEWS.has(view)) {
+        view = PATIENT_LIST_VIEWS.has(currentView) ? currentView : "list";
+      }
+      navigateDashboard({ view });
     },
     [currentView, navigateDashboard],
   );

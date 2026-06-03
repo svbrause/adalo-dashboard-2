@@ -48,7 +48,7 @@ Override dashboard host: `?dashboard=http://localhost:5173`
 ### Customize before a meeting
 
 - Slide 1: `[Date]` (clinic is preset to **Gravitas Medspa**)
-- Slide 9: `[Your name]`
+- Slide 10 (final): closing line uses **Ponce AI** branding (no presenter placeholder)
 - Logo: `public/demo/gravitas-medspa-logo.png`
 - Demo blueprint payload: `public/demo/gravitas-tanya-blueprint.json` (embedded on slide 7 as `/tp`)
 

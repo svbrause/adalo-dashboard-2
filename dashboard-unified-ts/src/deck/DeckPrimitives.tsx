@@ -85,10 +85,10 @@ export function SplitSlide({
       active={active}
       className={["slide--split", className ?? ""].filter(Boolean).join(" ")}
     >
-      <div>
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div className="label">{label}</div>
         <h1>{title}</h1>
-        <p className="lead">{lead}</p>
+        {lead ? <p className="lead">{lead}</p> : null}
         {chips?.length ? (
           <div className="outcome-chips">
             {chips.map((chip) => (
@@ -118,7 +118,7 @@ export function StoryVisual({
         <span>{left}</span>
         <span>{right}</span>
       </div>
-      {children}
+      <div className="story-visual-body">{children}</div>
     </div>
   );
 }

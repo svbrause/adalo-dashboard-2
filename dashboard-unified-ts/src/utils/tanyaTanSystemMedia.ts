@@ -12,6 +12,8 @@ import {
 export type TanyaTanSystemMediaCategory =
   | "color_stills"
   | "texture_maps"
+  | "redness_annotations"
+  | "pore_annotations"
   | "original_captures"
   | "scan_video";
 
@@ -30,6 +32,8 @@ export const TANYA_TAN_SYSTEM_MEDIA_CATEGORY_LABELS: Record<
 > = {
   color_stills: "Background removed",
   texture_maps: "Clinical texture",
+  redness_annotations: "Redness annotations",
+  pore_annotations: "Pore annotations",
   original_captures: "Original photos",
   scan_video: "3D scan",
 };
@@ -68,6 +72,34 @@ const TEXTURE_MAPS: TanyaTanSystemMediaEntry[] = TEXTURE_MAP_ANGLES.map(
   },
 );
 
+const REDNESS_ANNOTATIONS: TanyaTanSystemMediaEntry[] = TEXTURE_MAP_ANGLES.map(
+  ({ angle, id, title }) => {
+    const asset = TANYA_TAN_VIEWER_ANGLE_ASSETS[angle];
+    return {
+      id: id.replace("sys-texture", "sys-redness"),
+      category: "redness_annotations",
+      kind: "photo",
+      title,
+      subtitle: "Redness annotation",
+      url: asset.srcRedness ?? asset.src,
+    };
+  },
+);
+
+const PORE_ANNOTATIONS: TanyaTanSystemMediaEntry[] = TEXTURE_MAP_ANGLES.map(
+  ({ angle, id, title }) => {
+    const asset = TANYA_TAN_VIEWER_ANGLE_ASSETS[angle];
+    return {
+      id: id.replace("sys-texture", "sys-pores"),
+      category: "pore_annotations",
+      kind: "photo",
+      title,
+      subtitle: "Pore annotation",
+      url: asset.srcPores ?? asset.srcTexture ?? asset.src,
+    };
+  },
+);
+
 const ORIGINAL_CAPTURES: TanyaTanSystemMediaEntry[] = TANYA_TAN_ORIGINAL_CAPTURES.map(
   ({ angle, label, url }) => ({
     id: `sys-original-${angle}`,
@@ -79,16 +111,64 @@ const ORIGINAL_CAPTURES: TanyaTanSystemMediaEntry[] = TANYA_TAN_ORIGINAL_CAPTURE
   }),
 );
 
+const DIAGNOSTIC_VIDEOS: TanyaTanSystemMediaEntry[] = [
+  {
+    id: "sys-video-texture",
+    category: "scan_video",
+    kind: "video",
+    title: "Texture turntable",
+    subtitle: "Clinical texture video",
+    url: "/demo-3d/tanya-tan/tanya-tan-turntable-skin-gray.mp4",
+  },
+  {
+    id: "sys-video-pigmentation",
+    category: "scan_video",
+    kind: "video",
+    title: "Pigmentation turntable",
+    subtitle: "Pigmentation annotation video",
+    url: "/demo-3d/tanya-tan/tanya-tan-turntable-pigmentation.mp4",
+  },
+  {
+    id: "sys-video-redness",
+    category: "scan_video",
+    kind: "video",
+    title: "Redness turntable",
+    subtitle: "Redness annotation video",
+    url: "/demo-3d/tanya-tan/tanya-tan-turntable-redness.mp4",
+  },
+  {
+    id: "sys-video-pores",
+    category: "scan_video",
+    kind: "video",
+    title: "Pores turntable",
+    subtitle: "Pore annotation video",
+    url: "/demo-3d/tanya-tan/tanya-tan-turntable-pores.mp4",
+  },
+  {
+    id: "sys-video-wrinkles",
+    category: "scan_video",
+    kind: "video",
+    title: "Wrinkles turntable",
+    subtitle: "Per-frame crease annotation video",
+    url: "/demo-3d/tanya-tan/tanya-tan-turntable-wrinkles.mp4",
+  },
+];
+
 export const TANYA_TAN_SYSTEM_MEDIA: TanyaTanSystemMediaEntry[] = [
   ...COLOR_STILLS,
   ...TEXTURE_MAPS,
+  ...REDNESS_ANNOTATIONS,
+  ...PORE_ANNOTATIONS,
   ...ORIGINAL_CAPTURES,
+  ...DIAGNOSTIC_VIDEOS,
 ];
 
 export const TANYA_TAN_SYSTEM_MEDIA_ORDER: TanyaTanSystemMediaCategory[] = [
   "original_captures",
   "color_stills",
   "texture_maps",
+  "redness_annotations",
+  "pore_annotations",
   "scan_video",
 ];
 

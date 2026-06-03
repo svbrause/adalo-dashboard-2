@@ -30,7 +30,7 @@ export default function PatientMediaViewerModal({
   sections,
   initialItemId,
   onClose,
-  onLoadAnnotation,
+  onLoadAnnotation: _onLoadAnnotation,
 }: PatientMediaViewerModalProps) {
   const flatIndex = useMemo(() => {
     for (let s = 0; s < sections.length; s++) {
@@ -231,20 +231,7 @@ export default function PatientMediaViewerModal({
           </ul>
         ) : null}
 
-        {item.kind === "annotation" && item.annotation && onLoadAnnotation ? (
-          <footer className="patient-media-viewer__footer">
-            <button
-              type="button"
-              className="patient-media-viewer__load-btn"
-              onClick={() => {
-                onLoadAnnotation(item.annotation!);
-                onClose();
-              }}
-            >
-              Load onto 3D view
-            </button>
-          </footer>
-        ) : null}
+        {null}
       </div>
     </div>
   );

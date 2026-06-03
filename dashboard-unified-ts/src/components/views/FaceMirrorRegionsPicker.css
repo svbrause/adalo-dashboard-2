@@ -114,7 +114,50 @@
   white-space: nowrap;
 }
 
-/* Viewport overlay (beside Rotate) */
+/* Unified top toolbar — beside Rotate / Photos */
+.fmp-annotation-regions--toolbar > summary {
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fmp-annotation-regions--toolbar > summary:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--theme-text-primary, #1e293b);
+}
+
+.fmp-annotation-regions--toolbar[open] > summary {
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.fmp-annotation-regions--toolbar .fmp-annotation-regions__panel {
+  right: 0;
+  left: auto;
+}
+
+.fmp-root--aura .fmp-annotation-regions--toolbar > summary {
+  color: rgba(255 255 255 / 0.72);
+}
+
+.fmp-root--aura .fmp-annotation-regions--toolbar > summary:hover {
+  background: rgba(255 255 255 / 0.08);
+  color: rgba(255 255 255 / 0.92);
+}
+
+.fmp-root--aura .fmp-annotation-regions--toolbar[open] > summary {
+  background: rgba(255 255 255 / 0.12);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* Viewport overlay (legacy — controls moved to toolbar) */
 .fmp-annotation-regions--overlay > summary {
   height: 32px;
   padding: 0 12px;

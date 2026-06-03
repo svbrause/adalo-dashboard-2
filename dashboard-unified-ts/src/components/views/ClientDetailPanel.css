@@ -1017,12 +1017,21 @@
 }
 
 .client-detail-panel .detail-section-patient-files {
-  margin-top: 20px;
+  margin-top: 16px;
   background: #fafafa;
   padding: 20px;
   border-radius: 8px;
   border-top: 2px solid var(--theme-border);
   border-left: 4px solid var(--theme-accent);
+}
+
+.client-detail-panel .detail-section-patient-files .patient-media-library__title {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .client-detail-panel .detail-section-header-actions {
@@ -1941,6 +1950,9 @@
 .cdp-dark .section-title {
   color: #efefef;
 }
+.cdp-dark .detail-section-patient-files .patient-media-library__title {
+  color: #efefef;
+}
 .cdp-dark .treatment-plan-section-subtitle {
   color: #8a8a8a;
 }
@@ -2114,12 +2126,22 @@
 
 .cdp-expanded-planbuilder--collapsed {
   flex: 0 0 auto;
-  height: auto;
+  height: var(--fmp-collapsed-recommender-h, 53px);
   min-height: 0;
   margin-top: 0;
   gap: 0;
   border-top-color: var(--theme-border, #e2e8f0);
   background: var(--theme-bg-card, #fff);
+}
+
+.cdp-expanded-planbuilder--collapsed .cdp-expanded-planbuilder__header-btn {
+  min-height: calc(var(--fmp-collapsed-recommender-h, 53px) - 1px);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.cdp-expanded-planbuilder--collapsed .cdp-expanded-planbuilder__subtitle {
+  display: none;
 }
 
 .cdp-expanded-planbuilder__header-main {

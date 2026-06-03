@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { CategoryResult } from "../../config/analysisOverviewConfig";
-import { RadarChart } from "../postVisitBlueprint/RadarChart";
+import type { AuraSkinLens } from "../../utils/auraAnalysisBridge";
+import { PolarAreaChart } from "../postVisitBlueprint/PolarAreaChart";
+import { RadarChart, type RadarChartDatum } from "../postVisitBlueprint/RadarChart";
 
 interface AuraCategoryRadarCardProps {
   activeCat: CategoryResult;
   categoryAccent: string;
+  /** When set (e.g. skin Texture / Redness / Pores), replaces category sub-scores on the chart. */
+  radarDataOverride?: RadarChartDatum[];
+  chartAriaLabel?: string;
+  /** Skin lens Nightingale / polar area chart (Texture, Redness, Pores). */
+  skinLensPolarArea?: boolean;
+  /** Matches left-panel Texture / Redness / Pores / Wrinkles tab. */
+  activeSkinLens?: AuraSkinLens;
 }
 
 function SubScoreBars({
@@ -47,19 +56,29 @@ function SubScoreBars({
 export default function AuraCategoryRadarCard({
   activeCat,
   categoryAccent,
+  radarDataOverride,
+  chartAriaLabel,
+  skinLensPolarArea = false,
+  activeSkinLens,
 }: AuraCategoryRadarCardProps) {
   const [animate, setAnimate] = useState(false);
 
   const radarData = useMemo(
-    () => activeCat.subScores.map((s) => ({ name: s.name, score: s.score })),
-    [activeCat],
+    () =>
+      radarDataOverride ??
+      activeCat.subScores.map((s) => ({ name: s.name, score: s.score })),
+    [activeCat, radarDataOverride],
   );
+
+  const radarKey = radarDataOverride
+    ? radarData.map((d) => d.name).join("|")
+    : activeCat.key;
 
   useEffect(() => {
     setAnimate(false);
     const id = requestAnimationFrame(() => setAnimate(true));
     return () => cancelAnimationFrame(id);
-  }, [activeCat.key]);
+  }, [radarKey]);
 
   const accentStyle = {
     "--aura-radar-accent": categoryAccent,
@@ -69,9 +88,17 @@ export default function AuraCategoryRadarCard({
     <div
       className="aura-embedded-panel__radar-wrap"
       style={accentStyle}
-      aria-label={`${activeCat.scoreLabel} sub-score chart`}
+      aria-label={chartAriaLabel ?? `${activeCat.scoreLabel} sub-score chart`}
     >
-      {radarData.length >= 3 ? (
+      {skinLensPolarArea && radarData.length >= 2 ? (
+        <PolarAreaChart
+          data={radarData}
+          size={200}
+          animate={animate}
+          className="aura-embedded-panel__polar-area"
+          activeLens={activeSkinLens}
+        />
+      ) : radarData.length >= 3 ? (
         <RadarChart
           data={radarData}
           size={200}

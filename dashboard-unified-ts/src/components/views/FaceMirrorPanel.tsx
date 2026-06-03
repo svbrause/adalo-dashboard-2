@@ -33,7 +33,11 @@ import {
 } from "../../utils/patientAnnotationsStorage";
 import {
   buildViewerAngleAssetsFromManifest,
+  fetchPatientAuraManifestFromConfiguredBucket,
   fetchPatientAuraManifestFromDisk,
+  fetchPatientAuraManifestFromGcs,
+  fetchPatientAuraManifestFromGcsPrefix,
+  fetchPatientAuraManifestFromUrl,
   getAvailableViewAngles,
   getPatientAuraManifest,
   setPatientAuraManifest,
@@ -41,11 +45,13 @@ import {
 } from "../../utils/patientAuraAssets";
 import {
   buildViewerAngleAssetsFromPhotoSlots,
+  inferAvailableViewAnglesFromPhotoSlots,
   TANYA_TAN_VIEWER_ANGLE_ASSETS,
 } from "../../utils/auraTanAnglePhotos";
 import {
   issueToMirrorHighlightTerm,
   type AuraOverviewCategoryKey,
+  type AuraSkinLens,
 } from "../../utils/auraAnalysisBridge";
 import type { AuraMirrorHighlightBridge } from "./AuraEmbeddedAnalysisPanel";
 import {
@@ -59,20 +65,40 @@ import "./FaceMirrorPanel.css";
 // ---------------------------------------------------------------------------
 // 3D Scan generation types
 // ---------------------------------------------------------------------------
+/** Set to true to re-enable the Generate 3D Scan toolbar button and config panel. */
+const GENERATE_3D_SCAN_ENABLED = true;
+
 type ScanQuality = "ultra" | "draft" | "standard" | "high";
 
-const QUALITY_LABELS: Record<ScanQuality, { label: string; time: string; desc: string }> = {
-  ultra:    { label: "Ultra-fast", time: "~1 min",   desc: "Fastest — lower fidelity, warm GPU required" },
-  draft:    { label: "Draft",      time: "~2 min",   desc: "Faster, lower fidelity" },
-  standard: { label: "Standard",   time: "~3–4 min", desc: "Balanced quality (recommended)" },
-  high:     { label: "High",       time: "~5–6 min", desc: "Best detail, longest wait" },
+const QUALITY_LABELS: Record<
+  ScanQuality,
+  { label: string; time: string; desc: string }
+> = {
+  ultra: {
+    label: "Ultra-fast",
+    time: "~1 min",
+    desc: "Fastest — lower fidelity, warm GPU required",
+  },
+  draft: { label: "Draft", time: "~2 min", desc: "Faster, lower fidelity" },
+  standard: {
+    label: "Standard",
+    time: "~3–4 min",
+    desc: "Balanced quality (recommended)",
+  },
+  high: { label: "High", time: "~5–6 min", desc: "Best detail, longest wait" },
 };
 
 type ScanState =
   | { phase: "idle" }
   | { phase: "config" }
   | { phase: "submitting" }
-  | { phase: "running"; jobId: string; progress: number; message: string; remaining: number }
+  | {
+      phase: "running";
+      jobId: string;
+      progress: number;
+      message: string;
+      remaining: number;
+    }
   | { phase: "done"; videoUrl: string }
   | { phase: "error"; message: string };
 
@@ -93,7 +119,11 @@ function scanJobKey(recordId: string): string {
 }
 
 function savePersistedJob(recordId: string, job: PersistedScanJob): void {
-  try { localStorage.setItem(scanJobKey(recordId), JSON.stringify(job)); } catch { /* storage full */ }
+  try {
+    localStorage.setItem(scanJobKey(recordId), JSON.stringify(job));
+  } catch {
+    /* storage full */
+  }
 }
 
 function loadPersistedJob(recordId: string): PersistedScanJob | null {
@@ -106,17 +136,25 @@ function loadPersistedJob(recordId: string): PersistedScanJob | null {
       return null;
     }
     return job;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function clearPersistedJob(recordId: string): void {
-  try { localStorage.removeItem(scanJobKey(recordId)); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(scanJobKey(recordId));
+  } catch {
+    /* ignore */
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Photo slot → Modal photo-key mapping
 // ---------------------------------------------------------------------------
-function mapSlotsToModalPhotos(slots: ClientPhotoSlot[]): Record<string, string> {
+function mapSlotsToModalPhotos(
+  slots: ClientPhotoSlot[],
+): Record<string, string> {
   const photos: Record<string, string> = {};
 
   // Drop form/document slots but keep "original" photos
@@ -145,13 +183,13 @@ function mapSlotsToModalPhotos(slots: ClientPhotoSlot[]): Record<string, string>
     const blob = `${slot.id} ${slot.label ?? ""}`.toLowerCase();
 
     let base: string;
-    if      (blob.includes("left")  && blob.includes("90")) base = "left90";
+    if (blob.includes("left") && blob.includes("90")) base = "left90";
     else if (blob.includes("right") && blob.includes("90")) base = "right90";
-    else if (blob.includes("left")  && blob.includes("45")) base = "left45";
+    else if (blob.includes("left") && blob.includes("45")) base = "left45";
     else if (blob.includes("right") && blob.includes("45")) base = "right45";
-    else if (blob.includes("left"))                          base = "left90";
-    else if (blob.includes("right"))                         base = "right90";
-    else                                                     base = "extra";
+    else if (blob.includes("left")) base = "left90";
+    else if (blob.includes("right")) base = "right90";
+    else base = "extra";
 
     const n = keyCount[base] ?? 0;
     photos[n === 0 ? base : `${base}_${n}`] = slot.url;
@@ -162,7 +200,7 @@ function mapSlotsToModalPhotos(slots: ClientPhotoSlot[]): Record<string, string>
 }
 
 function formatRemaining(seconds: number): string {
-  if (seconds <= 0) return "almost done…";
+  if (seconds <= 0) return "still working…";
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return m > 0 ? `${m}m ${s}s remaining` : `${s}s remaining`;
@@ -189,7 +227,8 @@ function simplifyToFrontSideSlots(slots: ClientPhotoSlot[]): ClientPhotoSlot[] {
     slots.find(
       (s) =>
         !isIntakeOrFormSlot(s) &&
-        (lower(s.id).includes("front") || (s.label && lower(s.label).includes("front"))),
+        (lower(s.id).includes("front") ||
+          (s.label && lower(s.label).includes("front"))),
     ) ??
     slots.find((s) => lower(s.id).includes("front")) ??
     slots[0];
@@ -206,8 +245,14 @@ function simplifyToFrontSideSlots(slots: ClientPhotoSlot[]): ClientPhotoSlot[] {
       return /(\bleft\b|\bright\b|profile|\b45\b|\b90\b|side)/.test(blob);
     });
 
-  const side = sideNonIntake ?? others.find((s) => lower(s.id).startsWith("side")) ?? others[0];
-  return [{ ...front, label: "Front" }, { ...side, label: "Side" }];
+  const side =
+    sideNonIntake ??
+    others.find((s) => lower(s.id).startsWith("side")) ??
+    others[0];
+  return [
+    { ...front, label: "Front" },
+    { ...side, label: "Side" },
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -219,14 +264,6 @@ function FaceMirrorPhotoStage({
   highlightTerms,
   highlightedRegionIds,
   showAnnotations,
-  showPatientPhotoGallery,
-  onOpenPatientPhotos,
-  openPatientPhotosSafe,
-  photoModalInitialTab,
-  simplifiedSlots,
-  angleIdx,
-  setAngleIdx,
-  showAnglePicker,
   wrapClassName,
 }: {
   activePhotoUrl: string;
@@ -234,18 +271,14 @@ function FaceMirrorPhotoStage({
   highlightTerms: string[];
   highlightedRegionIds: string[];
   showAnnotations: boolean;
-  showPatientPhotoGallery: boolean;
-  onOpenPatientPhotos?: (initialTab: "front" | "side") => void;
-  openPatientPhotosSafe: (initialTab: "front" | "side") => void;
-  photoModalInitialTab: "front" | "side";
-  simplifiedSlots: ClientPhotoSlot[];
-  angleIdx: number;
-  setAngleIdx: (i: number) => void;
-  showAnglePicker: boolean;
   wrapClassName?: string;
 }) {
   return (
-    <div className={wrapClassName ? `fmp-photo-stage ${wrapClassName}` : "fmp-photo-stage"}>
+    <div
+      className={
+        wrapClassName ? `fmp-photo-stage ${wrapClassName}` : "fmp-photo-stage"
+      }
+    >
       <AiMirrorCanvas
         imageUrl={activePhotoUrl}
         alt={`${patientName} facial analysis`}
@@ -253,51 +286,6 @@ function FaceMirrorPhotoStage({
         highlightedRegionIds={highlightedRegionIds}
         showAnnotations={showAnnotations}
       />
-      {(showAnglePicker || (showPatientPhotoGallery && onOpenPatientPhotos)) && (
-        <div className="fmp-photo-controls fmp-photo-controls--top-left">
-          {showAnglePicker && (
-            <div
-              className="fmp-angle-bar fmp-angle-bar--overlay"
-              role="tablist"
-              aria-label="Photo angle"
-            >
-              {[...simplifiedSlots].reverse().map((slot, revIdx) => {
-                const i = simplifiedSlots.length - 1 - revIdx;
-                return (
-                  <button
-                    key={`${slot.url}-${i}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={i === angleIdx}
-                    className={`fmp-angle-tab${i === angleIdx ? " fmp-angle-tab--active" : ""}`}
-                    onClick={() => setAngleIdx(i)}
-                  >
-                    {slot.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {showPatientPhotoGallery && onOpenPatientPhotos && (
-            <button
-              type="button"
-              className="fmp-gallery-expand"
-              onClick={() => openPatientPhotosSafe(photoModalInitialTab)}
-              aria-label="Open all photos and originals"
-              title="All photos and originals"
-            >
-              <img
-                className="fmp-gallery-expand-icon"
-                src={`${import.meta.env.BASE_URL}expand.png`}
-                alt=""
-                width={18}
-                height={18}
-                draggable={false}
-              />
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -305,55 +293,8 @@ function FaceMirrorPhotoStage({
 // ---------------------------------------------------------------------------
 // Overlay controls (auto-rotate, highlight) on photo / 3D viewport
 // ---------------------------------------------------------------------------
-function FaceMirrorViewportShell({
-  children,
-  showAutoRotate,
-  autoRotate,
-  onToggleAutoRotate,
-  showHighlightPicker,
-  manualHighlightedRegionIds,
-  onSetManualHighlightedRegionIds,
-  onToggleAnnotationRegionHighlight,
-}: {
-  children: ReactNode;
-  showAutoRotate: boolean;
-  autoRotate: boolean;
-  onToggleAutoRotate: () => void;
-  showHighlightPicker: boolean;
-  manualHighlightedRegionIds: string[];
-  onSetManualHighlightedRegionIds: (ids: string[]) => void;
-  onToggleAnnotationRegionHighlight: (regionId: string) => void;
-}) {
-  const showOverlays = showAutoRotate || showHighlightPicker;
-  if (!showOverlays) return <>{children}</>;
-
-  return (
-    <div className="fmp-viewport">
-      {children}
-      <div className="fmp-viewport-overlays" aria-label="View controls">
-        {showAutoRotate && (
-          <button
-            type="button"
-            className={`fmp-overlay-btn${autoRotate ? " fmp-overlay-btn--active" : ""}`}
-            onClick={onToggleAutoRotate}
-            aria-pressed={autoRotate}
-            title={autoRotate ? "Pause auto-rotate" : "Auto-rotate"}
-          >
-            <AutoRotateHeadIcon size={14} />
-            <span className="fmp-overlay-btn__label">Rotate</span>
-          </button>
-        )}
-        {showHighlightPicker ? (
-          <FaceMirrorRegionsPicker
-            variant="overlay"
-            manualHighlightedRegionIds={manualHighlightedRegionIds}
-            onSetManualHighlightedRegionIds={onSetManualHighlightedRegionIds}
-            onToggleAnnotationRegionHighlight={onToggleAnnotationRegionHighlight}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
+function FaceMirrorViewportShell({ children }: { children: ReactNode }) {
+  return <div className="fmp-viewport">{children}</div>;
 }
 
 // ---------------------------------------------------------------------------
@@ -380,7 +321,15 @@ function ScanConfigPanel({
   return (
     <div className="fmp-scan-config">
       <div className="fmp-scan-config-header">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden
+        >
           <path d="M12 2L2 7l10 5 10-5-10-5z" />
           <path d="M2 17l10 5 10-5" />
           <path d="M2 12l10 5 10-5" />
@@ -391,22 +340,28 @@ function ScanConfigPanel({
       <div className="fmp-scan-config-row">
         <span className="fmp-scan-config-label">Quality</span>
         <div className="fmp-scan-quality-options">
-          {(["ultra", "draft", "standard", "high"] as ScanQuality[]).map((q) => (
-            <label
-              key={q}
-              className={`fmp-scan-quality-option${quality === q ? " fmp-scan-quality-option--active" : ""}`}
-            >
-              <input
-                type="radio"
-                name="scan-quality"
-                value={q}
-                checked={quality === q}
-                onChange={() => onQualityChange(q)}
-              />
-              <span className="fmp-scan-quality-name">{QUALITY_LABELS[q].label}</span>
-              <span className="fmp-scan-quality-time">{QUALITY_LABELS[q].time}</span>
-            </label>
-          ))}
+          {(["ultra", "draft", "standard", "high"] as ScanQuality[]).map(
+            (q) => (
+              <label
+                key={q}
+                className={`fmp-scan-quality-option${quality === q ? " fmp-scan-quality-option--active" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="scan-quality"
+                  value={q}
+                  checked={quality === q}
+                  onChange={() => onQualityChange(q)}
+                />
+                <span className="fmp-scan-quality-name">
+                  {QUALITY_LABELS[q].label}
+                </span>
+                <span className="fmp-scan-quality-time">
+                  {QUALITY_LABELS[q].time}
+                </span>
+              </label>
+            ),
+          )}
         </div>
       </div>
 
@@ -420,10 +375,20 @@ function ScanConfigPanel({
       </div>
 
       <div className="fmp-scan-config-actions">
-        <button type="button" className="fmp-scan-cancel-btn" onClick={onCancel} disabled={submitting}>
+        <button
+          type="button"
+          className="fmp-scan-cancel-btn"
+          onClick={onCancel}
+          disabled={submitting}
+        >
           Cancel
         </button>
-        <button type="button" className="fmp-scan-start-btn" onClick={onStart} disabled={submitting || photoCount === 0}>
+        <button
+          type="button"
+          className="fmp-scan-start-btn"
+          onClick={onStart}
+          disabled={submitting || photoCount === 0}
+        >
           {submitting ? "Submitting…" : "Start 3D Scan"}
         </button>
       </div>
@@ -465,6 +430,9 @@ interface FaceMirrorPanelProps {
     videoUrl: string;
     auraAssets?: PatientAuraAssetManifest;
   }) => void;
+  auraManifestUrl?: string | null;
+  auraGcsPrefix?: string | null;
+  initialAuraManifest?: PatientAuraAssetManifest | null;
 }
 
 export default function FaceMirrorPanel({
@@ -484,6 +452,9 @@ export default function FaceMirrorPanel({
   onOpenPlanBuilder,
   onAuraActiveCategoryChange,
   onScanGenerated,
+  auraManifestUrl,
+  auraGcsPrefix,
+  initialAuraManifest,
 }: FaceMirrorPanelProps) {
   // --- Existing state ---
   const [mode, setMode] = useState<ViewMode>("photo");
@@ -492,28 +463,50 @@ export default function FaceMirrorPanel({
     airtableRecordId,
     patientName,
   );
-  const [manualHighlightedRegionIds, setManualHighlightedRegionIds] = useState<string[]>(
-    () => loadFaceMirrorHighlightedRegions(highlightStorageKey, ALL_MIRROR_ANNOTATION_REGION_IDS),
+  const [manualHighlightedRegionIds, setManualHighlightedRegionIds] = useState<
+    string[]
+  >(() =>
+    loadFaceMirrorHighlightedRegions(
+      highlightStorageKey,
+      ALL_MIRROR_ANNOTATION_REGION_IDS,
+    ),
   );
   const [angleIdx, setAngleIdx] = useState(0);
   const [viewportExpanded, setViewportExpanded] = useState(false);
   const [auraPanelCollapsed, setAuraPanelCollapsed] = useState(false);
   const [auraActiveCategory, setAuraActiveCategory] =
     useState<AuraOverviewCategoryKey>("skinHealth");
+  const [auraActiveSkinLens, setAuraActiveSkinLens] =
+    useState<AuraSkinLens>("texture");
   const [auraIssueHighlights, setAuraIssueHighlights] = useState<string[]>([]);
   const [annotateStrokes, setAnnotateStrokes] = useState<AnnotateStroke[]>([]);
   const [annotationsRefreshKey, setAnnotationsRefreshKey] = useState(0);
   // --- Scan generation state ---
   const [scanState, setScanState] = useState<ScanState>({ phase: "idle" });
-  const [scanQuality, setScanQuality] = useState<ScanQuality>("standard");
+  const [scanQuality, setScanQuality] = useState<ScanQuality>("draft");
   const [overrideGlbUrl, setOverrideGlbUrl] = useState<string | null>(null);
   const [patientAuraManifest, setPatientAuraManifestState] =
-    useState<PatientAuraAssetManifest | null>(() => getPatientAuraManifest(patientName));
+    useState<PatientAuraAssetManifest | null>(() =>
+      initialAuraManifest ?? getPatientAuraManifest(patientName),
+    );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const previewVideoUrlRef = useRef<string | null>(null);
+
+  const applyPreviewVideo = useCallback((videoUrl: string) => {
+    if (previewVideoUrlRef.current === videoUrl) return;
+    previewVideoUrlRef.current = videoUrl;
+    setOverrideGlbUrl(videoUrl);
+    setMode("3d");
+    // Don't expand the viewport here — the progress bar and the AuraFaceView
+    // topbar would overlap. Expansion happens when the scan fully completes.
+    const preload = document.createElement("video");
+    preload.preload = "auto";
+    preload.src = videoUrl;
+  }, []);
 
   useEffect(() => {
-    setPatientAuraManifestState(getPatientAuraManifest(patientName));
-  }, [patientName]);
+    setPatientAuraManifestState(initialAuraManifest ?? getPatientAuraManifest(patientName));
+  }, [patientName, initialAuraManifest]);
 
   useEffect(() => {
     const onAuraAssetsChanged = (event: Event) => {
@@ -523,35 +516,84 @@ export default function FaceMirrorPanel({
       }
     };
     window.addEventListener("patient-aura-assets-changed", onAuraAssetsChanged);
-    return () => window.removeEventListener("patient-aura-assets-changed", onAuraAssetsChanged);
+    return () =>
+      window.removeEventListener(
+        "patient-aura-assets-changed",
+        onAuraAssetsChanged,
+      );
   }, [patientName]);
 
   const effectiveVideoUrl = overrideGlbUrl ?? videoUrlProp ?? null;
   const has3D = Boolean(effectiveVideoUrl);
   const useAuraScan = clientUsesAuraInterface(effectiveVideoUrl);
-  const patientGeneratedAura = useAuraScan && !clientUsesAuraScan(patientName);
+  // Also activate the Aura UI when the patient has a pre-generated manifest
+  // with angle photos (e.g. photos-only patient before the turntable is ready).
+  const hasAuraManifestPhotos = Boolean(
+    patientAuraManifest?.angles &&
+    Object.keys(patientAuraManifest.angles).length > 0,
+  );
+  const useAuraView = useAuraScan || hasAuraManifestPhotos;
+  const patientGeneratedAura = useAuraView && !clientUsesAuraScan(patientName);
 
   useEffect(() => {
     if (clientUsesAuraScan(patientName)) return;
-    if (patientAuraManifest) return;
-    if (!effectiveVideoUrl) return;
+    // Always refetch when a manifest URL is known so localStorage cannot hide new wrinkle assets.
+    const hasPhotos = photoSlots.length > 0 || Boolean(photoUrl);
+    const hasAuraAssetLink = Boolean(auraManifestUrl?.trim() || auraGcsPrefix?.trim());
+    if (!effectiveVideoUrl && !hasPhotos && !hasAuraAssetLink) return;
     let cancelled = false;
-    void fetchPatientAuraManifestFromDisk(patientName).then((manifest) => {
-      if (!cancelled && manifest) setPatientAuraManifestState(manifest);
-    });
+    const isGcsUrl = effectiveVideoUrl?.startsWith("https://storage.googleapis.com");
+    void (async () => {
+      let manifest: PatientAuraAssetManifest | null = null;
+      if (auraManifestUrl?.trim()) {
+        manifest = await fetchPatientAuraManifestFromUrl(patientName, auraManifestUrl);
+      }
+      if (!manifest) {
+        manifest = await fetchPatientAuraManifestFromGcsPrefix(patientName, auraGcsPrefix);
+      }
+      if (isGcsUrl) {
+        manifest = manifest ?? await fetchPatientAuraManifestFromGcs(patientName, effectiveVideoUrl!);
+      }
+      if (!manifest) {
+        manifest = await fetchPatientAuraManifestFromConfiguredBucket(patientName);
+      }
+      if (!manifest) {
+        manifest = await fetchPatientAuraManifestFromDisk(patientName);
+      }
+      if (!cancelled && manifest) {
+        setPatientAuraManifestState(manifest);
+        if (!videoUrlProp && manifest.turntableVideoUrl) {
+          setOverrideGlbUrl(manifest.turntableVideoUrl);
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [patientName, effectiveVideoUrl, patientAuraManifest]);
+  }, [
+    patientName,
+    effectiveVideoUrl,
+    videoUrlProp,
+    auraManifestUrl,
+    auraGcsPrefix,
+    photoSlots.length,
+    photoUrl,
+  ]);
 
   useEffect(() => {
     setManualHighlightedRegionIds(
-      loadFaceMirrorHighlightedRegions(highlightStorageKey, ALL_MIRROR_ANNOTATION_REGION_IDS),
+      loadFaceMirrorHighlightedRegions(
+        highlightStorageKey,
+        ALL_MIRROR_ANNOTATION_REGION_IDS,
+      ),
     );
   }, [highlightStorageKey]);
 
   useEffect(() => {
-    saveFaceMirrorHighlightedRegions(highlightStorageKey, manualHighlightedRegionIds);
+    saveFaceMirrorHighlightedRegions(
+      highlightStorageKey,
+      manualHighlightedRegionIds,
+    );
   }, [highlightStorageKey, manualHighlightedRegionIds]);
 
   useEffect(() => {
@@ -589,21 +631,28 @@ export default function FaceMirrorPanel({
   const manualRegionsForView = manualHighlightedRegionIds;
 
   const hasAnnotations = useMemo(
-    () => hasMirrorAnnotationHighlights(highlightTermsForView, manualRegionsForView),
+    () =>
+      hasMirrorAnnotationHighlights(
+        highlightTermsForView,
+        manualRegionsForView,
+      ),
     [highlightTermsForView, manualRegionsForView],
   );
 
-  const toggleAuraIssueHighlight = useCallback((issueName: string, enabled: boolean) => {
-    const term = issueToMirrorHighlightTerm(issueName);
-    const lower = term.toLowerCase();
-    setAuraIssueHighlights((current) => {
-      if (enabled) {
-        if (current.some((t) => t.toLowerCase() === lower)) return current;
-        return [...current, term];
-      }
-      return current.filter((t) => t.toLowerCase() !== lower);
-    });
-  }, []);
+  const toggleAuraIssueHighlight = useCallback(
+    (issueName: string, enabled: boolean) => {
+      const term = issueToMirrorHighlightTerm(issueName);
+      const lower = term.toLowerCase();
+      setAuraIssueHighlights((current) => {
+        if (enabled) {
+          if (current.some((t) => t.toLowerCase() === lower)) return current;
+          return [...current, term];
+        }
+        return current.filter((t) => t.toLowerCase() !== lower);
+      });
+    },
+    [],
+  );
 
   const clearAuraIssueHighlights = useCallback(() => {
     setAuraIssueHighlights([]);
@@ -629,7 +678,9 @@ export default function FaceMirrorPanel({
       });
       setAnnotationsRefreshKey((k) => k + 1);
       window.dispatchEvent(
-        new CustomEvent("patient-annotations-changed", { detail: { clientId } }),
+        new CustomEvent("patient-annotations-changed", {
+          detail: { clientId },
+        }),
       );
     },
     [analysisOverviewClient?.id],
@@ -659,7 +710,10 @@ export default function FaceMirrorPanel({
     window.addEventListener("patient-annotation-load-request", onLoadRequest);
     return () => {
       window.removeEventListener("patient-annotations-changed", onChanged);
-      window.removeEventListener("patient-annotation-load-request", onLoadRequest);
+      window.removeEventListener(
+        "patient-annotation-load-request",
+        onLoadRequest,
+      );
     };
   }, [analysisOverviewClient?.id, handleLoadAnnotation]);
 
@@ -675,12 +729,28 @@ export default function FaceMirrorPanel({
     if (!patientAuraManifest?.angles) return slotAssets;
 
     const fallback = angleSlots.find((s) => s.url)?.url ?? "";
-    const assets = buildViewerAngleAssetsFromManifest(patientAuraManifest, fallback);
+    const assets = buildViewerAngleAssetsFromManifest(
+      patientAuraManifest,
+      fallback,
+    );
+    const photoBackedAngles = new Set(
+      inferAvailableViewAnglesFromPhotoSlots(angleSlots),
+    );
     const avail = getAvailableViewAngles(patientAuraManifest, angleSlots);
     for (const angle of avail ?? []) {
       const slotSrc = slotAssets[angle]?.src;
       if (!slotSrc) continue;
       const manifestAngle = patientAuraManifest.angles[angle];
+      if (photoBackedAngles.has(angle)) {
+        if (manifestAngle?.fromPhoto) continue;
+        assets[angle] = {
+          ...assets[angle],
+          src: slotSrc,
+          srcTexture: slotSrc,
+          srcPigmentation: slotSrc,
+        };
+        continue;
+      }
       if (manifestAngle?.fromPhoto) continue;
       if (manifestAngle?.src && manifestAngle.src !== fallback) continue;
       assets[angle] = {
@@ -700,25 +770,36 @@ export default function FaceMirrorPanel({
     [patientName, patientAuraManifest, angleSlots],
   );
 
-  const simplifiedSlots = useMemo(() => simplifyToFrontSideSlots(angleSlots), [angleSlots]);
+  const simplifiedSlots = useMemo(
+    () => simplifyToFrontSideSlots(angleSlots),
+    [angleSlots],
+  );
 
   const slotKey = useMemo(
     () => simplifiedSlots.map((s) => `${s.id}:${s.url}`).join("|"),
     [simplifiedSlots],
   );
 
-  useEffect(() => { setAngleIdx(0); }, [slotKey]);
+  useEffect(() => {
+    setAngleIdx(0);
+  }, [slotKey]);
 
   useEffect(() => {
-    if (useAuraScan && has3D) setMode("3d");
-  }, [useAuraScan, has3D, patientName]);
+    if (useAuraView && has3D) setMode("3d");
+  }, [useAuraView, has3D, patientName]);
 
   const activePhotoUrl = simplifiedSlots[angleIdx]?.url ?? null;
   const hasPhoto = Boolean(activePhotoUrl);
   const showAnglePicker = mode === "photo" && simplifiedSlots.length > 1;
-  const canGenerate = !has3D && angleSlots.length > 0 && Boolean(onScanGenerated !== undefined || true);
-  const showFsAnalysisOverview = Boolean(viewportExpanded && analysisOverviewClient);
-  const overviewSoloSpan = showFsAnalysisOverview && !effectiveVideoUrl && !hasPhoto;
+  const canGenerate =
+    !has3D &&
+    angleSlots.length > 0 &&
+    Boolean(onScanGenerated !== undefined || true);
+  const showFsAnalysisOverview = Boolean(
+    viewportExpanded && analysisOverviewClient,
+  );
+  const overviewSoloSpan =
+    showFsAnalysisOverview && !effectiveVideoUrl && !hasPhoto;
 
   const photoModalInitialTab = useMemo((): "front" | "side" => {
     const slot = simplifiedSlots[angleIdx];
@@ -734,6 +815,8 @@ export default function FaceMirrorPanel({
       onClearIssueHighlights: clearAuraIssueHighlights,
       activeCategory: auraActiveCategory,
       onActiveCategoryChange: setAuraActiveCategory,
+      activeSkinLens: auraActiveSkinLens,
+      onActiveSkinLensChange: setAuraActiveSkinLens,
       panelCollapsed: auraPanelCollapsed,
       onPanelCollapsedChange: setAuraPanelCollapsed,
       patientFiles: {
@@ -748,6 +831,7 @@ export default function FaceMirrorPanel({
     analysisOverviewClient,
     auraIssueHighlights,
     auraActiveCategory,
+    auraActiveSkinLens,
     auraPanelCollapsed,
     toggleAuraIssueHighlight,
     clearAuraIssueHighlights,
@@ -777,15 +861,14 @@ export default function FaceMirrorPanel({
     setAutoRotate3d((v) => !v);
   }, []);
 
-  const viewportOverlayProps = {
-    showAutoRotate: mode === "3d" && has3D && !useAuraScan,
-    autoRotate: autoRotate3d,
-    onToggleAutoRotate: toggleAutoRotate3d,
-    showHighlightPicker: (hasPhoto || has3D) && !useAuraScan,
-    manualHighlightedRegionIds,
-    onSetManualHighlightedRegionIds: setManualHighlightedRegionIds,
-    onToggleAnnotationRegionHighlight: toggleAnnotationRegionHighlight,
-  };
+  const showToolbarRegions = (hasPhoto || has3D) && !useAuraView;
+  const showToolbarRotate = mode === "3d" && has3D && !useAuraView;
+  const showToolbarAnglePicker = mode === "photo" && showAnglePicker;
+  const showToolbarGallery = Boolean(
+    showPatientPhotoGallery && onOpenPatientPhotos,
+  );
+  const showToolbarTools =
+    showToolbarRegions || showToolbarRotate || showToolbarGallery;
 
   // Keyboard: Escape closes viewport-expanded
   useEffect(() => {
@@ -802,7 +885,10 @@ export default function FaceMirrorPanel({
     };
   }, [viewportExpanded]);
 
-  const toggleViewportExpanded = useCallback(() => setViewportExpanded((v) => !v), []);
+  const toggleViewportExpanded = useCallback(
+    () => setViewportExpanded((v) => !v),
+    [],
+  );
 
   // --- Scan generation flow ---
 
@@ -816,84 +902,136 @@ export default function FaceMirrorPanel({
   }, []);
 
   /** Start polling /api/scan/status/:jobId. Call after submit or on remount to resume. */
-  const startPolling = useCallback((jobId: string) => {
-    stopPolling();
-    pollRef.current = setInterval(async () => {
-      try {
-        const d = await fetchScanJobStatus(SCAN_API, jobId);
-        if (!d) return;
+  const startPolling = useCallback(
+    (jobId: string) => {
+      stopPolling();
+      pollRef.current = setInterval(async () => {
+        try {
+          const d = await fetchScanJobStatus(SCAN_API, jobId);
+          if (!d) return;
 
-        if (d.status === "done") {
-          stopPolling();
-          if (airtableRecordId) clearPersistedJob(airtableRecordId);
-          let videoUrl = d.videoUrl;
-          if (!videoUrl && d.videoBase64) {
-            const bytes = Uint8Array.from(atob(d.videoBase64), (c) => c.charCodeAt(0));
-            videoUrl = URL.createObjectURL(new Blob([bytes], { type: "video/mp4" }));
-          }
-          if (videoUrl) {
-            const auraAssets = d.auraAssets as PatientAuraAssetManifest | undefined;
-            if (auraAssets) {
-              setPatientAuraManifestState(auraAssets);
-              setPatientAuraManifest(patientName, auraAssets);
+          if (d.status === "done") {
+            stopPolling();
+            if (airtableRecordId) clearPersistedJob(airtableRecordId);
+            let videoUrl = d.videoUrl;
+            if (!videoUrl && d.videoBase64) {
+              const bytes = Uint8Array.from(atob(d.videoBase64), (c) =>
+                c.charCodeAt(0),
+              );
+              videoUrl = URL.createObjectURL(
+                new Blob([bytes], { type: "video/mp4" }),
+              );
             }
-            setOverrideGlbUrl(videoUrl);
-            setScanState({ phase: "done", videoUrl });
-            setMode("3d");
-            setViewportExpanded(true);
-            onScanGenerated?.({ videoUrl, auraAssets });
-            const savedAuraAssets = auraAssets;
-            if (airtableRecordId && airtableTableName) {
-              fetch(`${SCAN_API}/api/scan/save-video`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ jobId, recordId: airtableRecordId, tableName: airtableTableName }),
-              })
-                .then((r) => r.json())
-                .then((saved: { videoUrl?: string; auraAssets?: PatientAuraAssetManifest }) => {
-                  if (saved.auraAssets) {
-                    setPatientAuraManifestState(saved.auraAssets);
-                    setPatientAuraManifest(patientName, saved.auraAssets);
-                  }
-                  if (saved.videoUrl) {
-                    setOverrideGlbUrl(saved.videoUrl);
-                    onScanGenerated?.({
-                      videoUrl: saved.videoUrl,
-                      auraAssets: saved.auraAssets ?? savedAuraAssets,
-                    });
-                  }
+            if (videoUrl) {
+              const auraAssets = d.auraAssets as
+                | PatientAuraAssetManifest
+                | undefined;
+              if (auraAssets) {
+                setPatientAuraManifestState(auraAssets);
+                setPatientAuraManifest(patientName, auraAssets);
+              }
+              setOverrideGlbUrl(videoUrl);
+              setScanState({ phase: "done", videoUrl });
+              setMode("3d");
+              setViewportExpanded(true);
+              onScanGenerated?.({ videoUrl, auraAssets });
+              const savedAuraAssets = auraAssets;
+              if (airtableRecordId && airtableTableName) {
+                fetch(`${SCAN_API}/api/scan/save-video`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    jobId,
+                    recordId: airtableRecordId,
+                    tableName: airtableTableName,
+                  }),
                 })
-                .catch(() => { /* non-fatal */ });
+                  .then((r) => r.json())
+                  .then(
+                    (saved: {
+                      videoUrl?: string;
+                      auraAssets?: PatientAuraAssetManifest;
+                    }) => {
+                      if (saved.auraAssets) {
+                        setPatientAuraManifestState(saved.auraAssets);
+                        setPatientAuraManifest(patientName, saved.auraAssets);
+                      }
+                      if (saved.videoUrl) {
+                        setOverrideGlbUrl(saved.videoUrl);
+                        onScanGenerated?.({
+                          videoUrl: saved.videoUrl,
+                          auraAssets: saved.auraAssets ?? savedAuraAssets,
+                        });
+                      }
+                    },
+                  )
+                  .catch(() => {
+                    /* non-fatal */
+                  });
+              }
             }
+          } else if (d.status === "error") {
+            stopPolling();
+            if (airtableRecordId) clearPersistedJob(airtableRecordId);
+            setScanState({
+              phase: "error",
+              message: d.error ?? "Unknown error",
+            });
+          } else {
+            if (d.videoUrl) {
+              applyPreviewVideo(d.videoUrl);
+            }
+            if (d.auraAssets) {
+              const partialAura = d.auraAssets as PatientAuraAssetManifest;
+              setPatientAuraManifestState(partialAura);
+              setPatientAuraManifest(patientName, partialAura);
+            }
+            setScanState({
+              phase: "running",
+              jobId,
+              progress: d.progress ?? 0,
+              message: d.message ?? "Working…",
+              remaining: d.remaining ?? 0,
+            });
           }
-        } else if (d.status === "error") {
-          stopPolling();
-          if (airtableRecordId) clearPersistedJob(airtableRecordId);
-          setScanState({ phase: "error", message: d.error ?? "Unknown error" });
-        } else {
-          setScanState({
-            phase: "running",
-            jobId,
-            progress: d.progress ?? 0,
-            message: d.message ?? "Working…",
-            remaining: d.remaining ?? 0,
-          });
+        } catch {
+          // transient network error — keep polling
         }
-      } catch {
-        // transient network error — keep polling
-      }
-    }, 2500);
-  }, [SCAN_API, stopPolling, airtableRecordId, airtableTableName, onScanGenerated, patientName]);
+      }, 1000);
+    },
+    [
+      SCAN_API,
+      stopPolling,
+      airtableRecordId,
+      airtableTableName,
+      onScanGenerated,
+      patientName,
+      applyPreviewVideo,
+    ],
+  );
 
   /** Submit photos to /api/scan/submit, then poll for progress. */
-  const startScan = useCallback(async () => {
+  const startScan = useCallback(async (qualityOverride?: ScanQuality) => {
+    const quality = qualityOverride ?? scanQuality;
+    previewVideoUrlRef.current = null;
     setScanState({ phase: "submitting" });
 
     const photoMap = mapSlotsToModalPhotos(angleSlots);
     if (Object.keys(photoMap).length === 0) {
-      setScanState({ phase: "error", message: "No photos available to submit." });
+      setScanState({
+        phase: "error",
+        message: "No photos available to submit.",
+      });
       return;
     }
+
+    // Resolve relative URLs to absolute so the Modal pipeline can download them.
+    const absolutePhotoMap = Object.fromEntries(
+      Object.entries(photoMap).map(([key, url]) => [
+        key,
+        url.startsWith("http") ? url : new URL(url, window.location.href).href,
+      ]),
+    );
 
     let jobId: string;
     let estimatedSeconds: number;
@@ -901,13 +1039,20 @@ export default function FaceMirrorPanel({
       const res = await fetch(`${SCAN_API}/api/scan/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientName: patientName, quality: scanQuality, photos: photoMap }),
+        body: JSON.stringify({
+          clientName: patientName,
+          quality,
+          photos: absolutePhotoMap,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: res.statusText }));
         throw new Error((body as { error?: string }).error ?? res.statusText);
       }
-      const data = await res.json() as { jobId: string; estimatedSeconds: number };
+      const data = (await res.json()) as {
+        jobId: string;
+        estimatedSeconds: number;
+      };
       jobId = data.jobId;
       estimatedSeconds = data.estimatedSeconds ?? 420;
     } catch (err) {
@@ -915,15 +1060,33 @@ export default function FaceMirrorPanel({
       return;
     }
 
-    setScanState({ phase: "running", jobId, progress: 0.01, message: "Starting…", remaining: estimatedSeconds });
+    setScanState({
+      phase: "running",
+      jobId,
+      progress: 0.01,
+      message: "Starting…",
+      remaining: estimatedSeconds,
+    });
 
     // Persist so the job survives page navigations
     if (airtableRecordId) {
-      savePersistedJob(airtableRecordId, { jobId, quality: scanQuality, estimatedSeconds, startedAt: Date.now() });
+      savePersistedJob(airtableRecordId, {
+        jobId,
+        quality,
+        estimatedSeconds,
+        startedAt: Date.now(),
+      });
     }
 
     startPolling(jobId);
-  }, [angleSlots, patientName, scanQuality, SCAN_API, airtableRecordId, startPolling]);
+  }, [
+    angleSlots,
+    patientName,
+    scanQuality,
+    SCAN_API,
+    airtableRecordId,
+    startPolling,
+  ]);
 
   // Resume an in-progress scan after remount (e.g. user navigated away and came back)
   const resumeAttemptedRef = useRef(false);
@@ -935,7 +1098,13 @@ export default function FaceMirrorPanel({
     const ageSec = (Date.now() - saved.startedAt) / 1000;
     const remaining = Math.max(0, saved.estimatedSeconds - ageSec);
     setScanQuality(saved.quality);
-    setScanState({ phase: "running", jobId: saved.jobId, progress: 0.05, message: "Reconnecting…", remaining });
+    setScanState({
+      phase: "running",
+      jobId: saved.jobId,
+      progress: 0.05,
+      message: "Reconnecting…",
+      remaining,
+    });
     startPolling(saved.jobId);
   }, [airtableRecordId, startPolling]);
 
@@ -966,14 +1135,34 @@ export default function FaceMirrorPanel({
     >
       {viewportExpanded ? (
         <>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
             <path d="M5 5 12 12M19 5 12 12M19 19 12 12M5 19 12 12" />
           </svg>
           Hide analysis
         </>
       ) : (
         <>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
             <path d="M15 3h6v6" />
             <path d="M9 21H3v-6" />
             <path d="M21 15v6h-6" />
@@ -986,23 +1175,27 @@ export default function FaceMirrorPanel({
   );
 
   const auraExpandedTopbarEnd =
-    useAuraScan && viewportExpanded ? expandAnalysisButton : undefined;
+    useAuraView && viewportExpanded ? expandAnalysisButton : undefined;
 
-  const scanning = scanState.phase === "running" || scanState.phase === "submitting";
+  const scanning =
+    scanState.phase === "running" || scanState.phase === "submitting";
 
   const showOverlayToolbar =
     (has3D || hasPhoto || canGenerate) &&
-    !(useAuraScan && viewportExpanded && !scanning);
+    // For bundled-demo patients (Tanya) collapse the toolbar chrome in the
+    // expanded analysis view; real patients always need the toolbar so they
+    // can regenerate their scan.
+    !(clientUsesAuraScan(patientName) && viewportExpanded && !scanning);
 
   const toolbar = (
     <div className="fmp-toolbar">
       <div className="fmp-toolbar-start">
-        {useAuraScan && !has3D ? (
+        {useAuraView && !has3D && !hasAuraManifestPhotos ? (
           <span className="fmp-aura-badge" title="3D turntable scan">
             3D scan
           </span>
         ) : null}
-        {has3D && !useAuraScan && scanState.phase !== "running" && (
+        {has3D && !useAuraView && scanState.phase !== "running" && (
           <div className="fmp-mode-tabs" role="tablist" aria-label="View mode">
             <button
               role="tab"
@@ -1010,7 +1203,15 @@ export default function FaceMirrorPanel({
               className={`fmp-tab${mode === "3d" ? " fmp-tab--active" : ""}`}
               onClick={() => setMode("3d")}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden
+              >
                 <path d="M12 2L2 7l10 5 10-5-10-5z" />
                 <path d="M2 17l10 5 10-5" />
                 <path d="M2 12l10 5 10-5" />
@@ -1023,7 +1224,15 @@ export default function FaceMirrorPanel({
               className={`fmp-tab${mode === "photo" ? " fmp-tab--active" : ""}`}
               onClick={() => setMode("photo")}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden
+              >
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
@@ -1033,14 +1242,41 @@ export default function FaceMirrorPanel({
           </div>
         )}
 
-        {/* Progress bar when scan is running */}
+        {showToolbarAnglePicker ? (
+          <>
+            {has3D && !useAuraView ? (
+              <span className="fmp-toolbar-divider" aria-hidden />
+            ) : null}
+            <div
+              className="fmp-mode-tabs"
+              role="tablist"
+              aria-label="Photo angle"
+            >
+              {simplifiedSlots.map((slot, i) => (
+                <button
+                  key={`${slot.url}-${i}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === angleIdx}
+                  className={`fmp-tab${i === angleIdx ? " fmp-tab--active" : ""}`}
+                  onClick={() => setAngleIdx(i)}
+                >
+                  {slot.label}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
+
         {scanning && (
           <div className="fmp-scan-progress-bar-wrap">
             <div
               className="fmp-scan-progress-bar"
               style={{
                 width: `${Math.round(
-                  (scanState.phase === "submitting" ? 0.02 : (scanState as { progress: number }).progress) * 100,
+                  (scanState.phase === "submitting"
+                    ? 0.02
+                    : (scanState as { progress: number }).progress) * 100,
                 )}%`,
               }}
             />
@@ -1052,52 +1288,163 @@ export default function FaceMirrorPanel({
           </div>
         )}
 
-        {/* Generate button when no 3D and not already scanning */}
-        {canGenerate && !has3D && !scanning && scanState.phase !== "config" && (
-          <button
-            type="button"
-            className="fmp-generate-3d-btn"
-            onClick={() => setScanState({ phase: "config" })}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-            Generate 3D Scan
-          </button>
-        )}
+        {GENERATE_3D_SCAN_ENABLED &&
+          angleSlots.length > 0 &&
+          !clientUsesAuraScan(patientName) &&
+          !scanning &&
+          scanState.phase !== "config" && (
+            <button
+              type="button"
+              className={
+                has3D ? "fmp-regenerate-3d-btn" : "fmp-generate-3d-btn"
+              }
+              onClick={() => {
+                setScanState({ phase: "config" });
+              }}
+              title={has3D ? "Generate a new 3D scan" : "Generate 3D scan"}
+            >
+              {has3D ? (
+                <>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 .49-3.93" />
+                  </svg>
+                  Regenerate
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden
+                  >
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                  </svg>
+                  Generate 3D Scan
+                </>
+              )}
+            </button>
+          )}
 
-        {/* Regenerate button when a 3D scan already exists */}
-        {has3D && !useAuraScan && angleSlots.length > 0 && !scanning && scanState.phase !== "config" && (
+        {useAuraView && showToolbarGallery && !scanning ? (
           <button
             type="button"
             className="fmp-regenerate-3d-btn"
-            onClick={() => setScanState({ phase: "config" })}
-            title="Generate a new 3D scan at a different quality"
+            onClick={() => openPatientPhotosSafe(photoModalInitialTab)}
+            title="All photos and originals"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <polyline points="1 4 1 10 7 10" />
-              <path d="M3.51 15a9 9 0 1 0 .49-3.93" />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
-            Regenerate
+            Photos
           </button>
-        )}
+        ) : null}
 
-        {/* Error state */}
         {scanState.phase === "error" && (
           <span className="fmp-scan-error-label" title={scanState.message}>
-            Scan failed — <button type="button" className="fmp-scan-retry-link" onClick={() => setScanState({ phase: "idle" })}>retry</button>
+            Scan failed —{" "}
+            <button
+              type="button"
+              className="fmp-scan-retry-link"
+              onClick={() => setScanState({ phase: "idle" })}
+            >
+              retry
+            </button>
           </span>
         )}
       </div>
 
       <div className="fmp-toolbar-end">
         {scanning && (
-          <button type="button" className="fmp-fullscreen-btn" onClick={cancelScan}>
+          <button
+            type="button"
+            className="fmp-fullscreen-btn"
+            onClick={cancelScan}
+          >
             Cancel
           </button>
         )}
+
+        {!useAuraView && showToolbarTools ? (
+          <div className="fmp-toolbar-tools" aria-label="View tools">
+            {showToolbarRegions ? (
+              <FaceMirrorRegionsPicker
+                variant="toolbar"
+                manualHighlightedRegionIds={manualHighlightedRegionIds}
+                onSetManualHighlightedRegionIds={setManualHighlightedRegionIds}
+                onToggleAnnotationRegionHighlight={
+                  toggleAnnotationRegionHighlight
+                }
+              />
+            ) : null}
+            {showToolbarRotate ? (
+              <button
+                type="button"
+                className={`fmp-toolbar-tool-btn${autoRotate3d ? " fmp-toolbar-tool-btn--active" : ""}`}
+                onClick={toggleAutoRotate3d}
+                aria-pressed={autoRotate3d}
+                title={
+                  autoRotate3d ? "Pause auto-rotate" : "Auto-rotate 3D view"
+                }
+              >
+                <AutoRotateHeadIcon size={14} />
+                Rotate
+              </button>
+            ) : null}
+            {showToolbarGallery ? (
+              <button
+                type="button"
+                className="fmp-toolbar-tool-btn"
+                onClick={() => openPatientPhotosSafe(photoModalInitialTab)}
+                title="All photos and originals"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                Photos
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         {!auraExpandedTopbarEnd ? expandAnalysisButton : null}
       </div>
     </div>
@@ -1111,75 +1458,114 @@ export default function FaceMirrorPanel({
     highlightTerms: highlightTermsForView,
     highlightedRegionIds: manualRegionsForView,
     showAnnotations: hasAnnotations,
-    showPatientPhotoGallery,
-    onOpenPatientPhotos,
-    openPatientPhotosSafe,
-    photoModalInitialTab,
-    simplifiedSlots,
-    angleIdx,
-    setAngleIdx,
-    showAnglePicker,
   };
 
-  const viewer3D = effectiveVideoUrl ? (
-    useAuraScan ? (
+  const auraViewerFraming = useMemo(
+    () => ({
+      initialZoom: patientAuraManifest?.viewerTurntableZoom,
+      photoInitialZoom: patientAuraManifest?.viewerPhotoZoom,
+      initialPanY: patientAuraManifest?.viewerInitialPanY,
+    }),
+    [patientAuraManifest],
+  );
+
+  // Shared AuraFaceView props — used for both turntable and photos-only modes.
+  const auraFaceViewProps = {
+    embedded: true as const,
+    viewerAngleAssets: viewerAngleAssets,
+    useBundledCvAnnotations: clientUsesAuraScan(patientName),
+    cvAnnotations: patientAuraManifest?.cvAnnotations,
+    availableViewAngles: availableViewAngles,
+    ...auraViewerFraming,
+    highlightTerms: highlightTermsForView,
+    highlightedRegionIds: manualRegionsForView,
+    overviewCategory: useAuraExpandedAnalysis ? auraActiveCategory : undefined,
+    onOverviewCategoryChange: useAuraExpandedAnalysis
+      ? setAuraActiveCategory
+      : undefined,
+    activeSkinLens: useAuraExpandedAnalysis ? auraActiveSkinLens : undefined,
+    onActiveSkinLensChange: useAuraExpandedAnalysis
+      ? setAuraActiveSkinLens
+      : undefined,
+    annotateStrokes: annotateStrokes,
+    onAnnotateStrokesChange: setAnnotateStrokes,
+    onAnnotateSave: analysisOverviewClient ? handleSaveAnnotation : undefined,
+    regionPicker: useAuraView
+      ? {
+          manualHighlightedRegionIds,
+          onSetManualHighlightedRegionIds: setManualHighlightedRegionIds,
+          onToggleAnnotationRegionHighlight: toggleAnnotationRegionHighlight,
+        }
+      : undefined,
+    topbarEnd: auraExpandedTopbarEnd,
+  };
+
+  const viewer3D =
+    useAuraView && !has3D ? (
+      // Photos-only Aura view: no turntable video, show angle stills with annotation overlays.
       <AuraFaceView
-        embedded
-        turntableOnly
-        videoUrl={effectiveVideoUrl}
-        textureVideoUrl={
-          clientUsesAuraScan(patientName)
-            ? undefined
-            : patientAuraManifest?.textureVideoUrl
-        }
-        pigmentationVideoUrl={
-          clientUsesAuraScan(patientName)
-            ? undefined
-            : patientAuraManifest?.pigmentationVideoUrl
-        }
-        viewerAngleAssets={viewerAngleAssets}
-        useBundledCvAnnotations={clientUsesAuraScan(patientName)}
-        cvAnnotations={patientAuraManifest?.cvAnnotations}
-        disableDemoTurntableFallback={patientGeneratedAura}
-        availableViewAngles={availableViewAngles}
-        highlightTerms={highlightTermsForView}
-        highlightedRegionIds={manualRegionsForView}
-        overviewCategory={
-          useAuraExpandedAnalysis ? auraActiveCategory : undefined
-        }
-        onOverviewCategoryChange={
-          useAuraExpandedAnalysis ? setAuraActiveCategory : undefined
-        }
-        annotateStrokes={annotateStrokes}
-        onAnnotateStrokesChange={setAnnotateStrokes}
-        onAnnotateSave={analysisOverviewClient ? handleSaveAnnotation : undefined}
-        regionPicker={
-          useAuraScan
-            ? {
-                manualHighlightedRegionIds,
-                onSetManualHighlightedRegionIds: setManualHighlightedRegionIds,
-                onToggleAnnotationRegionHighlight: toggleAnnotationRegionHighlight,
-              }
-            : undefined
-        }
-        topbarEnd={auraExpandedTopbarEnd}
+        {...auraFaceViewProps}
+        turntableOnly={false}
+        videoUrl=""
+        disableDemoTurntableFallback
       />
-    ) : (
-      <Face3DViewer
-        videoUrl={effectiveVideoUrl}
-        autoRotate={autoRotate3d}
-        showAnnotations={hasAnnotations}
-        highlightTerms={highlightTermsForView}
-        highlightedAnnotationRegionIds={manualRegionsForView}
-        initialZoom={1.75}
-        initialPanY={-88}
-      />
-    )
-  ) : null;
+    ) : effectiveVideoUrl ? (
+      useAuraView ? (
+        <AuraFaceView
+          {...auraFaceViewProps}
+          turntableOnly
+          videoUrl={effectiveVideoUrl}
+          textureVideoUrl={
+            clientUsesAuraScan(patientName)
+              ? undefined
+              : patientAuraManifest?.textureVideoUrl
+          }
+          pigmentationVideoUrl={
+            clientUsesAuraScan(patientName)
+              ? undefined
+              : patientAuraManifest?.pigmentationVideoUrl
+          }
+          rednessVideoUrl={
+            clientUsesAuraScan(patientName)
+              ? undefined
+              : patientAuraManifest?.rednessVideoUrl
+          }
+          poresVideoUrl={
+            clientUsesAuraScan(patientName)
+              ? undefined
+              : patientAuraManifest?.poresVideoUrl
+          }
+          wrinklesVideoUrl={
+            clientUsesAuraScan(patientName)
+              ? undefined
+              : patientAuraManifest?.wrinklesVideoUrl
+          }
+          disableDemoTurntableFallback={patientGeneratedAura}
+        />
+      ) : (
+        <Face3DViewer
+          videoUrl={effectiveVideoUrl}
+          autoRotate={autoRotate3d}
+          showAnnotations={hasAnnotations}
+          highlightTerms={highlightTermsForView}
+          highlightedAnnotationRegionIds={manualRegionsForView}
+          initialZoom={1.75}
+          initialPanY={-88}
+        />
+      )
+    ) : null;
 
   const placeholderEl = (
     <div className="fmp-placeholder">
-      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="1.5" aria-hidden>
+      <svg
+        width="56"
+        height="56"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#999"
+        strokeWidth="1.5"
+        aria-hidden
+      >
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />
       </svg>
@@ -1190,18 +1576,18 @@ export default function FaceMirrorPanel({
   // --- Render ---
   return (
     <div
-      className={`fmp-root${viewportExpanded ? " fmp-root--viewport-expanded" : ""}${useAuraScan ? " fmp-root--aura" : ""}`}
+      className={`fmp-root${viewportExpanded ? " fmp-root--viewport-expanded" : ""}${useAuraView ? " fmp-root--aura" : ""}`}
     >
       {/* Toolbar: expand always available; Aura collapsed hides extra chrome via CSS */}
       {(has3D || hasPhoto || canGenerate) && showOverlayToolbar && toolbar}
 
       {/* Config sheet: slides in between toolbar and body */}
-      {scanState.phase === "config" && (
+      {GENERATE_3D_SCAN_ENABLED && scanState.phase === "config" && (
         <ScanConfigPanel
           slots={angleSlots}
           quality={scanQuality}
           onQualityChange={setScanQuality}
-          onStart={startScan}
+          onStart={() => startScan()}
           onCancel={() => setScanState({ phase: "idle" })}
           submitting={false}
         />
@@ -1215,31 +1601,44 @@ export default function FaceMirrorPanel({
             {mode === "photo" && hasPhoto && activePhotoUrl ? (
               <div className="fmp-fullscreen-split-photo fmp-fullscreen-split-face">
                 <div className="fmp-fullscreen-split-photo-inner fmp-canvas-area">
-                  <FaceMirrorViewportShell {...viewportOverlayProps}>
-                    <FaceMirrorPhotoStage {...photoStageProps} wrapClassName="fmp-photo-stage--in-expanded-split" />
+                  <FaceMirrorViewportShell>
+                    <FaceMirrorPhotoStage
+                      {...photoStageProps}
+                      wrapClassName="fmp-photo-stage--in-expanded-split"
+                    />
                   </FaceMirrorViewportShell>
                 </div>
               </div>
             ) : mode === "3d" && effectiveVideoUrl ? (
               <div className="fmp-fullscreen-split-3d fmp-fullscreen-split-face">
                 <div className="fmp-fullscreen-split-3d-inner fmp-canvas-area fmp-canvas-area--3d">
-                  <FaceMirrorViewportShell {...viewportOverlayProps}>
-                    {viewer3D}
-                  </FaceMirrorViewportShell>
+                  <FaceMirrorViewportShell>{viewer3D}</FaceMirrorViewportShell>
                 </div>
               </div>
             ) : (
               <div className="fmp-fullscreen-split-placeholder fmp-canvas-area fmp-fullscreen-split-face">
                 <div className="fmp-placeholder">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="1.5" aria-hidden>
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#999"
+                    strokeWidth="1.5"
+                    aria-hidden
+                  >
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
-                  <p>{mode === "photo" ? "No photo available" : "No 3D preview"}</p>
+                  <p>
+                    {mode === "photo" ? "No photo available" : "No 3D preview"}
+                  </p>
                 </div>
               </div>
             )}
-            <div className={`fmp-fullscreen-split-overview${overviewSoloSpan ? " fmp-fullscreen-split-overview--solo" : ""}`}>
+            <div
+              className={`fmp-fullscreen-split-overview${overviewSoloSpan ? " fmp-fullscreen-split-overview--solo" : ""}`}
+            >
               <div className="fmp-fullscreen-split-overview-main">
                 <AnalysisOverviewModal
                   embedded
@@ -1247,7 +1646,9 @@ export default function FaceMirrorPanel({
                   onClose={() => setViewportExpanded(false)}
                   onAddToPlanDirect={analysisOverviewOnAddToPlanDirect}
                   auraBridge={auraBridge}
-                  onOpenTreatmentRecommender={analysisOverviewOnOpenTreatmentRecommender}
+                  onOpenTreatmentRecommender={
+                    analysisOverviewOnOpenTreatmentRecommender
+                  }
                 />
               </div>
               {expandedLowerRightContent ? (
@@ -1258,25 +1659,26 @@ export default function FaceMirrorPanel({
             </div>
           </div>
         ) : (
-          <div className={`fmp-canvas-area${mode === "3d" && has3D ? " fmp-canvas-area--3d" : ""}`}>
-            {mode === "photo" && (
-              hasPhoto && activePhotoUrl
-                ? (
-                  <FaceMirrorViewportShell {...viewportOverlayProps}>
-                    <FaceMirrorPhotoStage {...photoStageProps} />
-                  </FaceMirrorViewportShell>
-                )
-                : placeholderEl
-            )}
+          <div
+            className={`fmp-canvas-area${mode === "3d" && has3D ? " fmp-canvas-area--3d" : ""}`}
+          >
+            {mode === "photo" &&
+              (hasPhoto && activePhotoUrl ? (
+                <FaceMirrorViewportShell>
+                  <FaceMirrorPhotoStage {...photoStageProps} />
+                </FaceMirrorViewportShell>
+              ) : (
+                placeholderEl
+              ))}
             {mode === "3d" && has3D && (
-              <FaceMirrorViewportShell {...viewportOverlayProps}>
-                {viewer3D}
-              </FaceMirrorViewportShell>
+              <FaceMirrorViewportShell>{viewer3D}</FaceMirrorViewportShell>
             )}
           </div>
         )}
       </div>
-      {showFsAnalysisOverview && onOpenPlanBuilder && !expandedLowerRightContent ? (
+      {showFsAnalysisOverview &&
+      onOpenPlanBuilder &&
+      !expandedLowerRightContent ? (
         <button
           type="button"
           className="fmp-planbuilder-launcher"

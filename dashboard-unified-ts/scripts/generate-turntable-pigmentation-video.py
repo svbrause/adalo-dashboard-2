@@ -23,6 +23,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_INPUT = ROOT / "src/assets/images/turntable_2048_black.mp4"
 DEFAULT_GRAY = ROOT / "src/assets/images/turntable_2048_black_pigmentation_gray.mp4"
 DEFAULT_BROWN = ROOT / "src/assets/images/turntable_2048_black_pigmentation_brown.mp4"
+DEFAULT_WRINKLES_1024 = ROOT / "src/assets/images/turntable_1024_black_wrinkles_scrub.mp4"
+DEFAULT_INPUT_1024 = ROOT / "src/assets/images/turntable_1024_black_scrub.mp4"
 
 LUMINANCE_VISIBLE_THRESH = 10
 
@@ -121,12 +123,17 @@ def neck_fade_visible(visible: np.ndarray) -> np.ndarray:
     return out
 
 
-def composite_matte(rgb: np.ndarray, subject: np.ndarray) -> np.ndarray:
+def composite_matte(rgb: np.ndarray, subject: np.ndarray, *, turntable_fast: bool = False) -> np.ndarray:
     """Alpha matte for gray/brown encode on pure black."""
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-    person = person_alpha(rgb)
     raw = neck_fade_visible(raw_turntable_visible(gray))
     subj = np.clip(subject.astype(np.float32) / 255.0, 0, 1)
+
+    if turntable_fast:
+        # FaceLift turntable on a black plate — luminance matte only (skip GrabCut per frame).
+        return np.clip(np.maximum(subj, raw), 0, 1)
+
+    person = person_alpha(rgb)
 
     if is_flat_studio_backdrop(gray, person):
         # Intake photo on a gray seamless — drop backdrop via GrabCut matte.
@@ -283,13 +290,15 @@ def bake_cv_spots(
     *,
     angle: str,
     palette: str,
+    person_u8: np.ndarray | None = None,
 ) -> np.ndarray:
     """Stamp detect_pigment_spots ellipses into the gray texture."""
     if palette != "gray":
         return out
 
     aura = _aura_assets()
-    person_u8 = (person_alpha(rgb) * 255).astype(np.uint8)
+    if person_u8 is None:
+        person_u8 = (person_alpha(rgb) * 255).astype(np.uint8)
     spots = aura.detect_pigment_spots(rgb, person_u8, angle=angle, max_spots=36)
     if not spots:
         return out
@@ -339,21 +348,144 @@ def infer_turntable_angle(index: int, total: int) -> str:
     return "front"
 
 
-def process_frame(bgr: np.ndarray, palette: str, *, angle: str = "front") -> np.ndarray:
+def _redness_frame(bgr: np.ndarray) -> np.ndarray:
+    """Bake redness detection into a single turntable frame (black background)."""
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    # Visible-pixel mask: turntable has pure black background.
+    visible = np.clip(cv2.GaussianBlur((gray > 22).astype(np.float32), (0, 0), 2.0), 0, 1)
+    valid = visible > 0.25
+    if int(valid.sum()) < 400:
+        return bgr
+    lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB)
+    a_chan = lab[:, :, 1].astype(np.float32)
+    thresh = float(np.percentile(a_chan[valid], 65))
+    peak = float(np.percentile(a_chan[valid], 99))
+    heat = np.clip((a_chan - thresh) / max(peak - thresh, 1e-3), 0, 1) * visible
+    heat = cv2.GaussianBlur(heat, (0, 0), 4.0)
+    eff = np.clip(heat * 0.80, 0, 0.70)
+    result = rgb.astype(np.float32)
+    result[:, :, 0] = np.clip(rgb[:, :, 0] * (1 - eff * 0.08) + 215 * eff * 0.92, 0, 255)
+    result[:, :, 1] = np.clip(rgb[:, :, 1] * (1 - eff * 0.66) + 55 * eff * 0.34, 0, 255)
+    result[:, :, 2] = np.clip(rgb[:, :, 2] * (1 - eff * 0.62) + 45 * eff * 0.38, 0, 255)
+    # Keep pure-black background untouched.
+    bg_mask = (1 - visible)[:, :, None]
+    result = result * (1 - bg_mask)
+    return cv2.cvtColor(np.clip(result, 0, 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
+
+
+def _pores_frame(bgr: np.ndarray) -> np.ndarray:
+    """Bake pore detection into a single turntable frame (black background)."""
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    visible = np.clip(cv2.GaussianBlur((gray > 22).astype(np.float32), (0, 0), 2.0), 0, 1)
+    valid = visible > 0.25
+    if int(valid.sum()) < 400:
+        return bgr
+    local_avg = cv2.GaussianBlur(gray, (0, 0), 4.0)
+    darkness = np.maximum(local_avg - gray, 0.0) * visible
+    thresh = float(np.percentile(darkness[valid], 65))
+    peak = float(np.percentile(darkness[valid], 99))
+    heat = np.clip((darkness - thresh) / max(peak - thresh, 1e-3), 0, 1) * visible
+    heat = cv2.GaussianBlur(heat, (0, 0), 1.5)
+    eff = np.clip(heat * 1.40, 0, 0.82)
+    # Use neutral grayscale base (avoids colour artifacts from clinical processing).
+    gray_rgb = np.stack([gray, gray, gray], axis=-1)
+    lightness = (1 - eff * 0.82)[:, :, None]
+    result = gray_rgb * lightness * visible[:, :, None]
+    return cv2.cvtColor(np.clip(result, 0, 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
+
+
+def _wrinkle_frame(bgr: np.ndarray, angle: str) -> np.ndarray:
+    """Bake wrinkle/crease detection into a turntable frame (black background).
+
+    Uses blackhat morphology on the luminance channel — fully per-pixel, no
+    landmark detection required, so it works at every turntable angle and never
+    flickers from failed face detection.  Creases appear as blue-grey lines
+    consistent with the still-photo wrinkle palette.
+    """
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    # Visible-pixel mask — turntable has pure black background.
+    visible = np.clip(cv2.GaussianBlur((gray > 22).astype(np.float32), (0, 0), 2.0), 0, 1)
+    valid = visible > 0.25
+    if int(valid.sum()) < 400:
+        return bgr
+
+    # ---- Blackhat morphology: detects dark linear creases as bright response ----
+    # Blackhat = closing(I) - I  →  highlights dark structures smaller than the kernel.
+    k_size = max(7, min(gray.shape[:2]) // 50)
+    if k_size % 2 == 0:
+        k_size += 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_size, k_size))
+    closed = cv2.morphologyEx(gray.astype(np.uint8), cv2.MORPH_CLOSE, kernel)
+    blackhat = np.maximum(closed.astype(np.float32) - gray, 0.0) * visible
+
+    # Also detect creases on the Cb channel (skin tone shifts at wrinkles).
+    yuv = cv2.cvtColor(rgb, cv2.COLOR_RGB2YUV).astype(np.float32)
+    cb = yuv[:, :, 1]
+    cb_blackhat = np.maximum(
+        cv2.morphologyEx(cb.astype(np.uint8), cv2.MORPH_CLOSE, kernel).astype(np.float32) - cb, 0.0
+    ) * visible
+
+    # Combine and normalise within the face region.
+    crease_signal = blackhat * 0.7 + cb_blackhat * 0.3
+    if int(valid.sum()) > 0:
+        thr = float(np.percentile(crease_signal[valid], 70))
+        peak = float(np.percentile(crease_signal[valid], 98))
+    else:
+        return bgr
+    heat = np.clip((crease_signal - thr) / max(peak - thr, 1e-3), 0, 1) * visible
+
+    # Light blur for smooth lines (no staircasing).
+    heat = cv2.GaussianBlur(heat, (0, 0), 1.2)
+    eff = np.clip(heat * 1.6, 0, 0.78)
+
+    # Render: keep original skin colours, paint creases in blue-grey.
+    # Crease colour matches wrinkle_cutout_render.py (48, 62, 82 in RGB).
+    crease_rgb = np.array([48.0, 62.0, 82.0], dtype=np.float32)
+    base = rgb.astype(np.float32) * visible[:, :, None]
+    result = base * (1 - eff[:, :, None]) + crease_rgb * eff[:, :, None]
+    return cv2.cvtColor(np.clip(result, 0, 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
+
+
+def process_frame(
+    bgr: np.ndarray,
+    palette: str,
+    *,
+    angle: str = "front",
+    turntable_fast: bool = False,
+) -> np.ndarray:
+    # Redness and pores are baked per-frame directly from the colour turntable;
+    # they don't use the clinical skin-segmentation pipeline below.
+    if palette == "redness":
+        return _redness_frame(bgr)
+    if palette == "pores":
+        return _pores_frame(bgr)
+    if palette == "wrinkles":
+        return _wrinkle_frame(bgr, angle)
+
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
     subj = subject_mask(rgb)
-    matte = composite_matte(rgb, subj)
+    matte = composite_matte(rgb, subj, turntable_fast=turntable_fast)
     skin = skin_mask(rgb, subj)
     base = clinical_base(rgb, matte, palette).astype(np.float32)
     overlay, alpha = pigment_overlay(rgb, skin, palette)
     out = base * (1 - alpha[:, :, None]) + overlay.astype(np.float32) * alpha[:, :, None]
-    out = bake_cv_spots(out, rgb, matte, angle=angle, palette=palette)
+    out = bake_cv_spots(
+        out,
+        rgb,
+        matte,
+        angle=angle,
+        palette=palette,
+        person_u8=subj if turntable_fast else None,
+    )
     # Composite on pure black; matte follows raw turntable visibility (profile nose intact).
     out = out * matte[:, :, None]
     return cv2.cvtColor(np.clip(out, 0, 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
 
 
-def process_video(src: Path, out: Path, palette: str) -> None:
+def process_video(src: Path, out: Path, palette: str, *, turntable_fast: bool = True, ping_pong: bool = False) -> None:
     cap = cv2.VideoCapture(str(src))
     if not cap.isOpened():
         raise FileNotFoundError(src)
@@ -374,35 +506,49 @@ def process_video(src: Path, out: Path, palette: str) -> None:
         ok, frame = cap.read()
         if not ok:
             break
-        writer.write(process_frame(frame, palette, angle=infer_turntable_angle(index, total)))
+        writer.write(
+            process_frame(
+                frame,
+                palette,
+                angle=infer_turntable_angle(index, total),
+                turntable_fast=turntable_fast,
+            )
+        )
         index += 1
         if total and index % 20 == 0:
             print(f"{palette}: {index}/{total} frames", flush=True)
 
     cap.release()
     writer.release()
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-v",
-            "error",
-            "-i",
-            str(tmp_path),
-            "-c:v",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-profile:v",
-            "high",
-            "-level",
-            "5.2",
-            "-movflags",
-            "+faststart",
-            str(out),
-        ],
-        check=True,
-    )
+    if ping_pong:
+        # Stitch forward + reversed frames in one encode from the lossless temp.
+        # All-keyframes so the backward half is instantly seekable.
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-v", "error",
+                "-i", str(tmp_path),
+                "-filter_complex", "[0:v]reverse[r];[0:v][r]concat=n=2:v=1[out]",
+                "-map", "[out]",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                "-profile:v", "high", "-level", "5.2",
+                "-g", "1", "-keyint_min", "1", "-sc_threshold", "0",
+                "-movflags", "+faststart",
+                str(out),
+            ],
+            check=True,
+        )
+    else:
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-v", "error",
+                "-i", str(tmp_path),
+                "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                "-profile:v", "high", "-level", "5.2",
+                "-movflags", "+faststart",
+                str(out),
+            ],
+            check=True,
+        )
     tmp_path.unlink(missing_ok=True)
     print(f"Wrote {out}", flush=True)
 
@@ -410,7 +556,11 @@ def process_video(src: Path, out: Path, palette: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
-    parser.add_argument("--palette", choices=("gray", "brown", "both"), default="gray")
+    parser.add_argument(
+        "--palette",
+        choices=("gray", "brown", "redness", "pores", "wrinkles", "both"),
+        default="gray",
+    )
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
 
@@ -419,10 +569,16 @@ def main() -> None:
         process_video(src, DEFAULT_GRAY, "gray")
         process_video(src, DEFAULT_BROWN, "brown")
     else:
-        default_out = DEFAULT_BROWN if args.palette == "brown" else DEFAULT_GRAY
+        default_out = {
+            "brown": DEFAULT_BROWN,
+            "redness": ROOT / "src/assets/images/turntable_1024_black_redness_scrub.mp4",
+            "pores": ROOT / "src/assets/images/turntable_1024_black_pores_scrub.mp4",
+            "wrinkles": DEFAULT_WRINKLES_1024,
+        }.get(args.palette, DEFAULT_GRAY)
         out = args.output if args.output else default_out
         out = out if out.is_absolute() else ROOT / out
-        process_video(src, out, args.palette)
+        src_use = DEFAULT_INPUT_1024 if args.palette in ("redness", "pores", "wrinkles") else src
+        process_video(src_use, out, args.palette, ping_pong=args.palette == "wrinkles")
 
 
 if __name__ == "__main__":

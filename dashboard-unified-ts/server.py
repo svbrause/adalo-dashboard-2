@@ -57,10 +57,10 @@ PUBLIC_3D.mkdir(parents=True, exist_ok=True)
 # Quality presets
 # ---------------------------------------------------------------------------
 QUALITY_PRESETS: dict[str, dict[str, Any]] = {
-    "ultra":    {"step_2d": 8,   "estimated": 55},
-    "draft":    {"step_2d": 30,  "estimated": 120},
-    "standard": {"step_2d": 62,  "estimated": 210},
-    "high":     {"step_2d": 100, "estimated": 330},
+    "ultra":    {"step_2d": 8,   "estimated": 180},
+    "draft":    {"step_2d": 30,  "estimated": 480},
+    "standard": {"step_2d": 62,  "estimated": 600},
+    "high":     {"step_2d": 100, "estimated": 720},
 }
 
 # ---------------------------------------------------------------------------
@@ -428,8 +428,14 @@ def _upload_to_gcs(local_path: Path, blob_name: str) -> str | None:
         return None
 
 
-def _update_airtable_turntable_url(record_id: str, table_name: str, video_url: str) -> bool:
-    """PATCH the 'Turntable Video URL' field on an Airtable record.
+def _update_airtable_scan_urls(
+    record_id: str,
+    table_name: str,
+    video_url: str,
+    aura_manifest_url: str | None = None,
+    aura_gcs_prefix: str | None = None,
+) -> bool:
+    """PATCH scan URL fields on an Airtable record.
 
     Required env vars:
         AIRTABLE_API_TOKEN  — personal access token (patXXX...)
@@ -449,9 +455,14 @@ def _update_airtable_turntable_url(record_id: str, table_name: str, video_url: s
     try:
         encoded_table = urllib.parse.quote(table_name, safe="")
         url = f"https://api.airtable.com/v0/{base_id}/{encoded_table}/{record_id}"
+        fields = {"Turntable Video URL": video_url}
+        if aura_manifest_url:
+            fields["Aura Manifest URL"] = aura_manifest_url
+        if aura_gcs_prefix:
+            fields["Aura GCS Prefix"] = aura_gcs_prefix
         r = httpx.patch(
             url,
-            json={"fields": {"Turntable Video URL": video_url}},
+            json={"fields": fields},
             headers={
                 "Authorization": f"Bearer {api_token}",
                 "Content-Type": "application/json",
@@ -460,10 +471,30 @@ def _update_airtable_turntable_url(record_id: str, table_name: str, video_url: s
             follow_redirects=True,
         )
         r.raise_for_status()
-        print(f"[server] Airtable record {record_id} updated with turntable URL")
+        print(f"[server] Airtable record {record_id} updated with scan URLs")
         return True
     except Exception as exc:
         print(f"[server] Airtable update failed: {exc}")
+        if not aura_manifest_url and not aura_gcs_prefix:
+            return False
+        try:
+            encoded_table = urllib.parse.quote(table_name, safe="")
+            url = f"https://api.airtable.com/v0/{base_id}/{encoded_table}/{record_id}"
+            r = httpx.patch(
+                url,
+                json={"fields": {"Turntable Video URL": video_url}},
+                headers={
+                    "Authorization": f"Bearer {api_token}",
+                    "Content-Type": "application/json",
+                },
+                timeout=15,
+                follow_redirects=True,
+            )
+            r.raise_for_status()
+            print(f"[server] Airtable record {record_id} updated with turntable URL only")
+            return True
+        except Exception as fallback_exc:
+            print(f"[server] Airtable fallback update failed: {fallback_exc}")
         return False
 
 
@@ -513,9 +544,9 @@ async def save_video(body: dict) -> dict:
         # this session, but Airtable is not updated.
         return {"videoUrl": local_url, "persisted": False}
 
-    persisted = await asyncio.to_thread(_update_airtable_turntable_url, record_id, table_name, gcs_url)
-
     aura_assets = job.get("auraAssets")
+    aura_manifest_url = None
+    aura_gcs_prefix = None
     if aura_assets and isinstance(aura_assets, dict):
         slug = local_path.stem.replace("-turntable-seek", "").replace("-turntable", "")
         aura_dir = PUBLIC_3D / slug
@@ -539,8 +570,25 @@ async def save_video(body: dict) -> dict:
                         aura_assets = uploaded
                         aura_assets["turntableVideoUrl"] = gcs_url
                         job["auraAssets"] = aura_assets
+                        bucket_name = (
+                            os.environ.get("GCS_TURNTABLE_BUCKET", "").strip()
+                            or os.environ.get("GCS_BLUEPRINT_BUCKET", "").strip()
+                            or os.environ.get("GCS_SCAN_BUCKET", "").strip()
+                        )
+                        if bucket_name:
+                            aura_manifest_url = f"https://storage.googleapis.com/{bucket_name}/aura/{slug}/{slug}-aura-manifest.json"
+                            aura_gcs_prefix = f"gs://{bucket_name}/aura/{slug}/"
             except Exception as exc:
                 print(f"[server] Aura GCS upload on save-video failed: {exc}")
+
+    persisted = await asyncio.to_thread(
+        _update_airtable_scan_urls,
+        record_id,
+        table_name,
+        gcs_url,
+        aura_manifest_url,
+        aura_gcs_prefix,
+    )
 
     return {"videoUrl": gcs_url, "persisted": persisted, "auraAssets": aura_assets}
 

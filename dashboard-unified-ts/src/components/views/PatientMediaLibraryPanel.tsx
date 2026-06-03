@@ -30,6 +30,7 @@ export type PatientMediaLibraryPanelProps = {
   client: Client;
   photoSlots?: ClientPhotoSlot[];
   turntableVideoUrl?: string | null;
+  /** @deprecated Load button removed — keep prop to avoid breaking callers. */
   onLoadAnnotation?: (record: SavedPatientAnnotation) => void;
   refreshKey?: number;
 };
@@ -43,10 +44,9 @@ export default function PatientMediaLibraryPanel({
   client,
   photoSlots,
   turntableVideoUrl,
-  onLoadAnnotation,
+  onLoadAnnotation: _onLoadAnnotation,
   refreshKey = 0,
 }: PatientMediaLibraryPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
   const [viewerItemId, setViewerItemId] = useState<string | null>(null);
   const showTanyaLayout = isTanyaTanDemoClient(client);
 
@@ -125,44 +125,19 @@ export default function PatientMediaLibraryPanel({
   };
 
   return (
-    <div className={`patient-media-library${collapsed ? " patient-media-library--collapsed" : ""}`}>
+    <div className="patient-media-library">
       <div className="patient-media-library__intro">
         <div className="patient-media-library__intro-row">
-          <h3 className="patient-media-library__title">Patient files</h3>
-          <button
-            type="button"
-            className="patient-media-library__collapse-btn"
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? "Expand files section" : "Collapse files section"}
-            title={collapsed ? "Expand files section" : "Collapse files section"}
-            onClick={() => setCollapsed((v) => !v)}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              {collapsed ? <path d="M6 9l6 6 6-6" /> : <path d="M18 15l-6-6-6 6" />}
-            </svg>
-          </button>
+          <h3 className="patient-media-library__title">Patient Files</h3>
         </div>
-        {!collapsed ? (
-          <p className="patient-media-library__desc">
-            {showTanyaLayout
-              ? "Original session photos, background-removed stills, clinical texture maps, and annotations you draw on the face."
-              : "Original photos, 3D turntable video, and saved face annotations."}
-          </p>
-        ) : null}
+        <p className="patient-media-library__desc">
+          {showTanyaLayout
+            ? "Original session photos, background-removed stills, clinical texture maps, and annotations you draw on the face."
+            : "Original photos, 3D turntable video, and saved face annotations."}
+        </p>
       </div>
 
-      {!collapsed ? (
-        <div className="patient-media-library__scroll">
+      <div className="patient-media-library__scroll">
         {visibleCount === 0 ? (
           <p className="patient-media-library__empty">
             No patient files yet.
@@ -224,7 +199,6 @@ export default function PatientMediaLibraryPanel({
                       item={item}
                       badge={kindBadge(item)}
                       onView={openViewer}
-                      onLoadAnnotation={onLoadAnnotation}
                       onDeleteAnnotation={handleDelete}
                     />
                   ))}
@@ -233,8 +207,7 @@ export default function PatientMediaLibraryPanel({
             ) : null}
           </>
         )}
-        </div>
-      ) : null}
+      </div>
 
       {viewerItemId && viewerSections.length > 0
         ? createPortal(
@@ -242,7 +215,6 @@ export default function PatientMediaLibraryPanel({
               sections={viewerSections}
               initialItemId={viewerItemId}
               onClose={() => setViewerItemId(null)}
-              onLoadAnnotation={onLoadAnnotation}
             />,
             document.body,
           )
@@ -255,13 +227,11 @@ function MediaCard({
   item,
   badge,
   onView,
-  onLoadAnnotation,
   onDeleteAnnotation,
 }: {
   item: PatientMediaItem;
   badge: string;
   onView?: (item: PatientMediaItem) => void;
-  onLoadAnnotation?: (record: SavedPatientAnnotation) => void;
   onDeleteAnnotation?: (id: string) => void;
 }) {
   const preview =
@@ -340,15 +310,6 @@ function MediaCard({
         <div className="patient-media-card__actions">
           {item.kind === "annotation" && item.annotation ? (
             <>
-              {onLoadAnnotation ? (
-                <button
-                  type="button"
-                  className="patient-media-card__btn patient-media-card__btn--primary"
-                  onClick={() => onLoadAnnotation(item.annotation!)}
-                >
-                  Load
-                </button>
-              ) : null}
               <button
                 type="button"
                 className="patient-media-card__btn"

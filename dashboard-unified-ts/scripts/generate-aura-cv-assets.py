@@ -1,11 +1,30 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
 import cv2
 import numpy as np
 from PIL import Image
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def _load_local(name: str, filename: str):
+    spec = importlib.util.spec_from_file_location(name, _SCRIPT_DIR / filename)
+    if spec is None or spec.loader is None:
+        raise ImportError(filename)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_mp_wr = _load_local("mediapipe_wrinkle_paths", "mediapipe_wrinkle_paths.py")
+_cutout = _load_local("wrinkle_cutout_render", "wrinkle_cutout_render.py")
+mediapipe_wrinkle_paths = _mp_wr.mediapipe_wrinkle_paths
+render_wrinkle_cutout_rgba = _cutout.render_wrinkle_cutout_rgba
+composite_wrinkle_view_rgb = _cutout.composite_wrinkle_view_rgb
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -451,18 +470,42 @@ def main() -> None:
         out_name = f"aura-tan-{angle}.webp"
         out_wrinkles_name = f"aura-tan-{angle}-wrinkles.webp"
         bgr = save_plate_from_rgba(plate, IMAGE_DIR / out_name)
-        paths = wrinkle_paths(plate, spec["target_bbox"])
+        plate_rgb = plate[:, :, :3]
+        paths, path_source = mediapipe_wrinkle_paths(
+            plate_rgb,
+            angle,
+            OUT_SIZE,
+            OUT_SIZE,
+            fallback_bbox=spec["target_bbox"],
+            alpha=plate[:, :, 3],
+        )
         redness = red_spots(plate, spec["target_bbox"], angle)
-        save_plate(draw_wrinkle_paths(bgr, paths), IMAGE_DIR / out_wrinkles_name)
+        wrinkle_rgba = render_wrinkle_cutout_rgba(OUT_SIZE, OUT_SIZE, paths, plate[:, :, 3])
+        Image.fromarray(wrinkle_rgba, "RGBA").save(
+            IMAGE_DIR / out_wrinkles_name,
+            "WEBP",
+            quality=92,
+            method=6,
+        )
+        out_wrinkles_view_name = f"aura-tan-{angle}-wrinkles-view.webp"
+        view_rgb = composite_wrinkle_view_rgb(plate_rgb, plate[:, :, 3], wrinkle_rgba)
+        Image.fromarray(view_rgb, "RGB").save(
+            IMAGE_DIR / out_wrinkles_view_name,
+            "WEBP",
+            quality=92,
+            method=6,
+        )
         annotations[angle] = {
             "image": out_name,
             "imageWrinkles": out_wrinkles_name,
+            "imageWrinklesView": out_wrinkles_view_name,
             "targetBBox": spec["target_bbox"],
             "wrinkles": paths,
+            "wrinklePathSource": path_source,
             "redSpots": redness,
         }
         print(
-            f"{angle}: {len(paths)} wrinkle paths, {len(redness)} red spots -> {out_name}, {out_wrinkles_name}",
+            f"{angle}: {len(paths)} wrinkle paths ({path_source}), {len(redness)} red spots -> {out_name}, {out_wrinkles_name}",
             flush=True,
         )
 

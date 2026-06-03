@@ -24,7 +24,7 @@ Use a **second** Vercel project in the same GitHub repo (do not reuse the dashbo
    |------|--------|
    | `DASHBOARD_ORIGIN` | `https://your-dashboard.vercel.app` |
 
-   Default if unset: `https://dashboard-unified-ts.vercel.app`.
+   Default if unset: `https://adalo-dashboard-2.vercel.app`.
 
 5. Deploy. Live URL is the project root, e.g. `https://your-deck-project.vercel.app/`.
 

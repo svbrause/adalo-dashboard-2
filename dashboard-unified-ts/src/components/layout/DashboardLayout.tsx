@@ -17,6 +17,7 @@ import InboxView from "../views/InboxView";
 import SmsHistoryView from "../views/SmsHistoryView";
 import SettingsView from "../views/SettingsView";
 import FirebaseAdminPage from "../pages/FirebaseAdminPage";
+import ClientDetailPanel from "../views/ClientDetailPanel";
 import ReleaseNotesModal, {
   shouldShowReleaseNotes,
   dismissReleaseNotes,
@@ -63,6 +64,59 @@ function DashboardViews() {
   }
 }
 
+function DashboardClientDetailRoute() {
+  const {
+    clients,
+    closeClient,
+    loading,
+    provider,
+    refreshClients,
+    routeClientId,
+    routeSection,
+  } = useDashboard();
+  const client = routeClientId
+    ? clients.find((candidate) => candidate.id === routeClientId)
+    : null;
+
+  if (!routeClientId) return <DashboardViews />;
+
+  if (!client && (loading || !provider)) {
+    return (
+      <div className="dashboard-client-detail-placeholder" aria-live="polite">
+        <div className="spinner spinner-with-margin" />
+        <p>Loading patient...</p>
+      </div>
+    );
+  }
+
+  if (!client) {
+    return (
+      <div className="dashboard-client-detail-placeholder">
+        <div className="dashboard-client-detail-placeholder__card">
+          <h2>Patient not found</h2>
+          <p>This patient is not available for the current provider login.</p>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => closeClient()}
+          >
+            Back to patients
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ClientDetailPanel
+      client={client}
+      onClose={closeClient}
+      onUpdate={() => refreshClients(true)}
+      initialSection={routeSection ?? undefined}
+    />
+  );
+}
+
 const VIEWS_WITH_CONTROLS = [
   "list",
   "leads",
@@ -73,7 +127,8 @@ const VIEWS_WITH_CONTROLS = [
 ];
 
 export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
-  const { currentView, navigateDashboard, provider } = useDashboard();
+  const { currentView, navigateDashboard, provider, routeClientId } =
+    useDashboard();
   const embedMode = isDashboardEmbedMode();
   const compactChrome = useCompactDashboardChrome();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -150,9 +205,13 @@ export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
           navMenuOpen={navDrawerOpen}
           onToggleNav={toggleNavDrawer}
         />
-        {showViewControls && <ViewControls />}
+        {showViewControls && (
+          <div className={routeClientId ? "view-controls-hidden" : undefined}>
+            <ViewControls />
+          </div>
+        )}
         <div className="dashboard-views-wrap">
-          <DashboardViews />
+          {routeClientId ? <DashboardClientDetailRoute /> : <DashboardViews />}
         </div>
       </main>
       {showReleaseNotes && (

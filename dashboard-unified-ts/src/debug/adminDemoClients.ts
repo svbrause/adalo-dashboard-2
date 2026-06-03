@@ -18,6 +18,7 @@ import type {
   Provider,
 } from "../types";
 import { isAdminBlueprintProvider } from "../utils/providerHelpers";
+import { COURTNEY_BELLAMY_SEVERITY_ISSUES } from "./adminDemoSeverityOverlay";
 import { TANYA_TAN_SKINCARE_QUIZ } from "./adminDemoSkincareQuiz";
 import { TANYA_TAN_GALLERY_PHOTO_SLOTS } from "../utils/auraTanAnglePhotos";
 import tanyaTanSeverityScoresJson from "./tanya-tan-severity-scores.json";
@@ -169,8 +170,154 @@ const ALLISON_SEVERITY: AnalysisSeverityScoresData = {
   },
 };
 
+const COURTNEY_SEVERITY: AnalysisSeverityScoresData = {
+  schema_version: 1,
+  detector_type: "multi_region",
+  submission_id: "admin-demo-courtney",
+  issues: COURTNEY_BELLAMY_SEVERITY_ISSUES,
+};
+
+const COURTNEY_DETECTED_ISSUES = Object.entries(COURTNEY_SEVERITY.issues ?? {})
+  .filter(([, row]) => row.predicted)
+  .sort(
+    (a, b) =>
+      (b[1].severity_normalized_0_1 ?? 0) - (a[1].severity_normalized_0_1 ?? 0),
+  )
+  .map(([name]) => name)
+  .join(", ");
+
+const MORGAN_SEVERITY: AnalysisSeverityScoresData = {
+  schema_version: 1,
+  detector_type: "multi_region",
+  submission_id: "admin-demo-morgan",
+  issues: {
+    "Facial Redness": {
+      predicted: true,
+      probability: 0.88,
+      severity: 2,
+      severity_normalized_0_1: 0.62,
+      severity_level: "moderate",
+    },
+    "Enlarged Pores": {
+      predicted: true,
+      probability: 0.81,
+      severity: 2,
+      severity_normalized_0_1: 0.54,
+      severity_level: "moderate",
+    },
+    "Acne / Breakouts": {
+      predicted: true,
+      probability: 0.74,
+      severity: 2,
+      severity_normalized_0_1: 0.48,
+      severity_level: "mild-moderate",
+    },
+    "Uneven Skin Texture": {
+      predicted: true,
+      probability: 0.69,
+      severity: 1,
+      severity_normalized_0_1: 0.38,
+      severity_level: "mild",
+    },
+  },
+};
+
 export function getAdminDemoClients(): Client[] {
   return [
+    baseClient({
+      id: "admin-demo-courtney",
+      name: "Courtney Bellamy",
+      age: 34,
+      ageRange: "30-39",
+      phone: "+1 555 312 8805",
+      frontPhoto: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-color.png",
+      frontPhotoLoaded: true,
+      galleryPhotoSlots: [
+        { id: "front",               label: "Front",               url: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-color.png" },
+        { id: "three-quarter-right", label: "Right three-quarter", url: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-three-quarter-right-color.png" },
+        { id: "profile-right",       label: "Right profile",       url: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-color.png" },
+      ],
+      interestedIssues: COURTNEY_DETECTED_ISSUES,
+      allIssues: COURTNEY_DETECTED_ISSUES,
+      skinType: "Combination",
+      skinTone: "Medium",
+      aestheticGoals: "Reduce hyperpigmentation, redness, and improve skin texture",
+      severityScoresFromAnalyses: COURTNEY_SEVERITY,
+      auraManifestUrl: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-aura-manifest.json",
+      discussedItems: [
+        item({
+          id: "admin-courtney-d1",
+          treatment: "IPL / Photofacial",
+          interest: "Red Spots",
+          findings: ["Red Spots", "Rosacea", "Dark Spots"],
+          region: "Full Face",
+          timeline: "Now",
+          quantity: "3",
+        }),
+        item({
+          id: "admin-courtney-d2",
+          treatment: "Chemical Peel",
+          interest: "Dark Spots",
+          findings: ["Dark Spots", "Whiteheads", "Blackheads"],
+          region: "Full Face",
+          timeline: "Now",
+          quantity: "1",
+        }),
+      ],
+    }),
+
+    baseClient({
+      id: "admin-demo-morgan",
+      name: "Morgan Westmoreland",
+      age: 42,
+      ageRange: "40-49",
+      phone: "+1 555 312 8804",
+      frontPhoto: "/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg",
+      frontPhotoLoaded: true,
+      galleryPhotoSlots: [
+        { id: "front",               label: "Front",                 url: "/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg" },
+        { id: "right45",             label: "Right three-quarter",   url: "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-color.jpg" },
+        { id: "right90",             label: "Right profile",         url: "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-color.jpg" },
+        { id: "left45",              label: "Left three-quarter",    url: "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-color.jpg" },
+        { id: "left90",              label: "Left profile",          url: "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-color.jpg" },
+      ],
+      interestedIssues: "Facial Redness, Enlarged Pores, Acne / Breakouts, Uneven Skin Texture",
+      allIssues: "Facial Redness, Enlarged Pores, Acne / Breakouts, Uneven Skin Texture",
+      skinType: "Combination",
+      skinTone: "Medium-Fair",
+      aestheticGoals: "Reduce redness and improve skin texture and tone",
+      severityScoresFromAnalyses: MORGAN_SEVERITY,
+      discussedItems: [
+        item({
+          id: "admin-morgan-d1",
+          treatment: "IPL / Photofacial",
+          interest: "Facial Redness",
+          findings: ["Facial Redness", "Uneven Skin Texture"],
+          region: "Full Face",
+          timeline: "Now",
+          quantity: "3",
+        }),
+        item({
+          id: "admin-morgan-d2",
+          treatment: "Chemical Peel",
+          interest: "Enlarged Pores",
+          findings: ["Enlarged Pores", "Acne / Breakouts"],
+          region: "Full Face",
+          timeline: "Now",
+          quantity: "1",
+        }),
+        item({
+          id: "admin-morgan-d3",
+          treatment: "Skincare",
+          interest: "Facial Redness",
+          findings: ["Facial Redness"],
+          region: "Full face",
+          timeline: "Now",
+          quantity: "1",
+        }),
+      ],
+    }),
+
     baseClient({
       id: "admin-demo-emily",
       name: "Emily Dunhill",

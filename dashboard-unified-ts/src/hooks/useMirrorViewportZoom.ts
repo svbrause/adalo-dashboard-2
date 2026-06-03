@@ -9,6 +9,8 @@ export type MirrorViewportZoomOptions = {
   initialZoom?: number;
   initialPanX?: number;
   initialPanY?: number;
+  /** When true, drag pans even at the minimum zoom (default false). */
+  allowPanAtMinZoom?: boolean;
   /** When false, wheel events pass through for page scroll (public blueprint pages). */
   wheelZoomEnabled?: boolean;
   /** Called after zoom/pan changes (e.g. redraw annotation canvas). */
@@ -21,6 +23,7 @@ export function useMirrorViewportZoom({
   initialZoom = 1,
   initialPanX = 0,
   initialPanY = 0,
+  allowPanAtMinZoom = false,
   wheelZoomEnabled = true,
   onTransformChange,
 }: MirrorViewportZoomOptions) {
@@ -98,7 +101,13 @@ export function useMirrorViewportZoom({
     if (!viewer) return;
 
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0 || zoomRef.current <= minZoomRef.current + 0.02) return;
+      if (e.button !== 0) return;
+      if (
+        !allowPanAtMinZoom &&
+        zoomRef.current <= minZoomRef.current + 0.02
+      ) {
+        return;
+      }
       if ((e.target as HTMLElement).closest("button, a, input, summary")) return;
       e.preventDefault();
       panningRef.current = true;
@@ -127,13 +136,21 @@ export function useMirrorViewportZoom({
       panningRef.current = false;
       viewer.classList.remove("avf-zoom-viewport--panning");
       applyTransform(panXRef.current, panYRef.current, zoomRef.current, true);
-      viewer.style.cursor = zoomRef.current > minZoomRef.current ? "grab" : "";
+      viewer.style.cursor =
+        allowPanAtMinZoom || zoomRef.current > minZoomRef.current + 0.02
+          ? "grab"
+          : "";
       try {
         viewer.releasePointerCapture(e.pointerId);
       } catch {
         /* already released */
       }
     };
+
+    viewer.style.cursor =
+      allowPanAtMinZoom || zoomRef.current > minZoomRef.current + 0.02
+        ? "grab"
+        : "";
 
     viewer.addEventListener("pointerdown", onPointerDown);
     viewer.addEventListener("pointermove", onPointerMove);
@@ -145,7 +162,7 @@ export function useMirrorViewportZoom({
       viewer.removeEventListener("pointerup", endPan);
       viewer.removeEventListener("pointercancel", endPan);
     };
-  }, [viewerRef, applyTransform]);
+  }, [viewerRef, applyTransform, allowPanAtMinZoom]);
 
   return { zoom, resetTransform, minZoom: minZoomRef.current };
 }

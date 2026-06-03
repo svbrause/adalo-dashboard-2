@@ -14,7 +14,6 @@ import {
 import { getFaceLandmarker } from "../../utils/faceLandmarker";
 import {
   FACE3D_LANDMARK_DISPLAY_MAX_DELTA,
-  FACE3D_TIMELINE_FPS,
   face3dTimelineKey,
   face3dTimelineTimeFromKey,
   getFace3dLandmarkCache,
@@ -51,16 +50,14 @@ const ANNOTATION_DETECT_MAX_DIM = 512;
  * Shared timeline for decoded turntable frames + MediaPipe landmarks.
  * Using one bucket rate prevents overlay drift when scrubbing (was 60fps video vs 30fps landmarks).
  */
-/** Wider tolerance during reverse cache playback (forward play may skip occasional buckets). */
-const FRAME_CACHE_REVERSE_MAX_KEY_DELTA = 4;
 /** Prefetch ±N buckets around interactive requests (scrub / playback). */
 const LANDMARK_DETECT_NEIGHBOR_SPAN = 1;
 /** Max pending landmark keys (prevents memory / seek storms). */
 const LANDMARK_QUEUE_MAX = 32;
 /** MediaPipe jobs per idle slice — yields to the main thread between batches. */
 const LANDMARK_BATCH_MAX = 4;
-/** GPU frame bitmaps kept near the current timeline key. */
-const FRAME_CACHE_MAX = 48;
+/** GPU frame bitmaps kept in cache.  220 covers a full ~6 s turntable at 30 fps. */
+const FRAME_CACHE_MAX = 220;
 /** Initial backfill radius + sparse stride when highlights turn on. */
 const LANDMARK_PRIME_RADIUS = 12;
 const LANDMARK_PRIME_STRIDE = 10;
@@ -68,8 +65,8 @@ const LANDMARK_PRIME_MAX_KEYS = 36;
 
 interface Face3DViewerProps {
   videoUrl: string;
-  /** Optional reversed copy of videoUrl. Playing this forward is much smoother than negative playbackRate. */
-  reverseVideoUrl?: string;
+  /** When true the video is a forward+reversed ping-pong: the player loops it forward and the face oscillates. */
+  pingPong?: boolean;
   autoRotate: boolean;
   /** External yaw control in degrees (-65 = left end, 0 = front, +65 = right end). */
   controlledYawDeg?: number;
@@ -103,30 +100,42 @@ function clampYaw(yawDeg: number): number {
   return Math.max(-MAX_YAW_DEG, Math.min(MAX_YAW_DEG, yawDeg));
 }
 
-/** Map yaw (0 = nose front) to timeline position. */
-function yawToVideoTime(yawDeg: number, duration: number): number {
+/** For ping-pong video: map backward-half time (T/2…T) to its equivalent forward-half time (0…T/2). */
+function pingPongNorm(t: number, duration: number): number {
+  const half = duration / 2;
+  return t > half ? duration - t : t;
+}
+
+/** Map yaw to the forward-half timeline position (ping-pong) or full timeline (normal). */
+function yawToVideoTime(yawDeg: number, duration: number, pingPong = false): number {
   if (!duration || !isFinite(duration)) return 0;
   const clamped = clampYaw(yawDeg);
-  return ((clamped + MAX_YAW_DEG) / (2 * MAX_YAW_DEG)) * duration;
+  const halfDur = pingPong ? duration / 2 : duration;
+  return ((clamped + MAX_YAW_DEG) / (2 * MAX_YAW_DEG)) * halfDur;
 }
 
-/** Inverse of {@link yawToVideoTime}. */
-function videoTimeToYaw(t: number, duration: number): number {
+/** Inverse of {@link yawToVideoTime}. Handles both halves of a ping-pong video. */
+function videoTimeToYaw(t: number, duration: number, pingPong = false): number {
   if (!duration || !isFinite(duration)) return 0;
-  return (t / duration) * (2 * MAX_YAW_DEG) - MAX_YAW_DEG;
+  const lt = pingPong ? pingPongNorm(t, duration) : t;
+  const halfDur = pingPong ? duration / 2 : duration;
+  return (lt / halfDur) * (2 * MAX_YAW_DEG) - MAX_YAW_DEG;
 }
 
-/** Match {@link AUTO_SPEED} (deg/s) via native playbackRate (sign = direction). */
-function computeAutoPlaybackRate(duration: number, direction: 1 | -1 = 1): number {
-  return (direction * AUTO_SPEED * duration) / (2 * MAX_YAW_DEG);
+/** Match {@link AUTO_SPEED} (deg/s) via native playbackRate. */
+function computeAutoPlaybackRate(duration: number, pingPong = false): number {
+  const halfDur = pingPong ? duration / 2 : duration;
+  return (AUTO_SPEED * halfDur) / (2 * MAX_YAW_DEG);
 }
 
 const SCRUB_SEEK_EPS = 0.02;
 /** Tighter threshold while dragging so scrub RAF can keep up. */
 const SCRUB_SEEK_EPS_DRAG = 0.006;
 const END_TIME_EPS = 0.03;
-/** Capture frames at half resolution to keep memory under ~30 MB for a typical turntable. */
-const FRAME_CACHE_SCALE = 0.5;
+/** Capture frames at quarter resolution so the full turntable fits in one cache pass.
+ *  At 1024×976 source, 0.25× ≈ 256×244 ≈ 250 KB/frame × 220 frames ≈ 55 MB.
+ *  This prevents backward-cache seeks (which stall near the front view). */
+const FRAME_CACHE_SCALE = 0.25;
 function seekVideoToTime(
   video: HTMLVideoElement,
   target: number,
@@ -158,18 +167,6 @@ function safeSetPlaybackRate(video: HTMLVideoElement, rate: number): boolean {
     // Reverse playback (-1) is unsupported in many browsers; callers fall back to frame cache.
     return false;
   }
-}
-
-/** True when the browser will honor a negative playbackRate (smooth reverse auto-rotate). */
-function detectReverseVideoPlayback(video: HTMLVideoElement): boolean {
-  const prev = video.playbackRate;
-  if (!safeSetPlaybackRate(video, -1)) {
-    safeSetPlaybackRate(video, prev || 1);
-    return false;
-  }
-  const ok = video.playbackRate < 0;
-  safeSetPlaybackRate(video, prev || 1);
-  return ok;
 }
 
 function idle(): Promise<void> {
@@ -458,23 +455,6 @@ function renderAnnotationOverlay(
   }
 }
 
-/** Walk outward from targetKey until we find a cached ImageBitmap within maxDelta. */
-function findNearestFrame(
-  cache: Map<number, ImageBitmap>,
-  targetKey: number,
-  maxDelta: number,
-): ImageBitmap | null {
-  const exact = cache.get(targetKey);
-  if (exact) return exact;
-  for (let d = 1; d <= maxDelta; d++) {
-    const a = cache.get(targetKey - d);
-    if (a) return a;
-    const b = cache.get(targetKey + d);
-    if (b) return b;
-  }
-  return null;
-}
-
 function pruneFrameCache(cache: Map<number, ImageBitmap>, keepNearKey: number): void {
   if (cache.size <= FRAME_CACHE_MAX) return;
   const keys = [...cache.keys()].sort(
@@ -487,15 +467,9 @@ function pruneFrameCache(cache: Map<number, ImageBitmap>, keepNearKey: number): 
   }
 }
 
-function isTurntablePlaybackActive(
-  forward: HTMLVideoElement | null,
-  reverse: HTMLVideoElement | null,
-  active: "forward" | "reverse",
-  dragging: boolean,
-): boolean {
+function isTurntablePlaybackActive(video: HTMLVideoElement | null, dragging: boolean): boolean {
   if (dragging) return true;
-  if (active === "reverse") return Boolean(reverse && !reverse.paused);
-  return Boolean(forward && !forward.paused);
+  return Boolean(video && !video.paused);
 }
 
 function clearAnnotationOverlay(overlayCanvas: HTMLCanvasElement | null): void {
@@ -506,7 +480,7 @@ function clearAnnotationOverlay(overlayCanvas: HTMLCanvasElement | null): void {
 
 export default function Face3DViewer({
   videoUrl,
-  reverseVideoUrl,
+  pingPong = false,
   autoRotate,
   controlledYawDeg,
   controlledTimeRatio,
@@ -536,19 +510,16 @@ export default function Face3DViewer({
     [annotateMeasureRootRef],
   );
   const videoRef = useRef<HTMLVideoElement>(null);
-  const reverseVideoRef = useRef<HTMLVideoElement>(null);
   const displayCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const annotationDetectCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameCacheRef = useRef<Map<number, ImageBitmap>>(new Map());
   const autoRotateStartedForUrlRef = useRef<string | null>(null);
-  const reversePlaybackOkRef = useRef<boolean | null>(null);
+  const pingPongRef = useRef(pingPong);
   const frameCapCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentTimeKeyRef = useRef(0);
   const yawRef = useRef(0);
   const controlledTimeAnimationRef = useRef(0);
-  const activeVideoRef = useRef<"forward" | "reverse">("forward");
-
   const landmarksByTimeKeyRef = useRef(getFace3dLandmarkCache(videoUrl));
   const pendingLandmarkKeysRef = useRef<Set<number>>(new Set());
   const landmarkKeyQueueRef = useRef<number[]>([]);
@@ -628,39 +599,17 @@ export default function Face3DViewer({
     }
   }, []);
 
-  const setActiveVideo = useCallback((which: "forward" | "reverse") => {
-    activeVideoRef.current = which;
-    const forward = videoRef.current;
-    const reverse = reverseVideoRef.current;
-    if (forward) {
-      forward.style.opacity = which === "forward" ? "1" : "0";
-      if (which !== "forward") {
-        forward.pause();
-        safeSetPlaybackRate(forward, 1);
-      }
-    }
-    if (reverse) {
-      reverse.style.opacity = which === "reverse" ? "1" : "0";
-      if (which !== "reverse") {
-        reverse.pause();
-        safeSetPlaybackRate(reverse, 1);
-      }
-    }
+  // Hides the frame-cache canvas; video is always the active display layer now.
+  const setActiveVideo = useCallback((_which: "forward" | "reverse" = "forward") => {
     const dc = displayCanvasRef.current;
     if (dc) dc.style.opacity = "0";
   }, []);
 
-  const logicalVideoTime = useCallback(() => {
-    const forward = videoRef.current;
-    const reverse = reverseVideoRef.current;
-    const duration =
-      (forward?.duration && isFinite(forward.duration) ? forward.duration : 0) ||
-      (reverse?.duration && isFinite(reverse.duration) ? reverse.duration : 0);
-    if (!duration) return null;
-    if (activeVideoRef.current === "reverse" && reverse) {
-      return Math.max(0, Math.min(duration, duration - reverse.currentTime));
-    }
-    return Math.max(0, Math.min(duration, forward?.currentTime ?? 0));
+  const logicalVideoTime = useCallback((): number | null => {
+    const video = videoRef.current;
+    if (!video?.duration || !isFinite(video.duration)) return null;
+    const t = Math.max(0, Math.min(video.duration, video.currentTime));
+    return pingPongRef.current ? pingPongNorm(t, video.duration) : t;
   }, []);
 
   const drawVideoFrameToDisplay = useCallback(() => {
@@ -675,12 +624,8 @@ export default function Face3DViewer({
   }, []);
 
   const activeCaptureVideo = useCallback((): HTMLVideoElement | null => {
-    if (activeVideoRef.current === "reverse") {
-      const reverse = reverseVideoRef.current;
-      if (reverse && reverse.readyState >= 2) return reverse;
-    }
-    const forward = videoRef.current;
-    return forward && forward.readyState >= 2 ? forward : null;
+    const video = videoRef.current;
+    return video && video.readyState >= 2 ? video : null;
   }, []);
 
   const captureFrameBitmapAtKey = useCallback((key: number): Promise<void> => {
@@ -728,7 +673,6 @@ export default function Face3DViewer({
     for (const bmp of frameCacheRef.current.values()) bmp.close();
     frameCacheRef.current.clear();
     autoRotateStartedForUrlRef.current = null;
-    reversePlaybackOkRef.current = null;
     videoRetryCountRef.current = 0;
     if (videoRetryTimerRef.current !== null) {
       window.clearTimeout(videoRetryTimerRef.current);
@@ -747,6 +691,7 @@ export default function Face3DViewer({
   );
 
   useEffect(() => { autoRotateRef.current = autoRotate; }, [autoRotate]);
+  useEffect(() => { pingPongRef.current = pingPong; }, [pingPong]);
   useEffect(() => { onTimeRatioChangeRef.current = onTimeRatioChange; }, [onTimeRatioChange]);
   useEffect(() => { onDragStartRef.current = onDragStart; }, [onDragStart]);
   useEffect(() => { onDragEndRef.current = onDragEnd; }, [onDragEnd]);
@@ -817,16 +762,7 @@ export default function Face3DViewer({
   }, []);
 
   const drainDeferredLandmarkKeys = useCallback((maxKeys = 12) => {
-    const forward = videoRef.current;
-    const reverse = reverseVideoRef.current;
-    if (
-      isTurntablePlaybackActive(
-        forward,
-        reverse,
-        activeVideoRef.current,
-        draggingRef.current,
-      )
-    ) {
+    if (isTurntablePlaybackActive(videoRef.current, draggingRef.current)) {
       return;
     }
     const current = currentTimeKeyRef.current;
@@ -876,26 +812,12 @@ export default function Face3DViewer({
         gen === landmarkProcessorGenRef.current
       ) {
         const nextKey = landmarkKeyQueueRef.current.shift()!;
-        const forward = videoRef.current;
-        const reverse = reverseVideoRef.current;
-        const active = activeVideoRef.current;
-        const v =
-          active === "reverse" && reverse?.readyState && reverse.readyState >= 2
-            ? reverse
-            : forward;
+        const v = videoRef.current;
         const targetTime = face3dTimelineTimeFromKey(nextKey);
-        const duration =
-          forward?.duration && isFinite(forward.duration) ? forward.duration : 0;
-        const playbackTime =
-          v === reverse && duration ? duration - targetTime : targetTime;
+        const playbackTime = targetTime;
         const timeTolerance = draggingRef.current ? 0.02 : 0.04;
         const cachedFrame = frameCacheRef.current.get(nextKey);
-        const playbackActive = isTurntablePlaybackActive(
-          forward,
-          reverse,
-          active,
-          draggingRef.current,
-        );
+        const playbackActive = isTurntablePlaybackActive(v, draggingRef.current);
 
         if (!v || v.readyState < 2) {
           pendingLandmarkKeysRef.current.delete(nextKey);
@@ -917,9 +839,7 @@ export default function Face3DViewer({
             !draggingRef.current &&
             Math.abs(v.currentTime - playbackTime) > timeTolerance
           ) {
-            const seekTarget =
-              v === reverse && duration ? duration - targetTime : targetTime;
-            seekVideoPrecisely(v, seekTarget, SCRUB_SEEK_EPS_DRAG);
+            seekVideoPrecisely(v, targetTime, SCRUB_SEEK_EPS_DRAG);
             pendingLandmarkKeysRef.current.delete(nextKey);
             landmarkKeyQueueRef.current.unshift(nextKey);
             seekedThisBatch = true;
@@ -974,14 +894,7 @@ export default function Face3DViewer({
       processingLandmarkQueueRef.current = false;
       if (gen !== landmarkProcessorGenRef.current) return;
 
-      const forward = videoRef.current;
-      const reverse = reverseVideoRef.current;
-      const playbackActive = isTurntablePlaybackActive(
-        forward,
-        reverse,
-        activeVideoRef.current,
-        draggingRef.current,
-      );
+      const playbackActive = isTurntablePlaybackActive(videoRef.current, draggingRef.current);
       const hasQueue = landmarkKeyQueueRef.current.length > 0;
       const hasDeferred = deferredLandmarkKeysRef.current.size > 0;
       if (!hasQueue && !hasDeferred) return;
@@ -1071,11 +984,13 @@ export default function Face3DViewer({
   const syncYawFromVideo = useCallback((opts?: { queueLandmarks?: boolean }) => {
     const video = videoRef.current;
     if (!video || !isFinite(video.duration) || video.duration <= 0) return;
-    const currentTime = logicalVideoTime();
-    if (currentTime === null) return;
-    yawRef.current = videoTimeToYaw(currentTime, video.duration);
-    onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, currentTime / video.duration)));
-    const key = face3dTimelineKey(currentTime);
+    const lt = logicalVideoTime();
+    if (lt === null) return;
+    const pp = pingPongRef.current;
+    const halfDur = pp ? video.duration / 2 : video.duration;
+    yawRef.current = videoTimeToYaw(lt, halfDur);
+    onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, lt / halfDur)));
+    const key = face3dTimelineKey(lt);
     const keyChanged = key !== currentTimeKeyRef.current;
     if (keyChanged) currentTimeKeyRef.current = key;
     renderCachedAnnotations();
@@ -1096,7 +1011,8 @@ export default function Face3DViewer({
     const video = videoRef.current;
     if (!video?.duration || !isFinite(video.duration)) return;
     const cache = landmarksByTimeKeyRef.current;
-    const maxKey = face3dTimelineKey(Math.max(0, video.duration - END_TIME_EPS));
+    const halfDur = pingPongRef.current ? video.duration / 2 : video.duration;
+    const maxKey = face3dTimelineKey(Math.max(0, halfDur - END_TIME_EPS));
     const current = currentTimeKeyRef.current;
     const keys = new Set<number>();
     for (let d = -LANDMARK_PRIME_RADIUS; d <= LANDMARK_PRIME_RADIUS; d++) {
@@ -1135,14 +1051,14 @@ export default function Face3DViewer({
     primeLandmarkCacheForHighlights,
   ]);
 
-  // Auto-rotate: native video playback forward and reverse; frame cache is fallback only.
+  // Auto-rotate: loop the ping-pong video forward so the face oscillates naturally.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return undefined;
 
     let cancelled = false;
     let autoRaf = 0;
-    let autoMode: 'idle' | 'forward' | 'backward' = 'idle';
+    let autoMode: 'idle' | 'forward' | 'manual-pingpong' = 'idle';
     let initialZoomApplied = false;
     const initZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, initialZoom));
     const initPanY = initialPanY;
@@ -1153,94 +1069,92 @@ export default function Face3DViewer({
     const stopAuto = () => {
       if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
       video.pause();
+      video.loop = false;
       safeSetPlaybackRate(video, 1);
-      const reverse = reverseVideoRef.current;
-      if (reverse) {
-        reverse.pause();
-        safeSetPlaybackRate(reverse, 1);
-      }
       const dc = displayCanvasRef.current;
       if (dc) dc.style.opacity = '0';
       autoMode = 'idle';
     };
 
-    const drawTimelineFrame = (
-      timelineKey: number,
-      lastBitmap: ImageBitmap | null,
-    ): ImageBitmap | null => {
-      const dc = displayCanvasRef.current;
-      if (!dc) return lastBitmap;
-      const roundedKey = Math.round(timelineKey);
-      let frame =
-        findNearestFrame(
-          frameCacheRef.current,
-          roundedKey,
-          FRAME_CACHE_REVERSE_MAX_KEY_DELTA,
-        ) ?? lastBitmap;
-      if (!frame) {
-        const d = video.duration;
-        if (d && isFinite(d)) {
-          const playbackTime = face3dTimelineTimeFromKey(roundedKey);
-          if (Math.abs(video.currentTime - playbackTime) > SCRUB_SEEK_EPS) {
-            video.currentTime = playbackTime;
-          }
-          drawVideoFrameToDisplay();
-          captureCurrentFrame();
-          frame =
-            findNearestFrame(
-              frameCacheRef.current,
-              roundedKey,
-              FRAME_CACHE_REVERSE_MAX_KEY_DELTA,
-            ) ?? lastBitmap;
-        }
-      }
-      if (!frame) return lastBitmap;
-      const ctx = dc.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, dc.width, dc.height);
-        ctx.drawImage(frame, 0, 0, dc.width, dc.height);
-      }
-      return frame;
-    };
-
-    // Forward pass: native play() fills the frame cache via rvfc; monitor RAF
-    // detects the end and hands off to startBackward().
-    const startForward = () => {
+    // Ping-pong encoded videos can loop forward. One-way videos need code-driven
+    // reverse scrubbing because browser reverse playback is not reliable.
+    const startForward = (preferredDir: 1 | -1 = 1) => {
       if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
-      autoMode = 'forward';
-      autoDirRef.current = 1;
       const d = video.duration;
       if (!d || !isFinite(d)) return;
-      const rate = computeAutoPlaybackRate(d, 1);
+      const pp = pingPongRef.current;
+      const rate = computeAutoPlaybackRate(d, pp);
+      autoDirRef.current = preferredDir;
+
+      if (!pp) {
+        autoMode = 'manual-pingpong';
+        video.loop = false;
+        video.pause();
+        safeSetPlaybackRate(video, 1);
+        const dc = displayCanvasRef.current;
+        if (dc) dc.style.opacity = '0';
+
+        let lastTs = 0;
+        const step = (ts: number) => {
+          autoRaf = 0;
+          if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'manual-pingpong') return;
+          if (!lastTs) lastTs = ts;
+          const dt = Math.min(0.05, Math.max(0, (ts - lastTs) / 1000));
+          lastTs = ts;
+          let next = video.currentTime + autoDirRef.current * rate * dt;
+          if (next >= d - END_TIME_EPS) {
+            next = d - END_TIME_EPS;
+            autoDirRef.current = -1;
+          } else if (next <= END_TIME_EPS) {
+            next = END_TIME_EPS;
+            autoDirRef.current = 1;
+          }
+          if (Math.abs(video.currentTime - next) > SCRUB_SEEK_EPS_DRAG) {
+            video.currentTime = next;
+          }
+          syncYawFromVideo();
+          captureCurrentFrame();
+          autoRaf = requestAnimationFrame(step);
+        };
+
+        const targetStart = yawToVideoTime(
+          preferredDir === -1 ? MAX_YAW_DEG : yawRef.current,
+          d,
+          false,
+        );
+        const begin = () => {
+          if (cancelled || autoMode !== 'manual-pingpong') return;
+          autoRaf = requestAnimationFrame(step);
+        };
+        if (Math.abs(video.currentTime - targetStart) > SCRUB_SEEK_EPS) {
+          video.currentTime = targetStart;
+          video.addEventListener('seeked', begin, { once: true });
+        } else {
+          begin();
+        }
+        return;
+      }
+
+      autoMode = 'forward';
+      video.loop = true;
 
       const doPlay = () => {
         if (cancelled || autoMode !== 'forward') return;
         const dc = displayCanvasRef.current;
         safeSetPlaybackRate(video, rate);
-        setActiveVideo("forward");
         void video.play().catch(() => {});
-        if (dc) dc.style.opacity = '0'; // Reveal only after seek + play are aligned
+        if (dc) dc.style.opacity = '0';
         const monitor = () => {
           autoRaf = 0;
           if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'forward') return;
-          const d2 = video.duration;
-          if (!d2 || !isFinite(d2)) { autoRaf = requestAnimationFrame(monitor); return; }
           syncYawFromVideo();
-          if (video.currentTime >= d2 - END_TIME_EPS || video.ended) {
-            yawRef.current = MAX_YAW_DEG;
-            video.currentTime = Math.max(0, d2 - END_TIME_EPS);
-            autoDirRef.current = -1;
-            startBackward();
-            return;
-          }
           autoRaf = requestAnimationFrame(monitor);
         };
         autoRaf = requestAnimationFrame(monitor);
       };
 
-      // Seek to the correct start position before playing (important when
-      // transitioning from backward where video.currentTime may be anywhere).
-      const targetStart = yawToVideoTime(yawRef.current, d);
+      // Seek to forward-half start for the current yaw.
+      const targetStart = yawToVideoTime(yawRef.current, d, pingPongRef.current);
       if (Math.abs(video.currentTime - targetStart) > SCRUB_SEEK_EPS) {
         video.pause();
         video.currentTime = targetStart;
@@ -1250,136 +1164,11 @@ export default function Face3DViewer({
       }
     };
 
-    // Reverse fallback: stepped cache RAF. Used only if a reversed MP4 is unavailable.
-    const startBackwardCache = () => {
-      if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
-      autoMode = 'backward';
-      autoDirRef.current = -1;
-      video.pause();
-      safeSetPlaybackRate(video, 1);
-      const dc = displayCanvasRef.current;
-      const d0 = video.duration;
-      if (!d0 || !isFinite(d0)) return;
-      const keysPerSecond =
-        Math.abs(computeAutoPlaybackRate(d0, 1)) * FACE3D_TIMELINE_FPS;
-      const maxKey = face3dTimelineKey(Math.max(0, d0 - END_TIME_EPS));
-      let timelineKey = Math.min(
-        maxKey,
-        Math.max(0, face3dTimelineKey(yawToVideoTime(yawRef.current, d0))),
-      );
-      let lastBitmap: ImageBitmap | null = null;
-      if (dc) {
-        lastBitmap = drawTimelineFrame(timelineKey, null);
-        dc.style.opacity = '1';
-      }
-      let last = performance.now();
-      const tick = (now: number) => {
-        autoRaf = 0;
-        if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'backward') {
-          if (dc) dc.style.opacity = '0';
-          return;
-        }
-        const d = video.duration;
-        if (!d || !isFinite(d)) {
-          autoRaf = requestAnimationFrame(tick);
-          return;
-        }
-        const dt = Math.min(0.05, (now - last) / 1000);
-        last = now;
-        timelineKey -= keysPerSecond * dt;
-        if (timelineKey <= 0) {
-          timelineKey = 0;
-          yawRef.current = -MAX_YAW_DEG;
-          autoDirRef.current = 1;
-          const leftTime = yawToVideoTime(-MAX_YAW_DEG, d);
-          const handoffToForward = () => {
-            if (cancelled || autoMode !== 'backward') return;
-            startForward();
-          };
-          if (Math.abs(video.currentTime - leftTime) > SCRUB_SEEK_EPS) {
-            video.currentTime = leftTime;
-            video.addEventListener('seeked', handoffToForward, { once: true });
-          } else {
-            handoffToForward();
-          }
-          return;
-        }
-        const playbackTime = face3dTimelineTimeFromKey(Math.round(timelineKey));
-        yawRef.current = videoTimeToYaw(playbackTime, d);
-        onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, playbackTime / d)));
-        lastBitmap = drawTimelineFrame(Math.round(timelineKey), lastBitmap);
-        const landmarkKey = Math.round(timelineKey);
-        if (landmarkKey !== currentTimeKeyRef.current) {
-          currentTimeKeyRef.current = landmarkKey;
-          renderCachedAnnotations();
-          requestLandmarksForTimeKey(landmarkKey);
-        }
-        autoRaf = requestAnimationFrame(tick);
-      };
-      autoRaf = requestAnimationFrame(tick);
-    };
-
-    /** Preferred reverse: play a pre-reversed MP4 forward. This avoids unsupported/jerky negative playbackRate. */
-    const startBackwardVideo = () => {
-      if (autoRaf) { cancelAnimationFrame(autoRaf); autoRaf = 0; }
-      autoMode = 'backward';
-      autoDirRef.current = -1;
-      const reverse = reverseVideoRef.current;
-      const d = video.duration;
-      if (!reverse || !reverseVideoUrl || !d || !isFinite(d)) {
-        startBackwardCache();
-        return;
-      }
-      const reverseDuration =
-        reverse.duration && isFinite(reverse.duration) ? reverse.duration : d;
-      const rate = Math.abs(computeAutoPlaybackRate(d, 1));
-
-      const doPlay = () => {
-        if (cancelled || autoMode !== 'backward') return;
-        const dc = displayCanvasRef.current;
-        if (dc) dc.style.opacity = '0';
-        safeSetPlaybackRate(reverse, rate);
-        setActiveVideo("reverse");
-        void reverse.play().catch(() => {});
-        const monitor = () => {
-          autoRaf = 0;
-          if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'backward') return;
-          const d2 = video.duration;
-          if (!d2 || !isFinite(d2)) { autoRaf = requestAnimationFrame(monitor); return; }
-          syncYawFromVideo();
-          captureCurrentFrame();
-          if (reverse.currentTime >= reverseDuration - END_TIME_EPS || reverse.ended) {
-            yawRef.current = -MAX_YAW_DEG;
-            // Let startForward seek video to 0 and await 'seeked' before swapping
-            // opacity — sync-setting video.currentTime here bypasses that wait and
-            // flashes the stale right-extreme frame on the revealed forward video.
-            reverse.pause();
-            reverse.currentTime = reverseDuration;
-            autoDirRef.current = 1;
-            startForward();
-            return;
-          }
-          autoRaf = requestAnimationFrame(monitor);
-        };
-        autoRaf = requestAnimationFrame(monitor);
-      };
-
-      const logicalTime = yawToVideoTime(yawRef.current, d);
-      const reverseTarget = Math.max(0, Math.min(reverseDuration, reverseDuration - logicalTime));
-      if (Math.abs(reverse.currentTime - reverseTarget) > SCRUB_SEEK_EPS) {
-        reverse.pause();
-        safeSetPlaybackRate(reverse, 1);
-        reverse.currentTime = reverseTarget;
-        reverse.addEventListener('seeked', doPlay, { once: true });
-      } else {
-        doPlay();
-      }
-    };
-
+    // "Start backward" = begin oscillation from the right extreme.
     const startBackward = () => {
-      if (reverseVideoUrl) startBackwardVideo();
-      else if (reversePlaybackOkRef.current) startBackwardCache();
-      else startBackwardCache();
+      autoDirRef.current = -1;
+      yawRef.current = MAX_YAW_DEG;
+      startForward(-1);
     };
 
     const stopAutoPlayback = () => stopAuto();
@@ -1396,7 +1185,6 @@ export default function Face3DViewer({
       const size = fitDisplaySize(video);
       displaySizeRef.current = size;
       setDisplaySize(size);
-      // Apply initial zoom/pan once — lets the face fill the frame on first load.
       if (!initialZoomApplied && (initZoom !== 1 || initPanY !== 0)) {
         initialZoomApplied = true;
         zoomRef.current = initZoom;
@@ -1409,18 +1197,17 @@ export default function Face3DViewer({
       }
       renderCachedAnnotations();
       stopAuto();
-      if (reversePlaybackOkRef.current === null) {
-        reversePlaybackOkRef.current = detectReverseVideoPlayback(video);
-      }
+      const pp = pingPongRef.current;
+      const halfDur = pp ? video.duration / 2 : video.duration;
       const initialYaw = autoRotateRef.current
         ? -MAX_YAW_DEG
         : clampYaw(controlledYawDeg ?? 0);
       const controlledTime =
         controlledTimeRatio === undefined
           ? null
-          : Math.max(0, Math.min(1, controlledTimeRatio)) * video.duration;
-      yawRef.current = controlledTime == null ? initialYaw : videoTimeToYaw(controlledTime, video.duration);
-      const target = controlledTime ?? yawToVideoTime(initialYaw, video.duration);
+          : Math.max(0, Math.min(1, controlledTimeRatio)) * halfDur;
+      yawRef.current = controlledTime == null ? initialYaw : videoTimeToYaw(controlledTime, halfDur);
+      const target = controlledTime ?? yawToVideoTime(initialYaw, video.duration, pp);
       const beginAutoRotate = () => {
         if (cancelled || !autoRotateRef.current) return;
         autoRotateStartedForUrlRef.current = videoUrl;
@@ -1431,7 +1218,7 @@ export default function Face3DViewer({
           startAutoPlayback(1);
           return;
         }
-        const leftTime = yawToVideoTime(-MAX_YAW_DEG, d);
+        const leftTime = yawToVideoTime(-MAX_YAW_DEG, d, pingPongRef.current);
         const go = () => startAutoPlayback(1);
         if (Math.abs(video.currentTime - leftTime) < SCRUB_SEEK_EPS) go();
         else {
@@ -1474,14 +1261,11 @@ export default function Face3DViewer({
       }
     };
 
-    // Safety net in case the monitor RAF misses the video end event.
+    // Safety net: if the video somehow ends (loop=false path), restart.
     const onEnded = () => {
       if (cancelled || draggingRef.current || !autoRotateRef.current) return;
-      if (autoMode === 'forward') {
-        yawRef.current = MAX_YAW_DEG;
-        autoDirRef.current = -1;
-        startBackward();
-      }
+      if (autoMode === 'forward') startForward();
+      if (autoMode === 'manual-pingpong') startForward(autoDirRef.current);
     };
 
     const scheduleVideoFrameSync = () => {
@@ -1546,7 +1330,6 @@ export default function Face3DViewer({
     captureFrameBitmapAtKey,
     renderCachedAnnotations,
     requestLandmarksForTimeKey,
-    reverseVideoUrl,
     setActiveVideo,
   ]);
 
@@ -1569,7 +1352,7 @@ export default function Face3DViewer({
       autoRotateStartedForUrlRef.current = videoUrl;
       autoDirRef.current = 1;
       yawRef.current = -MAX_YAW_DEG;
-      const leftTime = yawToVideoTime(-MAX_YAW_DEG, video.duration);
+      const leftTime = yawToVideoTime(-MAX_YAW_DEG, video.duration, pingPongRef.current);
       const go = () => autoPlaybackControllerRef.current?.start(1);
       if (Math.abs(video.currentTime - leftTime) < SCRUB_SEEK_EPS) go();
       else {
@@ -1587,7 +1370,7 @@ export default function Face3DViewer({
     const video = videoRef.current;
     if (!video || !video.duration || !isFinite(video.duration)) return;
     const yaw = clampYaw(controlledYawDeg);
-    const target = yawToVideoTime(yaw, video.duration);
+    const target = yawToVideoTime(yaw, video.duration, pingPongRef.current);
     const quantizedTime = quantizeFace3dTimelineTime(target);
     autoPlaybackControllerRef.current?.stop();
     setActiveVideo("forward");
@@ -1608,8 +1391,10 @@ export default function Face3DViewer({
     if (draggingRef.current || panningRef.current) return;
     const video = videoRef.current;
     if (!video || !video.duration || !isFinite(video.duration)) return;
+    const pp = pingPongRef.current;
+    const halfDur = pp ? video.duration / 2 : video.duration;
     const ratio = Math.max(0, Math.min(1, controlledTimeRatio));
-    const target = ratio * video.duration;
+    const target = ratio * halfDur;
     autoPlaybackControllerRef.current?.stop();
     setActiveVideo("forward");
     video.pause();
@@ -1620,18 +1405,16 @@ export default function Face3DViewer({
       controlledTimeAnimationRef.current = 0;
     }
 
-    const duration = video.duration;
-    const start = video.currentTime || 0;
-    // Turntable is a linear sweep (left profile → front → right); never wrap the long way.
+    const start = logicalVideoTime() ?? 0;
     const shortestDelta = target - start;
     const ms = Math.max(0, controlledTimeAnimationMs);
-    const setFrame = (time: number, queueLandmarks = true) => {
-      const wrapped = ((time % duration) + duration) % duration;
-      yawRef.current = videoTimeToYaw(wrapped, duration);
-      onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, wrapped / duration)));
+    const setFrame = (logicalT: number, queueLandmarks = true) => {
+      const clamped = Math.max(0, Math.min(halfDur, logicalT));
+      yawRef.current = videoTimeToYaw(clamped, halfDur);
+      onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, clamped / halfDur)));
       scrubTargetYawRef.current = yawRef.current;
-      currentTimeKeyRef.current = face3dTimelineKey(wrapped);
-      const quantized = quantizeFace3dTimelineTime(wrapped);
+      currentTimeKeyRef.current = face3dTimelineKey(clamped);
+      const quantized = quantizeFace3dTimelineTime(clamped);
       const dc = displayCanvasRef.current;
       if (dc) dc.style.opacity = "0";
       seekVideoPrecisely(video, quantized, SCRUB_SEEK_EPS_DRAG);
@@ -1680,7 +1463,7 @@ export default function Face3DViewer({
         controlledTimeAnimationRef.current = 0;
       }
     };
-  }, [controlledTimeRatio, controlledTimeAnimationMs, renderCachedAnnotations, requestLandmarksForTimeKey, setActiveVideo]);
+  }, [controlledTimeRatio, controlledTimeAnimationMs, logicalVideoTime, renderCachedAnnotations, requestLandmarksForTimeKey, setActiveVideo]);
 
   /** Apply CSS transform directly — no React re-render during drag/scroll. */
   const applyTransform = useCallback((px: number, py: number, z: number) => {
@@ -1703,7 +1486,7 @@ export default function Face3DViewer({
       const video = videoRef.current;
       if (!video?.duration) return;
       yawRef.current = yaw;
-      const quantizedTime = quantizeFace3dTimelineTime(yawToVideoTime(yaw, video.duration));
+      const quantizedTime = quantizeFace3dTimelineTime(yawToVideoTime(yaw, video.duration, pingPongRef.current));
       const targetKey = face3dTimelineKey(quantizedTime);
       const dc = displayCanvasRef.current;
       if (dc) dc.style.opacity = "0";
@@ -1934,22 +1717,6 @@ export default function Face3DViewer({
               onCanPlay={handleVideoReady}
               onError={handleVideoError}
             />
-            {reverseVideoUrl ? (
-              <video
-                ref={reverseVideoRef}
-                src={reverseVideoUrl}
-                width={displaySize.w}
-                height={displaySize.h}
-                preload="auto"
-                muted
-                playsInline
-                crossOrigin="anonymous"
-                className="face3d-display face3d-display--reverse"
-                onLoadedMetadata={handleVideoReady}
-                onCanPlay={handleVideoReady}
-                aria-hidden
-              />
-            ) : null}
             <canvas
               ref={displayCanvasRef}
               className="face3d-frame-cache-layer"

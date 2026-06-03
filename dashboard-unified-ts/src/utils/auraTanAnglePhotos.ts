@@ -18,10 +18,15 @@ import tanPng90RightRembg from "../assets/images/tan_90_right_rembg.png";
 import tanPng90RightRembgTexture from "../assets/images/tan_90_right_rembg_texture.png";
 import tanPng90RightRembgPigmentation from "../assets/images/tan_90_right_rembg_pigmentation.png";
 import tanProfileLeftWrinkles from "../assets/images/aura-tan-profile-left-wrinkles.webp";
+import tanProfileLeftWrinklesView from "../assets/images/aura-tan-profile-left-wrinkles-view.webp";
 import tanThreeQuarterLeftWrinkles from "../assets/images/aura-tan-three-quarter-left-wrinkles.webp";
+import tanThreeQuarterLeftWrinklesView from "../assets/images/aura-tan-three-quarter-left-wrinkles-view.webp";
 import tanFrontWrinkles from "../assets/images/aura-tan-front-wrinkles.webp";
+import tanFrontWrinklesView from "../assets/images/aura-tan-front-wrinkles-view.webp";
 import tanThreeQuarterRightWrinkles from "../assets/images/aura-tan-three-quarter-right-wrinkles.webp";
+import tanThreeQuarterRightWrinklesView from "../assets/images/aura-tan-three-quarter-right-wrinkles-view.webp";
 import tanProfileRightWrinkles from "../assets/images/aura-tan-profile-right-wrinkles.webp";
+import tanProfileRightWrinklesView from "../assets/images/aura-tan-profile-right-wrinkles-view.webp";
 
 export type AuraTanViewAngle =
   | "profile-left"
@@ -36,8 +41,23 @@ export type AuraTanViewerAngleAsset = {
   srcTexture?: string;
   /** Clinical pigment map for Pigmentation tab. */
   srcPigmentation?: string;
+  /** Redness overlay baked into color photo — used instead of CSS mask overlay. */
+  srcRedness?: string;
+  /** Pore map baked into texture photo — used instead of CSS mask overlay. */
+  srcPores?: string;
+  /** Background-removed still (rembg); used as base in Wrinkles lens when present. */
+  srcCutout?: string;
+  /** Transparent wrinkle line cutout (RGBA webp). */
+  srcWrinkles?: string;
+  /** Baked cutout + crease lines for Wrinkles lens display. */
+  srcWrinklesView?: string;
   timeRatio: number;
   label: string;
+  /** Per-patient CSS transform override — replaces the default Tanya plate-align when present. */
+  cssTransform?: string;
+  initialPanX?: number;
+  initialPanY?: number;
+  photoZoom?: number;
 };
 
 export type AuraTanBlendAngleAsset = AuraTanViewerAngleAsset & {
@@ -62,30 +82,35 @@ export const TANYA_TAN_STUDIO_ANGLE_ASSETS: Record<AuraTanViewAngle, AuraTanBlen
   "profile-left": {
     src: tanPng90Left,
     srcWrinkles: tanProfileLeftWrinkles,
+    srcWrinklesView: tanProfileLeftWrinklesView,
     timeRatio: 0.99,
     label: "Left profile",
   },
   "three-quarter-left": {
     src: tanPng45Left,
     srcWrinkles: tanThreeQuarterLeftWrinkles,
+    srcWrinklesView: tanThreeQuarterLeftWrinklesView,
     timeRatio: 0.76,
     label: "Left three-quarter",
   },
   front: {
     src: tanPngFront,
     srcWrinkles: tanFrontWrinkles,
+    srcWrinklesView: tanFrontWrinklesView,
     timeRatio: 0.5,
     label: "Front",
   },
   "three-quarter-right": {
     src: tanPng45Right,
     srcWrinkles: tanThreeQuarterRightWrinkles,
+    srcWrinklesView: tanThreeQuarterRightWrinklesView,
     timeRatio: 0.24,
     label: "Right three-quarter",
   },
   "profile-right": {
     src: tanPng90Right,
     srcWrinkles: tanProfileRightWrinkles,
+    srcWrinklesView: tanProfileRightWrinklesView,
     timeRatio: 0,
     label: "Right profile",
   },
@@ -97,33 +122,53 @@ export const TANYA_TAN_STUDIO_ANGLE_ASSETS: Record<AuraTanViewAngle, AuraTanBlen
 export const TANYA_TAN_VIEWER_ANGLE_ASSETS: Record<AuraTanViewAngle, AuraTanViewerAngleAsset> = {
   "profile-left": {
     src: tanPng90Left,
+    srcWrinkles: tanProfileLeftWrinkles,
+    srcWrinklesView: tanProfileLeftWrinklesView,
     srcTexture: "/demo-3d/tanya-tan-profile-left-texture.png",
+    srcRedness: "/demo-3d/tanya-tan/tanya-tan-profile-left-redness-cutout.png",
+    srcPores: "/demo-3d/tanya-tan/tanya-tan-profile-left-pores-cutout.png",
     timeRatio: 0.99,
     label: "Left profile",
   },
   "three-quarter-left": {
     src: tanPng45Left,
+    srcWrinkles: tanThreeQuarterLeftWrinkles,
+    srcWrinklesView: tanThreeQuarterLeftWrinklesView,
     srcTexture: tanPng45LeftRembg,
     srcPigmentation: "/demo-3d/tanya-tan-45-left-pigmentation-brown.png",
+    srcRedness: "/demo-3d/tanya-tan/tanya-tan-three-quarter-left-redness-cutout.png",
+    srcPores: "/demo-3d/tanya-tan/tanya-tan-three-quarter-left-pores-cutout.png",
     timeRatio: 0.76,
     label: "Left three-quarter",
   },
   front: {
     src: tanPngFront,
+    srcWrinkles: tanFrontWrinkles,
+    srcWrinklesView: tanFrontWrinklesView,
     srcTexture: "/demo-3d/tanya-tan-front-texture.png",
+    srcRedness: "/demo-3d/tanya-tan/tanya-tan-front-redness-cutout.png",
+    srcPores: "/demo-3d/tanya-tan/tanya-tan-front-pores-cutout.png",
     timeRatio: 0.5,
     label: "Front",
   },
   "three-quarter-right": {
     src: tanPng45Right,
+    srcWrinkles: tanThreeQuarterRightWrinkles,
+    srcWrinklesView: tanThreeQuarterRightWrinklesView,
     srcTexture: "/demo-3d/tanya-tan-45-right-texture.png",
+    srcRedness: "/demo-3d/tanya-tan/tanya-tan-three-quarter-right-redness-cutout.png",
+    srcPores: "/demo-3d/tanya-tan/tanya-tan-three-quarter-right-pores-cutout.png",
     timeRatio: 0.24,
     label: "Right three-quarter",
   },
   "profile-right": {
     src: tanPng90RightRembg,
+    srcWrinkles: tanProfileRightWrinkles,
+    srcWrinklesView: tanProfileRightWrinklesView,
     srcTexture: tanPng90RightRembgTexture,
     srcPigmentation: tanPng90RightRembgPigmentation,
+    srcRedness: "/demo-3d/tanya-tan/tanya-tan-profile-right-redness-cutout.png",
+    srcPores: "/demo-3d/tanya-tan/tanya-tan-profile-right-pores-cutout.png",
     timeRatio: 0,
     label: "Right profile",
   },
@@ -179,6 +224,7 @@ function classifyPhotoSlot(slot: ClientPhotoSlot): SideSlotKind {
   const blob = `${slot.id} ${slot.label ?? ""}`.toLowerCase();
 
   if (id === "front" || id === "front-form" || blob.includes("front")) return "front";
+  if (blob.includes("three-quarter")) return "other";
   if (id === "left-form" || id === "profile-left" || blob.includes("profile-left")) return "left";
   if (id === "side-form" || id === "profile-right" || blob.includes("profile-right")) return "right";
   if (blob.includes("left") && (blob.includes("90") || blob.includes("profile") || blob.includes("side"))) {
@@ -239,19 +285,6 @@ export function inferAvailableViewAnglesFromPhotoSlots(
     } else if (hasRightProfile && !hasLeftProfile) {
       found.add("profile-left");
     }
-  }
-
-  const sideUrls = new Set(
-    photoSlots
-      .filter((s) => {
-        const kind = classifyPhotoSlot(s);
-        return kind === "left" || kind === "right" || kind === "generic-side";
-      })
-      .map((s) => s.url),
-  );
-  if (sideUrls.size >= 2) {
-    found.add("profile-left");
-    found.add("profile-right");
   }
 
   if (found.size === 0 && photoSlots.length > 0) {

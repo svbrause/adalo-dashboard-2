@@ -1,7 +1,8 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { CategoryResult } from "../../config/analysisOverviewConfig";
 import {
   CATEGORY_DESCRIPTIONS,
+  canonicalIssueDisplayLabel,
   tierColor,
   tierLabel,
 } from "../../config/analysisOverviewConfig";
@@ -16,15 +17,21 @@ import type {
 } from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
 import {
   AURA_OVERVIEW_TABS,
+  AURA_SKIN_LENS_COLORS,
+  AURA_SKIN_LENS_LABELS,
+  auraSkinLensFromLabel,
+  buildSkinLensRadarData,
   categoryByKey,
+  collectIssuesForSkinLens,
+  detectedIssuesForCategory,
   detectedIssuesForSubScore,
   issueToMirrorHighlightTerm,
+  SKIN_LENS_ORDER,
   type AuraOverviewCategoryKey,
+  type AuraSkinLens,
 } from "../../utils/auraAnalysisBridge";
-import {
-  clientHasSeverityScores,
-  issueSeverityVisual,
-} from "../../utils/auraSeverityDisplay";
+import { getEffectiveSeverityIssues } from "../../utils/analysisOverviewClient";
+import { issueSeverityVisual } from "../../utils/auraSeverityDisplay";
 import { hasMirrorAnnotationHighlights } from "../postVisitBlueprint/AiMirrorCanvas";
 import AuraCategoryRadarCard from "./AuraCategoryRadarCard";
 import PatientMediaLibraryPanel from "./PatientMediaLibraryPanel";
@@ -46,6 +53,9 @@ export interface AuraMirrorHighlightBridge {
     annotationsRefreshKey: number;
     onLoadAnnotation: (record: SavedPatientAnnotation) => void;
   };
+  /** Active Skin scan lens (Texture / Redness / Pores) — synced with left face sub-tabs. */
+  activeSkinLens?: AuraSkinLens;
+  onActiveSkinLensChange?: (lens: AuraSkinLens) => void;
 }
 
 function isIssueOnFace(highlightTerms: string[], issue: string): boolean {
@@ -134,6 +144,129 @@ function IconPanelChevron({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+type AnalysisLens = {
+  label: string;
+  detail: string;
+  terms: string[];
+  sections?: string[];
+};
+
+const CATEGORY_STORY: Record<
+  AuraOverviewCategoryKey,
+  {
+    text: string;
+    lenses: AnalysisLens[];
+  }
+> = {
+  skinHealth: {
+    text:
+      "Skin lenses on the left match the chart: texture, redness, pores, and wrinkles. Scores run 1.2 (best) to 2.8 on a 0–3 scale.",
+    lenses: [
+      {
+        label: "Texture",
+        detail: "Roughness, dryness, spots",
+        sections: ["Texture", "Hydration"],
+        terms: ["texture", "dry", "crepey", "scar", "dark spot", "dark circle"],
+      },
+      {
+        label: "Redness",
+        detail: "Red spots, rosacea",
+        sections: ["Pigmentation"],
+        terms: ["red", "rosacea", "irritation", "inflam", "facial redness"],
+      },
+      {
+        label: "Pores",
+        detail: "Congestion, visible pores",
+        terms: ["pore", "whitehead", "blackhead", "acne", "comedone", "congestion"],
+      },
+      {
+        label: "Wrinkles",
+        detail: "Lines and creases",
+        sections: ["Wrinkles"],
+        terms: ["wrinkle", "line", "crow", "forehead", "glabella", "perioral", "neck line"],
+      },
+    ],
+  },
+  volumeLoss: {
+    text:
+      "The volume view shows where contour support and shadowing may relate to the findings list. These are treated as support patterns, not standalone proof of tissue loss.",
+    lenses: [
+      {
+        label: "Eye support",
+        detail: "Under-eye hollows and bags",
+        sections: ["Eye Area"],
+        terms: ["eye", "hollow", "bag", "dark circle"],
+      },
+      {
+        label: "Midface",
+        detail: "Cheek contour and lateral weight",
+        sections: ["Cheek Area"],
+        terms: ["cheek", "cheekbone", "temporal", "mid cheek"],
+      },
+      {
+        label: "Lower face",
+        detail: "Folds, jowls, jaw support",
+        sections: ["Lower Face", "Neck Area"],
+        terms: ["fold", "jowl", "marionette", "lower", "prejowl", "neck", "platysmal"],
+      },
+    ],
+  },
+  proportions: {
+    text:
+      "The structure view organizes balance, alignment, and proportion findings. It is meant to connect visible shape cues to the issue list without implying a single ideal facial template.",
+    lenses: [
+      {
+        label: "Brow / eyes",
+        detail: "Upper-face balance",
+        sections: ["Brow & Eyes"],
+        terms: ["brow", "eyelid", "eye", "forehead"],
+      },
+      {
+        label: "Profile / jaw",
+        detail: "Chin and jawline proportion",
+        sections: ["Jaw"],
+        terms: ["jaw", "chin", "masseter"],
+      },
+      {
+        label: "Feature balance",
+        detail: "Nose and lip structure",
+        sections: ["Nose", "Lips"],
+        terms: ["nose", "tip", "hump", "lip", "philtral", "smile"],
+      },
+    ],
+  },
+};
+
+function normalizeLensText(value: string): string {
+  return value.toLowerCase().replace(/['']/g, "").replace(/\s+/g, " ").trim();
+}
+
+function lensesForFinding(
+  categoryKey: AuraOverviewCategoryKey,
+  section: string,
+  issue: string,
+): AnalysisLens[] {
+  const story = CATEGORY_STORY[categoryKey];
+  const sectionKey = normalizeLensText(section);
+  const issueKey = normalizeLensText(issue);
+  return story.lenses.filter((lens) => {
+    const sectionMatch = lens.sections?.some(
+      (name) => normalizeLensText(name) === sectionKey,
+    );
+    const termMatch = lens.terms.some((term) =>
+      issueKey.includes(normalizeLensText(term)),
+    );
+    return sectionMatch || termMatch;
+  });
+}
+
+function skinLensFocusSubheading(lens: AuraSkinLens, detail?: string): string {
+  const label = AURA_SKIN_LENS_LABELS[lens];
+  return detail
+    ? `Focused on ${label} — ${detail}. Switch tabs on the left to change lens.`
+    : `Focused on ${label}. Switch tabs on the left to change lens.`;
+}
+
 function OverallScoreArc({
   score,
   color,
@@ -214,12 +347,18 @@ export default function AuraEmbeddedAnalysisPanel({
     panelCollapsed,
     onPanelCollapsedChange,
     patientFiles,
+    activeSkinLens,
   } = bridge;
 
   const onFaceCount = highlightTerms.length;
 
-  const severityIssues = client.severityScoresFromAnalyses?.issues;
-  const hasSeverity = clientHasSeverityScores(client);
+  const severityIssues = useMemo(
+    () => getEffectiveSeverityIssues(client),
+    [client],
+  );
+  const hasSeverity = Boolean(
+    severityIssues && Object.keys(severityIssues).length > 0,
+  );
   const activeTab = AURA_OVERVIEW_TABS.find((t) => t.key === activeCategory);
   const categoryAccent = activeTab?.accent ?? "#60a5fa";
 
@@ -228,6 +367,7 @@ export default function AuraEmbeddedAnalysisPanel({
     ? tierColor(activeCat.tier)
     : categoryAccent;
   const hasFaceHighlights = hasMirrorAnnotationHighlights(highlightTerms);
+  const categoryStory = CATEGORY_STORY[activeCategory];
 
   const subScoresWithIssues = useMemo(() => {
     if (!activeCat) return [];
@@ -255,14 +395,137 @@ export default function AuraEmbeddedAnalysisPanel({
       subScoresWithIssues
         .map(({ sub, issues }) => ({
           section: sub.name,
-          items: issues.map((issue) => ({
-            issue,
-            vis: issueSeverityVisual(issue, severityIssues, categoryScoreColor),
-          })),
+          items: issues.map((issue) => {
+            const label = canonicalIssueDisplayLabel(issue);
+            return {
+              issue: label,
+              vis: issueSeverityVisual(label, severityIssues, categoryScoreColor),
+            };
+          }),
         }))
         .filter((row) => row.items.length > 0),
     [subScoresWithIssues, severityIssues, categoryScoreColor],
   );
+
+  const skinLensRadarData = useMemo(() => {
+    if (!activeCat || activeCategory !== "skinHealth") return undefined;
+    return buildSkinLensRadarData(activeCat, {
+      detected: detectedIssues,
+      severityIssues: severityIssues ?? undefined,
+    });
+  }, [activeCat, activeCategory, detectedIssues, severityIssues]);
+
+  const activeCategoryIssues = useMemo(
+    () => detectedIssuesForCategory(activeCategory, detectedIssues),
+    [activeCategory, detectedIssues],
+  );
+
+  /** Skin: group findings under Texture / Redness / Pores (left scan tabs). */
+  const skinLensFindings = useMemo(() => {
+    if (activeCategory !== "skinHealth") return [];
+    const lenses = CATEGORY_STORY.skinHealth.lenses;
+    const byLens = new Map<AuraSkinLens, { issue: string; vis: ReturnType<typeof issueSeverityVisual> }[]>();
+    for (const lens of lenses) {
+      const key = auraSkinLensFromLabel(lens.label);
+      if (key) byLens.set(key, []);
+    }
+    for (const lens of SKIN_LENS_ORDER) {
+      const bucket = byLens.get(lens);
+      if (!bucket) continue;
+      for (const issue of collectIssuesForSkinLens(
+        lens,
+        activeCategoryIssues,
+        severityIssues,
+      )) {
+        bucket.push({
+          issue,
+          vis: issueSeverityVisual(issue, severityIssues, categoryScoreColor),
+        });
+      }
+    }
+    return lenses
+      .map((lens) => {
+        const key = auraSkinLensFromLabel(lens.label);
+        if (!key) return null;
+        const items = (byLens.get(key) ?? []).sort((a, b) => {
+          const ba = a.vis.badness01 ?? -1;
+          const bb = b.vis.badness01 ?? -1;
+          if (bb !== ba) return bb - ba;
+          return a.issue.localeCompare(b.issue);
+        });
+        return { lensKey: key, lens, items };
+      })
+      .filter((row): row is NonNullable<typeof row> => row != null);
+  }, [activeCategory, activeCategoryIssues, severityIssues, categoryScoreColor]);
+
+  const effectiveSkinLens: AuraSkinLens = activeSkinLens ?? "texture";
+
+  const activeSkinLensMeta = useMemo(
+    () =>
+      CATEGORY_STORY.skinHealth.lenses.find(
+        (l) => auraSkinLensFromLabel(l.label) === effectiveSkinLens,
+      ),
+    [effectiveSkinLens],
+  );
+
+  const findingsGroups = useMemo(() => {
+    if (activeCategory === "skinHealth") {
+      return skinLensFindings
+        .filter((g) => g.items.length > 0)
+        .map((g) => ({
+          section: g.lens.label,
+          sectionDetail: g.lens.detail,
+          lensKey: g.lensKey,
+          items: g.items,
+        }));
+    }
+    return sectionedFindings.map((g) => ({
+      section: g.section,
+      sectionDetail: undefined as string | undefined,
+      lensKey: undefined as AuraSkinLens | undefined,
+      items: g.items,
+    }));
+  }, [activeCategory, skinLensFindings, sectionedFindings]);
+
+  /** Skin: show only the lens matching the left tab (always derived from severity + detected). */
+  const focusedFindingsGroups = useMemo(() => {
+    if (activeCategory !== "skinHealth") return findingsGroups;
+    const lensIssues = collectIssuesForSkinLens(
+      effectiveSkinLens,
+      activeCategoryIssues,
+      severityIssues,
+    );
+    return [
+      {
+        section: AURA_SKIN_LENS_LABELS[effectiveSkinLens],
+        sectionDetail: activeSkinLensMeta?.detail,
+        lensKey: effectiveSkinLens,
+        items: lensIssues.map((issue) => ({
+          issue,
+          vis: issueSeverityVisual(issue, severityIssues, categoryScoreColor),
+        })),
+      },
+    ];
+  }, [
+    activeCategory,
+    findingsGroups,
+    effectiveSkinLens,
+    activeSkinLensMeta?.detail,
+    activeCategoryIssues,
+    severityIssues,
+    categoryScoreColor,
+  ]);
+
+  const findingsEmpty = focusedFindingsGroups.every((g) => g.items.length === 0);
+
+  const findingsSectionRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (activeCategory !== "skinHealth" || panelCollapsed || rightView !== "analysis") {
+      return;
+    }
+    findingsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [effectiveSkinLens, activeCategory, panelCollapsed, rightView]);
 
   /** Treatment suggestions relevant to all detected issues across all categories. */
   const suggestedTreatments = useMemo(() => {
@@ -447,39 +710,125 @@ export default function AuraEmbeddedAnalysisPanel({
                   </div>
                 </div>
                 <p className="aura-embedded-panel__cat-subheading">
-                  {CATEGORY_DESCRIPTIONS[activeCategory]}
+                  {activeCategory === "skinHealth"
+                    ? skinLensFocusSubheading(
+                        effectiveSkinLens,
+                        activeSkinLensMeta?.detail,
+                      )
+                    : CATEGORY_DESCRIPTIONS[activeCategory]}
                 </p>
               </div>
 
               <AuraCategoryRadarCard
                 activeCat={activeCat}
                 categoryAccent={categoryScoreColor}
+                radarDataOverride={skinLensRadarData}
+                skinLensPolarArea={!!skinLensRadarData}
+                activeSkinLens={
+                  activeCategory === "skinHealth" ? effectiveSkinLens : undefined
+                }
+                chartAriaLabel={
+                  skinLensRadarData
+                    ? `Skin scan lens chart; ${AURA_SKIN_LENS_LABELS[effectiveSkinLens]} selected`
+                    : undefined
+                }
               />
 
-              <div className="aura-embedded-panel__issues-section">
-                <h4 className="aura-embedded-panel__issues-heading">Findings</h4>
-                {sectionedFindings.length === 0 ? (
+              {activeCategory !== "skinHealth" ? (
+                <div className="aura-embedded-panel__analysis-story">
+                  <p className="aura-embedded-panel__analysis-story-text">
+                    {categoryStory.text}
+                  </p>
+                  <div
+                    className="aura-embedded-panel__analysis-chip-row aura-embedded-panel__analysis-chip-row--lenses"
+                    aria-label={`${activeTab?.label ?? activeCat.name} scan lenses`}
+                  >
+                    {categoryStory.lenses.map((lens) => (
+                      <span
+                        key={lens.label}
+                        className="aura-embedded-panel__analysis-chip aura-embedded-panel__analysis-chip--lens"
+                        title={lens.detail}
+                      >
+                        <span
+                          className="aura-embedded-panel__analysis-chip-dot"
+                          style={{ background: categoryScoreColor }}
+                          aria-hidden
+                        />
+                        {lens.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div
+                ref={findingsSectionRef}
+                className="aura-embedded-panel__issues-section"
+              >
+                <h4 className="aura-embedded-panel__issues-heading">
+                  {activeCategory === "skinHealth"
+                    ? `${AURA_SKIN_LENS_LABELS[effectiveSkinLens]} findings`
+                    : "Findings"}
+                </h4>
+                {activeCategory === "skinHealth" ? (
+                  <p className="aura-embedded-panel__issues-subheading">
+                    {activeSkinLensMeta?.detail ??
+                      "Issues detected for this scan lens."}
+                  </p>
+                ) : null}
+                {findingsEmpty ? (
                   <p className="aura-embedded-panel__empty">
-                    No significant findings in this category for this client.
+                    {activeCategory === "skinHealth"
+                      ? `No significant ${AURA_SKIN_LENS_LABELS[effectiveSkinLens].toLowerCase()} findings for this client.`
+                      : "No significant findings in this category for this client."}
                   </p>
                 ) : (
                   <div className="aura-embedded-panel__issue-groups">
-                    {sectionedFindings.map((group) => (
+                    {focusedFindingsGroups.map((group) => (
                       <section
-                        key={group.section}
-                        className="aura-embedded-panel__issue-group"
+                        key={group.lensKey ?? group.section}
+                        className="aura-embedded-panel__issue-group aura-embedded-panel__issue-group--lens-active"
                         aria-label={`${group.section} findings`}
+                        style={
+                          group.lensKey
+                            ? ({
+                                borderColor: `color-mix(in srgb, ${AURA_SKIN_LENS_COLORS[group.lensKey]} 42%, var(--theme-border, #e2e8f0))`,
+                                background: `color-mix(in srgb, ${AURA_SKIN_LENS_COLORS[group.lensKey]} 10%, var(--theme-bg-inset, #f8fafc))`,
+                              } as CSSProperties)
+                            : undefined
+                        }
                       >
                         <h5 className="aura-embedded-panel__issue-group-title">
-                          {group.section}
+                          <span
+                            className="aura-embedded-panel__issue-group-lens"
+                            style={
+                              group.lensKey
+                                ? ({
+                                    color: AURA_SKIN_LENS_COLORS[group.lensKey],
+                                  } as CSSProperties)
+                                : undefined
+                            }
+                          >
+                            {group.section}
+                          </span>
+                          {group.sectionDetail ? (
+                            <span className="aura-embedded-panel__issue-group-detail">
+                              {group.sectionDetail}
+                            </span>
+                          ) : null}
                         </h5>
                         <ul className="aura-embedded-panel__issues">
                           {group.items.map(({ issue, vis }) => {
                             const isOnFace = isIssueOnFace(highlightTerms, issue);
                             const findingColor = vis.hasSeverityPayload ? vis.color : categoryScoreColor;
+                            const matchedLenses = lensesForFinding(
+                              activeCategory,
+                              group.section,
+                              issue,
+                            );
                             return (
                               <li
-                                key={`${group.section}-${issue}`}
+                                key={`${group.lensKey ?? group.section}-${issue}`}
                                 className={`aura-embedded-panel__issue${vis.hasSeverityPayload ? " aura-embedded-panel__issue--severity" : ""}`}
                                 style={
                                   {
@@ -495,20 +844,40 @@ export default function AuraEmbeddedAnalysisPanel({
                                   />
                                   <div className="aura-embedded-panel__issue-text">
                                     <span className="aura-embedded-panel__issue-name">{issue}</span>
-                                    <span className="aura-embedded-panel__issue-meta">
-                                      {vis.severityLevel ? (
-                                        <span
-                                          className="aura-embedded-panel__issue-level"
-                                          style={{ color: findingColor, borderColor: findingColor, background: `color-mix(in srgb, ${findingColor} 12%, transparent)` }}
-                                        >
-                                          {vis.severityLevel}
-                                        </span>
-                                      ) : (
-                                        <span className="aura-embedded-panel__issue-level aura-embedded-panel__issue-level--muted">
-                                          Detected
-                                        </span>
-                                      )}
-                                    </span>
+                                    {(vis.severityLevel ||
+                                      vis.healthScore != null ||
+                                      ((activeCategory !== "skinHealth" || !group.lensKey) &&
+                                        matchedLenses.length > 0)) ? (
+                                      <span className="aura-embedded-panel__issue-meta">
+                                        {vis.severityLevel || vis.healthScore != null ? (
+                                          <span
+                                            className="aura-embedded-panel__issue-level"
+                                            style={{
+                                              color: findingColor,
+                                              borderColor: findingColor,
+                                              background: `color-mix(in srgb, ${findingColor} 12%, transparent)`,
+                                            }}
+                                          >
+                                            {vis.severityLevel
+                                              ? vis.healthScore != null
+                                                ? `${vis.severityLevel} · ${vis.healthScore}/100`
+                                                : vis.severityLevel
+                                              : `${vis.healthScore}/100`}
+                                          </span>
+                                        ) : null}
+                                        {activeCategory !== "skinHealth" || !group.lensKey
+                                          ? matchedLenses.slice(0, 2).map((lens) => (
+                                              <span
+                                                key={lens.label}
+                                                className="aura-embedded-panel__issue-lens"
+                                                title={lens.detail}
+                                              >
+                                                {lens.label}
+                                              </span>
+                                            ))
+                                          : null}
+                                      </span>
+                                    ) : null}
                                   </div>
                                 </div>
                                 {onOpenTreatmentForIssue && (

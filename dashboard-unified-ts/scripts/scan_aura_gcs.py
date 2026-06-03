@@ -61,6 +61,11 @@ def upload_aura_manifest_to_gcs(
         out["turntableVideoUrl"] = rewrite(manifest.get("turntableVideoUrl"))
         out["textureVideoUrl"] = rewrite(manifest.get("textureVideoUrl"))
         out["pigmentationVideoUrl"] = rewrite(manifest.get("pigmentationVideoUrl"))
+        out["rednessVideoUrl"] = rewrite(manifest.get("rednessVideoUrl"))
+        out["rednessReverseVideoUrl"] = rewrite(manifest.get("rednessReverseVideoUrl"))
+        out["poresVideoUrl"] = rewrite(manifest.get("poresVideoUrl"))
+        out["wrinklesVideoUrl"] = rewrite(manifest.get("wrinklesVideoUrl"))
+        out["poresReverseVideoUrl"] = rewrite(manifest.get("poresReverseVideoUrl"))
         angles_out: dict[str, Any] = {}
         for angle, asset in (manifest.get("angles") or {}).items():
             if not isinstance(asset, dict):
@@ -72,8 +77,21 @@ def upload_aura_manifest_to_gcs(
                 "srcOriginal": rewrite(asset.get("srcOriginal")),
                 "srcTexture": rewrite(asset.get("srcTexture")),
                 "srcPigmentation": rewrite(asset.get("srcPigmentation")),
+                "srcRedness": rewrite(asset.get("srcRedness")),
+                "srcPores": rewrite(asset.get("srcPores")),
             }
         out["angles"] = angles_out
+
+        # Rewrite per-angle mask URLs inside cvAnnotations.
+        cv = manifest.get("cvAnnotations")
+        if isinstance(cv, dict):
+            cv_out = dict(cv)
+            for mask_field in ("redMaskByAngle", "poreMaskByAngle"):
+                by_angle = cv.get(mask_field)
+                if isinstance(by_angle, dict):
+                    cv_out[mask_field] = {a: rewrite(u) for a, u in by_angle.items()}
+            out["cvAnnotations"] = cv_out
+
         print(f"[aura-gcs] Uploaded {len(url_map)} files for {slug}", flush=True)
         return out
     except Exception as exc:

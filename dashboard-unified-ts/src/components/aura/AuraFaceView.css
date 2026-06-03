@@ -139,6 +139,30 @@
   transform-origin: center center;
 }
 
+/* Base + wrinkle overlay share one intrinsic box (fixes misaligned absolute overlays). */
+.avf-photo-stack {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.avf-photo-stack > .avf-static-photo__img {
+  position: relative;
+  z-index: 0;
+}
+
+.avf-photo-stack__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .avf-photo-align .avf-drawing-layer,
 .avf-photo-align .avf-annotate-toolbar {
   position: absolute;
@@ -377,6 +401,51 @@
   color: var(--avf-text);
   border-color: rgba(255 255 255 / 0.2);
   background: rgba(255 255 255 / 0.08);
+}
+
+/* Skin sub-mode picker — floats at top of the viewport when Skin tab is active */
+.avf-skin-sub-tabs {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0 0 0 / 0.55);
+  border: 1px solid rgba(255 255 255 / 0.10);
+  border-radius: 999px;
+  padding: 3px;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.avf-skin-sub-tab {
+  background: transparent;
+  border: none;
+  color: rgba(255 255 255 / 0.55);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  padding: 4px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+  line-height: 1.2;
+  min-height: 26px;
+}
+
+.avf-skin-sub-tab--active {
+  background: rgba(255 255 255 / 0.14);
+  color: rgba(255 255 255 / 0.92);
+}
+
+.avf-skin-sub-tab:hover:not(.avf-skin-sub-tab--active) {
+  color: rgba(255 255 255 / 0.78);
+  background: rgba(255 255 255 / 0.07);
 }
 
 /* Pill navigation */
@@ -684,6 +753,18 @@
   mix-blend-mode: normal;
 }
 
+.avf-wrinkle-photo-layer {
+  z-index: 3;
+  mix-blend-mode: normal;
+  pointer-events: none;
+}
+
+.avf-wrinkle-photo-layer img {
+  mix-blend-mode: normal;
+  opacity: 1;
+  filter: contrast(1.45) brightness(1.15) drop-shadow(0 0 1px rgba(255 255 255 / 0.3));
+}
+
 .avf-angle-photo-layer img {
   position: absolute;
   inset: 0;
@@ -773,6 +854,41 @@
   stroke-opacity: 0.7;
 }
 
+/* Expression / wrinkle creases — thin brown strokes (anatomical guide lines). */
+.avf-diagnostic-overlay__wrinkles path {
+  fill: none;
+  stroke: #4a3828;
+  stroke-width: 0.32;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.88;
+}
+
+.avf-diagnostic-overlay--structure .avf-diagnostic-overlay__wrinkles path {
+  stroke-width: 0.42;
+  opacity: 0.88;
+}
+
+/* Skin → Wrinkles lens: dark blue-gray crease marks, matching evaluation composites. */
+.avf-diagnostic-overlay--wrinkles-lens {
+  mix-blend-mode: normal;
+  opacity: 1;
+}
+
+.avf-diagnostic-overlay__wrinkles--lens path {
+  stroke: #2f3e52;
+  stroke-width: 0.58;
+  opacity: 0.98;
+  paint-order: stroke;
+  filter: drop-shadow(0 0 1px rgba(255 255 255 / 0.35));
+}
+
+.avf-diagnostic-overlay__wrinkles--lens path:nth-child(odd) {
+  stroke-width: 0.5;
+  opacity: 0.9;
+}
+
 /* UV / Brown-Spots mode — desaturate face so vivid spots pop against gray */
 .avf-3d-frame .face3d-display,
 .avf-3d-frame .face3d-frame-cache-layer,
@@ -827,9 +943,41 @@
   mix-blend-mode: multiply;
 }
 
+/* Redness / pore mask overlays on static photo view.
+   Rendered as <img> elements so they use the same object-fit layout as the
+   photo, guaranteeing pixel-accurate alignment regardless of aspect ratio. */
+.avf-photo-mask-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  mix-blend-mode: multiply;
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.avf-photo-mask-overlay--pores {
+  opacity: 0.88;
+}
+
+/* Transparent wrinkle line cutout over cutout still / turntable. */
+.avf-photo-mask-overlay--wrinkles {
+  z-index: 2;
+  mix-blend-mode: normal;
+  opacity: 1;
+  filter: contrast(1.35) brightness(1.2);
+}
+
 .avf-diagnostic-overlay__red-mask {
   mix-blend-mode: multiply;
   opacity: 0.98;
+}
+
+.avf-diagnostic-overlay__pore-mask {
+  mix-blend-mode: multiply;
+  opacity: 0.92;
 }
 
 .avf-diagnostic-overlay__red-spots ellipse {

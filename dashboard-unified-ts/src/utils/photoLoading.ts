@@ -35,6 +35,23 @@ export function isExpiringAirtableAttachmentUrl(url: string): boolean {
   }
 }
 
+/**
+ * Parse the expiry epoch (ms) embedded in an Airtable CDN URL.
+ * Format: /v3/u/{uid}/{uid}/{EXPIRY_MS}/...
+ * Returns null for non-Airtable or unrecognised URL formats.
+ */
+export function airtableUrlExpiresAt(url: string): number | null {
+  const m = url.match(/\/v[23456789]\/u\/\d+\/\d+\/(\d{10,})\//);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/** True when an Airtable URL's expiry timestamp is in the past (or within 5 min). */
+export function isAirtableUrlStale(url: string, bufferMs = 5 * 60 * 1000): boolean {
+  const expiresAt = airtableUrlExpiresAt(url);
+  if (expiresAt === null) return false;
+  return Date.now() + bufferMs >= expiresAt;
+}
+
 export function markPhotoDisplayUrlFailed(url: string): void {
   const u = url?.trim();
   if (u) failedPhotoUrls.add(u);
@@ -51,6 +68,9 @@ export function sanitizePhotoDisplayUrl(
   const u = url?.trim();
   if (!u) return null;
   if (isPhotoDisplayUrlFailed(u)) return null;
+  // Always reject stale Airtable URLs regardless of allowExpiringAirtableCdn —
+  // a 410 produces a CORS error in the browser before we can handle it.
+  if (isExpiringAirtableAttachmentUrl(u) && isAirtableUrlStale(u)) return null;
   if (!options?.allowExpiringAirtableCdn && isExpiringAirtableAttachmentUrl(u)) {
     return null;
   }
@@ -125,6 +145,39 @@ export function resolveClientFrontPhotoDisplayUrl(client: Client): string | null
   return getClientFrontPhotoDisplayUrl(client.frontPhoto, {
     allowExpiringAirtableCdn: true,
   });
+}
+
+/** True when the client has a cached Airtable photo URL that has already expired. */
+export function clientHasStaleAirtablePhoto(client: Client): boolean {
+  if (!client.frontPhoto) return false;
+  const urls: string[] = [];
+  if (typeof client.frontPhoto === "string") {
+    urls.push(client.frontPhoto);
+  } else if (Array.isArray(client.frontPhoto)) {
+    for (const a of client.frontPhoto as { url?: string; thumbnails?: { large?: { url?: string }; full?: { url?: string } } }[]) {
+      if (a?.thumbnails?.large?.url) urls.push(a.thumbnails.large.url);
+      else if (a?.thumbnails?.full?.url) urls.push(a.thumbnails.full.url);
+      else if (a?.url) urls.push(a.url);
+    }
+  }
+  return urls.some((u) => isExpiringAirtableAttachmentUrl(u) && isAirtableUrlStale(u));
+}
+
+/**
+ * Reset stale Airtable photo data on a batch of clients so loadVisibleClientPhotos
+ * will re-fetch them.  Call before loadVisibleClientPhotos when you suspect expiry.
+ */
+export function clearStaleClientPhotos(clients: Client[]): Client[] {
+  const stale: Client[] = [];
+  for (const client of clients) {
+    if (clientHasStaleAirtablePhoto(client)) {
+      client.frontPhoto = null;
+      client.frontPhotoLoaded = false;
+      photoRequestedIds.delete(client.id);
+      stale.push(client);
+    }
+  }
+  return stale;
 }
 
 /** True only when we have no front-photo payload and must hit Airtable. */

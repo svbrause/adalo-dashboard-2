@@ -219,6 +219,17 @@ export function parseWellnessGoalsFromAirtable(value: unknown): string[] {
   return [];
 }
 
+function firstStringField(
+  fields: Record<string, any>,
+  names: string[],
+): string | null {
+  for (const name of names) {
+    const value = fields[name];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
 /**
  * Map Airtable status field to dashboard status
  */
@@ -663,6 +674,23 @@ export function mapRecordToClient(
     turntableVideoUrl:
       tableName === "Patients"
         ? ((fields["Turntable Video URL"] as string | null | undefined) || null)
+        : null,
+    auraManifestUrl:
+      tableName === "Patients"
+        ? firstStringField(fields, [
+            "Aura Manifest URL",
+            "Aura Asset Manifest URL",
+            "Aura Assets Manifest URL",
+          ])
+        : null,
+    auraGcsPrefix:
+      tableName === "Patients"
+        ? firstStringField(fields, [
+            "Aura GCS Prefix",
+            "Aura Asset Prefix",
+            "Aura Assets Prefix",
+            "Aura GCS Folder",
+          ])
         : null,
   };
 

@@ -2,6 +2,7 @@
  * Shared helpers for Analysis Overview + Post-Visit Blueprint — same inputs as the overview modal.
  */
 import type { AnalysisSeverityIssue, Client } from "../types";
+import { adminDemoSeverityIssuesForClient } from "../debug/adminDemoSeverityOverlay";
 import { normalizeIssue } from "../config/analysisOverviewConfig";
 import { issueToAreaMap } from "./issueMapping";
 
@@ -44,8 +45,15 @@ export function isSeverityRowNonPerfect(issue: AnalysisSeverityIssue): boolean {
   );
 }
 
+/** Severity JSON for overview / Aura panel (includes Courtney showcase fallback). */
+export function getEffectiveSeverityIssues(
+  client: Client,
+): Record<string, AnalysisSeverityIssue> | undefined {
+  return adminDemoSeverityIssuesForClient(client);
+}
+
 export function getDetectedIssuesFromClient(client: Client): Set<string> {
-  const severityIssues = client.severityScoresFromAnalyses?.issues;
+  const severityIssues = getEffectiveSeverityIssues(client);
   if (severityIssues && Object.keys(severityIssues).length > 0) {
     const set = new Set<string>();
     for (const [issueName, issue] of Object.entries(severityIssues)) {
@@ -114,7 +122,7 @@ export interface SeverityIssueDisplayRow {
 export function getSeverityIssueRowsFromClient(
   client: Client,
 ): SeverityIssueDisplayRow[] {
-  const severityIssues = client.severityScoresFromAnalyses?.issues;
+  const severityIssues = getEffectiveSeverityIssues(client);
   if (!severityIssues) return [];
   const rows: SeverityIssueDisplayRow[] = [];
   for (const [issueName, issue] of Object.entries(severityIssues)) {

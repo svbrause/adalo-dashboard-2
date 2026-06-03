@@ -15,10 +15,14 @@ export type AuraCvPoreSpot = { cx: number; cy: number; r: number };
 
 export type AuraCvAnnotations = {
   wrinkles: string[];
+  /** Per-angle crease paths (viewBox 0–100); preferred over flat `wrinkles` when present. */
+  wrinklesByAngle?: Partial<Record<AuraTanViewAngle, string[]>>;
   darkSpotsByAngle: Partial<Record<AuraTanViewAngle, AuraCvDarkSpot[]>>;
   /** Optional PNG/SVG mask layer for redness; preferred over ellipse spot glyphs. */
   redMaskByAngle?: Partial<Record<AuraTanViewAngle, string>>;
   redSpotsByAngle?: Partial<Record<AuraTanViewAngle, AuraCvRedSpot[]>>;
+  /** Optional PNG mask layer for visible pores; brownish overlay per angle. */
+  poreMaskByAngle?: Partial<Record<AuraTanViewAngle, string>>;
   redAreas: string[];
   pores: AuraCvPoreSpot[];
   volume: string[];
@@ -26,12 +30,55 @@ export type AuraCvAnnotations = {
 
 type GeneratedTanAnnotation = {
   redSpots?: AuraCvRedSpot[];
+  wrinkles?: number[][][];
 };
+
+function polylineToSvgPath(points: number[][]): string {
+  if (points.length < 2) return "";
+  const [first, ...rest] = points;
+  let d = `M ${first[0]} ${first[1]}`;
+  for (const [x, y] of rest) d += ` L ${x} ${y}`;
+  return d;
+}
 
 const GENERATED_TAN_RED_SPOTS_BY_ANGLE = Object.fromEntries(
   Object.entries(generatedTanAnnotations as Record<AuraTanViewAngle, GeneratedTanAnnotation>)
     .map(([angle, annotation]) => [angle, annotation.redSpots ?? []]),
 ) as Partial<Record<AuraTanViewAngle, AuraCvRedSpot[]>>;
+
+const GENERATED_TAN_WRINKLES_BY_ANGLE = Object.fromEntries(
+  Object.entries(generatedTanAnnotations as Record<AuraTanViewAngle, GeneratedTanAnnotation>)
+    .map(([angle, annotation]) => [
+      angle,
+      (annotation.wrinkles ?? [])
+        .map((polyline) => polylineToSvgPath(polyline))
+        .filter((d) => d.length > 0),
+    ])
+    .filter(([, paths]) => (paths as string[]).length > 0),
+) as Partial<Record<AuraTanViewAngle, string[]>>;
+
+function normalizeWrinklePathList(paths: unknown): string[] {
+  if (!Array.isArray(paths)) return [];
+  return paths
+    .map((entry) =>
+      typeof entry === "string"
+        ? entry
+        : Array.isArray(entry) && Array.isArray(entry[0])
+          ? polylineToSvgPath(entry as number[][])
+          : "",
+    )
+    .filter((d) => d.length > 0);
+}
+
+/** Wrinkle SVG paths for a given pose (viewBox 0–100). */
+export function wrinklePathsForAngle(
+  annotations: AuraCvAnnotations,
+  angle: AuraTanViewAngle,
+): string[] {
+  const perAngle = annotations.wrinklesByAngle?.[angle];
+  if (perAngle?.length) return normalizeWrinklePathList(perAngle);
+  return normalizeWrinklePathList(annotations.wrinkles);
+}
 
 export const EMPTY_AURA_CV_ANNOTATIONS: AuraCvAnnotations = {
   wrinkles: [],
@@ -45,6 +92,7 @@ export const EMPTY_AURA_CV_ANNOTATIONS: AuraCvAnnotations = {
 
 /** Bundled Tanya Tan demo diagnostic overlay geometry (viewBox 0–100). */
 export const TANYA_AURA_CV_ANNOTATIONS: AuraCvAnnotations = {
+  wrinklesByAngle: GENERATED_TAN_WRINKLES_BY_ANGLE,
   wrinkles: [
     "M 42.09 32.03 Q 42.77 31.73 43.46 32.03",
     "M 43.51 30.52 Q 43.97 30.22 44.43 30.52",

@@ -12,6 +12,7 @@
 
 .analysis-overview-modal.analysis-overview-modal--embedded {
   min-height: 0;
+  height: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -86,6 +87,8 @@
 
 .fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
   .analysis-overview-modal__embedded-root,
+.fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
+  .analysis-overview-modal.analysis-overview-modal--embedded,
 .fmp-fullscreen-split-overview:has(.cdp-expanded-planbuilder--collapsed)
   .analysis-overview-modal--aura-embedded .analysis-overview-modal__body {
   flex: 1 1 0%;
