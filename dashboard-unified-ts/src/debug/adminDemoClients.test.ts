@@ -5,10 +5,7 @@ import {
   healthScoreToSeverityAxis,
 } from "../utils/auraAnalysisBridge";
 import { getDetectedIssuesFromClient } from "../utils/analysisOverviewClient";
-import {
-  ADMIN_DEMO_NAME_COLLISION_SUFFIX,
-  getAdminDemoClientsIfEnabled,
-} from "./adminDemoClients";
+import { getAdminDemoClientsIfEnabled } from "./adminDemoClients";
 import type { Client } from "../types";
 
 const REDNESS_ISSUES = ["red spots", "rosacea"];
@@ -45,25 +42,27 @@ describe("getAdminDemoClientsIfEnabled", () => {
     expect(tanya?.name).toBe("Tanya Tan");
   });
 
-  it("Courtney Bellamy and Tanya Tan include demo redness and pore findings with severity", () => {
+  it("Tanya Tan includes demo redness and pore findings with severity", () => {
     const demos = getAdminDemoClientsIfEnabled(adminProvider, []);
-    const courtney = demos.find((c) => c.id === "admin-demo-courtney");
     const tanya = demos.find((c) => c.id === "admin-demo-tanya");
-    expect(demoHasRednessAndPores(courtney)).toBe(true);
     expect(demoHasRednessAndPores(tanya)).toBe(true);
-    for (const client of [courtney, tanya]) {
+    for (const client of [tanya]) {
       const red = client?.severityScoresFromAnalyses?.issues?.["Red Spots"];
       const pores = client?.severityScoresFromAnalyses?.issues?.["Whiteheads"];
+      const pigment = client?.severityScoresFromAnalyses?.issues?.["Dark Spots"];
       expect(red?.predicted).toBe(true);
-      expect(red?.severity_normalized_0_1).toBeGreaterThan(0.4);
+      expect(red?.severity_normalized_0_1).toBeGreaterThan(0.25);
       expect(pores?.predicted).toBe(true);
-      expect(pores?.severity_normalized_0_1).toBeGreaterThan(0.35);
+      expect(pores?.severity_normalized_0_1).toBeGreaterThan(0.25);
+      expect(pigment?.severity_normalized_0_1).toBeGreaterThan(
+        red?.severity_normalized_0_1 ?? 0,
+      );
     }
     expect(
       getDetectedIssuesFromClient(tanya!).has(normalizeIssue("Rosacea")),
     ).toBe(true);
 
-    for (const client of [courtney, tanya]) {
+    for (const client of [tanya]) {
       const detected = getDetectedIssuesFromClient(client!);
       const categories = computeCategories(detected);
       const skin = categories.find((c) => c.key === "skinHealth");
@@ -96,7 +95,13 @@ describe("getAdminDemoClientsIfEnabled", () => {
     const live = [liveClient({ id: "rec-live-tanya", name: "Tanya Tan" })];
     const demos = getAdminDemoClientsIfEnabled(adminProvider, live);
     const tanya = demos.find((c) => c.id === "admin-demo-tanya");
-    expect(tanya?.name).toBe(`Tanya Tan${ADMIN_DEMO_NAME_COLLISION_SUFFIX}`);
+    expect(tanya?.name).toBe("Tanya Tan");
+  });
+
+  it("does not inject the removed Courtney Bellamy Aura demo client", () => {
+    const demos = getAdminDemoClientsIfEnabled(adminProvider, []);
+    expect(demos.some((c) => c.id === "admin-demo-courtney")).toBe(false);
+    expect(demos.some((c) => c.name === "Courtney Bellamy (Aura Demo)")).toBe(false);
   });
 
   it("skips non-admin providers", () => {

@@ -75,6 +75,7 @@ export default defineConfig(({ mode }) => {
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
   },
+  assetsInclude: ['**/*.JPG', '**/*.JPEG'],
   plugins: [react()],
   server: {
     port: 5173,

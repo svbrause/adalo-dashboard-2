@@ -18,7 +18,6 @@ import type {
   Provider,
 } from "../types";
 import { isAdminBlueprintProvider } from "../utils/providerHelpers";
-import { COURTNEY_BELLAMY_SEVERITY_ISSUES } from "./adminDemoSeverityOverlay";
 import { TANYA_TAN_SKINCARE_QUIZ } from "./adminDemoSkincareQuiz";
 import { TANYA_TAN_GALLERY_PHOTO_SLOTS } from "../utils/auraTanAnglePhotos";
 import tanyaTanSeverityScoresJson from "./tanya-tan-severity-scores.json";
@@ -37,8 +36,8 @@ const TANYA_TAN_DETECTED_ISSUES = Object.entries(TANYA_TAN_SEVERITY.issues ?? {}
   .map(([name]) => name)
   .join(", ");
 
-/** Suffix when a live Airtable patient already uses the demo display name. */
-export const ADMIN_DEMO_NAME_COLLISION_SUFFIX = " (Aura Demo)";
+/** Kept for compatibility with older imports; demo clients no longer receive name suffixes. */
+export const ADMIN_DEMO_NAME_COLLISION_SUFFIX = "";
 
 function item(partial: Partial<DiscussedItem> & Pick<DiscussedItem, "id" | "treatment">): DiscussedItem {
   return partial as DiscussedItem;
@@ -170,22 +169,6 @@ const ALLISON_SEVERITY: AnalysisSeverityScoresData = {
   },
 };
 
-const COURTNEY_SEVERITY: AnalysisSeverityScoresData = {
-  schema_version: 1,
-  detector_type: "multi_region",
-  submission_id: "admin-demo-courtney",
-  issues: COURTNEY_BELLAMY_SEVERITY_ISSUES,
-};
-
-const COURTNEY_DETECTED_ISSUES = Object.entries(COURTNEY_SEVERITY.issues ?? {})
-  .filter(([, row]) => row.predicted)
-  .sort(
-    (a, b) =>
-      (b[1].severity_normalized_0_1 ?? 0) - (a[1].severity_normalized_0_1 ?? 0),
-  )
-  .map(([name]) => name)
-  .join(", ");
-
 const MORGAN_SEVERITY: AnalysisSeverityScoresData = {
   schema_version: 1,
   detector_type: "multi_region",
@@ -224,48 +207,6 @@ const MORGAN_SEVERITY: AnalysisSeverityScoresData = {
 
 export function getAdminDemoClients(): Client[] {
   return [
-    baseClient({
-      id: "admin-demo-courtney",
-      name: "Courtney Bellamy",
-      age: 34,
-      ageRange: "30-39",
-      phone: "+1 555 312 8805",
-      frontPhoto: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-color.png",
-      frontPhotoLoaded: true,
-      galleryPhotoSlots: [
-        { id: "front",               label: "Front",               url: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-color.png" },
-        { id: "three-quarter-right", label: "Right three-quarter", url: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-three-quarter-right-color.png" },
-        { id: "profile-right",       label: "Right profile",       url: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-color.png" },
-      ],
-      interestedIssues: COURTNEY_DETECTED_ISSUES,
-      allIssues: COURTNEY_DETECTED_ISSUES,
-      skinType: "Combination",
-      skinTone: "Medium",
-      aestheticGoals: "Reduce hyperpigmentation, redness, and improve skin texture",
-      severityScoresFromAnalyses: COURTNEY_SEVERITY,
-      auraManifestUrl: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-aura-manifest.json",
-      discussedItems: [
-        item({
-          id: "admin-courtney-d1",
-          treatment: "IPL / Photofacial",
-          interest: "Red Spots",
-          findings: ["Red Spots", "Rosacea", "Dark Spots"],
-          region: "Full Face",
-          timeline: "Now",
-          quantity: "3",
-        }),
-        item({
-          id: "admin-courtney-d2",
-          treatment: "Chemical Peel",
-          interest: "Dark Spots",
-          findings: ["Dark Spots", "Whiteheads", "Blackheads"],
-          region: "Full Face",
-          timeline: "Now",
-          quantity: "1",
-        }),
-      ],
-    }),
-
     baseClient({
       id: "admin-demo-morgan",
       name: "Morgan Westmoreland",
@@ -381,54 +322,54 @@ export function getAdminDemoClients(): Client[] {
       allIssues: TANYA_TAN_DETECTED_ISSUES,
       skinType: "Combination",
       skinTone: "Medium",
-      skinComplaints: "Fine lines, uneven tone, occasional dryness",
-      aestheticGoals: "Full demo — Aura scan, analysis overview, skincare quiz & routine",
+      skinComplaints: "Uneven pigment, early fine lines, mild texture changes, and occasional dryness",
+      aestheticGoals: "Brighten uneven tone and build a prevention-focused skin quality plan",
       severityScoresFromAnalyses: TANYA_TAN_SEVERITY,
       demoFacialAnalysisAi: TANYA_TAN_ANALYSIS_AI,
       skincareQuiz: TANYA_TAN_SKINCARE_QUIZ,
       discussedItems: [
         item({
           id: "admin-tanya-d1",
-          treatment: "Neurotoxin",
-          product: "Botox",
-          interest: "Forehead Wrinkles",
-          findings: ["Forehead Wrinkles", "Crow's Feet"],
-          region: "Forehead + Crow's Feet",
-          timeline: "Now",
-          quantity: "24",
-          planQuoteRole: "core",
-        }),
-        item({
-          id: "admin-tanya-d2",
-          treatment: "Filler",
-          product: "Fillers (except Voluma & Volux)",
-          interest: "Under Eye Hollowing",
-          findings: ["Under Eye Hollowing"],
-          region: "Under Eyes",
+          treatment: "Chemical Peel",
+          product: "Depigmentation peel",
+          interest: "Dark Spots",
+          findings: ["Dark Spots", "Red Spots", "Uneven skin tone"],
+          region: "Full Face",
           timeline: "Now",
           quantity: "1",
           planQuoteRole: "core",
         }),
         item({
-          id: "admin-tanya-d3",
-          treatment: "Chemical Peel",
-          product: "Depigmentation peel",
-          interest: "Uneven skin tone",
-          findings: ["Uneven skin tone", "Perioral Lines"],
-          region: "Full Face",
+          id: "admin-tanya-d2",
+          treatment: "Microneedling",
+          product: "PDGF with microneedling",
+          interest: "Uneven skin texture",
+          findings: ["Blackheads", "Whiteheads", "Fine Lines"],
+          region: "Face",
           timeline: "Add next visit",
+          quantity: "3",
+          planQuoteRole: "core",
+        }),
+        item({
+          id: "admin-tanya-d3",
+          treatment: "Skincare",
+          product: "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
+          interest: "Dark Spots",
+          findings: ["Dark Spots", "Uneven skin tone"],
+          region: "Full face",
+          timeline: "Now",
           quantity: "1",
           planQuoteRole: "core",
         }),
         item({
           id: "admin-tanya-d4",
-          treatment: "Skincare",
-          product: "SkinCeuticals Discoloration Defense | Targeted Serum for Dark Spots & Uneven Skin Tone",
-          interest: "Uneven skin tone",
-          findings: ["Uneven skin tone"],
-          region: "Full face",
-          timeline: "Now",
-          quantity: "1",
+          treatment: "Neurotoxin",
+          product: "Botox",
+          interest: "Forehead Wrinkles",
+          findings: ["Forehead Wrinkles", "Crow's Feet Wrinkles"],
+          region: "Forehead",
+          timeline: "Wishlist",
+          quantity: "16",
           planQuoteRole: "core",
         }),
       ],
@@ -507,10 +448,8 @@ export function isAdminDemoClientInjectionEnabled(
 }
 
 function withDemoNameIfCollision(client: Client, liveNames: Set<string>): Client {
-  const key = client.name.trim().toLowerCase();
-  if (!liveNames.has(key)) return client;
-  const suffixed = `${client.name}${ADMIN_DEMO_NAME_COLLISION_SUFFIX}`;
-  return { ...client, name: suffixed };
+  void liveNames;
+  return client;
 }
 
 /** Returns demo clients if Admin provider + injection enabled; skips duplicate ids, renames on name collision. */

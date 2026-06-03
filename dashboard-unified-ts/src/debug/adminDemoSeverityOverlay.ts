@@ -8,61 +8,61 @@ export const COURTNEY_BELLAMY_SEVERITY_ISSUES: Record<string, AnalysisSeverityIs
   {
     "Dark Spots": {
       predicted: true,
-      probability: 0.78,
-      severity: 2,
-      severity_normalized_0_1: 0.44,
-      severity_level: "mild-moderate",
+      probability: 0.52,
+      severity: 1,
+      severity_normalized_0_1: 0.31,
+      severity_level: "mild",
     },
     "Red Spots": {
       predicted: true,
-      probability: 0.86,
+      probability: 0.9,
       severity: 3,
-      severity_normalized_0_1: 0.68,
-      severity_level: "moderate",
+      severity_normalized_0_1: 0.74,
+      severity_level: "moderate-severe",
     },
     "Rosacea": {
       predicted: true,
-      probability: 0.82,
-      severity: 2,
-      severity_normalized_0_1: 0.62,
-      severity_level: "mild-moderate",
+      probability: 0.87,
+      severity: 3,
+      severity_normalized_0_1: 0.69,
+      severity_level: "moderate",
     },
     "Whiteheads": {
       predicted: true,
-      probability: 0.8,
+      probability: 0.74,
       severity: 2,
-      severity_normalized_0_1: 0.56,
+      severity_normalized_0_1: 0.46,
       severity_level: "mild-moderate",
     },
     "Blackheads": {
       predicted: true,
-      probability: 0.76,
+      probability: 0.82,
       severity: 2,
-      severity_normalized_0_1: 0.48,
+      severity_normalized_0_1: 0.55,
       severity_level: "mild-moderate",
+    },
+    "Dry Skin": {
+      predicted: true,
+      probability: 0.58,
+      severity: 1,
+      severity_normalized_0_1: 0.37,
+      severity_level: "mild",
     },
     "Under Eye Dark Circles": {
       predicted: true,
-      probability: 0.59,
+      probability: 0.44,
       severity: 1,
-      severity_normalized_0_1: 0.36,
+      severity_normalized_0_1: 0.28,
       severity_level: "mild",
     },
     "Forehead Wrinkles": {
-      predicted: true,
-      probability: 0.62,
-      severity: 1,
-      severity_normalized_0_1: 0.34,
-      severity_level: "mild",
+      predicted: false,
+      probability: 0.24,
+      severity: 0,
+      severity_normalized_0_1: 0.18,
+      severity_level: "none",
     },
   };
-
-const SEVERITY_BY_DEMO_CLIENT_ID: Record<
-  string,
-  Record<string, AnalysisSeverityIssue>
-> = {
-  "admin-demo-courtney": COURTNEY_BELLAMY_SEVERITY_ISSUES,
-};
 
 function clientAuraHaystack(client: {
   auraManifestUrl?: string | null;
@@ -88,7 +88,6 @@ function isCourtneyBellamyShowcase(
     galleryPhotoSlots?: Client["galleryPhotoSlots"];
   },
 ): boolean {
-  if (client.id === "admin-demo-courtney") return true;
   const haystack = clientAuraHaystack(client);
   if (haystack.includes("courtney-bellamy")) return true;
   const name = client.name
@@ -114,9 +113,6 @@ export function adminDemoSeverityIssuesForClient(
   const fromClient = client.severityScoresFromAnalyses?.issues;
   if (fromClient && Object.keys(fromClient).length > 0) {
     return fromClient;
-  }
-  if (SEVERITY_BY_DEMO_CLIENT_ID[client.id]) {
-    return SEVERITY_BY_DEMO_CLIENT_ID[client.id];
   }
   if (isCourtneyBellamyShowcase(client)) {
     return COURTNEY_BELLAMY_SEVERITY_ISSUES;

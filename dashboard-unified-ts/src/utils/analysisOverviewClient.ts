@@ -276,13 +276,14 @@ function issueGoodnessForRegionScore(
 /** Deduped display strings for detected issues (preserves first-seen label casing). */
 export function getDetectedIssueDisplayStrings(client: Client): string[] {
   const raw = client.allIssues;
-  if (!raw) return [];
-  const list = Array.isArray(raw)
-    ? raw.map((x) => String(x).trim()).filter(Boolean)
-    : String(raw)
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+  const list = raw
+    ? Array.isArray(raw)
+      ? raw.map((x) => String(x).trim()).filter(Boolean)
+      : String(raw)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+    : getSeverityIssueRowsFromClient(client).map((row) => row.issue);
   const seen = new Set<string>();
   const out: string[] = [];
   for (const issue of list) {

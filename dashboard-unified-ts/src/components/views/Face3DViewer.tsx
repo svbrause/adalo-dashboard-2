@@ -58,11 +58,6 @@ const LANDMARK_QUEUE_MAX = 32;
 const LANDMARK_BATCH_MAX = 4;
 /** GPU frame bitmaps kept in cache.  220 covers a full ~6 s turntable at 30 fps. */
 const FRAME_CACHE_MAX = 220;
-/** Initial backfill radius + sparse stride when highlights turn on. */
-const LANDMARK_PRIME_RADIUS = 12;
-const LANDMARK_PRIME_STRIDE = 10;
-const LANDMARK_PRIME_MAX_KEYS = 36;
-
 interface Face3DViewerProps {
   videoUrl: string;
   /** When true the video is a forward+reversed ping-pong: the player loops it forward and the face oscillates. */
@@ -1010,25 +1005,15 @@ export default function Face3DViewer({
     }
     const video = videoRef.current;
     if (!video?.duration || !isFinite(video.duration)) return;
-    const cache = landmarksByTimeKeyRef.current;
-    const halfDur = pingPongRef.current ? video.duration / 2 : video.duration;
-    const maxKey = face3dTimelineKey(Math.max(0, halfDur - END_TIME_EPS));
     const current = currentTimeKeyRef.current;
-    const keys = new Set<number>();
-    for (let d = -LANDMARK_PRIME_RADIUS; d <= LANDMARK_PRIME_RADIUS; d++) {
-      const k = current + d;
-      if (k >= 0 && k <= maxKey && !cache.has(k)) keys.add(k);
-    }
-    for (let k = 0; k <= maxKey; k += LANDMARK_PRIME_STRIDE) {
-      if (!cache.has(k)) keys.add(k);
-    }
-    const sorted = [...keys].sort(
-      (a, b) => Math.abs(a - current) - Math.abs(b - current),
-    );
-    for (const k of sorted.slice(0, LANDMARK_PRIME_MAX_KEYS)) {
-      enqueueLandmarkDetection(k, { expandNeighbors: false });
-    }
-  }, [enqueueLandmarkDetection]);
+    // Do not seek across the turntable just because an issue highlight was
+    // toggled. Seeking here moves the visible video while auto-rotate is off,
+    // which makes the face appear to rotate/glitch. Queue only the current
+    // frame; nearby frames can be detected later during real scrub/rotation.
+    void captureFrameBitmapAtKey(current).then(() => {
+      enqueueLandmarkDetection(current, { expandNeighbors: false });
+    });
+  }, [captureFrameBitmapAtKey, enqueueLandmarkDetection]);
 
   useEffect(() => {
     if (

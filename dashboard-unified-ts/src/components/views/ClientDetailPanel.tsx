@@ -85,12 +85,21 @@ import {
   getTreatmentPlanRowPrimaryLabel,
   getTreatmentPlanRowSecondaryLabel,
   mergeDiscussedItemPatch,
+  getQuantityContext,
+  timelineOptionDisplayLabel,
 } from "../modals/DiscussedTreatmentsModal/utils";
 import {
   SKINCARE_SECTION_LABEL,
   FINDING_TO_GOAL_REGION_TREATMENTS,
   getTreatmentOptionsForProvider,
   getSkincareCarouselItems,
+  getTreatmentProductOptionsForProvider,
+  TIMELINE_OPTIONS,
+  REGION_OPTIONS,
+  REGION_OPTIONS_MICRONEEDLING,
+  ENERGY_TREATMENT_WHERE_OPTIONS,
+  CHEMICAL_PEEL_AREA_OPTIONS,
+  CHECKOUT_REGION_OPTIONS_BROAD,
 } from "../modals/DiscussedTreatmentsModal/constants";
 import {
   clientDetailTreatmentPreviewSectionsInOrder,
@@ -161,6 +170,7 @@ import { ponceLogoSrc } from "../../utils/ponceBrand";
 import {
   getDetectedIssuesFromClient,
   getDetectedIssueDisplayStrings,
+  getEffectiveSeverityIssues,
   inferSeverityBadness01,
 } from "../../utils/analysisOverviewClient";
 import { CATEGORIES, normalizeIssue } from "../../config/analysisOverviewConfig";
@@ -170,6 +180,15 @@ import {
 } from "../../utils/auraAnalysisBridge";
 import { SUGGESTION_TO_ISSUES } from "../modals/DiscussedTreatmentsModal/suggestionsMapping";
 import "./ClientDetailPanel.css";
+
+type ExpandedQuickAddDraft = {
+  key: string;
+  timeline: string;
+  quantity: string;
+  product: string;
+  region: string;
+  notes: string;
+};
 
 interface ClientDetailPanelProps {
   client: Client | null;
@@ -317,6 +336,8 @@ export default function ClientDetailPanel({
   const [focusedIssueForRecommender, setFocusedIssueForRecommender] = useState<
     string | null
   >(null);
+  const [expandedQuickAddDraft, setExpandedQuickAddDraft] =
+    useState<ExpandedQuickAddDraft | null>(null);
   /** Region filter chips from the active plan builder — passed into post-visit blueprint for AI mirror. */
   const [recommenderFocusRegions, setRecommenderFocusRegions] = useState<
     string[]
@@ -447,14 +468,6 @@ export default function ClientDetailPanel({
     },
     [],
   );
-
-  /** Jump from embedded recommender “Learn more” to the matching treatment card. */
-  const openPlanBuilderForTreatment = useCallback((treatmentName: string) => {
-    const trimmed = treatmentName.trim();
-    if (!trimmed) return;
-    setPendingFocusTreatmentName(trimmed);
-    setRecommenderMode("by-treatment");
-  }, []);
 
   useEffect(() => {
     if (client) {
@@ -1186,6 +1199,10 @@ export default function ClientDetailPanel({
     return () => window.cancelAnimationFrame(frame);
   }, [focusedIssueForRecommender, expandedRecommenderCollapsed]);
 
+  useEffect(() => {
+    setExpandedQuickAddDraft(null);
+  }, [focusedIssueForRecommender, expandedRecommenderCollapsed]);
+
   const expandedPlanBuilderPanel = useMemo(() => {
     const detectedIssueSet = client ? getDetectedIssuesFromClient(client) : new Set<string>();
     const activeCategoryDef = CATEGORIES.find((c) => c.key === auraActiveCategoryForPlan);
@@ -1213,7 +1230,7 @@ export default function ClientDetailPanel({
         }),
       ).values(),
     );
-    const severityIssues = client?.severityScoresFromAnalyses?.issues ?? {};
+    const severityIssues = client ? getEffectiveSeverityIssues(client) ?? {} : {};
     const availableTreatments = new Set(getTreatmentOptionsForProvider(provider?.code));
 
     const issueEntries = Object.entries(severityIssues);
@@ -1288,28 +1305,81 @@ export default function ClientDetailPanel({
       };
     };
 
+    const treatmentReasonForFinding = (treatment: string, finding: string) => {
+      const t = treatment.trim().toLowerCase();
+      const f = normalizeIssue(finding);
+      const pigmentationFocused =
+        f.includes("dark spot") ||
+        f.includes("hyperpigmentation") ||
+        f.includes("pigment") ||
+        f.includes("sun spot") ||
+        f.includes("sun damage") ||
+        f.includes("melasma");
+      if (pigmentationFocused) {
+        if (t === "chemical peel") {
+          return "Choose this when pigment looks more superficial or blotchy and you want surface renewal with a predictable series.";
+        }
+        if (t === "energy treatment") {
+          return "Choose this when spots look photo-driven or more discrete and you want a device-based option that can target pigment directly.";
+        }
+        if (t === "microneedling") {
+          return "Choose this when dark marks overlap with texture, acne marks, or pores and collagen remodeling is part of the goal.";
+        }
+        if (t === "skincare") {
+          return "Choose this as the daily maintenance layer to fade gradually, reduce recurrence risk, and support any in-office treatment.";
+        }
+        if (t === "facial services") {
+          return "Choose this for a gentler brightening or prep option when the patient wants lower downtime or a lighter first step.";
+        }
+      }
+      if (t === "chemical peel") {
+        return "Best when exfoliation and surface clarity are the main goals.";
+      }
+      if (t === "energy treatment") {
+        return "Best when a device-based option can target pigment, redness, or laxity more directly.";
+      }
+      if (t === "microneedling") {
+        return "Best when texture, pores, scarring, or collagen remodeling are part of the concern.";
+      }
+      if (t === "skincare") {
+        return "Best for maintenance, prevention, and gradual improvement between visits.";
+      }
+      if (t === "facial services") {
+        return "Best as a lower-downtime option or supportive step before stronger treatments.";
+      }
+      return "A relevant option for this finding depending on depth, downtime tolerance, and treatment goals.";
+    };
+
     const highImpactTreatments = findingsForRecommendations
       .flatMap((finding) => {
         const f = finding.finding.toLowerCase();
         const mapped = FINDING_TO_GOAL_REGION_TREATMENTS.find((row) =>
           row.keywords.some((kw) => f.includes(kw.toLowerCase())),
         );
-        const directTreatment = mapped?.treatments.find((t) => availableTreatments.has(t));
-        const fallback = !directTreatment
+        const directTreatments = mapped?.treatments.filter((t) =>
+          availableTreatments.has(t),
+        ) ?? [];
+        const fallback = directTreatments.length === 0
           ? getFallbackMappingForIssue(finding.finding)
           : null;
-        const treatment = directTreatment ?? fallback?.treatment;
-        if (!treatment) return [];
-        return [
-          {
+        const treatments = focusedIssueForRecommender
+          ? directTreatments
+          : directTreatments.slice(0, 1);
+        const treatmentRows =
+          treatments.length > 0
+            ? treatments
+            : fallback?.treatment
+              ? [fallback.treatment]
+              : [];
+        return treatmentRows.map((treatment) => ({
             finding: finding.finding,
             treatment,
             goal: mapped?.goal ?? fallback?.goal ?? "Skin improvement",
             region: mapped?.region ?? fallback?.region ?? "Skin",
             badness: finding.badness,
             level: finding.level,
-          },
-        ];
+            reason: treatmentReasonForFinding(treatment, finding.finding),
+          }));
       })
       .reduce<
         Array<{
@@ -1317,6 +1387,7 @@ export default function ClientDetailPanel({
           goal: string;
           region: string;
           impactScore: number;
+          reason: string;
           findings: Array<{ finding: string; level: string }>;
         }>
       >((acc, item) => {
@@ -1335,16 +1406,90 @@ export default function ClientDetailPanel({
           goal: item.goal,
           region: item.region,
           impactScore: item.badness + 0.15,
+          reason: item.reason,
           findings: [{ finding: item.finding, level: item.level }],
         });
         return acc;
       }, [])
       .sort((a, b) => b.impactScore - a.impactScore)
-      .slice(0, 4);
+      .slice(0, focusedIssueForRecommender ? 5 : 4);
 
     const focusedFindingEntry = focusedIssueForRecommender
       ? findingsForRecommendations[0]
       : null;
+    const quickAddTimelineOptions = TIMELINE_OPTIONS.filter(
+      (option) => option !== "Completed",
+    );
+    const quickAddKey = (qa: { treatment: string; goal: string }) =>
+      `${qa.treatment}::${qa.goal}`;
+    const productOptionsForQuickAdd = (treatment: string) =>
+      getTreatmentProductOptionsForProvider(provider?.code, treatment).slice(0, 8);
+    const regionOptionsForQuickAdd = (treatment: string) => {
+      const normalized = treatment.trim();
+      if (normalized === "Energy Treatment") {
+        return ENERGY_TREATMENT_WHERE_OPTIONS.length > 0
+          ? [...ENERGY_TREATMENT_WHERE_OPTIONS]
+          : [...CHECKOUT_REGION_OPTIONS_BROAD];
+      }
+      if (normalized === "Microneedling") return [...REGION_OPTIONS_MICRONEEDLING];
+      if (normalized === "Chemical Peel") {
+        return CHEMICAL_PEEL_AREA_OPTIONS.length > 0
+          ? [...CHEMICAL_PEEL_AREA_OPTIONS]
+          : ["Full Face", "Neck", "Chest"];
+      }
+      if (normalized === "Facial Services") return ["Face", "Neck", "Chest"];
+      if (normalized === "Skincare") return ["Full face", "Face", "Neck", "Chest"];
+      return REGION_OPTIONS;
+    };
+    const openQuickAddDraft = (qa: {
+      treatment: string;
+      goal: string;
+      region: string;
+    }) => {
+      const productOptions = productOptionsForQuickAdd(qa.treatment);
+      const product = productOptions[0] ?? "";
+      const quantityCtx = getQuantityContext(
+        qa.treatment,
+        product || undefined,
+        provider?.code,
+      );
+      const regionOptions = regionOptionsForQuickAdd(qa.treatment);
+      const preferredRegion =
+        qa.region && qa.region !== "Other" && regionOptions.includes(qa.region)
+          ? qa.region
+          : regionOptions[0] ?? qa.region ?? "";
+      setExpandedQuickAddDraft({
+        key: quickAddKey(qa),
+        timeline: "Wishlist",
+        quantity: quantityCtx.defaultQuantity ?? "",
+        product,
+        region: preferredRegion,
+        notes: "",
+      });
+    };
+    const updateQuickAddDraft = (patch: Partial<ExpandedQuickAddDraft>) => {
+      setExpandedQuickAddDraft((current) =>
+        current ? { ...current, ...patch } : current,
+      );
+    };
+    const submitQuickAddDraft = (qa: {
+      treatment: string;
+      goal: string;
+      findings: Array<{ finding: string; level: string }>;
+    }) => {
+      if (!expandedQuickAddDraft) return;
+      void appendDiscussedItemFromPrefill({
+        interest: qa.goal,
+        region: expandedQuickAddDraft.region,
+        treatment: qa.treatment,
+        treatmentProduct: expandedQuickAddDraft.product || undefined,
+        findings: qa.findings.map((f) => f.finding),
+        timeline: expandedQuickAddDraft.timeline,
+        quantity: expandedQuickAddDraft.quantity || undefined,
+        notes: expandedQuickAddDraft.notes || undefined,
+      });
+      setExpandedQuickAddDraft(null);
+    };
 
     return (
       <section
@@ -1373,7 +1518,7 @@ export default function ClientDetailPanel({
             <h4 className="cdp-expanded-planbuilder__title">
               {focusedIssueForRecommender
                 ? "Treat this finding"
-                : "Treatment Recommender"}
+                : "Quick Add"}
             </h4>
             {focusedIssueForRecommender ? (
               <p className="cdp-expanded-planbuilder__subtitle cdp-expanded-planbuilder__subtitle--finding">
@@ -1384,7 +1529,7 @@ export default function ClientDetailPanel({
               </p>
             ) : !expandedRecommenderCollapsed ? (
               <p className="cdp-expanded-planbuilder__subtitle">
-                Analysis-aware quick actions tailored to findings in view.
+                Open suggested treatments with quantity, brand, region, and details.
               </p>
             ) : null}
           </div>
@@ -1431,73 +1576,190 @@ export default function ClientDetailPanel({
             <span className="cdp-expanded-planbuilder__analysis-label">
               {focusedIssueForRecommender
                 ? "Suggested treatments"
-                : "Recommended treatments"}
+                : "Quick add with details"}
             </span>
             <div className="cdp-expanded-planbuilder__quick-add-list">
-              {highImpactTreatments.map((qa) => (
-                <div
-                  key={`${qa.treatment}-${qa.goal}`}
-                  className={`cdp-expanded-planbuilder__quick-add-item${
-                    focusedIssueForRecommender
-                      ? " cdp-expanded-planbuilder__quick-add-item--for-focused-finding"
-                      : ""
-                  }`}
-                >
-                  <span className="cdp-expanded-planbuilder__quick-add-title">
-                    {qa.treatment}
-                  </span>
-                  <span className="cdp-expanded-planbuilder__quick-add-meta">
-                    {focusedIssueForRecommender
-                      ? `${qa.goal} · targets ${focusedIssueForRecommender}`
-                      : `${qa.goal} · addresses ${qa.findings.length} finding${qa.findings.length !== 1 ? "s" : ""}`}
-                  </span>
-                  <p className="cdp-expanded-planbuilder__quick-add-findings">
-                    {qa.findings.slice(0, 3).map((f, i) => (
-                      <span
-                        key={`${qa.treatment}-${f.finding}`}
-                        className={
-                          focusedIssueForRecommender &&
-                          normalizeIssue(f.finding) ===
-                            normalizeIssue(focusedIssueForRecommender)
-                            ? "cdp-expanded-planbuilder__quick-add-finding--focused"
-                            : undefined
-                        }
-                      >
-                        {i > 0 && (
-                          <span className="cdp-expanded-planbuilder__quick-add-findings-sep">
-                            {" "}
-                            ·{" "}
-                          </span>
-                        )}
-                        {f.finding}
-                      </span>
-                    ))}
-                  </p>
-                  <div className="cdp-expanded-planbuilder__quick-add-actions">
-                    <button
-                      type="button"
-                      className="cdp-expanded-planbuilder__mini-btn"
-                      onClick={() => openPlanBuilderForTreatment(qa.treatment)}
-                    >
-                      Learn more
-                    </button>
-                    <button
-                      type="button"
-                      className="cdp-expanded-planbuilder__mini-btn cdp-expanded-planbuilder__mini-btn--primary"
-                      onClick={() =>
-                        void appendDiscussedItemFromPrefill({
-                          interest: qa.goal,
-                          region: qa.region,
-                          treatment: qa.treatment,
-                          findings: qa.findings.map((f) => f.finding),
-                        })
-                      }
-                    >
-                      Add to plan
-                    </button>
+              {highImpactTreatments.map((qa) => {
+                const itemKey = quickAddKey(qa);
+                const isDraftOpen = expandedQuickAddDraft?.key === itemKey;
+                const productOptions = productOptionsForQuickAdd(qa.treatment);
+                const regionOptions = regionOptionsForQuickAdd(qa.treatment);
+                const quantityCtx = getQuantityContext(
+                  qa.treatment,
+                  expandedQuickAddDraft?.product || undefined,
+                  provider?.code,
+                );
+                return (
+                  <div
+                    key={`${qa.treatment}-${qa.goal}`}
+                    className={`cdp-expanded-planbuilder__quick-add-item${
+                      focusedIssueForRecommender
+                        ? " cdp-expanded-planbuilder__quick-add-item--for-focused-finding"
+                        : ""
+                    }${isDraftOpen ? " cdp-expanded-planbuilder__quick-add-item--editing" : ""}`}
+                  >
+                    <span className="cdp-expanded-planbuilder__quick-add-title">
+                      {qa.treatment}
+                    </span>
+                    <span className="cdp-expanded-planbuilder__quick-add-meta">
+                      {focusedIssueForRecommender
+                        ? `${qa.goal} · targets ${focusedIssueForRecommender}`
+                        : `${qa.goal} · addresses ${qa.findings.length} finding${qa.findings.length !== 1 ? "s" : ""}`}
+                    </span>
+                    {focusedIssueForRecommender ? (
+                      <p className="cdp-expanded-planbuilder__quick-add-reason">
+                        {qa.reason}
+                      </p>
+                    ) : null}
+                    <p className="cdp-expanded-planbuilder__quick-add-findings">
+                      {qa.findings.slice(0, 3).map((f, i) => (
+                        <span
+                          key={`${qa.treatment}-${f.finding}`}
+                          className={
+                            focusedIssueForRecommender &&
+                            normalizeIssue(f.finding) ===
+                              normalizeIssue(focusedIssueForRecommender)
+                              ? "cdp-expanded-planbuilder__quick-add-finding--focused"
+                              : undefined
+                          }
+                        >
+                          {i > 0 && (
+                            <span className="cdp-expanded-planbuilder__quick-add-findings-sep">
+                              {" "}
+                              ·{" "}
+                            </span>
+                          )}
+                          {f.finding}
+                        </span>
+                      ))}
+                    </p>
+                    {!isDraftOpen ? (
+                      <div className="cdp-expanded-planbuilder__quick-add-actions">
+                        <button
+                          type="button"
+                          className="cdp-expanded-planbuilder__mini-btn cdp-expanded-planbuilder__mini-btn--primary"
+                          onClick={() => openQuickAddDraft(qa)}
+                        >
+                          Add details
+                        </button>
+                      </div>
+                    ) : expandedQuickAddDraft ? (
+                      <div className="cdp-expanded-planbuilder__quick-form">
+                        <div className="cdp-expanded-planbuilder__quick-form-row cdp-expanded-planbuilder__quick-form-row--timeline">
+                          {quickAddTimelineOptions.map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              className={`cdp-expanded-planbuilder__seg-btn${
+                                expandedQuickAddDraft.timeline === option
+                                  ? " cdp-expanded-planbuilder__seg-btn--selected"
+                                  : ""
+                              }`}
+                              onClick={() => updateQuickAddDraft({ timeline: option })}
+                            >
+                              {timelineOptionDisplayLabel(option)}
+                            </button>
+                          ))}
+                        </div>
+                        {productOptions.length > 0 ? (
+                          <label className="cdp-expanded-planbuilder__quick-field">
+                            <span>{qa.treatment === "Skincare" ? "Product" : "Type"}</span>
+                            <select
+                              value={expandedQuickAddDraft.product}
+                              onChange={(event) => {
+                                const product = event.target.value;
+                                const nextCtx = getQuantityContext(
+                                  qa.treatment,
+                                  product || undefined,
+                                  provider?.code,
+                                );
+                                updateQuickAddDraft({
+                                  product,
+                                  quantity: nextCtx.defaultQuantity ?? "",
+                                });
+                              }}
+                            >
+                              {productOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ) : null}
+                        {regionOptions.length > 0 ? (
+                          <label className="cdp-expanded-planbuilder__quick-field">
+                            <span>Area</span>
+                            <select
+                              value={expandedQuickAddDraft.region}
+                              onChange={(event) =>
+                                updateQuickAddDraft({ region: event.target.value })
+                              }
+                            >
+                              {regionOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ) : null}
+                        <label className="cdp-expanded-planbuilder__quick-field">
+                          <span>{quantityCtx.unitLabel}</span>
+                          {quantityCtx.quantityControl === "select" ? (
+                            <select
+                              value={expandedQuickAddDraft.quantity}
+                              onChange={(event) =>
+                                updateQuickAddDraft({ quantity: event.target.value })
+                              }
+                            >
+                              {quantityCtx.options.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              value={expandedQuickAddDraft.quantity}
+                              placeholder={quantityCtx.inputPlaceholder ?? "Quantity"}
+                              onChange={(event) =>
+                                updateQuickAddDraft({ quantity: event.target.value })
+                              }
+                            />
+                          )}
+                        </label>
+                        <label className="cdp-expanded-planbuilder__quick-field">
+                          <span>Notes</span>
+                          <input
+                            value={expandedQuickAddDraft.notes}
+                            placeholder="Optional details"
+                            onChange={(event) =>
+                              updateQuickAddDraft({ notes: event.target.value })
+                            }
+                          />
+                        </label>
+                        <div className="cdp-expanded-planbuilder__quick-form-actions">
+                          <button
+                            type="button"
+                            className="cdp-expanded-planbuilder__mini-btn"
+                            onClick={() => setExpandedQuickAddDraft(null)}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="cdp-expanded-planbuilder__mini-btn cdp-expanded-planbuilder__mini-btn--primary"
+                            onClick={() => submitQuickAddDraft(qa)}
+                          >
+                            Add to plan
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -1515,9 +1777,9 @@ export default function ClientDetailPanel({
     provider?.code,
     appendDiscussedItemFromPrefill,
     expandedRecommenderCollapsed,
+    expandedQuickAddDraft,
     auraActiveCategoryForPlan,
     focusedIssueForRecommender,
-    openPlanBuilderForTreatment,
   ]);
 
   return (
@@ -1572,6 +1834,7 @@ export default function ClientDetailPanel({
                 }}
                 expandedLowerRightContent={expandedPlanBuilderPanel}
                 onOpenPlanBuilder={() => setRecommenderMode("by-treatment")}
+                darkMode={darkMode}
                 onAuraActiveCategoryChange={setAuraActiveCategoryForPlan}
                 onScanGenerated={handleScanGenerated}
               />

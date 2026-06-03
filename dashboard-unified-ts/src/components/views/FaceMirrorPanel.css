@@ -621,6 +621,14 @@
   min-width: 0;
 }
 
+.fmp-toolbar-ponce-logo {
+  display: block;
+  width: auto;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .fmp-aura-badge {
   font-size: 11px;
   font-weight: 600;
@@ -660,31 +668,24 @@
   pointer-events: none;
 }
 
-/* Expanded Aura: overlay left-column topbar band. */
+/* Expanded Aura: full-width topbar for the show-analysis split. */
 .fmp-root--aura.fmp-root--viewport-expanded .fmp-toolbar {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: relative;
   z-index: 35;
-  width: 57.65%;
+  width: 100%;
   height: var(--cdp-aura-chrome-row-h, 52px);
   justify-content: space-between;
   align-items: center;
-  padding: 0 10px;
-  border-bottom: none;
-  background: transparent;
+  padding: 0 14px;
+  border-bottom: 1px solid rgba(255 255 255 / 0.08);
+  background: #0a0a0a;
   box-sizing: border-box;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .fmp-root--aura .fmp-toolbar-start,
 .fmp-root--aura .fmp-toolbar-end {
   pointer-events: auto;
-}
-
-.fmp-root--aura.fmp-root--viewport-expanded:has(.fmp-fullscreen-split--panel-collapsed)
-  .fmp-toolbar {
-  width: calc(100% - 40px);
 }
 
 .fmp-planbuilder-launcher {

@@ -173,12 +173,12 @@
 
 /* Aura right tool rail — beside auto-rotate */
 .fmp-annotation-regions--aura-rail {
-  width: 36px;
+  width: var(--avf-tool-btn-size, 36px);
 }
 
 .fmp-annotation-regions--aura-rail > summary {
-  width: 36px;
-  height: 36px;
+  width: var(--avf-tool-btn-size, 36px);
+  height: var(--avf-tool-btn-size, 36px);
   padding: 0;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -194,6 +194,8 @@
 
 .fmp-annotation-regions--aura-rail .fmp-regions-icon {
   display: block;
+  width: var(--avf-tool-icon-size, 19px);
+  height: var(--avf-tool-icon-size, 19px);
   opacity: 0.72;
 }
 
@@ -215,15 +217,6 @@
 .fmp-annotation-regions--aura-rail[open] > summary .fmp-regions-icon,
 .fmp-annotation-regions--aura-rail.fmp-annotation-regions--active > summary .fmp-regions-icon {
   opacity: 1;
-}
-
-.avf-root--embedded .fmp-annotation-regions--aura-rail {
-  width: 32px;
-}
-
-.avf-root--embedded .fmp-annotation-regions--aura-rail > summary {
-  width: 32px;
-  height: 32px;
 }
 
 .fmp-annotation-regions--aura-rail .fmp-annotation-regions__panel {

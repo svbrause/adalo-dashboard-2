@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { getAdminDemoClients } from "../debug/adminDemoClients";
 import { COURTNEY_BELLAMY_SEVERITY_ISSUES } from "../debug/adminDemoSeverityOverlay";
 import { computeCategories } from "../config/analysisOverviewConfig";
 import {
@@ -13,11 +12,20 @@ import {
 import type { Client } from "../types";
 
 function courtneyClient(): Client {
-  const client = getAdminDemoClients().find((c) => c.id === "admin-demo-courtney");
-  if (!client) {
-    throw new Error("Courtney Bellamy admin demo client not found");
-  }
-  return client;
+  const detectedIssues = Object.entries(COURTNEY_BELLAMY_SEVERITY_ISSUES)
+    .filter(([, row]) => row.predicted)
+    .map(([issue]) => issue)
+    .join(", ");
+  return {
+    id: "rec-live-courtney",
+    name: "Courtney Bellamy",
+    email: "courtney@example.com",
+    phone: "",
+    tableSource: "Patients",
+    archived: false,
+    allIssues: detectedIssues,
+    interestedIssues: detectedIssues,
+  } as Client;
 }
 
 function minPairwiseGap(values: number[]): number {
@@ -51,7 +59,7 @@ describe("skin lens chart scores", () => {
     expect(unique.size).toBe(4);
   });
 
-  it("orders Courtney demo with redness as the most severe lens", () => {
+  it("orders Courtney with redness as the most severe lens", () => {
     const client = courtneyClient();
     const detected = getDetectedIssuesFromClient(client);
     const categories = computeCategories(detected);

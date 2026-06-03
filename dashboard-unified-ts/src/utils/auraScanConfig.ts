@@ -4,12 +4,9 @@
  */
 import auraTurntableVideo from "../assets/images/turntable_1024_black_scrub.mp4";
 
-import { ADMIN_DEMO_NAME_COLLISION_SUFFIX } from "../debug/adminDemoClients";
-
 /** Display names that map to the bundled Aura demo scan (Tanya plates + turntable). */
 const AURA_SCAN_VIDEO_BY_CLIENT: Record<string, string> = {
   "Tanya Tan": auraTurntableVideo,
-  [`Tanya Tan${ADMIN_DEMO_NAME_COLLISION_SUFFIX}`]: auraTurntableVideo,
   "Aura Demo": auraTurntableVideo,
 };
 

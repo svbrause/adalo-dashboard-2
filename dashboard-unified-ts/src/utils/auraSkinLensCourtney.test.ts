@@ -55,8 +55,8 @@ describe("Courtney Bellamy skin lens findings", () => {
     expect(pores.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("works for injected admin demo client id", () => {
-    const client = courtneyLikeClient({ id: "admin-demo-courtney" });
+  it("works for Courtney showcase assets without a stored severity JSON", () => {
+    const client = courtneyLikeClient();
     const lenses: AuraSkinLens[] = ["redness", "pores"];
     const detected = getDetectedIssuesFromClient(client);
     const skinIssues = detectedIssuesForCategory("skinHealth", detected);

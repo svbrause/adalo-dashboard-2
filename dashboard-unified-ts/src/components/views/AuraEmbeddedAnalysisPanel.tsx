@@ -6,15 +6,12 @@ import {
   tierColor,
   tierLabel,
 } from "../../config/analysisOverviewConfig";
-import type { Client, ClientPhotoSlot } from "../../types";
+import type { Client, ClientPhotoSlot, DiscussedItem } from "../../types";
 import type { SavedPatientAnnotation } from "../../utils/patientAnnotationsStorage";
-import { SUGGESTION_TO_ISSUES } from "../modals/DiscussedTreatmentsModal/suggestionsMapping";
-import { getTreatmentsForInterest } from "../modals/DiscussedTreatmentsModal/utils";
-import { SUGGESTION_TO_AREA } from "../modals/DiscussedTreatmentsModal/suggestionsMapping";
-import type {
-  TreatmentPlanAddDirectOptions,
-  TreatmentPlanPrefill,
-} from "../modals/DiscussedTreatmentsModal/TreatmentPhotos";
+import {
+  getTreatmentPlanRowPrimaryLabel,
+  getTreatmentPlanRowSecondaryLabel,
+} from "../modals/DiscussedTreatmentsModal/utils";
 import {
   AURA_OVERVIEW_TABS,
   AURA_SKIN_LENS_COLORS,
@@ -319,10 +316,6 @@ interface AuraEmbeddedAnalysisPanelProps {
   categories: CategoryResult[];
   detectedIssues: Set<string>;
   bridge: AuraMirrorHighlightBridge;
-  onAddToPlanDirect?: (
-    prefill: TreatmentPlanPrefill,
-    options?: TreatmentPlanAddDirectOptions,
-  ) => Promise<void | unknown> | unknown;
   onOpenPlanBuilder?: () => void;
   onOpenTreatmentForIssue?: (
     issue: string,
@@ -335,7 +328,6 @@ export default function AuraEmbeddedAnalysisPanel({
   categories,
   detectedIssues,
   bridge,
-  onAddToPlanDirect,
   onOpenPlanBuilder,
   onOpenTreatmentForIssue,
 }: AuraEmbeddedAnalysisPanelProps) {
@@ -527,22 +519,16 @@ export default function AuraEmbeddedAnalysisPanel({
     findingsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [effectiveSkinLens, activeCategory, panelCollapsed, rightView]);
 
-  /** Treatment suggestions relevant to all detected issues across all categories. */
-  const suggestedTreatments = useMemo(() => {
-    const issueSet = new Set(
-      [...detectedIssues].map((i) => i.trim().toLowerCase()),
-    );
-    return Object.entries(SUGGESTION_TO_ISSUES)
-      .map(([suggestion, issues]) => {
-        const matched = issues.filter((i) =>
-          issueSet.has(i.trim().toLowerCase()),
-        );
-        return { suggestion, matched };
-      })
-      .filter((row) => row.matched.length > 0)
-      .sort((a, b) => b.matched.length - a.matched.length)
-      .slice(0, 6);
-  }, [detectedIssues]);
+  const planItems = client.discussedItems ?? [];
+  const planItemMeta = (item: DiscussedItem) => {
+    const parts = [
+      getTreatmentPlanRowSecondaryLabel(item, { omitTimeline: false }),
+      item.brand ? `Brand: ${item.brand}` : null,
+      item.quantity ? `Qty: ${item.quantity}` : null,
+      item.region ? `Region: ${item.region}` : null,
+    ].filter(Boolean);
+    return parts.join(" · ");
+  };
 
   return (
     <div
@@ -573,7 +559,7 @@ export default function AuraEmbeddedAnalysisPanel({
               >
                 Analysis
               </button>
-              {(onAddToPlanDirect || onOpenPlanBuilder) ? (
+              {onOpenPlanBuilder ? (
                 <button
                   type="button"
                   role="tab"
@@ -610,53 +596,53 @@ export default function AuraEmbeddedAnalysisPanel({
               <div className="aura-embedded-panel__plan-header">
                 <h3 className="aura-embedded-panel__plan-title">Treatment Plan</h3>
                 <p className="aura-embedded-panel__plan-subhead">
-                  Based on detected findings
+                  Current plan items
                 </p>
               </div>
-              {suggestedTreatments.length === 0 ? (
+              {planItems.length === 0 ? (
                 <p className="aura-embedded-panel__empty">
-                  No treatment suggestions available for detected findings.
+                  No plan items yet. Use the plan builder to add treatment details.
                 </p>
               ) : (
                 <ul className="aura-embedded-panel__plan-list">
-                  {suggestedTreatments.map(({ suggestion, matched }) => {
-                    const treatments = getTreatmentsForInterest(suggestion, undefined);
-                    const firstTreatment = treatments[0] ?? "";
+                  {planItems.map((item) => {
+                    const meta = planItemMeta(item);
                     return (
-                      <li key={suggestion} className="aura-embedded-panel__plan-item">
+                      <li key={item.id} className="aura-embedded-panel__plan-item">
                         <div className="aura-embedded-panel__plan-item-top">
-                          <span className="aura-embedded-panel__plan-item-name">{suggestion}</span>
-                          <span className="aura-embedded-panel__plan-item-count">
-                            {matched.length} finding{matched.length !== 1 ? "s" : ""}
+                          <span className="aura-embedded-panel__plan-item-name">
+                            {getTreatmentPlanRowPrimaryLabel(item)}
                           </span>
-                        </div>
-                        <div className="aura-embedded-panel__plan-item-issues">
-                          {matched.slice(0, 3).map((issue) => (
-                            <span key={issue} className="aura-embedded-panel__plan-item-issue">
-                              {issue}
+                          {item.timeline ? (
+                            <span className="aura-embedded-panel__plan-item-count">
+                              {item.timeline}
                             </span>
-                          ))}
-                          {matched.length > 3 && (
-                            <span className="aura-embedded-panel__plan-item-issue aura-embedded-panel__plan-item-issue--more">
-                              +{matched.length - 3}
-                            </span>
-                          )}
+                          ) : null}
                         </div>
-                        {onAddToPlanDirect && firstTreatment ? (
-                          <button
-                            type="button"
-                            className="aura-embedded-panel__plan-add-btn"
-                            onClick={() =>
-                              onAddToPlanDirect({
-                                interest: suggestion,
-                                region: SUGGESTION_TO_AREA[suggestion] ?? "",
-                                treatment: firstTreatment,
-                                findings: matched,
-                              })
-                            }
-                          >
-                            + Add to Plan
-                          </button>
+                        {meta ? (
+                          <p className="aura-embedded-panel__plan-item-meta">
+                            {meta}
+                          </p>
+                        ) : null}
+                        {item.findings && item.findings.length > 0 ? (
+                          <div className="aura-embedded-panel__plan-item-issues">
+                            {item.findings.slice(0, 3).map((issue) => (
+                              <span key={issue} className="aura-embedded-panel__plan-item-issue">
+                                {issue}
+                              </span>
+                            ))}
+                            {item.findings.length > 3 ? (
+                              <span className="aura-embedded-panel__plan-item-issue aura-embedded-panel__plan-item-issue--more">
+                                +{item.findings.length - 3}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : item.interest ? (
+                          <div className="aura-embedded-panel__plan-item-issues">
+                            <span className="aura-embedded-panel__plan-item-issue">
+                              {item.interest}
+                            </span>
+                          </div>
                         ) : null}
                       </li>
                     );

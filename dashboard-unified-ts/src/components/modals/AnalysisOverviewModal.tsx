@@ -1513,18 +1513,18 @@ export default function AnalysisOverviewModal({
       className={modalCardClass}
       onClick={(e) => e.stopPropagation()}
     >
-        {!(embedded && auraBridge) && (
+        {!(embedded && auraBridge) ? (
         <div className="analysis-overview-modal__header">
-          <h2 id="ao-modal-title" className="analysis-overview-modal__title">
-            {showCategoryDetail && detailView?.type === "category"
-              ? (categories.find((c) => c.key === detailView.key)
-                  ?.scoreLabel ?? detailView.key)
-              : showAreaDetail && detailView?.type === "area"
-                ? detailView.name
-                : showAreasPage
-                  ? "All Areas"
-                  : `Facial Analysis${patientFirst ? ` — ${patientFirst}` : ""}`}
-          </h2>
+            <h2 id="ao-modal-title" className="analysis-overview-modal__title">
+              {showCategoryDetail && detailView?.type === "category"
+                ? (categories.find((c) => c.key === detailView.key)
+                    ?.scoreLabel ?? detailView.key)
+                : showAreaDetail && detailView?.type === "area"
+                  ? detailView.name
+                  : showAreasPage
+                    ? "All Areas"
+                    : `Facial Analysis${patientFirst ? ` — ${patientFirst}` : ""}`}
+            </h2>
           <div className="analysis-overview-modal__header-actions">
             {!embedded && (
               <button
@@ -1546,7 +1546,7 @@ export default function AnalysisOverviewModal({
             </button>
           </div>
         </div>
-        )}
+        ) : null}
 
         <div className="analysis-overview-modal__body">
           {!hasAnyData ? (

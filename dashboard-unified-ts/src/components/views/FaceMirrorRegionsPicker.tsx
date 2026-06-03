@@ -51,7 +51,7 @@ function HighlightRegionsEyeIcon({
       className={className}
       aria-hidden
     >
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
   );

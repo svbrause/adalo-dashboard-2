@@ -782,7 +782,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["dark spot", "red spot"],
     goal: "Even Skin Tone",
     region: "Other",
-    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Facial Services", "Skincare"],
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Microneedling", "Facial Services", "Skincare"],
   },
   {
     keywords: ["gummy smile"],
@@ -839,7 +839,7 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     keywords: ["sun damage", "hyperpigmentation", "melasma", "age spot", "liver spot", "pigmentation", "sun spot"],
     goal: "Even Skin Tone",
     region: "Other",
-    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Skincare", "Facial Services"],
+    treatments: [ENERGY_TREATMENT_CATEGORY, "Chemical Peel", "Microneedling", "Skincare", "Facial Services"],
   },
   {
     keywords: ["dullness", "dull skin", "lacklustre", "lackluster"],

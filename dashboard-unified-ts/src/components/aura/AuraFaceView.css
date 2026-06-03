@@ -12,6 +12,8 @@
   --avf-topbar-h:    52px;
   --avf-leftnav-w:   64px;
   --avf-rightnav-w:  56px;
+  --avf-tool-btn-size: 36px;
+  --avf-tool-icon-size: 19px;
 }
 
 /* ── Root ──────────────────────────────────────────────────────────────────── */
@@ -38,6 +40,8 @@
   --avf-topbar-h: 58px;
   --avf-leftnav-w: 48px;
   --avf-rightnav-w: 48px;
+  --avf-tool-btn-size: 40px;
+  --avf-tool-icon-size: 20px;
   border-radius: 0;
 }
 
@@ -361,11 +365,6 @@
   height: 44px;
 }
 
-.avf-root--embedded .avf-tool-btn {
-  width: 40px;
-  height: 40px;
-}
-
 /* ── Top bar ───────────────────────────────────────────────────────────────── */
 
 .avf-topbar {
@@ -666,6 +665,51 @@
 
 .avf-annotate-toolbar-portal .avf-annotate-toolbar {
   pointer-events: auto;
+}
+
+.avf-clear-highlights-btn {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 28;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(10, 10, 12, 0.72);
+  color: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  backdrop-filter: blur(10px);
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+}
+
+.avf-clear-highlights-btn svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.avf-clear-highlights-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.avf-root--embedded .avf-clear-highlights-btn {
+  right: 10px;
+  bottom: 10px;
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 11.5px;
 }
 
 .avf-3d-stage {
@@ -1272,8 +1316,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: var(--avf-tool-btn-size);
+  height: var(--avf-tool-btn-size);
+  padding: 0;
   border: 1px solid rgba(255 255 255 / 0.09);
   border-radius: 50%;
   background: rgba(255 255 255 / 0.05);
@@ -1283,19 +1328,22 @@
 }
 
 .avf-tool-btn svg {
-  width: 19px;
-  height: 19px;
-}
-
-.avf-root--embedded .avf-tool-btn svg {
-  width: 20px;
-  height: 20px;
+  width: var(--avf-tool-icon-size);
+  height: var(--avf-tool-icon-size);
+  flex: 0 0 auto;
 }
 
 .avf-tool-btn:hover {
   color: var(--avf-text);
   background: rgba(255 255 255 / 0.1);
   border-color: rgba(255 255 255 / 0.18);
+}
+
+.avf-tool-btn:disabled {
+  color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.025);
+  border-color: rgba(255, 255, 255, 0.06);
+  cursor: default;
 }
 
 .avf-tool-btn--active {

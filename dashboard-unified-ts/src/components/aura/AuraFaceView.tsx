@@ -757,12 +757,26 @@ function IconGear() {
   );
 }
 
-function IconEye() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>;
-}
-
-function IconEyeOff() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.1-5.9M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2m-6.7-1.1a3 3 0 1 1-4.2-4.2" /><line x1="1" y1="1" x2="23" y2="23" /></svg>;
+function IconClearHighlights() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m16.5 4.5 3 3-8.8 8.8a2 2 0 0 1-1.4.6H6.7l-2.2-2.2v-2.6a2 2 0 0 1 .6-1.4l8.4-8.4a2.1 2.1 0 0 1 3 0Z" />
+      <path d="m11.5 5.5 7 7" />
+      <path d="M4 20h9" />
+      <path d="M18 16.5h3" />
+      <path d="M19.5 15v3" />
+    </svg>
+  );
 }
 
 function IconSimple({
@@ -905,6 +919,9 @@ export interface AuraFaceViewProps {
   /** MediaPipe region highlights (dashboard face mirror). */
   highlightTerms?: string[];
   highlightedRegionIds?: string[];
+  /** Dashboard action for clearing issue/region highlights in the face viewer. */
+  hasHighlights?: boolean;
+  onClearHighlights?: () => void;
   /**
    * Expanded client detail: Skin / Volume / Structure pills drive the analysis panel
    * category on the right (controlled from FaceMirrorPanel).
@@ -957,6 +974,8 @@ export default function AuraFaceView({
   availableViewAngles,
   highlightTerms = [],
   highlightedRegionIds = [],
+  hasHighlights = false,
+  onClearHighlights,
   overviewCategory,
   onOverviewCategoryChange,
   activeSkinLens,
@@ -1017,8 +1036,8 @@ export default function AuraFaceView({
   );
   const [turntableSelected, setTurntableSelected] = useState(turntableOnly);
   const [radarMode, setRadarMode] = useState(showRadar);
-  const [showAnnotations, setShowAnnotations] = useState(true);
-  const [autoRotate, setAutoRotate] = useState(turntableOnly);
+  const [showAnnotations] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(false);
   const skinLensControlled =
     activeSkinLens !== undefined && onActiveSkinLensChange !== undefined;
   const [internalSkinSubMode, setInternalSkinSubMode] =
@@ -1258,13 +1277,10 @@ export default function AuraFaceView({
   );
 
   const selectTurntable = useCallback(() => {
-    if (turntableOnly) {
-      setAutoRotate(true);
-    }
     setTurntableSelected(true);
     setFaceSource("turntable");
     setRadarMode(false);
-  }, [turntableOnly]);
+  }, []);
 
   const selectPhotoAngle = useCallback((angle: ViewAngle) => {
     setAutoRotate(false);
@@ -1646,6 +1662,19 @@ export default function AuraFaceView({
                 className="avf-annotate-toolbar-portal"
               />
             ) : null}
+            {embedded && onClearHighlights && hasHighlights ? (
+              <button
+                type="button"
+                className="avf-clear-highlights-btn"
+                onClick={() => {
+                  setRadarMode(false);
+                  onClearHighlights();
+                }}
+              >
+                <IconClearHighlights />
+                <span>Clear highlights</span>
+              </button>
+            ) : null}
           </>
         )}
       </main>
@@ -1671,16 +1700,7 @@ export default function AuraFaceView({
         </button>
         {embedded && regionPicker ? (
           <FaceMirrorRegionsPicker variant="aura-rail" {...regionPicker} />
-        ) : (
-          <button
-            className={`avf-tool-btn${showAnnotations ? " avf-tool-btn--active" : ""}`}
-            title={showAnnotations ? "Hide annotations" : "Show annotations"}
-            aria-label={showAnnotations ? "Hide annotations" : "Show annotations"}
-            onClick={() => setShowAnnotations((visible) => !visible)}
-          >
-            {showAnnotations ? <IconEye /> : <IconEyeOff />}
-          </button>
-        )}
+        ) : null}
         <button
           className={`avf-tool-btn${drawingMode ? " avf-tool-btn--active" : ""}`}
           title={drawingMode ? "Stop drawing" : "Draw annotation"}

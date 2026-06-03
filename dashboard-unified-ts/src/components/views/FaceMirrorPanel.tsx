@@ -27,6 +27,7 @@ import {
   clientUsesAuraInterface,
   clientUsesAuraScan,
 } from "../../utils/auraScanConfig";
+import { ponceLogoSrc } from "../../utils/ponceBrand";
 import {
   savePatientAnnotation,
   type SavedPatientAnnotation,
@@ -423,6 +424,7 @@ interface FaceMirrorPanelProps {
   /** Optional lower-right content rendered under embedded Analysis Overview in expanded split mode. */
   expandedLowerRightContent?: ReactNode;
   onOpenPlanBuilder?: () => void;
+  darkMode?: boolean;
   /** Fires whenever the Aura analysis tab (Skin / Volume / Structure) changes. */
   onAuraActiveCategoryChange?: (category: AuraOverviewCategoryKey) => void;
   /** Called when a new turntable video has been generated for this client. */
@@ -450,6 +452,7 @@ export default function FaceMirrorPanel({
   analysisOverviewOnOpenTreatmentRecommender,
   expandedLowerRightContent,
   onOpenPlanBuilder,
+  darkMode = false,
   onAuraActiveCategoryChange,
   onScanGenerated,
   auraManifestUrl,
@@ -458,7 +461,7 @@ export default function FaceMirrorPanel({
 }: FaceMirrorPanelProps) {
   // --- Existing state ---
   const [mode, setMode] = useState<ViewMode>("photo");
-  const [autoRotate3d, setAutoRotate3d] = useState(true);
+  const [autoRotate3d, setAutoRotate3d] = useState(false);
   const highlightStorageKey = faceMirrorHighlightStorageKey(
     airtableRecordId,
     patientName,
@@ -1174,22 +1177,23 @@ export default function FaceMirrorPanel({
     </button>
   );
 
-  const auraExpandedTopbarEnd =
-    useAuraView && viewportExpanded ? expandAnalysisButton : undefined;
-
   const scanning =
     scanState.phase === "running" || scanState.phase === "submitting";
 
   const showOverlayToolbar =
-    (has3D || hasPhoto || canGenerate) &&
-    // For bundled-demo patients (Tanya) collapse the toolbar chrome in the
-    // expanded analysis view; real patients always need the toolbar so they
-    // can regenerate their scan.
-    !(clientUsesAuraScan(patientName) && viewportExpanded && !scanning);
+    has3D || hasPhoto || canGenerate;
 
   const toolbar = (
     <div className="fmp-toolbar">
       <div className="fmp-toolbar-start">
+        {useAuraView && viewportExpanded ? (
+          <img
+            src={ponceLogoSrc(darkMode)}
+            alt="Ponce"
+            className="fmp-toolbar-ponce-logo"
+            draggable={false}
+          />
+        ) : null}
         {useAuraView && !has3D && !hasAuraManifestPhotos ? (
           <span className="fmp-aura-badge" title="3D turntable scan">
             3D scan
@@ -1445,7 +1449,7 @@ export default function FaceMirrorPanel({
           </div>
         ) : null}
 
-        {!auraExpandedTopbarEnd ? expandAnalysisButton : null}
+        {expandAnalysisButton}
       </div>
     </div>
   );
@@ -1479,6 +1483,14 @@ export default function FaceMirrorPanel({
     ...auraViewerFraming,
     highlightTerms: highlightTermsForView,
     highlightedRegionIds: manualRegionsForView,
+    hasHighlights:
+      manualHighlightedRegionIds.length > 0 ||
+      auraIssueHighlights.length > 0,
+    onClearHighlights: () => {
+      setManualHighlightedRegionIds([]);
+      setAuraIssueHighlights([]);
+      clearAuraIssueHighlights();
+    },
     overviewCategory: useAuraExpandedAnalysis ? auraActiveCategory : undefined,
     onOverviewCategoryChange: useAuraExpandedAnalysis
       ? setAuraActiveCategory
@@ -1497,7 +1509,6 @@ export default function FaceMirrorPanel({
           onToggleAnnotationRegionHighlight: toggleAnnotationRegionHighlight,
         }
       : undefined,
-    topbarEnd: auraExpandedTopbarEnd,
   };
 
   const viewer3D =
