@@ -23,6 +23,10 @@
   box-sizing: border-box;
 }
 
+.fmp-root--aura.fmp-root--viewport-expanded {
+  padding-top: var(--cdp-panel-header-h, 72px);
+}
+
 .fmp-root--viewport-expanded .fmp-canvas-area {
   flex: 1;
   min-height: 0;
@@ -629,6 +633,25 @@
   flex-shrink: 0;
 }
 
+/* Expanded Aura: full-width topbar for the show-analysis split. */
+.fmp-root--aura.fmp-root--viewport-expanded .fmp-toolbar {
+  position: absolute;
+  left: 0;
+  top: var(--cdp-panel-header-h, 72px);
+  width: var(--fmp-face-split-ratio, 57.14%);
+  max-width: var(--fmp-face-split-ratio, 57.14%);
+  z-index: 36;
+  height: auto;
+  min-height: 0;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 10px;
+  border-bottom: none;
+  background: transparent;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
 .fmp-aura-badge {
   font-size: 11px;
   font-weight: 600;
@@ -666,21 +689,6 @@
   border-bottom: none;
   background: transparent;
   pointer-events: none;
-}
-
-/* Expanded Aura: full-width topbar for the show-analysis split. */
-.fmp-root--aura.fmp-root--viewport-expanded .fmp-toolbar {
-  position: relative;
-  z-index: 35;
-  width: 100%;
-  height: var(--cdp-aura-chrome-row-h, 52px);
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 14px;
-  border-bottom: 1px solid rgba(255 255 255 / 0.08);
-  background: #0a0a0a;
-  box-sizing: border-box;
-  pointer-events: auto;
 }
 
 .fmp-root--aura .fmp-toolbar-start,

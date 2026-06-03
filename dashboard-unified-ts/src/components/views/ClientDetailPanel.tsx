@@ -898,6 +898,11 @@ export default function ClientDetailPanel({
 
   const usesAuraInterface = clientUsesAuraInterface(glbUrl);
   const auraScanOnly = usesAuraInterface;
+  const [auraViewportExpanded, setAuraViewportExpanded] = useState(false);
+
+  useEffect(() => {
+    setAuraViewportExpanded(false);
+  }, [client.id]);
   const photoUrlForMirror = usesAuraInterface
     ? null
     : (frontPhotoUrl ?? getClientFrontPhotoDisplayUrl(client.frontPhoto));
@@ -1785,7 +1790,7 @@ export default function ClientDetailPanel({
   return (
     <>
       {createPortal(
-        <div className={`client-detail-panel${is3DSplit ? " client-detail-panel--3d-split" : ""}${darkMode ? " cdp-dark" : ""}`} ref={panelRef}>
+        <div className={`client-detail-panel${is3DSplit ? " client-detail-panel--3d-split" : ""}${auraViewportExpanded ? " client-detail-panel--analysis-expanded" : ""}${darkMode ? " cdp-dark" : ""}`} ref={panelRef}>
           <div className="client-detail-panel-header">
             <img
               src={ponceLogoSrc(darkMode)}
@@ -1836,6 +1841,7 @@ export default function ClientDetailPanel({
                 onOpenPlanBuilder={() => setRecommenderMode("by-treatment")}
                 darkMode={darkMode}
                 onAuraActiveCategoryChange={setAuraActiveCategoryForPlan}
+                onViewportExpandedChange={setAuraViewportExpanded}
                 onScanGenerated={handleScanGenerated}
               />
             </div>

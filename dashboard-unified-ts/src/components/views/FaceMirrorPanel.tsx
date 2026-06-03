@@ -27,7 +27,6 @@ import {
   clientUsesAuraInterface,
   clientUsesAuraScan,
 } from "../../utils/auraScanConfig";
-import { ponceLogoSrc } from "../../utils/ponceBrand";
 import {
   savePatientAnnotation,
   type SavedPatientAnnotation,
@@ -427,6 +426,8 @@ interface FaceMirrorPanelProps {
   darkMode?: boolean;
   /** Fires whenever the Aura analysis tab (Skin / Volume / Structure) changes. */
   onAuraActiveCategoryChange?: (category: AuraOverviewCategoryKey) => void;
+  /** Notifies parent when the full-screen analysis split opens or closes. */
+  onViewportExpandedChange?: (expanded: boolean) => void;
   /** Called when a new turntable video has been generated for this client. */
   onScanGenerated?: (result: {
     videoUrl: string;
@@ -452,8 +453,8 @@ export default function FaceMirrorPanel({
   analysisOverviewOnOpenTreatmentRecommender,
   expandedLowerRightContent,
   onOpenPlanBuilder,
-  darkMode = false,
   onAuraActiveCategoryChange,
+  onViewportExpandedChange,
   onScanGenerated,
   auraManifestUrl,
   auraGcsPrefix,
@@ -1116,6 +1117,10 @@ export default function FaceMirrorPanel({
     return () => stopPolling();
   }, [stopPolling]);
 
+  useEffect(() => {
+    onViewportExpandedChange?.(viewportExpanded);
+  }, [viewportExpanded, onViewportExpandedChange]);
+
   const cancelScan = useCallback(() => {
     stopPolling();
     if (airtableRecordId) clearPersistedJob(airtableRecordId);
@@ -1186,14 +1191,6 @@ export default function FaceMirrorPanel({
   const toolbar = (
     <div className="fmp-toolbar">
       <div className="fmp-toolbar-start">
-        {useAuraView && viewportExpanded ? (
-          <img
-            src={ponceLogoSrc(darkMode)}
-            alt="Ponce"
-            className="fmp-toolbar-ponce-logo"
-            draggable={false}
-          />
-        ) : null}
         {useAuraView && !has3D && !hasAuraManifestPhotos ? (
           <span className="fmp-aura-badge" title="3D turntable scan">
             3D scan
@@ -1509,6 +1506,7 @@ export default function FaceMirrorPanel({
           onToggleAnnotationRegionHighlight: toggleAnnotationRegionHighlight,
         }
       : undefined,
+    showNoIssuesMessage: !clientUsesAuraScan(patientName),
   };
 
   const viewer3D =
