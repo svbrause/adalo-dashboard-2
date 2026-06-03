@@ -652,33 +652,6 @@
   min-width: 0;
 }
 
-.fmp-toolbar-ponce-logo {
-  display: block;
-  width: auto;
-  height: 22px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-/* Expanded Aura: full-width topbar for the show-analysis split. */
-.fmp-root--aura.fmp-root--viewport-expanded .fmp-toolbar {
-  position: absolute;
-  left: 0;
-  top: var(--cdp-panel-header-h, 72px);
-  width: var(--fmp-face-split-ratio, 57.14%);
-  max-width: var(--fmp-face-split-ratio, 57.14%);
-  z-index: 36;
-  height: auto;
-  min-height: 0;
-  justify-content: flex-end;
-  align-items: flex-start;
-  padding: 10px;
-  border-bottom: none;
-  background: transparent;
-  box-sizing: border-box;
-  pointer-events: none;
-}
-
 .fmp-aura-badge {
   font-size: 11px;
   font-weight: 600;

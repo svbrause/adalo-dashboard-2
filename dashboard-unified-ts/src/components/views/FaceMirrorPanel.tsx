@@ -1186,7 +1186,7 @@ export default function FaceMirrorPanel({
     scanState.phase === "running" || scanState.phase === "submitting";
 
   const showOverlayToolbar =
-    has3D || hasPhoto || canGenerate;
+    (has3D || hasPhoto || canGenerate) && !(useAuraView && viewportExpanded);
 
   const toolbar = (
     <div className="fmp-toolbar">

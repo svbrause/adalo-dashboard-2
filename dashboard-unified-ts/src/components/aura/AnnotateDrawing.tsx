@@ -630,6 +630,7 @@ export default function AnnotateDrawing({
           className={`avf-drawing-layer${active ? " avf-drawing-layer--active" : ""}`}
           viewBox="0 0 100 100"
           preserveAspectRatio="xMidYMid meet"
+          data-pan-gesture="ignore"
           aria-hidden={!active}
           aria-label={active ? "Draw on face" : undefined}
           onPointerDown={onPointerDown}

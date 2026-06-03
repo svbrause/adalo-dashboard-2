@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
+const PAN_IGNORE_SELECTOR =
+  "button, a, input, textarea, select, summary, [data-pan-gesture='ignore'], .avf-drawing-layer, .avf-annotate-toolbar";
 
 export type MirrorViewportZoomOptions = {
   viewerRef: RefObject<HTMLElement | null>;
@@ -108,7 +110,7 @@ export function useMirrorViewportZoom({
       ) {
         return;
       }
-      if ((e.target as HTMLElement).closest("button, a, input, summary")) return;
+      if ((e.target as HTMLElement).closest(PAN_IGNORE_SELECTOR)) return;
       e.preventDefault();
       panningRef.current = true;
       viewer.classList.add("avf-zoom-viewport--panning");

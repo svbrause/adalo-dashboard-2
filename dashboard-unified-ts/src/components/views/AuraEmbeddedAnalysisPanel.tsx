@@ -260,8 +260,8 @@ function lensesForFinding(
 function skinLensFocusSubheading(lens: AuraSkinLens, detail?: string): string {
   const label = AURA_SKIN_LENS_LABELS[lens];
   return detail
-    ? `Focused on ${label} — ${detail}. Switch tabs on the left to change lens.`
-    : `Focused on ${label}. Switch tabs on the left to change lens.`;
+    ? `${label} lens: ${detail}.`
+    : `${label} lens selected.`;
 }
 
 function OverallScoreArc({
@@ -752,14 +752,11 @@ export default function AuraEmbeddedAnalysisPanel({
                 className="aura-embedded-panel__issues-section"
               >
                 <h4 className="aura-embedded-panel__issues-heading">
-                  {activeCategory === "skinHealth"
-                    ? `${AURA_SKIN_LENS_LABELS[effectiveSkinLens]} findings`
-                    : "Findings"}
+                  Findings
                 </h4>
                 {activeCategory === "skinHealth" ? (
                   <p className="aura-embedded-panel__issues-subheading">
-                    {activeSkinLensMeta?.detail ??
-                      "Issues detected for this scan lens."}
+                    Issues detected for this scan lens.
                   </p>
                 ) : null}
                 {findingsEmpty ? (
@@ -795,9 +792,9 @@ export default function AuraEmbeddedAnalysisPanel({
                                 : undefined
                             }
                           >
-                            {group.section}
+                            {activeCategory === "skinHealth" ? "Detected issues" : group.section}
                           </span>
-                          {group.sectionDetail ? (
+                          {activeCategory !== "skinHealth" && group.sectionDetail ? (
                             <span className="aura-embedded-panel__issue-group-detail">
                               {group.sectionDetail}
                             </span>

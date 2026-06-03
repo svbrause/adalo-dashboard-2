@@ -279,6 +279,37 @@ function buildAnnotateViewContext(input: {
   return `${input.angleLabel} · ${input.layer} · ${input.mode}`;
 }
 
+function staticPhotoSrcForView({
+  asset,
+  activeTab,
+  photoVariant,
+  skinSubMode,
+}: {
+  asset: AuraTanViewerAngleAsset;
+  activeTab: AnalysisTab;
+  photoVariant?: "normal" | "texture" | "pigmentation";
+  skinSubMode: SkinSubMode;
+}): string {
+  const wrinkleLensActive =
+    activeTab === "texture" && skinSubMode === "wrinkles";
+  if (activeTab === "texture" && skinSubMode === "redness" && asset.srcRedness) {
+    return asset.srcRedness;
+  }
+  if (activeTab === "texture" && skinSubMode === "pores" && asset.srcPores) {
+    return asset.srcPores;
+  }
+  if (wrinkleLensActive && asset.srcWrinklesView) return asset.srcWrinklesView;
+  if (wrinkleLensActive && asset.srcCutout) return asset.srcCutout;
+  if (photoVariant === "texture") return asset.srcTexture ?? asset.src;
+  if (photoVariant === "pigmentation") return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
+  if (photoVariant === "normal") return asset.src;
+  if (activeTab === "pigmentation") return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
+  if (activeTab === "texture" && isTexturePlateMode(skinSubMode)) {
+    return asset.srcTexture ?? asset.src;
+  }
+  return asset.src;
+}
+
 function AuraStaticPhotoView({
   angle,
   activeTab,
@@ -324,26 +355,12 @@ function AuraStaticPhotoView({
     activeTab === "texture" && skinSubMode === "wrinkles";
   const wrinkleLineOverlay =
     wrinkleLensActive && hasBakedWrinkles && !hasWrinkleView;
-  const src =
-    activeTab === "texture" && skinSubMode === "redness" && hasBakedRedness
-      ? asset.srcRedness!
-      : activeTab === "texture" && skinSubMode === "pores" && hasBakedPores
-        ? asset.srcPores!
-        : wrinkleLensActive && asset.srcWrinklesView
-          ? asset.srcWrinklesView
-        : wrinkleLensActive && asset.srcCutout
-          ? asset.srcCutout
-        : photoVariant === "texture"
-          ? asset.srcTexture ?? asset.src
-          : photoVariant === "pigmentation"
-            ? asset.srcPigmentation ?? asset.srcTexture ?? asset.src
-          : photoVariant === "normal"
-            ? asset.src
-            : activeTab === "pigmentation"
-              ? asset.srcPigmentation ?? asset.srcTexture ?? asset.src
-            : activeTab === "texture" && isTexturePlateMode(skinSubMode)
-              ? asset.srcTexture ?? asset.src
-              : asset.src;
+  const src = staticPhotoSrcForView({
+    asset,
+    activeTab,
+    photoVariant,
+    skinSubMode,
+  });
   const viewerRef = useRef<HTMLDivElement>(null);
   const zoomLayerRef = useRef<HTMLDivElement>(null);
   const alignStyle = asset.cssTransform
@@ -1051,6 +1068,7 @@ export default function AuraFaceView({
     [skinLensControlled, onActiveSkinLensChange],
   );
   const [drawingMode, setDrawingMode] = useState(false);
+  const [annotateSaveStatus, setAnnotateSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [blendRatio, setBlendRatio] = useState(0.5);
   const [photoTransition, setPhotoTransition] = useState<PhotoTransition | null>(null);
   const autoRotateRef = useRef(autoRotate);
@@ -1164,14 +1182,13 @@ export default function AuraFaceView({
         ? aura45LeftSkinIcon
         : null;
     if (embeddedPhotoStills) {
-      if (activeTab === "texture" && skinSubMode === "wrinkles") {
-        return asset.srcWrinklesView ?? asset.srcCutout ?? asset.src;
-      }
-      if (embeddedStillVariant === "texture") {
-        return left45SkinOverride ?? asset.srcTexture ?? asset.src;
-      }
-      if (embeddedStillVariant === "pigmentation") return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
-      return asset.src;
+      const src = staticPhotoSrcForView({
+        asset,
+        activeTab,
+        photoVariant: embeddedStillVariant,
+        skinSubMode,
+      });
+      return embeddedStillVariant === "texture" ? left45SkinOverride ?? src : src;
     }
     if (textureTurntableMode) {
       return left45SkinOverride ?? asset.srcTexture ?? asset.src;
@@ -1251,8 +1268,14 @@ export default function AuraFaceView({
   ]);
 
   const handleAnnotateSave = useCallback(async () => {
+    setAnnotateSaveStatus("saving");
     const payload = await buildAnnotatePayload();
-    if (payload) onAnnotateSave?.(payload);
+    if (!payload) {
+      setAnnotateSaveStatus("failed");
+      return;
+    }
+    onAnnotateSave?.(payload);
+    setAnnotateSaveStatus("saved");
   }, [buildAnnotatePayload, onAnnotateSave]);
 
   const handleAnnotateDownload = useCallback(async () => {
@@ -1265,6 +1288,21 @@ export default function AuraFaceView({
     );
   }, [buildAnnotatePayload]);
 
+  useEffect(() => {
+    if (annotateSaveStatus === "idle") return undefined;
+    const timer = window.setTimeout(() => setAnnotateSaveStatus("idle"), 1600);
+    return () => window.clearTimeout(timer);
+  }, [annotateSaveStatus]);
+
+  const annotateSaveLabel =
+    annotateSaveStatus === "saving"
+      ? "Saving"
+      : annotateSaveStatus === "saved"
+        ? "Saved"
+        : annotateSaveStatus === "failed"
+          ? "Failed"
+          : "Save";
+
   const annotateOverlay = (
     <AnnotateDrawing
       active={drawingMode}
@@ -1272,6 +1310,7 @@ export default function AuraFaceView({
       onStrokesChange={onAnnotateStrokesChange}
       onSave={onAnnotateSave ? handleAnnotateSave : undefined}
       onDownload={handleAnnotateDownload}
+      saveLabel={annotateSaveLabel}
       toolbarContainer={embedded ? annotateToolbarHost : undefined}
     />
   );
