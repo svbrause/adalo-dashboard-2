@@ -11,6 +11,10 @@
   flex-wrap: wrap;
 }
 
+.mobile-primary-view-switch {
+  display: none;
+}
+
 .filter-active-summary {
   width: 100%;
   box-sizing: border-box;
