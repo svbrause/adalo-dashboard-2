@@ -750,8 +750,12 @@ export default function FaceMirrorPanel({
         assets[angle] = {
           ...assets[angle],
           src: slotSrc,
-          srcTexture: slotSrc,
-          srcPigmentation: slotSrc,
+          srcTexture: assets[angle]?.srcTexture ?? slotSrc,
+          srcPigmentation: assets[angle]?.srcPigmentation ?? slotSrc,
+          srcRedness: assets[angle]?.srcRedness,
+          srcPores: assets[angle]?.srcPores,
+          srcWrinkles: assets[angle]?.srcWrinkles,
+          srcWrinklesView: assets[angle]?.srcWrinklesView,
         };
         continue;
       }

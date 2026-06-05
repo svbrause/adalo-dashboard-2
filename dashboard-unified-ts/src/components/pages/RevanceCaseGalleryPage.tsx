@@ -41,7 +41,7 @@ const TREATMENTS: Treatment[] = [
 
     stat: "+23%", statLabel: "texture score improvement",
 
-    treatment: "SkinPen Precision · 3 sessions · 4–6 weeks apart",
+    treatment: "3 sessions · 4–6 weeks apart",
     timeline:  "Results build over 3–4 months",
   },
   {
@@ -69,7 +69,7 @@ const TREATMENTS: Treatment[] = [
 
     stat: "+34%", statLabel: "pigmentation evenness",
 
-    treatment: "RHA 2 · Periorbital rejuvenation",
+    treatment: "Periorbital rejuvenation",
     timeline:  "Immediate result · Lasts ~12 months",
   },
 ];
@@ -133,44 +133,44 @@ function TreatmentScreen({
           <span>Tanya M</span>
         </div>
         <div className="rcg-assessment-copy">
-          <p className="rcg-assessment-kicker" style={{ color: t.color }}>Your assessment findings</p>
+          <p className="rcg-assessment-kicker" style={{ color: t.color }}>Your Assessment Findings</p>
           <ul>
             {t.findings.map(f => <li key={f}>{f}</li>)}
           </ul>
+          <div className="rcg-assessment-match" style={{ borderColor: `${t.color}38` }}>
+            <strong style={{ color: t.color }}>{t.match}% match</strong>
+            <span>Case criteria: {t.caseSummary}</span>
+          </div>
         </div>
       </div>
 
       <div className="rcg-treatment-panel" style={{ borderColor: `${t.color}28` }}>
         <div className="rcg-treatment-head">
-          <div>
-            <span className="rcg-product-badge" style={{ color: t.color, background: `${t.color}14`, borderColor: `${t.color}44` }}>
-              <span className="rcg-product-cat">{t.category}</span>
-              {t.product}
-            </span>
-            <strong>{t.treatment}</strong>
-          </div>
-          <span className="rcg-match-chip" style={{ color: t.color }}>{t.match}% match</span>
+          <span className="rcg-product-badge" style={{ color: t.color, background: `${t.color}14`, borderColor: `${t.color}44` }}>
+            <span className="rcg-product-cat">{t.category}</span>
+            <strong>{t.product} · {t.treatment}</strong>
+          </span>
         </div>
 
         <div className="rcg-case-summary">
-          <span>{t.caseSummary}</span>
+          <span>Case below matches the criteria above</span>
           <a href={t.caseSourceUrl} target="_blank" rel="noopener noreferrer">{t.caseSource} ↗</a>
         </div>
 
         <div className="rcg-ba-row">
           <figure>
             <Img
-              src={showingResults ? t.caseBeforeUrl : t.caseBeforePipelineUrl}
+              src={showingResults ? t.caseBeforePipelineUrl : t.caseBeforeUrl}
               alt={t.caseBeforeAlt}
-              cls={`rcg-ba-img${showingResults ? "" : " rcg-ba-img--analysis"}`}
+              cls={`rcg-ba-img${showingResults ? " rcg-ba-img--analysis" : ""}`}
             />
             <figcaption>Before</figcaption>
           </figure>
           <figure>
             <Img
-              src={showingResults ? t.caseAfterUrl : t.caseAfterPipelineUrl}
+              src={showingResults ? t.caseAfterPipelineUrl : t.caseAfterUrl}
               alt={t.caseAfterAlt}
-              cls={`rcg-ba-img${showingResults ? "" : " rcg-ba-img--analysis"}`}
+              cls={`rcg-ba-img${showingResults ? " rcg-ba-img--analysis" : ""}`}
             />
             <figcaption style={{ color: t.color }}>After</figcaption>
           </figure>

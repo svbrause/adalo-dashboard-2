@@ -59,12 +59,6 @@ export function getAvailableViewAngles(
   manifest: PatientAuraAssetManifest | null | undefined,
   photoSlots: ClientPhotoSlot[],
 ): AuraTanViewAngle[] | undefined {
-  if (manifest?.availableViewAngles?.length) {
-    const allowed = new Set(manifest.availableViewAngles);
-    const ordered = TANYA_TAN_LEFT_NAV_ORDER.filter((angle) => allowed.has(angle));
-    return ordered.length > 0 ? ordered : undefined;
-  }
-
   const merged = new Set<AuraTanViewAngle>();
 
   for (const angle of manifest?.availableViewAngles ?? []) {
