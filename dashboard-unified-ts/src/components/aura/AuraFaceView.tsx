@@ -62,11 +62,16 @@ export type AnnotateSavePayload = {
 };
 
 type AnalysisTab = "texture" | "pigmentation" | "volume" | "structure";
-type SkinSubMode = "texture" | "redness" | "pores" | "wrinkles";
+type SkinSubMode =
+  | "pigmentation"
+  | "texture"
+  | "redness"
+  | "pores"
+  | "wrinkles";
 type ViewAngle = "profile-left" | "three-quarter-left" | "front" | "three-quarter-right" | "profile-right";
 
-function isTexturePlateMode(mode: SkinSubMode): boolean {
-  return mode === "texture";
+function isPigmentationPlateMode(mode: SkinSubMode): boolean {
+  return mode === "pigmentation";
 }
 
 const ANALYSIS_TABS: { id: AnalysisTab; label: string }[] = [
@@ -120,6 +125,7 @@ const TAB_COLORS: Record<AnalysisTab, string> = {
 
 /** Fine crease highlights on grayscale texture / wrinkles lens (not pore dots). */
 const WRINKLE_LENS_COLOR = "#f2e2c8";
+const TEXTURE_LENS_COLOR = "#b8a7ff";
 
 const RADAR_DATA: { label: string; value: number }[] = [
   { label: "Texture", value: 1.3 },
@@ -300,12 +306,15 @@ function staticPhotoSrcForView({
   }
   if (wrinkleLensActive && asset.srcWrinklesView) return asset.srcWrinklesView;
   if (wrinkleLensActive && asset.srcCutout) return asset.srcCutout;
-  if (photoVariant === "texture") return asset.srcTexture ?? asset.src;
+  if (activeTab === "texture" && skinSubMode === "pigmentation") {
+    return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
+  }
+  if (photoVariant === "texture") return asset.srcCutout ?? asset.src;
   if (photoVariant === "pigmentation") return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
   if (photoVariant === "normal") return asset.src;
   if (activeTab === "pigmentation") return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
-  if (activeTab === "texture" && isTexturePlateMode(skinSubMode)) {
-    return asset.srcTexture ?? asset.src;
+  if (activeTab === "texture" && skinSubMode === "texture") {
+    return asset.srcCutout ?? asset.src;
   }
   return asset.src;
 }
@@ -319,7 +328,7 @@ function AuraStaticPhotoView({
   highlightedRegionIds,
   viewerAssets,
   photoVariant,
-  skinSubMode = "texture",
+  skinSubMode = "pigmentation",
   drawOverlay,
   measureRootRef,
   cvAnnotations,
@@ -334,7 +343,7 @@ function AuraStaticPhotoView({
   highlightTerms: string[];
   highlightedRegionIds: string[];
   viewerAssets: ViewerAngleAssets;
-  /** Dashboard toggles: color still vs clinical texture plate (overrides tab default). */
+  /** Dashboard toggles: color still vs legacy pigment plate (overrides tab default). */
   photoVariant?: "normal" | "texture" | "pigmentation";
   skinSubMode?: SkinSubMode;
   drawOverlay?: ReactNode;
@@ -372,7 +381,7 @@ function AuraStaticPhotoView({
   const stillPanY = asset.initialPanY ?? initialPanYProp ?? TURNTABLE_MATCH_PAN_Y;
   const displaySrc =
     wrinkleLensActive && asset.srcWrinklesView
-      ? `${src}${src.includes("?") ? "&" : "?"}v=4`
+      ? `${src}${src.includes("?") ? "&" : "?"}v=5`
       : src;
   const { zoom, resetTransform, minZoom } = useMirrorViewportZoom({
     viewerRef,
@@ -552,7 +561,7 @@ function AnnotationAngleContent({
   includeWrinkles,
   glowId,
   annotations,
-  skinSubMode = "texture",
+  skinSubMode = "pigmentation",
   bakedWrinklePlate = false,
 }: {
   activeTab: AnalysisTab;
@@ -567,6 +576,7 @@ function AnnotationAngleContent({
   const transform = angleOverlayTransform(angle);
   const redMask = annotations.redMaskByAngle?.[angle];
   const poreMask = annotations.poreMaskByAngle?.[angle];
+  const textureMarks = annotations.textureMarksByAngle?.[angle] ?? [];
   const wrinkleLensMode = activeTab === "texture" && skinSubMode === "wrinkles";
   const wrinklePaths = wrinklePathsForAngle(annotations, angle);
   const showWrinkleLines =
@@ -599,17 +609,19 @@ function AnnotationAngleContent({
       ) : null}
       {activeTab === "texture" ? (
         <>
-          {skinSubMode === "texture" &&
-          annotations.pores.length > 0 &&
-          !Object.values(annotations.poreMaskByAngle ?? {}).some(Boolean) ? (
+          {skinSubMode === "texture" && textureMarks.length > 0 ? (
             <g transform={transform} filter={`url(#${glowId})`}>
-              <g className="avf-diagnostic-overlay__pores">
-                {annotations.pores.map((pore, index) => (
-                  <circle
-                    key={`texture-pore-${index}`}
-                    cx={pore.cx}
-                    cy={pore.cy}
-                    r={pore.r * 1.35}
+              <g className="avf-diagnostic-overlay__texture-marks">
+                {textureMarks.map((mark, index) => (
+                  <ellipse
+                    key={`texture-mark-${index}`}
+                    cx={mark.cx}
+                    cy={mark.cy}
+                    rx={mark.rx}
+                    ry={mark.ry}
+                    transform={`rotate(${mark.rotation ?? 0} ${mark.cx} ${mark.cy})`}
+                    fillOpacity={0.05 + mark.intensity * 0.1}
+                    strokeOpacity={0.34 + mark.intensity * 0.38}
                   />
                 ))}
               </g>
@@ -664,7 +676,7 @@ function AuraAnnotationOverlay({
   turntableRatio,
   visible,
   includeWrinkles = false,
-  skinSubMode = "texture",
+  skinSubMode = "pigmentation",
   fixedAngle,
   angleTimings = AURA_TAN_ANGLE_ASSETS,
   annotations,
@@ -684,8 +696,23 @@ function AuraAnnotationOverlay({
 }) {
   if (!visible) return null;
   const wrinkleLensMode = activeTab === "texture" && skinSubMode === "wrinkles";
-  const color = wrinkleLensMode ? WRINKLE_LENS_COLOR : TAB_COLORS[activeTab];
-  const overlayTone = wrinkleLensMode ? "wrinkles-lens" : activeTab;
+  const textureLensMode = activeTab === "texture" && skinSubMode === "texture";
+  const pigmentationLensMode =
+    activeTab === "texture" && skinSubMode === "pigmentation";
+  const color = wrinkleLensMode
+    ? WRINKLE_LENS_COLOR
+    : textureLensMode
+      ? TEXTURE_LENS_COLOR
+      : pigmentationLensMode
+        ? TAB_COLORS.pigmentation
+        : TAB_COLORS[activeTab];
+  const overlayTone = wrinkleLensMode
+    ? "wrinkles-lens"
+    : textureLensMode
+      ? "texture-surface"
+      : pigmentationLensMode
+        ? "pigmentation"
+        : activeTab;
   const glowId = "avf_diag_glow";
   const wrinkleGlowId = `${glowId}_wrinkle`;
 
@@ -907,7 +934,7 @@ export interface AuraFaceViewProps {
   turntableOnly?: boolean;
   /** Turntable video; defaults to the bundled Aura demo export. */
   videoUrl?: string;
-  /** Patient-specific skin-gray turntable (Texture tab). Falls back to bundled Tanya demo. */
+  /** Patient-specific pigment/spot turntable (Skin → Pigmentation). Falls back to bundled Tanya demo. */
   textureVideoUrl?: string;
   /** Patient-specific pigmentation turntable (Pigmentation tab). Falls back to bundled Tanya demo. */
   pigmentationVideoUrl?: string;
@@ -945,7 +972,7 @@ export interface AuraFaceViewProps {
    */
   overviewCategory?: AuraOverviewCategoryKey;
   onOverviewCategoryChange?: (key: AuraOverviewCategoryKey) => void;
-  /** Synced with embedded analysis panel scan lens chips (Skin → Texture / Redness / Pores). */
+  /** Synced with embedded analysis panel scan lens chips (Skin lenses). */
   activeSkinLens?: SkinSubMode;
   onActiveSkinLensChange?: (lens: SkinSubMode) => void;
   /** Lifted ink for save / reload from patient files. */
@@ -968,7 +995,7 @@ export interface AuraFaceViewProps {
   showNoIssuesMessage?: boolean;
   /**
    * Override the initial analysis tab without controlling it. Defaults to "texture"
-   * (skin-gray turntable). Pass "volume" or "structure" to start on the color video.
+   * (Skin tab). Pass "volume" or "structure" to start on the color video.
    */
   defaultTab?: "texture" | "volume" | "structure";
 }
@@ -1058,7 +1085,7 @@ export default function AuraFaceView({
   const skinLensControlled =
     activeSkinLens !== undefined && onActiveSkinLensChange !== undefined;
   const [internalSkinSubMode, setInternalSkinSubMode] =
-    useState<SkinSubMode>("texture");
+    useState<SkinSubMode>("pigmentation");
   const skinSubMode = skinLensControlled ? activeSkinLens : internalSkinSubMode;
   const setSkinSubMode = useCallback(
     (mode: SkinSubMode) => {
@@ -1095,10 +1122,10 @@ export default function AuraFaceView({
 
   const embeddedPhotoStills =
     embedded && turntableOnly && !turntableSelected;
-  /** Skin tab → texture stills only in texture sub-mode; redness/pores use colour stills. */
+  /** Skin tab → pigmentation stills only in pigmentation sub-mode; texture stays on color/cutout. */
   const embeddedStillVariant: "normal" | "texture" | "pigmentation" =
-    activeTab === "texture" && isTexturePlateMode(skinSubMode)
-      ? "texture"
+    activeTab === "texture" && isPigmentationPlateMode(skinSubMode)
+      ? "pigmentation"
       : activeTab === "pigmentation"
         ? "pigmentation"
         : "normal";
@@ -1126,15 +1153,27 @@ export default function AuraFaceView({
   const showSkinTabDiagnostics =
     !useBundledCvAnnotations && !patientHasBakedSkinMaps;
   const annotationsActive = showAnnotations && !noIssuesMessage;
-  /** UV grayscale helps on still /aura page; on live turntable it muddies pigment marks. */
-  const uvMode = activeTab === "texture" && annotationsActive && !turntableOnly;
+  /** UV grayscale helps the pigment plate; true texture should stay on natural/cutout skin. */
+  const uvMode =
+    activeTab === "texture" &&
+    skinSubMode === "pigmentation" &&
+    annotationsActive &&
+    !turntableOnly;
   /** Client-detail turntable: video only. Full /aura page may still blend plates when on texture. */
   const texturePlateMode =
-    turntableOnly ? false : isTurntableView && activeTab === "texture";
+    turntableOnly
+      ? false
+      : isTurntableView &&
+        activeTab === "texture" &&
+        skinSubMode === "pigmentation";
   const scanOverlayVisible =
-    annotationsActive && (!texturePlateMode || isTexturePlateMode(skinSubMode) || skinSubMode === "wrinkles");
+    annotationsActive &&
+    (!texturePlateMode ||
+      skinSubMode === "pigmentation" ||
+      skinSubMode === "texture" ||
+      skinSubMode === "wrinkles");
   const textureTurntableMode =
-    isTurntableView && activeTab === "texture" && skinSubMode === "texture";
+    isTurntableView && activeTab === "texture" && skinSubMode === "pigmentation";
   const wrinkleTurntableMode =
     isTurntableView && activeTab === "texture" && skinSubMode === "wrinkles";
   const redednessTurntableMode = isTurntableView && activeTab === "texture" && skinSubMode === "redness";
@@ -1178,7 +1217,9 @@ export default function AuraFaceView({
   const currentFaceImageUrl = useMemo(() => {
     const asset = viewerAngleAssets[annotateExportAngle];
     const left45SkinOverride =
-      annotateExportAngle === "three-quarter-left" && activeTab === "texture"
+      annotateExportAngle === "three-quarter-left" &&
+      activeTab === "texture" &&
+      skinSubMode === "pigmentation"
         ? aura45LeftSkinIcon
         : null;
     if (embeddedPhotoStills) {
@@ -1188,7 +1229,7 @@ export default function AuraFaceView({
         photoVariant: embeddedStillVariant,
         skinSubMode,
       });
-      return embeddedStillVariant === "texture" ? left45SkinOverride ?? src : src;
+      return embeddedStillVariant === "pigmentation" ? left45SkinOverride ?? src : src;
     }
     if (textureTurntableMode) {
       return left45SkinOverride ?? asset.srcTexture ?? asset.src;
@@ -1204,6 +1245,7 @@ export default function AuraFaceView({
     annotateExportAngle,
     embeddedPhotoStills,
     viewerAngleAssets,
+    activeTab,
     embeddedStillVariant,
     textureTurntableMode,
     wrinkleTurntableMode,
@@ -1213,7 +1255,7 @@ export default function AuraFaceView({
 
   const annotateViewContext = useMemo(() => {
     const layer: "Color" | "Texture" = embeddedPhotoStills
-      ? embeddedStillVariant === "texture" || embeddedStillVariant === "pigmentation"
+      ? embeddedStillVariant === "pigmentation"
         ? "Texture"
         : "Color"
       : textureTurntableMode || pigmentationTurntableMode || activeTab === "texture" || activeTab === "pigmentation"
@@ -1529,6 +1571,7 @@ export default function AuraFaceView({
           <nav className="avf-skin-sub-tabs" aria-label="Skin analysis mode">
             {(
               [
+                { mode: "pigmentation", label: "Pigmentation" },
                 { mode: "texture", label: "Texture" },
                 { mode: "redness", label: "Redness" },
                 { mode: "pores", label: "Pores" },
@@ -1607,12 +1650,7 @@ export default function AuraFaceView({
                             !redednessTurntableMode &&
                             !poresTurntableMode &&
                             !wrinkleTurntableMode &&
-                            (turntableOnly || (activeTab !== "structure" && !autoRotate)) &&
-                            !(
-                              activeTab === "texture" &&
-                              !showSkinTabDiagnostics &&
-                              skinSubMode === "texture"
-                            )
+                            (turntableOnly || (activeTab !== "structure" && !autoRotate))
                           }
                           includeWrinkles={
                             turntableOnly && !wrinkleTurntableMode
@@ -1638,8 +1676,7 @@ export default function AuraFaceView({
                       annotationsActive &&
                       (activeTab !== "texture" ||
                         showSkinTabDiagnostics ||
-                        skinSubMode === "wrinkles" ||
-                        skinSubMode !== "texture")
+                        skinSubMode !== "pigmentation")
                     }
                     showMirrorAnnotations={showMirrorAnnotations}
                     highlightTerms={highlightTerms}
@@ -1663,8 +1700,7 @@ export default function AuraFaceView({
                       annotationsActive &&
                       (activeTab !== "texture" ||
                         showSkinTabDiagnostics ||
-                        skinSubMode === "wrinkles" ||
-                        skinSubMode !== "texture")
+                        skinSubMode !== "pigmentation")
                     }
                     showMirrorAnnotations={showMirrorAnnotations}
                     highlightTerms={highlightTerms}

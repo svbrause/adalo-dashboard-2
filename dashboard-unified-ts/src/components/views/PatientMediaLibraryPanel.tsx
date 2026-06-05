@@ -90,6 +90,13 @@ export default function PatientMediaLibraryPanel({
 
   const viewerSections = useMemo((): PatientMediaViewerSection[] => {
     const out: PatientMediaViewerSection[] = [];
+    if (sections.user.length > 0) {
+      out.push({
+        id: "user",
+        label: "Your annotations",
+        items: sections.user,
+      });
+    }
     if (sections.system.length > 0) {
       if (showTanyaLayout) {
         for (const cat of TANYA_TAN_SYSTEM_MEDIA_ORDER) {
@@ -109,13 +116,6 @@ export default function PatientMediaLibraryPanel({
         });
       }
     }
-    if (sections.user.length > 0) {
-      out.push({
-        id: "user",
-        label: "Your annotations",
-        items: sections.user,
-      });
-    }
     return out;
   }, [sections, showTanyaLayout, systemByCategory]);
 
@@ -132,7 +132,7 @@ export default function PatientMediaLibraryPanel({
         </div>
         <p className="patient-media-library__desc">
           {showTanyaLayout
-            ? "Original session photos, background-removed stills, clinical texture maps, and annotations you draw on the face."
+            ? "Original session photos, background-removed stills, pigmentation maps, and annotations you draw on the face."
             : "Original photos, 3D turntable video, and saved face annotations."}
         </p>
       </div>
@@ -144,53 +144,11 @@ export default function PatientMediaLibraryPanel({
           </p>
         ) : (
           <>
-            {sections.system.length > 0 ? (
-              <section className="patient-media-library__section">
-                {!showTanyaLayout ? (
-                  <h4 className="patient-media-library__section-title">System files</h4>
-                ) : null}
-                {showTanyaLayout
-                  ? TANYA_TAN_SYSTEM_MEDIA_ORDER.map((cat) => {
-                      const items = systemByCategory.get(cat) ?? [];
-                      if (items.length === 0) return null;
-                      return (
-                        <div key={cat} className="patient-media-library__group">
-                          <h5 className="patient-media-library__group-title">
-                            {systemCategoryLabel(cat)}
-                          </h5>
-                          <ul className="patient-media-library__grid">
-                            {items.map((item) => (
-                              <MediaCard
-                                key={item.id}
-                                item={item}
-                                badge={kindBadge(item)}
-                                onView={openViewer}
-                              />
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })
-                  : (
-                    <ul className="patient-media-library__grid">
-                      {sections.system.map((item) => (
-                        <MediaCard
-                          key={item.id}
-                          item={item}
-                          badge={kindBadge(item)}
-                          onView={openViewer}
-                        />
-                      ))}
-                    </ul>
-                  )}
-              </section>
-            ) : null}
-
             {sections.user.length > 0 ? (
               <section className="patient-media-library__section">
                 <h4 className="patient-media-library__section-title">Your annotations</h4>
                 <p className="patient-media-library__section-desc">
-                  Markup saved from the face mirror — load back onto the 3D view or download.
+                  Saved markup from the face mirror.
                 </p>
                 <ul className="patient-media-library__grid">
                   {sections.user.map((item) => (
@@ -203,6 +161,61 @@ export default function PatientMediaLibraryPanel({
                     />
                   ))}
                 </ul>
+              </section>
+            ) : null}
+
+            {sections.system.length > 0 ? (
+              <section className="patient-media-library__section">
+                <h4 className="patient-media-library__section-title">System files</h4>
+                {showTanyaLayout
+                  ? TANYA_TAN_SYSTEM_MEDIA_ORDER.map((cat) => {
+                      const items = systemByCategory.get(cat) ?? [];
+                      if (items.length === 0) return null;
+                      return (
+                        <details key={cat} className="patient-media-library__group patient-media-library__group--collapsed">
+                          <summary className="patient-media-library__group-summary">
+                            <span className="patient-media-library__group-title">
+                              {systemCategoryLabel(cat)}
+                            </span>
+                            <span className="patient-media-library__group-count">
+                              {items.length}
+                            </span>
+                          </summary>
+                          <ul className="patient-media-library__grid">
+                            {items.map((item) => (
+                              <MediaCard
+                                key={item.id}
+                                item={item}
+                                badge={kindBadge(item)}
+                                onView={openViewer}
+                              />
+                            ))}
+                          </ul>
+                        </details>
+                      );
+                    })
+                  : (
+                    <details className="patient-media-library__group patient-media-library__group--collapsed">
+                      <summary className="patient-media-library__group-summary">
+                        <span className="patient-media-library__group-title">
+                          Original and generated media
+                        </span>
+                        <span className="patient-media-library__group-count">
+                          {sections.system.length}
+                        </span>
+                      </summary>
+                      <ul className="patient-media-library__grid">
+                        {sections.system.map((item) => (
+                          <MediaCard
+                            key={item.id}
+                            item={item}
+                            badge={kindBadge(item)}
+                            onView={openViewer}
+                          />
+                        ))}
+                      </ul>
+                    </details>
+                  )}
               </section>
             ) : null}
           </>

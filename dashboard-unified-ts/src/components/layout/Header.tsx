@@ -1,13 +1,11 @@
 // Header Component
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import AddClientModal from "../modals/AddClientModal";
-import NewClientSMSModal from "../modals/NewClientSMSModal";
 import {
   getJotformUrl,
   formatProviderDisplayName,
-  isUniqueAestheticsProvider,
 } from "../../utils/providerHelpers";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { showToast } from "../../utils/toast";
@@ -73,9 +71,6 @@ export default function Header({
 }: HeaderProps) {
   const { provider, refreshClients, currentView, darkMode, setDarkMode } = useDashboard();
   const [showAddClient, setShowAddClient] = useState(false);
-  const [showScanDropdown, setShowScanDropdown] = useState(false);
-  const [showNewClientSMS, setShowNewClientSMS] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const pageTitle =
     currentView === "user-admin"
       ? "Users and Roles"
@@ -85,28 +80,7 @@ export default function Header({
           : `${formatProviderDisplayName(provider.name)} Provider Dashboard`
         : "Clients";
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowScanDropdown(false);
-      }
-    };
-
-    if (showScanDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showScanDropdown]);
-
   const handleScanInClinic = () => {
-    setShowScanDropdown(false);
     if (!provider) {
       showToast("Provider information not available");
       return;
@@ -178,35 +152,12 @@ export default function Header({
         <div className="header-right">
           {currentView !== "user-admin" && (
             <>
-              <div className="scan-client-dropdown" ref={dropdownRef}>
-                <button
-                  className="btn-secondary scan-client-btn"
-                  onClick={() => setShowScanDropdown(!showScanDropdown)}
-                >
-                  New Scan
-                </button>
-                {showScanDropdown && (
-                  <div className="scan-client-dropdown-menu">
-                    <button
-                      className="scan-client-option"
-                      onClick={handleScanInClinic}
-                    >
-                      Scan In-Clinic
-                    </button>
-                    {!isUniqueAestheticsProvider(provider) && (
-                      <button
-                        className="scan-client-option"
-                        onClick={() => {
-                          setShowScanDropdown(false);
-                          setShowNewClientSMS(true);
-                        }}
-                      >
-                        Scan At Home
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <button
+                className="btn-secondary scan-client-btn"
+                onClick={handleScanInClinic}
+              >
+                Scan In-Clinic
+              </button>
               <button
                 className="btn-secondary"
                 onClick={() => setShowAddClient(true)}
@@ -271,12 +222,6 @@ export default function Header({
         />
       )}
 
-      {showNewClientSMS && (
-        <NewClientSMSModal
-          onClose={() => setShowNewClientSMS(false)}
-          onSuccess={refreshClients}
-        />
-      )}
     </>
   );
 }

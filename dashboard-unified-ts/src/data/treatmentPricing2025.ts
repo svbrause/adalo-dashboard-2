@@ -20,6 +20,10 @@ import {
   JUDGEMD_PRICE_LIST_2026_27,
   JUDGEMD_SURGERY_SECTION_CATEGORIES,
 } from "./judgeMdPricing2026";
+import {
+  getSlimStudioEmbeddedPriceListBase,
+  isSlimStudioProvider,
+} from "./slimStudioOfferings";
 export interface TreatmentPriceItem {
   name: string;
   price: number;
@@ -1034,7 +1038,11 @@ function getSkusForDashboardCategory(
     dashboardCategory?.trim() ?? "",
   );
   const sections = DASHBOARD_TO_PRICE_SECTIONS[dash];
-  if (!sections?.length) return [];
+  if (!sections?.length) {
+    const direct = priceList.find((s) => s.category === dash);
+    if (!direct) return [];
+    return direct.items.map((i) => ({ ...i, category: direct.category }));
+  }
   const out: SkuWithCategory[] = [];
   for (const section of priceList) {
     if (!sections.includes(section.category)) continue;
@@ -1101,6 +1109,13 @@ function getSkusForDashboardCategory(
     for (const section of priceList) {
       if (!JUDGEMD_SURGERY_CAT_SET.has(section.category)) continue;
       section.items.forEach((i) => out.push({ ...i, category: section.category }));
+    }
+  }
+  if (out.length === 0) {
+    /** Slim Studio / Wellnest: section name matches plan category when sheet has no Injectables-style grouping. */
+    const direct = priceList.find((s) => s.category === dash);
+    if (direct) {
+      return direct.items.map((i) => ({ ...i, category: direct.category }));
     }
   }
   return out;
@@ -1284,8 +1299,16 @@ export function matchPlanItemToSku(
     (item.treatment ?? "").trim(),
   );
   if (!treatment) return null;
-  // Skincare with a specific product (e.g. Retinol, Vitamin C) uses boutique pricing, not the 2025 facial price list.
-  if (treatment === "Skincare" && (item.product ?? "").trim()) return null;
+  const productEarly = (item.product ?? "").trim();
+  // Skincare with a specific product: boutique carousel first, unless the provider sheet lists that product (e.g. Slim Studio medical-grade line).
+  if (treatment === "Skincare" && productEarly) {
+    const skincareSkus = getSkusForDashboardCategory("Skincare", priceList);
+    const sheetSku = skincareSkus.find((s) => skuNameMatches(s.name, productEarly));
+    if (sheetSku) {
+      return { sku: sheetSku, totalPrice: sheetSku.price };
+    }
+    return null;
+  }
   let skus = getSkusForDashboardCategory(treatment, priceList);
   skus = preferClaremontCaSkus(skus);
   if (skus.length === 0) return null;
@@ -1328,6 +1351,8 @@ export function matchPlanItemToSku(
       (s.name.includes("1-Unit") ||
         (s.name.includes("Botox") && s.name.includes("Unit")) ||
         (s.name.includes("Dysport") && s.name.includes("Unit")) ||
+        (s.name.includes("Xeomin") && s.name.includes("Unit")) ||
+        (s.name.includes("Jeuveau") && s.name.includes("Unit")) ||
         (/daxxify|doxify/i.test(s.name) && s.name.includes("Unit"))),
   );
   // No quantity fallback for neurotoxin — blank units means price is unknown (shown as "Price varies").
@@ -1338,14 +1363,19 @@ export function matchPlanItemToSku(
       /* fall through to generic matching / null */
     } else {
       const preferBotox =
-        /botox|tox/i.test(product) && !/dysport|daxxify|doxify/i.test(product);
+        /botox/i.test(product) &&
+        !/dysport|daxxify|doxify|xeomin|jeuveau/i.test(product);
       const preferDysport = /dysport/i.test(product);
       const preferDaxxify = /daxxify|doxify/i.test(product);
+      const preferXeomin = /xeomin/i.test(product);
+      const preferJeuveau = /jeuveau/i.test(product);
       let chosen = perUnitSkus[0];
       if (preferBotox) chosen = perUnitSkus.find((s) => s.name.includes("Botox")) ?? chosen;
       if (preferDysport) chosen = perUnitSkus.find((s) => s.name.includes("Dysport")) ?? chosen;
       if (preferDaxxify)
         chosen = perUnitSkus.find((s) => /daxxify|doxify/i.test(s.name)) ?? chosen;
+      if (preferXeomin) chosen = perUnitSkus.find((s) => s.name.includes("Xeomin")) ?? chosen;
+      if (preferJeuveau) chosen = perUnitSkus.find((s) => s.name.includes("Jeuveau")) ?? chosen;
       const totalPrice = chosen.price * effectiveQty;
       return {
         sku: chosen,
@@ -1573,6 +1603,8 @@ export function matchPlanItemToSku(
       (matched.name.includes("1-Unit") ||
         (matched.name.includes("Botox") && matched.name.includes("Unit")) ||
         (matched.name.includes("Dysport") && matched.name.includes("Unit")) ||
+        (matched.name.includes("Xeomin") && matched.name.includes("Unit")) ||
+        (matched.name.includes("Jeuveau") && matched.name.includes("Unit")) ||
         (/daxxify|doxify/i.test(matched.name) && matched.name.includes("Unit")));
     const hasUnits = !Number.isNaN(qty) && qty > 0;
     if (isPerUnitNeuroSku && !hasUnits) return null;
@@ -2011,6 +2043,9 @@ function getEmbeddedPriceListBaseForProvider(
   }
   if (isWellnestWellnessProviderCode(providerCode ?? undefined)) {
     return getWellnestEmbeddedPriceListBase();
+  }
+  if (isSlimStudioProvider({ code: providerCode ?? undefined })) {
+    return getSlimStudioEmbeddedPriceListBase();
   }
   return TREATMENT_PRICE_LIST_2025;
 }

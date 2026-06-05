@@ -94,6 +94,48 @@
   margin-bottom: 0;
 }
 
+.patient-media-library__group--collapsed {
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-subtle, #f8fafc);
+  overflow: hidden;
+}
+
+.patient-media-library__group--collapsed[open] {
+  padding-bottom: 10px;
+}
+
+.patient-media-library__group-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.patient-media-library__group-summary::-webkit-details-marker {
+  display: none;
+}
+
+.patient-media-library__group-summary::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  color: var(--theme-text-muted, #64748b);
+  transition: transform 0.16s ease;
+  flex-shrink: 0;
+}
+
+.patient-media-library__group--collapsed[open] .patient-media-library__group-summary::before {
+  transform: rotate(45deg);
+}
+
 .patient-media-library__group-title {
   margin: 0 0 8px;
   font-size: 10px;
@@ -101,6 +143,30 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--theme-text-muted, #64748b);
+}
+
+.patient-media-library__group-summary .patient-media-library__group-title {
+  margin: 0;
+  flex: 1;
+}
+
+.patient-media-library__group-count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-muted, #64748b);
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--theme-border, #e2e8f0);
+}
+
+.patient-media-library__group--collapsed .patient-media-library__grid {
+  padding: 0 10px;
 }
 
 .patient-media-library__grid {
@@ -260,6 +326,19 @@
 
 .cdp-dark .patient-media-card {
   background: var(--theme-bg-inset, #1c1c1c);
+}
+
+.cdp-dark .patient-media-library__group--collapsed,
+.aura-embedded-panel__files .patient-media-library__group--collapsed {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cdp-dark .patient-media-library__group-count,
+.aura-embedded-panel__files .patient-media-library__group-count {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .aura-embedded-panel__files .patient-media-library__title {

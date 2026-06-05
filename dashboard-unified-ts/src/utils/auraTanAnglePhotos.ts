@@ -37,7 +37,7 @@ export type AuraTanViewAngle =
 
 export type AuraTanViewerAngleAsset = {
   src: string;
-  /** Clinical texture map for Texture tab. */
+  /** Legacy skin-gray pigment/spot plate; shown under Skin → Pigmentation. */
   srcTexture?: string;
   /** Clinical pigment map for Pigmentation tab. */
   srcPigmentation?: string;

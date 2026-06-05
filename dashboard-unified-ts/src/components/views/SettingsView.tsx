@@ -11,6 +11,7 @@ import {
 } from "../../data/treatmentPricing2025";
 import { isJudgeMdProviderCode } from "../../data/judgeMdPricing2026";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
+import { isSlimStudioProvider } from "../../data/slimStudioOfferings";
 import { TREATMENT_BOUTIQUE_SKINCARE } from "../modals/DiscussedTreatmentsModal/treatmentBoutiqueProducts";
 import {
   AUTOMATED_EMAILS,
@@ -354,7 +355,8 @@ export default function SettingsView() {
   const isPracticeSettingsProvider =
     isTreatmentContext ||
     isWellnestWellnessProviderCode(provider?.code) ||
-    isJudgeMdProviderCode(provider?.code);
+    isJudgeMdProviderCode(provider?.code) ||
+    isSlimStudioProvider({ code: provider?.code, id: provider?.id, name: provider?.name });
   /**
    * Same access as Settings in the sidebar; do not require an existing Firebase session —
    * provider-code logins use Airtable session only, while Users and Roles (embedded admin)
@@ -595,7 +597,8 @@ export default function SettingsView() {
 
   const omitTreatmentDomainEmails =
     isWellnestWellnessProviderCode(provider?.code) ||
-    isJudgeMdProviderCode(provider?.code);
+    isJudgeMdProviderCode(provider?.code) ||
+    isSlimStudioProvider({ code: provider?.code, id: provider?.id, name: provider?.name });
 
   const unifiedNotificationSections = useMemo(() => {
     const UNIFIED_PRODUCTS_CONFIG: Array<{

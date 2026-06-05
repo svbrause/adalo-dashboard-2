@@ -20,6 +20,8 @@ import {
   OTHER_TREATMENT_LABEL,
   getTreatmentOptionsForProvider,
   getTreatmentProductOptionsForProvider,
+  toProviderTreatmentContext,
+  normalizeProviderTreatmentContextForCatalog,
   REGION_OPTIONS,
   TIMELINE_OPTIONS,
   PLAN_SECTIONS,
@@ -74,6 +76,10 @@ import { getAlignedCheckoutLineItemsForDiscussedItems } from "./TreatmentPlanChe
 import { planPricingWarningShort } from "../../../utils/planPricingWarnings";
 import { isPostVisitBlueprintSender } from "../../../utils/providerHelpers";
 import { getWellnestOfferingByTreatmentName } from "../../../data/wellnestOfferings";
+import {
+  isSlimStudioProvider,
+  mapSuggestedTreatmentForSlimStudio,
+} from "../../../data/slimStudioOfferings";
 import "./index.css";
 
 export default function DiscussedTreatmentsModal({
@@ -91,6 +97,10 @@ export default function DiscussedTreatmentsModal({
   initialEditingItem?: DiscussedItem | null;
 }) {
   const { provider } = useDashboard();
+  const providerCatalogContext = useMemo(
+    () => toProviderTreatmentContext(provider),
+    [provider?.code, provider?.id, provider?.name],
+  );
   const effectivePriceList = useMemo(
     () =>
       getEffectivePriceList(
@@ -100,8 +110,8 @@ export default function DiscussedTreatmentsModal({
     [provider],
   );
   const treatmentOptions = useMemo(
-    () => getTreatmentOptionsForProvider(provider?.code),
-    [provider?.code],
+    () => getTreatmentOptionsForProvider(providerCatalogContext),
+    [providerCatalogContext],
   );
 
   const [items, setItems] = useState<DiscussedItem[]>(
@@ -365,25 +375,36 @@ export default function DiscussedTreatmentsModal({
   const addFormSectionRef = useRef<HTMLDivElement>(null);
 
   const treatmentsForTopic = useMemo(() => {
+    const allowed = new Set(getTreatmentOptionsForProvider(providerCatalogContext));
     let list: string[];
     if (addMode === "finding" && selectedFindings.length > 0) {
       const treatments = new Set<string>();
       for (const finding of selectedFindings) {
         const mapped = getGoalRegionTreatmentsForFinding(finding);
-        if (mapped) mapped.treatments.forEach((t) => treatments.add(t));
+        if (!mapped) continue;
+        for (const t of mapped.treatments) {
+          const resolved =
+            isSlimStudioProvider(
+              normalizeProviderTreatmentContextForCatalog(providerCatalogContext),
+            )
+              ? mapSuggestedTreatmentForSlimStudio(t)
+              : t;
+          if (resolved && allowed.has(resolved)) treatments.add(resolved);
+        }
       }
       list =
         treatments.size > 0
           ? Array.from(treatments)
-          : getTreatmentsForInterest(form.interest, provider?.code);
+          : getTreatmentsForInterest(form.interest, providerCatalogContext);
     } else {
-      list = getTreatmentsForInterest(form.interest, provider?.code);
+      list = getTreatmentsForInterest(form.interest, providerCatalogContext);
     }
+    list = list.filter((t) => allowed.has(t));
     // Skincare first, then the rest in stable order
     const skincare = list.filter((t) => t === "Skincare");
     const rest = list.filter((t) => t !== "Skincare");
     return [...skincare, ...rest];
-  }, [addMode, selectedFindings, form.interest, provider?.code]);
+  }, [addMode, selectedFindings, form.interest, providerCatalogContext]);
 
   /** Region options filtered by selected goal (or all when no goal) */
   /** When adding by treatment first: assessment findings grouped by area (replaces goal/region) */
@@ -973,7 +994,7 @@ export default function DiscussedTreatmentsModal({
         : form.region?.trim() || undefined;
     const timelineDefault = form.timeline?.trim() || "Wishlist";
     const productFor = (t: string): string | undefined => {
-      const opts = getTreatmentProductOptionsForProvider(provider?.code, t);
+      const opts = getTreatmentProductOptionsForProvider(providerCatalogContext, t);
       if (!opts) return undefined;
       const sel =
         form.treatmentProducts[t] ??
@@ -1215,7 +1236,7 @@ export default function DiscussedTreatmentsModal({
       setAddMode("goal");
       const treatment = prefilled.treatment?.trim() || "";
       const productOpts = treatment
-        ? getTreatmentProductOptionsForProvider(provider?.code, treatment)
+        ? getTreatmentProductOptionsForProvider(providerCatalogContext, treatment)
         : [];
       const productIsOption =
         prefilled.treatmentProduct &&
@@ -1292,7 +1313,7 @@ export default function DiscussedTreatmentsModal({
     setAddMode("goal");
     const treatment = prefilled.treatment?.trim() || "";
     const productOpts = treatment
-      ? getTreatmentProductOptionsForProvider(provider?.code, treatment)
+      ? getTreatmentProductOptionsForProvider(providerCatalogContext, treatment)
       : [];
     const productIsOption =
       prefilled.treatmentProduct &&
@@ -1968,12 +1989,12 @@ export default function DiscussedTreatmentsModal({
                       {/* Product/Type – carousel for Skincare/Energy Treatment, chips for others (same as add form) */}
                       {editForm.treatment &&
                         treatmentOptions.includes(editForm.treatment) &&
-                        (getTreatmentProductOptionsForProvider(provider?.code, editForm.treatment)
+                        (getTreatmentProductOptionsForProvider(providerCatalogContext, editForm.treatment)
                           ?.length ?? 0) > 0 &&
                         (() => {
                           const treatment = editForm.treatment;
                           const opts =
-                            getTreatmentProductOptionsForProvider(provider?.code, treatment);
+                            getTreatmentProductOptionsForProvider(providerCatalogContext, treatment);
                           const fullList = opts.filter(
                             (p) => p !== OTHER_PRODUCT_LABEL
                           );
@@ -2009,7 +2030,7 @@ export default function DiscussedTreatmentsModal({
                                         isSkincareOnly
                                           ? (() => {
                                               const items =
-                                                getSkincareCarouselItems();
+                                                getSkincareCarouselItems(providerCatalogContext);
                                               return fullList.map((name) =>
                                                 items.find(
                                                   (i) => i.name === name
@@ -3207,12 +3228,12 @@ export default function DiscussedTreatmentsModal({
                             {selectedTreatmentFirst &&
                               selectedTreatmentFirst !==
                                 OTHER_TREATMENT_LABEL &&
-                              (getTreatmentProductOptionsForProvider(provider?.code, selectedTreatmentFirst)
+                              (getTreatmentProductOptionsForProvider(providerCatalogContext, selectedTreatmentFirst)
                                 ?.length ?? 0) > 0 &&
                               (() => {
                                 const treatment = selectedTreatmentFirst;
                                 const opts =
-                                  getTreatmentProductOptionsForProvider(provider?.code, treatment);
+                                  getTreatmentProductOptionsForProvider(providerCatalogContext, treatment);
                                 const fullList = opts.filter(
                                   (p) => p !== OTHER_PRODUCT_LABEL
                                 );
@@ -3238,7 +3259,7 @@ export default function DiscussedTreatmentsModal({
                                   : fullList;
                                 const skincareItems =
                                   treatment === "Skincare"
-                                    ? getSkincareCarouselItems()
+                                    ? getSkincareCarouselItems(providerCatalogContext)
                                     : [];
                                 const skincareDisplayItems =
                                   treatment === "Skincare"
@@ -4200,7 +4221,7 @@ export default function DiscussedTreatmentsModal({
                                         OTHER_TREATMENT_LABEL &&
                                       (() => {
                                         const name = form.selectedTreatments[0];
-                                        const optsForName = getTreatmentProductOptionsForProvider(provider?.code, name);
+                                        const optsForName = getTreatmentProductOptionsForProvider(providerCatalogContext, name);
                                         const hasProductOptions =
                                           (optsForName?.length ?? 0) > 0;
                                         const treatment = name;
@@ -4241,7 +4262,7 @@ export default function DiscussedTreatmentsModal({
                                           : fullList;
                                         const skincareItemsByTreatment =
                                           treatment === "Skincare"
-                                            ? getSkincareCarouselItems()
+                                            ? getSkincareCarouselItems(providerCatalogContext)
                                             : [];
                                         const skincareDisplayItemsByTreatment =
                                           treatment === "Skincare"
@@ -5036,7 +5057,7 @@ export default function DiscussedTreatmentsModal({
                               ) : (
                                 <>
                                   {treatmentsForTopic.map((name) => {
-                                    const optsForName = getTreatmentProductOptionsForProvider(provider?.code, name);
+                                    const optsForName = getTreatmentProductOptionsForProvider(providerCatalogContext, name);
                                     const hasProductOptions =
                                       (optsForName?.length ?? 0) > 0;
                                     const isSelected =
@@ -5078,7 +5099,7 @@ export default function DiscussedTreatmentsModal({
                                         : fullList;
                                       const skincareItemsTopic =
                                         treatment === "Skincare"
-                                          ? getSkincareCarouselItems()
+                                          ? getSkincareCarouselItems(providerCatalogContext)
                                           : [];
                                       const skincareDisplayItemsTopic =
                                         treatment === "Skincare"

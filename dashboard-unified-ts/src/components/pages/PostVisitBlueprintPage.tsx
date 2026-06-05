@@ -37,6 +37,7 @@ import {
 } from "../../utils/providerHelpers";
 import { isJudgeMdProviderCode } from "../../data/judgeMdPricing2026";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
+import { isSlimStudioProvider } from "../../data/slimStudioOfferings";
 import { buildWellnestBlueprintCasePhotos } from "../../utils/wellnestBlueprintCases";
 import PvbHeroMedia from "../postVisitBlueprint/PvbHeroMedia";
 import { PvbNarrativeAudioControls } from "../postVisitBlueprint/PvbNarrativeAudioControls";
@@ -125,6 +126,8 @@ function heroUrlNeedsCorsHelp(url: string): boolean {
 const THE_TREATMENT_BRAND_LOGO_SRC =
   "/post-visit-blueprint/videos/The%20Treatment%20Mint%20and%20Gray.png";
 const JUDGEMD_BRAND_LOGO_SRC = "/branding/judgemd-brand-logo.svg";
+const SLIM_STUDIO_BRAND_LOGO_SRC = "/branding/slim-studio-logo.svg";
+const SLIM_STUDIO_MARKETING_SITE_URL = "https://slimstudioatlanta.com/";
 const WELLNEST_BRAND_LOGO_SRC =
   "https://wellnestmd.com/wp-content/uploads/2024/12/nav-logo-5.svg";
 const WELLNEST_MARKETING_SITE_URL = "https://wellnestmd.com/";
@@ -133,10 +136,12 @@ function PvbBrandBar({
   providerCode,
   providerName,
   onWellnestWebsiteClick,
+  onSlimStudioWebsiteClick,
 }: {
   providerCode?: string | null;
   providerName?: string | null;
   onWellnestWebsiteClick?: () => void;
+  onSlimStudioWebsiteClick?: () => void;
 }) {
   const isAdminSender = isPostVisitBlueprintAdminSender({
     providerCode: providerCode ?? undefined,
@@ -145,6 +150,10 @@ function PvbBrandBar({
   const isWellnest = isWellnestWellnessProviderCode(providerCode);
   const isTheTreatment = isTheTreatmentProviderCode(providerCode);
   const isJudgeMd = isJudgeMdProviderCode(providerCode);
+  const isSlimStudio = isSlimStudioProvider({
+    code: providerCode,
+    name: providerName,
+  });
   const brandLogoSrc = isAdminSender
     ? ponceBrandLogoSrc
     : isWellnest
@@ -153,7 +162,9 @@ function PvbBrandBar({
         ? THE_TREATMENT_BRAND_LOGO_SRC
         : isJudgeMd
           ? JUDGEMD_BRAND_LOGO_SRC
-          : ""; // Other providers: no logo shown until theirs is configured
+          : isSlimStudio
+            ? SLIM_STUDIO_BRAND_LOGO_SRC
+            : ""; // Other providers: no logo shown until theirs is configured
   const brandLabel = isAdminSender
     ? "Ponce AI"
     : isWellnest
@@ -162,14 +173,16 @@ function PvbBrandBar({
         ? "The Treatment Skin Boutique"
         : isJudgeMd
           ? (providerName?.trim() || "JudgeMD")
-          : (providerName?.trim() || "Your provider");
+          : isSlimStudio
+            ? "Slim Studio Face & Body"
+            : (providerName?.trim() || "Your provider");
   return (
     <header className="pvb-brand-bar" aria-label={brandLabel}>
       {brandLogoSrc ? (
         <img
           src={brandLogoSrc}
           alt={brandLabel}
-          className={`pvb-brand-logo${isAdminSender ? " pvb-brand-logo--ponce" : ""}${isJudgeMd ? " pvb-brand-logo--judgemd" : ""}`}
+          className={`pvb-brand-logo${isAdminSender ? " pvb-brand-logo--ponce" : ""}${isJudgeMd ? " pvb-brand-logo--judgemd" : ""}${isSlimStudio ? " pvb-brand-logo--slimstudio" : ""}`}
           width={isAdminSender ? 200 : 220}
           height={isAdminSender ? 48 : 72}
           decoding="async"
@@ -185,6 +198,18 @@ function PvbBrandBar({
           className="pvb-brand-exit-link"
           aria-label="Visit Wellnest MD website (opens in a new tab)"
           onClick={() => onWellnestWebsiteClick?.()}
+        >
+          Visit Website
+        </a>
+      )}
+      {isSlimStudio && (
+        <a
+          href={SLIM_STUDIO_MARKETING_SITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="pvb-brand-exit-link"
+          aria-label="Visit Slim Studio website (opens in a new tab)"
+          onClick={() => onSlimStudioWebsiteClick?.()}
         >
           Visit Website
         </a>
@@ -1231,6 +1256,17 @@ export default function PostVisitBlueprintPage() {
           providerCode={blueprint?.providerCode}
           providerName={blueprint?.providerName}
           onWellnestWebsiteClick={
+            blueprintPatientAnalytics
+              ? () =>
+                  trackPostVisitBlueprintEvent(
+                    "blueprint_brand_website_clicked",
+                    {
+                      ...blueprintPatientAnalytics,
+                    },
+                  )
+              : undefined
+          }
+          onSlimStudioWebsiteClick={
             blueprintPatientAnalytics
               ? () =>
                   trackPostVisitBlueprintEvent(

@@ -11,6 +11,7 @@ import { capturePatientAcquisitionFunnelEvent } from "./patientAcquisitionAnalyt
 
 const WELLNEST_STORAGE_PREFIX = "wellnest-demo-plan:";
 const ADMIN_DEMO_STORAGE_PREFIX = "admin-demo-plan:";
+const SLIM_STUDIO_STORAGE_PREFIX = "slimstudio-demo-plan:";
 
 export function isWellnestDemoSampleClient(client: Pick<Client, "id">): boolean {
   return client.id.startsWith("wellnest-demo-");
@@ -20,9 +21,17 @@ export function isAdminDemoSampleClient(client: Pick<Client, "id">): boolean {
   return client.id.startsWith("admin-demo-");
 }
 
+export function isSlimStudioDemoSampleClient(client: Pick<Client, "id">): boolean {
+  return client.id.startsWith("slimstudio-demo-");
+}
+
 /** Clients whose plan edits are persisted in sessionStorage, not Airtable. */
 export function isSessionDemoPlanClient(client: Pick<Client, "id">): boolean {
-  return isWellnestDemoSampleClient(client) || isAdminDemoSampleClient(client);
+  return (
+    isWellnestDemoSampleClient(client) ||
+    isAdminDemoSampleClient(client) ||
+    isSlimStudioDemoSampleClient(client)
+  );
 }
 
 function storageKeyForDemoClient(clientId: string): string | null {
@@ -31,6 +40,9 @@ function storageKeyForDemoClient(clientId: string): string | null {
   }
   if (clientId.startsWith("admin-demo-")) {
     return ADMIN_DEMO_STORAGE_PREFIX + clientId;
+  }
+  if (clientId.startsWith("slimstudio-demo-")) {
+    return SLIM_STUDIO_STORAGE_PREFIX + clientId;
   }
   return null;
 }

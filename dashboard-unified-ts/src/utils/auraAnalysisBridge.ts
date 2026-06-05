@@ -122,9 +122,15 @@ export function issueToMirrorHighlightTerm(issueName: string): string {
 }
 
 /** Skin scan lenses (left tabs + polar chart). */
-export type AuraSkinLens = "texture" | "redness" | "pores" | "wrinkles";
+export type AuraSkinLens =
+  | "pigmentation"
+  | "texture"
+  | "redness"
+  | "pores"
+  | "wrinkles";
 
 export const SKIN_LENS_ORDER: AuraSkinLens[] = [
+  "pigmentation",
   "texture",
   "redness",
   "pores",
@@ -132,6 +138,7 @@ export const SKIN_LENS_ORDER: AuraSkinLens[] = [
 ];
 
 export const AURA_SKIN_LENS_LABELS: Record<AuraSkinLens, string> = {
+  pigmentation: "Pigmentation",
   texture: "Texture",
   redness: "Redness",
   pores: "Pores",
@@ -140,7 +147,8 @@ export const AURA_SKIN_LENS_LABELS: Record<AuraSkinLens, string> = {
 
 /** Group headings in findings list (chart fill uses 1–5 severity gradient). */
 export const AURA_SKIN_LENS_COLORS: Record<AuraSkinLens, string> = {
-  texture: "#6aab7a",
+  pigmentation: "#9b7a56",
+  texture: "#8b7bd8",
   redness: "#7eb88a",
   pores: "#8ec67a",
   wrinkles: "#7aa88c",
@@ -200,6 +208,7 @@ export function formatSeverityAxisValue(axis: number): string {
 
 export function auraSkinLensFromLabel(label: string): AuraSkinLens | undefined {
   const key = label.trim().toLowerCase();
+  if (key === "pigmentation" || key === "pigment") return "pigmentation";
   if (key === "texture") return "texture";
   if (key === "redness") return "redness";
   if (key === "pores") return "pores";
@@ -208,14 +217,16 @@ export function auraSkinLensFromLabel(label: string): AuraSkinLens | undefined {
 }
 
 const SKIN_LENS_SUB_SCORES: Record<AuraSkinLens, string[]> = {
-  texture: ["Texture", "Hydration"],
+  pigmentation: ["Pigmentation"],
+  texture: ["Texture"],
   redness: ["Pigmentation"],
   pores: ["Texture"],
   wrinkles: ["Wrinkles"],
 };
 
 export const SKIN_LENS_ISSUES: Record<AuraSkinLens, string[]> = {
-  texture: ["Dark Spots", "Under Eye Dark Circles", "Dry Skin", "Crepey Skin"],
+  pigmentation: ["Dark Spots", "Under Eye Dark Circles"],
+  texture: ["Scars", "Dry Skin", "Crepey Skin"],
   redness: ["Red Spots", "Rosacea"],
   pores: ["Whiteheads", "Blackheads"],
   wrinkles: [
@@ -231,7 +242,13 @@ export const SKIN_LENS_ISSUES: Record<AuraSkinLens, string[]> = {
 
 export function primarySkinLensForIssue(issue: string): AuraSkinLens {
   const key = normalizeIssue(issue);
-  const order: AuraSkinLens[] = ["pores", "redness", "wrinkles", "texture"];
+  const order: AuraSkinLens[] = [
+    "pores",
+    "redness",
+    "wrinkles",
+    "texture",
+    "pigmentation",
+  ];
   for (const lens of order) {
     if (SKIN_LENS_ISSUES[lens].some((name) => normalizeIssue(name) === key)) {
       return lens;
@@ -413,9 +430,10 @@ function fallbackLensScore(activeCat: CategoryResult, lens: AuraSkinLens): numbe
       : activeCat.score;
   /** When sub-scores collapse to one number, nudge lenses apart on the health scale. */
   const lensBias: Record<AuraSkinLens, number> = {
+    pigmentation: -8,
     redness: -10,
     pores: -4,
-    texture: 4,
+    texture: 2,
     wrinkles: 8,
   };
   return Math.max(0, Math.min(100, base + lensBias[lens]));

@@ -481,7 +481,7 @@ export default function FaceMirrorPanel({
   const [auraActiveCategory, setAuraActiveCategory] =
     useState<AuraOverviewCategoryKey>("skinHealth");
   const [auraActiveSkinLens, setAuraActiveSkinLens] =
-    useState<AuraSkinLens>("texture");
+    useState<AuraSkinLens>("pigmentation");
   const [auraIssueHighlights, setAuraIssueHighlights] = useState<string[]>([]);
   const [annotateStrokes, setAnnotateStrokes] = useState<AnnotateStroke[]>([]);
   const [annotationsRefreshKey, setAnnotationsRefreshKey] = useState(0);

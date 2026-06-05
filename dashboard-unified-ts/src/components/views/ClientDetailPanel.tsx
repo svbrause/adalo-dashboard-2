@@ -29,7 +29,6 @@ import ShareAnalysisModal from "../modals/ShareAnalysisModal";
 import ShareTreatmentPlanModal from "../modals/ShareTreatmentPlanModal";
 import ShareTreatmentPlanLinkModal from "../modals/ShareTreatmentPlanLinkModal";
 import PhotoViewerModal from "../modals/PhotoViewerModal";
-import NewClientSMSModal from "../modals/NewClientSMSModal";
 import SendSMSModal from "../modals/SendSMSModal";
 import {
   FacialAnalysisStatusPill,
@@ -94,6 +93,7 @@ import {
   getTreatmentOptionsForProvider,
   getSkincareCarouselItems,
   getTreatmentProductOptionsForProvider,
+  toProviderTreatmentContext,
   TIMELINE_OPTIONS,
   REGION_OPTIONS,
   REGION_OPTIONS_MICRONEEDLING,
@@ -298,8 +298,6 @@ export default function ClientDetailPanel({
   );
   const [frontPhotoUrl, setFrontPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
-  const [showScanDropdown, setShowScanDropdown] = useState(false);
-  const [showNewClientSMS, setShowNewClientSMS] = useState(false);
   const [showSendSMS, setShowSendSMS] = useState(false);
   const [showSmsPopup, setShowSmsPopup] = useState(false);
   const [smsInitialMessage, setSMSInitialMessage] = useState<string | null>(
@@ -361,7 +359,6 @@ export default function ClientDetailPanel({
     );
   const { optimisticTimelines, handleVisitModeToggleItem } =
     useVisitModePlanSync({ client, onUpdate });
-  const scanDropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -555,26 +552,6 @@ export default function ClientDetailPanel({
     };
   }, [client?.id, client?.tableSource, client?.skincareQuiz]);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        scanDropdownRef.current &&
-        !scanDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowScanDropdown(false);
-      }
-    };
-
-    if (showScanDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showScanDropdown]);
-
   // Handle Escape key to close panel
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -585,7 +562,6 @@ export default function ClientDetailPanel({
           !showShareAnalysis &&
           !showAnalysisOverview &&
           !showPhotoViewer &&
-          !showNewClientSMS &&
           !showSendSMS &&
           !showDiscussedTreatments &&
           !issuePhotosContext
@@ -609,7 +585,6 @@ export default function ClientDetailPanel({
     showShareAnalysis,
     showAnalysisOverview,
     showPhotoViewer,
-    showNewClientSMS,
     showSendSMS,
     showDiscussedTreatments,
     issuePhotosContext,
@@ -798,7 +773,6 @@ export default function ClientDetailPanel({
   };
 
   const handleScanInClinic = () => {
-    setShowScanDropdown(false);
     handleScanPatientNow();
     showToast(`Opening scan form for ${client.name}`);
   };
@@ -1236,7 +1210,9 @@ export default function ClientDetailPanel({
       ).values(),
     );
     const severityIssues = client ? getEffectiveSeverityIssues(client) ?? {} : {};
-    const availableTreatments = new Set(getTreatmentOptionsForProvider(provider?.code));
+    const availableTreatments = new Set(
+      getTreatmentOptionsForProvider(toProviderTreatmentContext(provider)),
+    );
 
     const issueEntries = Object.entries(severityIssues);
     const severityForFinding = (finding: string) =>
@@ -1296,7 +1272,10 @@ export default function ClientDetailPanel({
         issues.some((issue) => lowered.includes(normalizeIssue(issue))),
       )?.[0];
       if (!suggestion) return null;
-      const treatment = getTreatmentsForInterest(suggestion, provider?.code).find((t) =>
+      const treatment = getTreatmentsForInterest(
+        suggestion,
+        toProviderTreatmentContext(provider),
+      ).find((t) =>
         availableTreatments.has(t),
       );
       if (!treatment) return null;
@@ -1428,7 +1407,10 @@ export default function ClientDetailPanel({
     const quickAddKey = (qa: { treatment: string; goal: string }) =>
       `${qa.treatment}::${qa.goal}`;
     const productOptionsForQuickAdd = (treatment: string) =>
-      getTreatmentProductOptionsForProvider(provider?.code, treatment).slice(0, 8);
+      getTreatmentProductOptionsForProvider(
+        toProviderTreatmentContext(provider),
+        treatment,
+      ).slice(0, 8);
     const regionOptionsForQuickAdd = (treatment: string) => {
       const normalized = treatment.trim();
       if (normalized === "Energy Treatment") {
@@ -2880,45 +2862,15 @@ export default function ClientDetailPanel({
                           </>
                         )}
                         {hasWebPopupForm && (
-                          <div
-                            className="scan-client-dropdown"
-                            ref={scanDropdownRef}
+                          <button
+                            className="btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleScanInClinic();
+                            }}
                           >
-                            <button
-                              className="btn-secondary btn-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowScanDropdown(!showScanDropdown);
-                              }}
-                            >
-                              Scan Patient
-                            </button>
-                            {showScanDropdown && (
-                              <div className="scan-client-dropdown-menu">
-                                <button
-                                  className="scan-client-option"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleScanInClinic();
-                                  }}
-                                >
-                                  Scan In Clinic
-                                </button>
-                                {!isUniqueAestheticsProvider(provider) && (
-                                  <button
-                                    className="scan-client-option"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShowScanDropdown(false);
-                                      setShowNewClientSMS(true);
-                                    }}
-                                  >
-                                    Scan At Home
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                            Scan In Clinic
+                          </button>
                         )}
                       </div>
                     </div>
@@ -2940,7 +2892,7 @@ export default function ClientDetailPanel({
                       <div className="detail-empty-state">
                         {hasWebPopupForm ? (
                           <div className="detail-empty-state-text">
-                            {`Request a facial analysis scan for this client using the "Scan Patient" button above.`}
+                            {`Request a facial analysis scan for this client using the "Scan In Clinic" button above.`}
                           </div>
                         ) : (
                           <div className="detail-empty-center">
@@ -3337,15 +3289,6 @@ export default function ClientDetailPanel({
               initialPhotoType={photoViewerType}
               onClose={() => setShowPhotoViewer(false)}
               onPhotoUpdated={onUpdate}
-            />
-          )}
-          {showNewClientSMS && (
-            <NewClientSMSModal
-              onClose={() => setShowNewClientSMS(false)}
-              onSuccess={() => {
-                setShowNewClientSMS(false);
-                onUpdate();
-              }}
             />
           )}
           {showSmsPopup && client && (

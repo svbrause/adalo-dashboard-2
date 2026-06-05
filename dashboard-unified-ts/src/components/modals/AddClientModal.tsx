@@ -123,6 +123,9 @@ export default function AddClientModal({
         <div className="modal-header">
           <div className="modal-header-info">
             <h2 className="modal-title">Add New Client</h2>
+            <p className="modal-subtitle">
+              Add clients without performing a scan
+            </p>
           </div>
           <button className="modal-close" onClick={onClose}>
             ×

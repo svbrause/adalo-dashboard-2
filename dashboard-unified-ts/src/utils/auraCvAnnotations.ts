@@ -12,6 +12,14 @@ export type AuraCvDarkSpot = {
 export type AuraCvRedSpot = AuraCvDarkSpot;
 
 export type AuraCvPoreSpot = { cx: number; cy: number; r: number };
+export type AuraCvTextureMark = {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  rotation?: number;
+  intensity: number;
+};
 
 export type AuraCvAnnotations = {
   wrinkles: string[];
@@ -23,6 +31,8 @@ export type AuraCvAnnotations = {
   redSpotsByAngle?: Partial<Record<AuraTanViewAngle, AuraCvRedSpot[]>>;
   /** Optional PNG mask layer for visible pores; brownish overlay per angle. */
   poreMaskByAngle?: Partial<Record<AuraTanViewAngle, string>>;
+  /** Depressed / irregular surface texture marks such as atrophic acne scars. */
+  textureMarksByAngle?: Partial<Record<AuraTanViewAngle, AuraCvTextureMark[]>>;
   redAreas: string[];
   pores: AuraCvPoreSpot[];
   volume: string[];
@@ -85,6 +95,7 @@ export const EMPTY_AURA_CV_ANNOTATIONS: AuraCvAnnotations = {
   darkSpotsByAngle: {},
   redMaskByAngle: {},
   redSpotsByAngle: {},
+  textureMarksByAngle: {},
   redAreas: [],
   pores: [],
   volume: [],
@@ -126,6 +137,38 @@ export const TANYA_AURA_CV_ANNOTATIONS: AuraCvAnnotations = {
     "M 40.25 64.85 Q 49.5 61.9 59.55 64.8 Q 55.55 69.4 44.3 69.2 Z",
   ],
   redSpotsByAngle: GENERATED_TAN_RED_SPOTS_BY_ANGLE,
+  textureMarksByAngle: {
+    front: [
+      { cx: 43.6, cy: 47.8, rx: 0.85, ry: 0.38, rotation: -18, intensity: 0.72 },
+      { cx: 45.9, cy: 50.7, rx: 0.62, ry: 0.3, rotation: 12, intensity: 0.58 },
+      { cx: 53.8, cy: 48.9, rx: 0.72, ry: 0.34, rotation: 16, intensity: 0.64 },
+      { cx: 55.7, cy: 52.4, rx: 0.58, ry: 0.28, rotation: -10, intensity: 0.52 },
+      { cx: 47.8, cy: 56.2, rx: 0.5, ry: 0.24, rotation: 4, intensity: 0.44 },
+      { cx: 52.2, cy: 56.4, rx: 0.48, ry: 0.24, rotation: -6, intensity: 0.42 },
+    ],
+    "three-quarter-left": [
+      { cx: 40.7, cy: 45.8, rx: 0.92, ry: 0.4, rotation: -20, intensity: 0.7 },
+      { cx: 42.9, cy: 49.4, rx: 0.74, ry: 0.32, rotation: 14, intensity: 0.62 },
+      { cx: 45.0, cy: 53.0, rx: 0.58, ry: 0.26, rotation: -4, intensity: 0.46 },
+      { cx: 48.0, cy: 47.5, rx: 0.44, ry: 0.22, rotation: 18, intensity: 0.4 },
+    ],
+    "three-quarter-right": [
+      { cx: 33.8, cy: 47.2, rx: 0.9, ry: 0.38, rotation: 18, intensity: 0.68 },
+      { cx: 36.2, cy: 50.8, rx: 0.74, ry: 0.32, rotation: -12, intensity: 0.6 },
+      { cx: 38.4, cy: 54.1, rx: 0.56, ry: 0.26, rotation: 5, intensity: 0.45 },
+      { cx: 31.8, cy: 52.6, rx: 0.42, ry: 0.2, rotation: -18, intensity: 0.38 },
+    ],
+    "profile-left": [
+      { cx: 58.4, cy: 47.8, rx: 0.82, ry: 0.34, rotation: -12, intensity: 0.58 },
+      { cx: 56.5, cy: 51.0, rx: 0.64, ry: 0.28, rotation: 10, intensity: 0.5 },
+      { cx: 53.8, cy: 54.2, rx: 0.46, ry: 0.22, rotation: -4, intensity: 0.38 },
+    ],
+    "profile-right": [
+      { cx: 48.3, cy: 45.8, rx: 0.86, ry: 0.36, rotation: 12, intensity: 0.62 },
+      { cx: 51.0, cy: 48.7, rx: 0.68, ry: 0.28, rotation: -8, intensity: 0.54 },
+      { cx: 53.2, cy: 52.4, rx: 0.5, ry: 0.24, rotation: 4, intensity: 0.4 },
+    ],
+  },
   darkSpotsByAngle: {
     front: [],
     "three-quarter-left": [

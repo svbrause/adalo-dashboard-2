@@ -39,7 +39,7 @@ function minPairwiseGap(values: number[]): number {
 }
 
 describe("skin lens chart scores", () => {
-  it("keeps texture, redness, pores, and wrinkles petals visibly separated", () => {
+  it("keeps pigmentation, texture, redness, pores, and wrinkles petals visibly separated", () => {
     const client = courtneyClient();
     const detected = getDetectedIssuesFromClient(client);
     const categories = computeCategories(detected);
@@ -50,13 +50,13 @@ describe("skin lens chart scores", () => {
       detected,
       severityIssues: getEffectiveSeverityIssues(client),
     });
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(5);
 
     const axes = rows.map((r) => r.severityAxis);
     expect(minPairwiseGap(axes)).toBeGreaterThanOrEqual(MIN_LENS_AXIS_GAP - 0.05);
 
     const unique = new Set(axes.map((a) => a.toFixed(1)));
-    expect(unique.size).toBe(4);
+    expect(unique.size).toBe(5);
   });
 
   it("orders Courtney with redness as the most severe lens", () => {

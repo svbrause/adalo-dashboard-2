@@ -31,7 +31,7 @@ export const TANYA_TAN_SYSTEM_MEDIA_CATEGORY_LABELS: Record<
   string
 > = {
   color_stills: "Background removed",
-  texture_maps: "Clinical texture",
+  texture_maps: "Pigmentation maps",
   redness_annotations: "Redness annotations",
   pore_annotations: "Pore annotations",
   original_captures: "Original photos",
@@ -57,7 +57,7 @@ const TEXTURE_MAP_ANGLES: { angle: AuraTanViewAngle; id: string; title: string }
   { angle: "profile-right", id: "sys-texture-profile-right", title: "Right profile" },
 ];
 
-/** Same clinical texture plates as the Aura left-rail / Skin tab (viewer angle assets). */
+/** Legacy skin-gray plates now shown as the Skin → Pigmentation lens. */
 const TEXTURE_MAPS: TanyaTanSystemMediaEntry[] = TEXTURE_MAP_ANGLES.map(
   ({ angle, id, title }) => {
     const asset = TANYA_TAN_VIEWER_ANGLE_ASSETS[angle];
@@ -66,7 +66,7 @@ const TEXTURE_MAPS: TanyaTanSystemMediaEntry[] = TEXTURE_MAP_ANGLES.map(
       category: "texture_maps",
       kind: "photo",
       title,
-      subtitle: "Grayscale texture plate",
+      subtitle: "Pigmentation annotation plate",
       url: asset.srcTexture ?? asset.src,
     };
   },
@@ -116,15 +116,15 @@ const DIAGNOSTIC_VIDEOS: TanyaTanSystemMediaEntry[] = [
     id: "sys-video-texture",
     category: "scan_video",
     kind: "video",
-    title: "Texture turntable",
-    subtitle: "Clinical texture video",
+    title: "Pigmentation map turntable",
+    subtitle: "Skin-gray pigmentation pass",
     url: "/demo-3d/tanya-tan/tanya-tan-turntable-skin-gray.mp4",
   },
   {
     id: "sys-video-pigmentation",
     category: "scan_video",
     kind: "video",
-    title: "Pigmentation turntable",
+    title: "Brown pigmentation turntable",
     subtitle: "Pigmentation annotation video",
     url: "/demo-3d/tanya-tan/tanya-tan-turntable-pigmentation.mp4",
   },

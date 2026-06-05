@@ -27,6 +27,10 @@ import {
   getWellnestSampleClientsIfEnabled,
   filterOutWellnestSamplesDuplicatedByName,
 } from "../debug/wellnestSampleClients";
+import {
+  getSlimStudioSampleClientsIfEnabled,
+  filterOutSlimStudioSamplesDuplicatedByName,
+} from "../debug/slimStudioSampleClients";
 import { withSessionDemoDiscussedItemsOverlay } from "../utils/wellnestDemoPlanPersistence";
 import {
   parseDashboardRoute,
@@ -490,6 +494,19 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           const noNameDupes = filterOutWellnestSamplesDuplicatedByName(
             allClients,
             wellnestSamples,
+          );
+          const liveIds = new Set(allClients.map((c) => c.id));
+          const extras = noNameDupes
+            .filter((c) => !liveIds.has(c.id))
+            .map(withSessionDemoDiscussedItemsOverlay);
+          allClients = [...allClients, ...extras];
+        }
+
+        const slimStudioSamples = getSlimStudioSampleClientsIfEnabled(provider);
+        if (slimStudioSamples.length > 0) {
+          const noNameDupes = filterOutSlimStudioSamplesDuplicatedByName(
+            allClients,
+            slimStudioSamples,
           );
           const liveIds = new Set(allClients.map((c) => c.id));
           const extras = noNameDupes

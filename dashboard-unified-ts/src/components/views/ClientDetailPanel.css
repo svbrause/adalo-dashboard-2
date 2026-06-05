@@ -510,6 +510,65 @@
   max-height: 240px;
 }
 
+/* Web popup placeholder (panel does not import ClientDetailModal.css) */
+.client-detail-panel .web-popup-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  background: linear-gradient(135deg, var(--theme-bg-subtle, #f5f5f5) 0%, var(--theme-bg-inset, #e0e0e0) 100%);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--theme-border, #d0d0d0);
+  box-shadow: 0 4px 12px var(--theme-shadow, rgba(0, 0, 0, 0.1));
+}
+
+.client-detail-panel .web-popup-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d9c8bd 0%, #c4b5a8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  font-size: 28px;
+  font-weight: 600;
+  color: #8b7355;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.client-detail-panel .web-popup-placeholder-text {
+  font-size: 12px;
+  color: var(--theme-text-secondary, #666);
+  text-align: center;
+  margin: 0;
+  padding: 0 8px;
+}
+
+.client-detail-panel .detail-empty-state {
+  padding: 16px;
+  background: var(--theme-bg-card, #fff);
+  border-radius: 6px;
+  color: var(--theme-text-primary, #333);
+  font-size: 14px;
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.06));
+}
+
+.client-detail-panel .detail-empty-state-text {
+  color: var(--theme-text-secondary, #666);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.client-detail-panel .detail-empty-center {
+  text-align: center;
+  color: var(--theme-text-muted, #999);
+  font-size: 13px;
+}
+
 /* Ensure contact section takes full available width */
 .client-detail-panel-body .modal-contact-section {
   flex: 1;
@@ -1836,12 +1895,82 @@
 /* ── Last Activity badge ─────────────────────────────────────────────────── */
 .cdp-dark .modal-header-activity-badge {
   background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .cdp-dark .modal-header-activity-label {
   color: #8a8a8a;
 }
 .cdp-dark .modal-header-activity-value {
   color: #efefef;
+}
+
+/* ── Client name row (profile header) ─────────────────────────────────────── */
+.cdp-dark .client-detail-panel-title {
+  color: #efefef;
+}
+
+/* ── Web popup photo placeholder ─────────────────────────────────────────── */
+.cdp-dark .web-popup-photo-placeholder {
+  background: linear-gradient(135deg, #1c1c1c 0%, #252525 100%);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.cdp-dark .web-popup-avatar {
+  background: linear-gradient(135deg, #3d3530 0%, #2a2520 100%);
+  color: #c4b5a8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.cdp-dark .web-popup-placeholder-text {
+  color: #8a8a8a;
+}
+
+/* ── $50 coupon box ─────────────────────────────────────────────────────── */
+.cdp-dark .detail-coupon-box {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.cdp-dark .detail-coupon-title {
+  color: #efefef;
+}
+
+.cdp-dark .detail-coupon-label {
+  color: #8a8a8a;
+}
+
+.cdp-dark .detail-coupon-value {
+  color: #efefef;
+}
+
+.cdp-dark .detail-coupon-badge--yes {
+  background: rgba(6, 95, 70, 0.25);
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.35);
+}
+
+.cdp-dark .detail-coupon-badge--no {
+  background: rgba(255, 255, 255, 0.06);
+  color: #a0aec0;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.cdp-dark .detail-coupon-claimed-yes {
+  color: #6ee7b7;
+}
+
+/* ── Facial analysis empty state ─────────────────────────────────────────── */
+.cdp-dark .detail-empty-state {
+  background: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #c8c8c8;
+}
+
+.cdp-dark .detail-empty-state-text,
+.cdp-dark .detail-empty-center {
+  color: #8a8a8a;
 }
 
 /* ── Tag chips (Interested Treatments / Focus Areas) ─────────────────────── */

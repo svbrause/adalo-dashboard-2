@@ -50,7 +50,7 @@ export interface AuraMirrorHighlightBridge {
     annotationsRefreshKey: number;
     onLoadAnnotation: (record: SavedPatientAnnotation) => void;
   };
-  /** Active Skin scan lens (Texture / Redness / Pores) — synced with left face sub-tabs. */
+  /** Active Skin scan lens (Pigmentation / Texture / Redness / Pores) — synced with left face sub-tabs. */
   activeSkinLens?: AuraSkinLens;
   onActiveSkinLensChange?: (lens: AuraSkinLens) => void;
 }
@@ -157,13 +157,19 @@ const CATEGORY_STORY: Record<
 > = {
   skinHealth: {
     text:
-      "Skin lenses on the left match the chart: texture, redness, pores, and wrinkles. Scores run 1.2 (best) to 2.8 on a 0–3 scale.",
+      "Skin lenses on the left match the chart: pigmentation, texture, redness, pores, and wrinkles. Scores run 1.2 (best) to 2.8 on a 0–3 scale.",
     lenses: [
       {
+        label: "Pigmentation",
+        detail: "Dark spots, discoloration, tone",
+        sections: ["Pigmentation"],
+        terms: ["pigment", "dark spot", "dark circle", "discolor", "tone", "melasma"],
+      },
+      {
         label: "Texture",
-        detail: "Roughness, dryness, spots",
+        detail: "Atrophic scars, roughness, uneven surface",
         sections: ["Texture", "Hydration"],
-        terms: ["texture", "dry", "crepey", "scar", "dark spot", "dark circle"],
+        terms: ["texture", "rough", "scar", "atrophic", "pitted", "dry", "crepey"],
       },
       {
         label: "Redness",
@@ -255,13 +261,6 @@ function lensesForFinding(
     );
     return sectionMatch || termMatch;
   });
-}
-
-function skinLensFocusSubheading(lens: AuraSkinLens, detail?: string): string {
-  const label = AURA_SKIN_LENS_LABELS[lens];
-  return detail
-    ? `${label} lens: ${detail}.`
-    : `${label} lens selected.`;
 }
 
 function OverallScoreArc({
@@ -412,7 +411,7 @@ export default function AuraEmbeddedAnalysisPanel({
     [activeCategory, detectedIssues],
   );
 
-  /** Skin: group findings under Texture / Redness / Pores (left scan tabs). */
+  /** Skin: group findings under the left scan lens tabs. */
   const skinLensFindings = useMemo(() => {
     if (activeCategory !== "skinHealth") return [];
     const lenses = CATEGORY_STORY.skinHealth.lenses;
@@ -450,15 +449,7 @@ export default function AuraEmbeddedAnalysisPanel({
       .filter((row): row is NonNullable<typeof row> => row != null);
   }, [activeCategory, activeCategoryIssues, severityIssues, categoryScoreColor]);
 
-  const effectiveSkinLens: AuraSkinLens = activeSkinLens ?? "texture";
-
-  const activeSkinLensMeta = useMemo(
-    () =>
-      CATEGORY_STORY.skinHealth.lenses.find(
-        (l) => auraSkinLensFromLabel(l.label) === effectiveSkinLens,
-      ),
-    [effectiveSkinLens],
-  );
+  const effectiveSkinLens: AuraSkinLens = activeSkinLens ?? "pigmentation";
 
   const findingsGroups = useMemo(() => {
     if (activeCategory === "skinHealth") {
@@ -490,7 +481,7 @@ export default function AuraEmbeddedAnalysisPanel({
     return [
       {
         section: AURA_SKIN_LENS_LABELS[effectiveSkinLens],
-        sectionDetail: activeSkinLensMeta?.detail,
+        sectionDetail: undefined,
         lensKey: effectiveSkinLens,
         items: lensIssues.map((issue) => ({
           issue,
@@ -502,7 +493,6 @@ export default function AuraEmbeddedAnalysisPanel({
     activeCategory,
     findingsGroups,
     effectiveSkinLens,
-    activeSkinLensMeta?.detail,
     activeCategoryIssues,
     severityIssues,
     categoryScoreColor,
@@ -695,14 +685,11 @@ export default function AuraEmbeddedAnalysisPanel({
                     </span>
                   </div>
                 </div>
-                <p className="aura-embedded-panel__cat-subheading">
-                  {activeCategory === "skinHealth"
-                    ? skinLensFocusSubheading(
-                        effectiveSkinLens,
-                        activeSkinLensMeta?.detail,
-                      )
-                    : CATEGORY_DESCRIPTIONS[activeCategory]}
-                </p>
+                {activeCategory !== "skinHealth" ? (
+                  <p className="aura-embedded-panel__cat-subheading">
+                    {CATEGORY_DESCRIPTIONS[activeCategory]}
+                  </p>
+                ) : null}
               </div>
 
               <AuraCategoryRadarCard
@@ -752,13 +739,8 @@ export default function AuraEmbeddedAnalysisPanel({
                 className="aura-embedded-panel__issues-section"
               >
                 <h4 className="aura-embedded-panel__issues-heading">
-                  Findings
+                  {activeCategory === "skinHealth" ? "Detected issues" : "Findings"}
                 </h4>
-                {activeCategory === "skinHealth" ? (
-                  <p className="aura-embedded-panel__issues-subheading">
-                    Issues detected for this scan lens.
-                  </p>
-                ) : null}
                 {findingsEmpty ? (
                   <p className="aura-embedded-panel__empty">
                     {activeCategory === "skinHealth"
@@ -781,25 +763,27 @@ export default function AuraEmbeddedAnalysisPanel({
                             : undefined
                         }
                       >
-                        <h5 className="aura-embedded-panel__issue-group-title">
-                          <span
-                            className="aura-embedded-panel__issue-group-lens"
-                            style={
-                              group.lensKey
-                                ? ({
-                                    color: AURA_SKIN_LENS_COLORS[group.lensKey],
-                                  } as CSSProperties)
-                                : undefined
-                            }
-                          >
-                            {activeCategory === "skinHealth" ? "Detected issues" : group.section}
-                          </span>
-                          {activeCategory !== "skinHealth" && group.sectionDetail ? (
-                            <span className="aura-embedded-panel__issue-group-detail">
-                              {group.sectionDetail}
+                        {activeCategory !== "skinHealth" ? (
+                          <h5 className="aura-embedded-panel__issue-group-title">
+                            <span
+                              className="aura-embedded-panel__issue-group-lens"
+                              style={
+                                group.lensKey
+                                  ? ({
+                                      color: AURA_SKIN_LENS_COLORS[group.lensKey],
+                                    } as CSSProperties)
+                                  : undefined
+                              }
+                            >
+                              {group.section}
                             </span>
-                          ) : null}
-                        </h5>
+                            {group.sectionDetail ? (
+                              <span className="aura-embedded-panel__issue-group-detail">
+                                {group.sectionDetail}
+                              </span>
+                            ) : null}
+                          </h5>
+                        ) : null}
                         <ul className="aura-embedded-panel__issues">
                           {group.items.map(({ issue, vis }) => {
                             const isOnFace = isIssueOnFace(highlightTerms, issue);

@@ -532,8 +532,20 @@
     border-bottom: 1px solid var(--theme-border, #e2e8f0);
   }
 
+  .fmp-root--aura.fmp-root--viewport-expanded .fmp-fullscreen-split-3d {
+    height: clamp(360px, 56dvh, 520px);
+    max-height: none;
+  }
+
   .fmp-root--viewport-expanded .fmp-fullscreen-split-3d .face3d-viewer {
     max-height: min(36dvh, 320px);
+  }
+
+  .fmp-root--aura.fmp-root--viewport-expanded
+    .fmp-fullscreen-split-3d
+    .face3d-viewer {
+    max-height: none;
+    height: 100%;
   }
 
   .fmp-fullscreen-split-overview {

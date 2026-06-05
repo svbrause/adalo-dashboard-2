@@ -1327,3 +1327,78 @@
   font-size: 12px;
   color: var(--theme-text-muted, #6b7280);
 }
+
+/* ── Dark mode (Kanban / Archived modal) ─────────────────────────────────── */
+body.dark-mode .modal-header-activity-badge {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .modal-header-activity-label {
+  color: #8a8a8a;
+}
+
+body.dark-mode .modal-header-activity-value {
+  color: #efefef;
+}
+
+body.dark-mode .web-popup-photo-placeholder {
+  background: linear-gradient(135deg, #1c1c1c 0%, #252525 100%);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .web-popup-avatar {
+  background: linear-gradient(135deg, #3d3530 0%, #2a2520 100%);
+  color: #c4b5a8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .web-popup-placeholder-text {
+  color: #8a8a8a;
+}
+
+body.dark-mode .detail-coupon-box {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+body.dark-mode .detail-coupon-title {
+  color: #efefef;
+}
+
+body.dark-mode .detail-coupon-label {
+  color: #8a8a8a;
+}
+
+body.dark-mode .detail-coupon-value {
+  color: #efefef;
+}
+
+body.dark-mode .detail-coupon-badge--yes {
+  background: rgba(6, 95, 70, 0.25);
+  color: #6ee7b7;
+  border-color: rgba(110, 231, 183, 0.35);
+}
+
+body.dark-mode .detail-coupon-badge--no {
+  background: rgba(255, 255, 255, 0.06);
+  color: #a0aec0;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .detail-coupon-claimed-yes {
+  color: #6ee7b7;
+}
+
+body.dark-mode .detail-empty-state {
+  background: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #c8c8c8;
+}
+
+body.dark-mode .detail-empty-state-text,
+body.dark-mode .detail-empty-center {
+  color: #8a8a8a;
+}

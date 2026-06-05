@@ -47,6 +47,14 @@ import {
   isWellnestWellnessProviderCode,
   WELLNEST_OFFERINGS,
 } from "../../../data/wellnestOfferings";
+import {
+  isSlimStudioProvider,
+  mapSuggestedTreatmentForSlimStudio,
+} from "../../../data/slimStudioOfferings";
+import {
+  type ProviderTreatmentContext,
+  normalizeProviderTreatmentContextForCatalog,
+} from "./constants";
 import { patientFacingSkincareShortName } from "../../../utils/pvbSkincareDisplay";
 import {} from "../../../data/treatmentPricing2025";
 
@@ -198,14 +206,14 @@ export function getGoalRegionTreatmentsForFinding(
  */
 export function getSuggestedTreatmentsForFindings(
   findings: string[],
-  providerCode?: string | undefined,
+  provider?: ProviderTreatmentContext,
 ): {
   treatment: string;
   goal: string;
   region: string;
   exampleFinding: string;
 }[] {
-  const allowed = new Set(getTreatmentOptionsForProvider(providerCode));
+  const allowed = new Set(getTreatmentOptionsForProvider(provider));
   const seen = new Set<string>();
   const result: {
     treatment: string;
@@ -217,12 +225,17 @@ export function getSuggestedTreatmentsForFindings(
     const mapped = getGoalRegionTreatmentsForFinding(finding);
     if (!mapped) continue;
     for (const treatment of mapped.treatments) {
-      if (!allowed.has(treatment)) continue;
-      const key = `${treatment}|${mapped.goal}|${mapped.region}`;
+      const resolved = isSlimStudioProvider(
+        normalizeProviderTreatmentContextForCatalog(provider),
+      )
+        ? mapSuggestedTreatmentForSlimStudio(treatment)
+        : treatment;
+      if (!resolved || !allowed.has(resolved)) continue;
+      const key = `${resolved}|${mapped.goal}|${mapped.region}`;
       if (seen.has(key)) continue;
       seen.add(key);
       result.push({
-        treatment,
+        treatment: resolved,
         goal: mapped.goal,
         region: mapped.region,
         exampleFinding: finding,
@@ -230,7 +243,7 @@ export function getSuggestedTreatmentsForFindings(
     }
   }
   // Facial-analysis findings map to aesthetic categories only; peptide names are never returned above.
-  if (isWellnestWellnessProviderCode(providerCode) && result.length === 0) {
+  if (isWellnestWellnessProviderCode(providerCodeFromInterestContext(provider)) && result.length === 0) {
     for (const offering of WELLNEST_OFFERINGS) {
       if (!allowed.has(offering.treatmentName)) continue;
       const key = `${offering.treatmentName}|${offering.category}|Other`;
@@ -319,9 +332,9 @@ export function getGoalsAndRegionsForTreatment(treatment: string): {
 /** Suggested treatments for an interest/goal. When providerCode is set and restricted to pricing sheet, only returns treatments that exist in the price list. */
 export function getTreatmentsForInterest(
   interest: string,
-  providerCode?: string | undefined,
+  provider?: ProviderTreatmentContext,
 ): string[] {
-  const allowed = getTreatmentOptionsForProvider(providerCode);
+  const allowed = getTreatmentOptionsForProvider(provider);
   if (!interest || interest === OTHER_LABEL) return [...allowed];
   const lower = interest.toLowerCase();
   const matched = new Set<string>();
@@ -331,11 +344,26 @@ export function getTreatmentsForInterest(
     }
   }
   const base = matched.size > 0 ? Array.from(matched) : [...allowed];
-  const filtered = base.filter((t) => allowed.includes(t));
-  if (isWellnestWellnessProviderCode(providerCode) && filtered.length === 0) {
+  const filtered = base
+    .map((t) =>
+      isSlimStudioProvider(normalizeProviderTreatmentContextForCatalog(provider))
+        ? mapSuggestedTreatmentForSlimStudio(t)
+        : t,
+    )
+    .filter((t): t is string => Boolean(t))
+    .filter((t) => allowed.includes(t));
+  if (isWellnestWellnessProviderCode(providerCodeFromInterestContext(provider)) && filtered.length === 0) {
+    return [...allowed];
+  }
+  if (isSlimStudioProvider(normalizeProviderTreatmentContextForCatalog(provider)) && filtered.length === 0) {
     return [...allowed];
   }
   return filtered;
+}
+
+function providerCodeFromInterestContext(provider: ProviderTreatmentContext): string | undefined {
+  if (provider == null || typeof provider === "string") return provider ?? undefined;
+  return provider.code ?? undefined;
 }
 
 /** Preset dropdown vs freeform text (e.g. neurotoxin units). */

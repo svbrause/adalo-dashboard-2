@@ -53,6 +53,8 @@ interface ImportMetaEnv {
   readonly VITE_WELLNEST_DEMO_HEADSHOT_ALEX?: string;
   readonly VITE_WELLNEST_DEMO_HEADSHOT_JORDAN?: string;
   readonly VITE_WELLNEST_DEMO_HEADSHOT_TAYLOR?: string;
+  /** Slim Studio demo patients: `false`/`0` off, `true`/`1` on; default on in dev only. */
+  readonly VITE_SLIM_STUDIO_SAMPLE_CLIENTS?: string;
 
   /** Firebase Web SDK (public client config). Copy from Firebase Console → Project settings. */
   readonly VITE_FIREBASE_API_KEY?: string;

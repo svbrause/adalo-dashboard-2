@@ -24,7 +24,6 @@ import ShareAnalysisModal from "./ShareAnalysisModal";
 import ShareTreatmentPlanModal from "./ShareTreatmentPlanModal";
 import ShareTreatmentPlanLinkModal from "./ShareTreatmentPlanLinkModal";
 import PhotoViewerModal from "./PhotoViewerModal";
-import NewClientSMSModal from "./NewClientSMSModal";
 import SendSMSModal from "./SendSMSModal";
 import {
   FacialAnalysisStatusPill,
@@ -238,8 +237,6 @@ export default function ClientDetailModal({
   );
   const [frontPhotoUrl, setFrontPhotoUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
-  const [showScanDropdown, setShowScanDropdown] = useState(false);
-  const [showNewClientSMS, setShowNewClientSMS] = useState(false);
   const [showSendSMS, setShowSendSMS] = useState(false);
   const [showSmsPopup, setShowSmsPopup] = useState(false);
   const [smsInitialMessage, setSMSInitialMessage] = useState<string | null>(
@@ -273,8 +270,6 @@ export default function ClientDetailModal({
     useState<Client["skincareQuiz"]>(undefined);
   const { optimisticTimelines, handleVisitModeToggleItem } =
     useVisitModePlanSync({ client, onUpdate });
-  const scanDropdownRef = useRef<HTMLDivElement>(null);
-
   const handleConsumedShareLinkPlanEdit = useCallback(() => {
     setShareLinkPendingPlanEditId(null);
   }, []);
@@ -397,26 +392,6 @@ export default function ClientDetailModal({
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [client, onClose]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        scanDropdownRef.current &&
-        !scanDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowScanDropdown(false);
-      }
-    };
-
-    if (showScanDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showScanDropdown]);
 
   const planItemsAppendRef = useRef<DiscussedItem[]>([]);
   planItemsAppendRef.current = client?.discussedItems ?? [];
@@ -601,7 +576,6 @@ export default function ClientDetailModal({
   };
 
   const handleScanInClinic = () => {
-    setShowScanDropdown(false);
     handleScanPatientNow();
     showToast(`Opening scan form for ${client.name}`);
   };
@@ -1820,45 +1794,15 @@ export default function ClientDetailModal({
                       </>
                     )}
                     {hasWebPopupForm && (
-                      <div
-                        className="scan-client-dropdown"
-                        ref={scanDropdownRef}
+                      <button
+                        className="btn-secondary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleScanInClinic();
+                        }}
                       >
-                        <button
-                          className="btn-secondary btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowScanDropdown(!showScanDropdown);
-                          }}
-                        >
-                          Scan Patient
-                        </button>
-                        {showScanDropdown && (
-                          <div className="scan-client-dropdown-menu">
-                            <button
-                              className="scan-client-option"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleScanInClinic();
-                              }}
-                            >
-                              Scan In Clinic
-                            </button>
-                            {!isUniqueAestheticsProvider(provider) && (
-                              <button
-                                className="scan-client-option"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowScanDropdown(false);
-                                  setShowNewClientSMS(true);
-                                }}
-                              >
-                                Scan At Home
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                        Scan In Clinic
+                      </button>
                     )}
                   </div>
                 </div>
@@ -2283,15 +2227,6 @@ export default function ClientDetailModal({
           initialPhotoType={photoViewerType}
           onClose={() => setShowPhotoViewer(false)}
           onPhotoUpdated={onUpdate}
-        />
-      )}
-      {showNewClientSMS && (
-        <NewClientSMSModal
-          onClose={() => setShowNewClientSMS(false)}
-          onSuccess={() => {
-            setShowNewClientSMS(false);
-            onUpdate();
-          }}
         />
       )}
       {showSmsPopup && client && (

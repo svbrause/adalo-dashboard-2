@@ -82,6 +82,11 @@
   max-height: 52px;
 }
 
+.pvb-brand-logo--slimstudio {
+  max-width: min(200px, calc(100vw - 140px));
+  max-height: 48px;
+}
+
 .pvb-brand-name-text {
   font-size: 18px;
   font-weight: 600;

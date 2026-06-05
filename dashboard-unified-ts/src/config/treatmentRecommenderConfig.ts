@@ -141,6 +141,17 @@ export const REGION_FILTER_TO_INTERNAL: Record<string, string[]> = {
   Neck: ["Jawline"],
 };
 
+/** Body sculpting / wellness cards — always visible regardless of facial region chips. */
+const SLIM_STUDIO_REGION_AGNOSTIC_TREATMENTS = new Set([
+  "CoolSculpting",
+  "EMSculpt NEO",
+  "Peptide Therapy",
+  "Medical Weight Loss",
+  "Functional Wellness",
+  "HRT",
+  "Gut Health",
+]);
+
 /** Filter treatments by same-day when sameDayAddOn is true. */
 export function filterTreatmentsBySameDay(
   treatmentNames: string[],
@@ -267,6 +278,7 @@ export function filterTreatmentsByRegion(
     // Surgery plan cards are a full catalog row per category; region chips are for
     // facial-zone injectables/energy — do not hide breast/body/facial split rows.
     if (isJudgeMdSurgeryPlanCategory(t)) return true;
+    if (SLIM_STUDIO_REGION_AGNOSTIC_TREATMENTS.has(t)) return true;
     const areas = getAreasForTreatment(t);
     if (!areas || areas.length === 0) return true;
     return areas.some((a) => areaSet.has(a));

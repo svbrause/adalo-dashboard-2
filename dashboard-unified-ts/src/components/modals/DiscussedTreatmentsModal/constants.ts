@@ -34,6 +34,49 @@ import {
   JUDGEMD_PLAN_BUILDER_TREATMENTS,
   JUDGEMD_PLAN_SURGERY_CATEGORIES,
 } from "../../../data/judgeMdPricing2026";
+import {
+  getSlimStudioProductOptionsForTreatment,
+  isSlimStudioProvider,
+  type SlimStudioProviderContext,
+  SLIM_STUDIO_PLAN_BUILDER_TREATMENTS,
+  SLIM_STUDIO_TREATMENT_META,
+} from "../../../data/slimStudioOfferings";
+
+/** Provider identity for plan-builder / checkout catalog filtering. */
+export type ProviderTreatmentContext =
+  | string
+  | null
+  | undefined
+  | SlimStudioProviderContext;
+
+function normalizeProviderTreatmentContext(
+  provider: ProviderTreatmentContext,
+): SlimStudioProviderContext {
+  if (provider == null || typeof provider === "string") {
+    return { code: provider ?? undefined };
+  }
+  return provider;
+}
+
+export { normalizeProviderTreatmentContext as normalizeProviderTreatmentContextForCatalog };
+
+function providerCodeFromContext(provider: ProviderTreatmentContext): string | undefined {
+  if (provider == null) return undefined;
+  if (typeof provider === "string") return provider;
+  return provider.code ?? undefined;
+}
+
+/** Pass full provider identity so Slim Studio resolves by code, record id, or name. */
+export function toProviderTreatmentContext(
+  provider: { code?: string | null; id?: string | null; name?: string | null } | null | undefined,
+): ProviderTreatmentContext {
+  if (!provider) return undefined;
+  return {
+    code: provider.code ?? undefined,
+    id: provider.id ?? undefined,
+    name: provider.name ?? undefined,
+  };
+}
 
 /** Canonical dashboard category for laser / BBL / Sofwave / Ultherapy modalities. */
 export const ENERGY_TREATMENT_CATEGORY = "Energy Treatment" as const;
@@ -166,7 +209,7 @@ export const SKINCARE_PRODUCTS = [
 ];
 
 /** Skincare carousel items: name + optional image URL + optional description, price, imageUrls (same order as SKINCARE_PRODUCTS) */
-export function getSkincareCarouselItems(): {
+export function getSkincareCarouselItems(provider?: ProviderTreatmentContext): {
   name: string;
   imageUrl?: string;
   productUrl?: string;
@@ -174,6 +217,9 @@ export function getSkincareCarouselItems(): {
   price?: string;
   imageUrls?: string[];
 }[] {
+  if (isSlimStudioProvider(normalizeProviderTreatmentContext(provider))) {
+    return [{ name: "Medical Grade Skincare" }, { name: "Other" }];
+  }
   return [
     ...TREATMENT_BOUTIQUE_SKINCARE.map((p: TreatmentBoutiqueProduct) => ({
       name: p.name,
@@ -638,6 +684,9 @@ export function resolveTreatmentPostcare(
   if (treatment.trim() === LEGACY_ENERGY_DEVICE_CATEGORY) {
     return TREATMENT_POSTCARE[ENERGY_TREATMENT_CATEGORY];
   }
+  if (treatment === "Morpheus8") return TREATMENT_POSTCARE.Microneedling;
+  if (treatment === "Facials") return TREATMENT_POSTCARE["Facial Services"];
+  if (treatment === "Ariessence Pure PDGF+") return TREATMENT_POSTCARE.PDGF;
   if (getWellnestOfferingByTreatmentName(treatment)) return WELLNEST_PEPTIDE_POSTCARE;
   return undefined;
 }
@@ -924,12 +973,19 @@ export const OTHER_TREATMENT_LABEL = "Other";
  * always included because its pricing comes from the boutique product catalog rather than the
  * in-office price list (so it correctly has no entries in TREATMENT_CATEGORIES_IN_PRICE_LIST).
  */
-export function getTreatmentOptionsForProvider(providerCode: string | undefined): string[] {
+export function getTreatmentOptionsForProvider(
+  provider: ProviderTreatmentContext,
+): string[] {
+  const ctx = normalizeProviderTreatmentContext(provider);
+  const providerCode = providerCodeFromContext(provider);
   if (isWellnestWellnessProviderCode(providerCode)) {
     return Array.from(new Set([...getWellnestTreatmentOptionNames(), ...ALL_TREATMENTS]));
   }
   if (isJudgeMdProviderCode(providerCode)) {
     return [...JUDGEMD_PLAN_BUILDER_TREATMENTS];
+  }
+  if (isSlimStudioProvider(ctx)) {
+    return [...SLIM_STUDIO_PLAN_BUILDER_TREATMENTS];
   }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...ALL_TREATMENTS];
   return ALL_TREATMENTS.filter((t) =>
@@ -939,14 +995,19 @@ export function getTreatmentOptionsForProvider(providerCode: string | undefined)
 
 /** Product/type options for a treatment and provider. When provider is TheTreatment250, Energy Treatment is restricted to types in the 2025 price list. */
 export function getTreatmentProductOptionsForProvider(
-  providerCode: string | undefined,
+  provider: ProviderTreatmentContext,
   treatment: string,
 ): string[] {
+  const ctx = normalizeProviderTreatmentContext(provider);
+  const providerCode = providerCodeFromContext(provider);
   if (isWellnestWellnessProviderCode(providerCode)) {
     const wellnest = getWellnestProductOptionsForTreatment(treatment);
     if (wellnest.length > 0) return wellnest;
   }
   const canon = canonicalPlanTreatmentName(treatment);
+  if (isSlimStudioProvider(ctx)) {
+    return getSlimStudioProductOptionsForTreatment(canon);
+  }
   if (isJudgeMdProviderCode(providerCode)) {
     if (canon === "Skincare") {
       return SKINCARE_PRODUCTS.filter((p) =>
@@ -1088,6 +1149,7 @@ export const TREATMENT_META: Record<
     downtime: "1–3 days",
     priceRange: "Varies",
   },
+  ...SLIM_STUDIO_TREATMENT_META,
 };
 
 /** Map each interest (by keyword match) to suggested treatments. */
@@ -1225,8 +1287,10 @@ export const CHECKOUT_TREATMENT_TYPE_OPTIONS: Record<string, string[]> = {
 
 /** Checkout treatment type options filtered by provider (e.g. TheTreatment250 only sees options in the price list). */
 export function getCheckoutTreatmentTypeOptionsForProvider(
-  providerCode: string | undefined,
+  provider: ProviderTreatmentContext,
 ): Record<string, string[]> {
+  const ctx = normalizeProviderTreatmentContext(provider);
+  const providerCode = providerCodeFromContext(provider);
   const base = { ...CHECKOUT_TREATMENT_TYPE_OPTIONS };
   if (isWellnestWellnessProviderCode(providerCode)) {
     for (const name of getWellnestTreatmentOptionNames()) {
@@ -1246,6 +1310,13 @@ export function getCheckoutTreatmentTypeOptionsForProvider(
       ];
     }
     return base;
+  }
+  if (isSlimStudioProvider(ctx)) {
+    const slimOnly: Record<string, string[]> = {};
+    for (const name of SLIM_STUDIO_PLAN_BUILDER_TREATMENTS) {
+      slimOnly[name] = getSlimStudioProductOptionsForTreatment(name);
+    }
+    return slimOnly;
   }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return base;
   base[ENERGY_TREATMENT_CATEGORY] = getTreatmentProductOptionsForProvider(

@@ -9,7 +9,7 @@ export type RadarChartDatum = {
   color?: string;
   /** Score number color (tier); defaults to `color`. */
   scoreColor?: string;
-  /** Skin scan lens key (Texture / Redness / Pores / Wrinkles). */
+  /** Skin scan lens key (Pigmentation / Texture / Redness / Pores / Wrinkles). */
   lens?: AuraSkinLens;
 };
 

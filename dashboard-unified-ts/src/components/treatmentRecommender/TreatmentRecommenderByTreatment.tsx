@@ -35,6 +35,7 @@ import {
   WELLNEST_BROWSE_GROUP_LABELS,
   WELLNEST_REGULATORY_NOTICE,
 } from "../../data/wellnestOfferings";
+import { isSlimStudioProvider } from "../../data/slimStudioOfferings";
 import {
   getWellnessQuizMatchReasons,
   scoreIntakeGoalsAgainstWellnestCorpus,
@@ -107,6 +108,7 @@ import {
   SKINCARE_USE_CASE_LABELS,
   getTreatmentOptionsForProvider,
   getCheckoutTreatmentTypeOptionsForProvider,
+  toProviderTreatmentContext,
   ENERGY_TREATMENT_CATEGORY,
   LEGACY_ENERGY_DEVICE_CATEGORY,
   isEnergyTreatmentCategory,
@@ -437,13 +439,13 @@ function normalizeLegacyOtherProcedureProduct(
  */
 function extraTextForTreatmentSearch(
   treatment: string,
-  providerCode: string | undefined,
+  provider: import("../modals/DiscussedTreatmentsModal/constants").ProviderTreatmentContext,
   priceList: ProviderPricingJson,
 ): string {
   const chunks: string[] = [];
 
   const productOpts = getTreatmentProductOptionsForProvider(
-    providerCode,
+    provider,
     treatment,
   );
   if (productOpts.length) chunks.push(...productOpts);
@@ -455,7 +457,7 @@ function extraTextForTreatmentSearch(
   if (sheetLabels) chunks.push(sheetLabels);
 
   if (treatment === "Microneedling") {
-    const map = getCheckoutTreatmentTypeOptionsForProvider(providerCode);
+    const map = getCheckoutTreatmentTypeOptionsForProvider(provider);
     const mic = map.Microneedling ?? [...MICRONEEDLING_TYPE_OPTIONS];
     chunks.push(...mic);
   }
@@ -1429,6 +1431,10 @@ export default function TreatmentRecommenderByTreatment({
   onConsumedInitialFocusTreatmentName,
 }: TreatmentRecommenderByTreatmentProps) {
   const { provider, setProvider } = useDashboard();
+  const providerCatalogContext = useMemo(
+    () => toProviderTreatmentContext(provider),
+    [provider?.code, provider?.id, provider?.name],
+  );
 
   const effectivePriceList = useMemo(
     () =>
@@ -1989,7 +1995,10 @@ export default function TreatmentRecommenderByTreatment({
     [whereOptionRecordsDeduped, baseWhereOptions],
   );
 
-  const skincareCarouselItems = useMemo(() => getSkincareCarouselItems(), []);
+  const skincareCarouselItems = useMemo(
+    () => getSkincareCarouselItems(providerCatalogContext),
+    [providerCatalogContext],
+  );
   const skincareWhatOptionRecords = useMemo(
     () => optionRecords.filter((o) => o.optionType === "skincare_what"),
     [optionRecords],
@@ -2234,7 +2243,7 @@ export default function TreatmentRecommenderByTreatment({
   /** Energy Treatment types are always constrained to pricing-sheet options for the provider (prevents stale custom values like Picosure). */
   const laserWhatOptions = useMemo(
     () =>
-      getTreatmentProductOptionsForProvider(provider?.code, ENERGY_TREATMENT_CATEGORY),
+      getTreatmentProductOptionsForProvider(providerCatalogContext, ENERGY_TREATMENT_CATEGORY),
     [provider?.code],
   );
   /** Energy Treatment types: pricing sheet ∪ custom rows in `laser_what`. */
@@ -2341,7 +2350,7 @@ export default function TreatmentRecommenderByTreatment({
   const fillerSkuOptions = useMemo(
     () =>
       isJudgeMdProviderCode(provider?.code)
-        ? getTreatmentProductOptionsForProvider(provider?.code, "Filler").filter(
+        ? getTreatmentProductOptionsForProvider(providerCatalogContext, "Filler").filter(
             (v) => v !== OTHER_PRODUCT_LABEL,
           )
         : getSkuOptionsForCategory("Filler", effectivePriceList).map(
@@ -2839,10 +2848,10 @@ export default function TreatmentRecommenderByTreatment({
   ]);
 
   const suggestedTreatments = useMemo(() => {
-    const allowedOrdered = getTreatmentOptionsForProvider(provider?.code);
+    const allowedOrdered = getTreatmentOptionsForProvider(providerCatalogContext);
     const withGoals = getSuggestedTreatmentsForFindings(
       combinedFindings,
-      provider?.code,
+      providerCatalogContext,
     );
     const suggestedNames = Array.from(
       new Set(withGoals.map((s) => s.treatment)),
@@ -2880,7 +2889,8 @@ export default function TreatmentRecommenderByTreatment({
     }
     let sameDay = filterTreatmentsBySameDay(names, filterState.sameDayAddOn);
     if (
-      isWellnestWellnessProviderCode(provider?.code) &&
+      (isWellnestWellnessProviderCode(provider?.code) ||
+        isSlimStudioProvider(providerCatalogContext)) &&
       sameDay.length === 0 &&
       names.length > 0
     ) {
@@ -2931,7 +2941,7 @@ export default function TreatmentRecommenderByTreatment({
         : "";
       const haystack = [
         treatment,
-        extraTextForTreatmentSearch(treatment, provider?.code, effectivePriceList),
+        extraTextForTreatmentSearch(treatment, providerCatalogContext, effectivePriceList),
         wellnestOffering?.category ?? "",
         groupLabel,
         wellnestOffering?.browseGroup ?? "",

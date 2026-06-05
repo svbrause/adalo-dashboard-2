@@ -1,0 +1,82 @@
+{
+  "daxi-glabella": {
+    "caseId": "daxi-glabella",
+    "lens": "texture",
+    "beforePipelineUrl": "/revance-case-gallery/processed/daxi-glabella-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/daxi-glabella-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/daxi-glabella.jpg",
+    "afterSource": "public/revance-case-gallery/cases/daxi-glabella.jpg"
+  },
+  "daxi-forehead": {
+    "caseId": "daxi-forehead",
+    "lens": "texture",
+    "beforePipelineUrl": "/revance-case-gallery/processed/daxi-forehead-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/daxi-forehead-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/daxi-forehead.jpg",
+    "afterSource": "public/revance-case-gallery/cases/daxi-forehead.jpg"
+  },
+  "daxi-crows": {
+    "caseId": "daxi-crows",
+    "lens": "texture",
+    "beforePipelineUrl": "/revance-case-gallery/processed/daxi-crows-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/daxi-crows-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/daxi-crows.jpg",
+    "afterSource": "public/revance-case-gallery/cases/daxi-crows.jpg"
+  },
+  "daxi-frown": {
+    "caseId": "daxi-frown",
+    "lens": "texture",
+    "beforePipelineUrl": "/revance-case-gallery/processed/daxi-frown-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/daxi-frown-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/daxi-frown.jpg",
+    "afterSource": "public/revance-case-gallery/cases/daxi-frown.jpg"
+  },
+  "skinpen-texture": {
+    "caseId": "skinpen-texture",
+    "lens": "texture",
+    "beforePipelineUrl": "/revance-case-gallery/processed/skinpen-texture-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/skinpen-texture-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/skinpen-texture-before.jpg",
+    "afterSource": "public/revance-case-gallery/cases/skinpen-texture-after.jpg"
+  },
+  "skinpen-acne": {
+    "caseId": "skinpen-acne",
+    "lens": "texture",
+    "beforePipelineUrl": "/revance-case-gallery/processed/skinpen-acne-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/skinpen-acne-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/skinpen-acne-before.jpg",
+    "afterSource": "public/revance-case-gallery/cases/skinpen-acne-after.jpg"
+  },
+  "skinpen-quality": {
+    "caseId": "skinpen-quality",
+    "lens": "texture",
+    "beforePipelineUrl": "/revance-case-gallery/processed/skinpen-quality-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/skinpen-quality-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/skinpen-quality-before.jpg",
+    "afterSource": "public/revance-case-gallery/cases/skinpen-quality-after.jpg"
+  },
+  "hyperpigmentation": {
+    "caseId": "hyperpigmentation",
+    "lens": "texture",
+    "beforePipelineUrl": "/revance-case-gallery/processed/hyperpigmentation-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/hyperpigmentation-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/hyperpigmentation-before.jpg",
+    "afterSource": "public/revance-case-gallery/cases/hyperpigmentation-after.jpg"
+  },
+  "rha3-nlf": {
+    "caseId": "rha3-nlf",
+    "lens": "redness",
+    "beforePipelineUrl": "/revance-case-gallery/processed/rha3-nlf-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/rha3-nlf-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/rha3-nlf.png",
+    "afterSource": "public/revance-case-gallery/cases/rha3-nlf.png"
+  },
+  "rha2-undereye": {
+    "caseId": "rha2-undereye",
+    "lens": "pores",
+    "beforePipelineUrl": "/revance-case-gallery/processed/rha2-undereye-before-pipeline.png",
+    "afterPipelineUrl": "/revance-case-gallery/processed/rha2-undereye-after-pipeline.png",
+    "beforeSource": "public/revance-case-gallery/cases/rha2-undereye-before.jpg",
+    "afterSource": "public/revance-case-gallery/cases/rha2-undereye-after.jpg"
+  }
+}

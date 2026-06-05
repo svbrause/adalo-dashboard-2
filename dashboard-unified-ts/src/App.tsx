@@ -18,6 +18,7 @@ import SkinQuizStandalonePage from "./components/pages/SkinQuizStandalonePage";
 import WellnessQuizStandalonePage from "./components/pages/WellnessQuizStandalonePage";
 import PostVisitBlueprintPage from "./components/pages/PostVisitBlueprintPage";
 import MerzBlueprintPage from "./components/pages/MerzBlueprintPage";
+import RevanceCaseGalleryPage from "./components/pages/RevanceCaseGalleryPage";
 import ProviderAdConceptsPage from "./components/pages/ProviderAdConceptsPage";
 import { isSkinQuizStandalonePath } from "./utils/skinQuizLink";
 import { isWellnessQuizStandalonePath } from "./utils/wellnessQuizLink";
@@ -139,6 +140,9 @@ function AppContent() {
     const _urlParams = new URLSearchParams(window.location.search);
     if (_urlParams.get("t") === "merz-tanya") {
       return <MerzBlueprintPage />;
+    }
+    if (_urlParams.get("t") === "revance-tanya") {
+      return <RevanceCaseGalleryPage />;
     }
     return <PostVisitBlueprintPage />;
   }

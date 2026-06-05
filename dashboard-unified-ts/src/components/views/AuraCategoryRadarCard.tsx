@@ -7,12 +7,12 @@ import { RadarChart, type RadarChartDatum } from "../postVisitBlueprint/RadarCha
 interface AuraCategoryRadarCardProps {
   activeCat: CategoryResult;
   categoryAccent: string;
-  /** When set (e.g. skin Texture / Redness / Pores), replaces category sub-scores on the chart. */
+  /** When set (e.g. skin Pigmentation / Texture / Redness / Pores), replaces category sub-scores on the chart. */
   radarDataOverride?: RadarChartDatum[];
   chartAriaLabel?: string;
-  /** Skin lens Nightingale / polar area chart (Texture, Redness, Pores). */
+  /** Skin lens Nightingale / polar area chart. */
   skinLensPolarArea?: boolean;
-  /** Matches left-panel Texture / Redness / Pores / Wrinkles tab. */
+  /** Matches left-panel Pigmentation / Texture / Redness / Pores / Wrinkles tab. */
   activeSkinLens?: AuraSkinLens;
 }
 
