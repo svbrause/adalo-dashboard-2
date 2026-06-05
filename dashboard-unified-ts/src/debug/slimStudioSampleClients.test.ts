@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SLIM_STUDIO_PLAN_BUILDER_TREATMENTS,
   SLIM_STUDIO_PROVIDER_CODE,
+  SLIM_STUDIO_PROVIDER_RECORD_ID,
 } from "../data/slimStudioOfferings";
 import {
   getEffectivePriceList,
@@ -11,6 +12,8 @@ import { getAlignedCheckoutLineItemsForDiscussedItems } from "../components/moda
 import {
   filterOutSlimStudioSamplesDuplicatedByName,
   getSlimStudioSampleClients,
+  getSlimStudioSampleClientsIfEnabled,
+  isSlimStudioSampleClientInjectionEnabled,
 } from "./slimStudioSampleClients";
 import type { Client } from "../types";
 
@@ -65,6 +68,16 @@ describe("filterOutSlimStudioSamplesDuplicatedByName", () => {
     for (const name of SLIM_STUDIO_PLAN_BUILDER_TREATMENTS) {
       expect(treatments.has(name), `missing demo plan item for ${name}`).toBe(true);
     }
+  });
+
+  it("injects demos for Slim Studio provider without requiring dev mode", () => {
+    const provider = {
+      code: SLIM_STUDIO_PROVIDER_CODE,
+      id: SLIM_STUDIO_PROVIDER_RECORD_ID,
+      name: "Slim Studio Face & Body",
+    };
+    expect(isSlimStudioSampleClientInjectionEnabled(provider)).toBe(true);
+    expect(getSlimStudioSampleClientsIfEnabled(provider).length).toBeGreaterThan(0);
   });
 
   it("resolves a positive price for every demo plan line", () => {

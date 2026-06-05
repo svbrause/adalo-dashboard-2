@@ -4,7 +4,7 @@
  * Emily Dunhill, Allison Baum, Tanya Tan, and Courtney Bellamy mirror Admin showcase demos
  * (Aura turntable, severity scores, skincare quiz where applicable).
  *
- * Merged in dev by default; disable with VITE_SLIM_STUDIO_SAMPLE_CLIENTS=false.
+ * Merged for Slim Studio logins (dev and production); disable with VITE_SLIM_STUDIO_SAMPLE_CLIENTS=false.
  * Treatment plan edits persist in sessionStorage (ids `slimstudio-demo-*`).
  */
 
@@ -207,10 +207,14 @@ export function filterOutSlimStudioSamplesDuplicatedByName(
   });
 }
 
-export function isSlimStudioSampleClientInjectionEnabled(): boolean {
+/** True when Slim Studio demo patients should be injected (mirrors Admin demo default-on for that provider). */
+export function isSlimStudioSampleClientInjectionEnabled(
+  provider?: { code?: string | null; id?: string | null; name?: string | null } | null,
+): boolean {
   const v = import.meta.env.VITE_SLIM_STUDIO_SAMPLE_CLIENTS as string | undefined;
   if (v === "false" || v === "0") return false;
   if (v === "true" || v === "1") return true;
+  if (isSlimStudioProvider(provider ?? null)) return true;
   return Boolean(import.meta.env.DEV);
 }
 
@@ -845,6 +849,6 @@ export function getSlimStudioSampleClientsIfEnabled(
   provider: { code?: string | null; id?: string | null; name?: string | null } | undefined,
 ): Client[] {
   if (!isSlimStudioProvider(provider ?? null)) return [];
-  if (!isSlimStudioSampleClientInjectionEnabled()) return [];
+  if (!isSlimStudioSampleClientInjectionEnabled(provider)) return [];
   return getSlimStudioSampleClients();
 }
