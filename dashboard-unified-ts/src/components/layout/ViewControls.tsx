@@ -517,6 +517,35 @@ export default function ViewControls() {
   return (
     <>
     <div className="view-controls-container">
+      {isClientView && isMobileLayout && (
+        <div className="mobile-primary-view-switch" aria-label="Primary list">
+          <button
+            type="button"
+            className={`mobile-primary-view-switch__btn${
+              currentView !== "leads" ? " mobile-primary-view-switch__btn--active" : ""
+            }`}
+            onClick={() => {
+              navigateDashboard({ view: "list" });
+              setPagination({ currentPage: 1, itemsPerPage: pagination.itemsPerPage });
+            }}
+          >
+            Clients
+          </button>
+          <button
+            type="button"
+            className={`mobile-primary-view-switch__btn${
+              currentView === "leads" ? " mobile-primary-view-switch__btn--active" : ""
+            }`}
+            onClick={() => {
+              navigateDashboard({ view: "leads" });
+              setPagination({ currentPage: 1, itemsPerPage: pagination.itemsPerPage });
+            }}
+          >
+            Leads
+          </button>
+        </div>
+      )}
+
       {isAllClientsView && !isMobileLayout && (
       <div className="control-section view-toggle-section">
         <div className="view-toggle-buttons">

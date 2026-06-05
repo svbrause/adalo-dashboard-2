@@ -705,8 +705,8 @@
 @media (max-width: 768px) {
   .view-controls-container {
     padding: 6px 6px 8px;
-    gap: 2px;
-    flex-wrap: nowrap;
+    gap: 6px 2px;
+    flex-wrap: wrap;
     align-items: center;
     background: #fff;
     border-bottom: none;
@@ -714,6 +714,46 @@
     max-width: 100%;
     width: 100%;
     box-sizing: border-box;
+  }
+
+  .mobile-primary-view-switch {
+    order: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    padding: 3px;
+    border-radius: 12px;
+    background: rgba(118, 118, 128, 0.12);
+    box-sizing: border-box;
+  }
+
+  .mobile-primary-view-switch__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-primary-view-switch__btn--active {
+    background: #fff;
+    color: var(--theme-text-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  }
+
+  .mobile-primary-view-switch__btn:active {
+    opacity: 0.72;
   }
 
   /* View toggles: hide entirely on mobile */
