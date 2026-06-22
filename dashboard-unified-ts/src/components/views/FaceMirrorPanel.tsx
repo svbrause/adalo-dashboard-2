@@ -1144,11 +1144,7 @@ function ProgressCopilotSuggestedPlanSection({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>
-        <span className="fmp-progress-copilot__insights-label fmp-progress-copilot__suggested-plan-heading">
-          <span
-            className="fmp-progress-copilot__insights-icon"
-            aria-hidden
-          />
+        <span className="fmp-progress-copilot__section-label">
           Suggested plan
         </span>
         <InsightAreasChevron />
@@ -4188,17 +4184,20 @@ export default function FaceMirrorPanel({
                 ×
               </button>
               <header className="fmp-progress-copilot-panel__header">
-                <h3 id="fmp-progress-copilot-panel-title">
+                <h3
+                  id="fmp-progress-copilot-panel-title"
+                  className="fmp-progress-copilot-panel__title"
+                >
+                  <span
+                    className="fmp-progress-copilot-panel__title-icon"
+                    aria-hidden
+                  />
                   {PROGRESS_TRACKING_COPILOT_TITLE}
                 </h3>
               </header>
               <div className="fmp-progress-copilot__insights">
                 <div className="fmp-progress-copilot__insights-heading">
-                  <span className="fmp-progress-copilot__insights-label">
-                    <span
-                      className="fmp-progress-copilot__insights-icon"
-                      aria-hidden
-                    />
+                  <span className="fmp-progress-copilot__section-label">
                     Insights
                   </span>
                 </div>
@@ -4238,7 +4237,14 @@ export default function FaceMirrorPanel({
                         </span>
                       </button>
                       {change.regionInsights.length > 0 ? (
-                        <details className="fmp-progress-copilot__insight-areas">
+                        <details
+                          className="fmp-progress-copilot__insight-areas"
+                          onToggle={(event) => {
+                            if (event.currentTarget.open) {
+                              handleProgressChangeSelect(change);
+                            }
+                          }}
+                        >
                           <summary>
                             <span className="fmp-progress-copilot__insight-areas-label">
                               Details

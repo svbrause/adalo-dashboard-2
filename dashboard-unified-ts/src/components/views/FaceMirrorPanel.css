@@ -1597,6 +1597,72 @@
   background: var(--theme-bg-card, #fff);
   color: var(--theme-text-primary, #0f172a);
   box-shadow: none;
+  font-size: 13px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__adapt-toggle {
+  display: none;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot-panel__title {
+  font-size: 16px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot-panel__title-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__section-label {
+  font-size: 10px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__insight-card strong {
+  font-size: 13px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__insight-range {
+  font-size: 13px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__insight-confidence-label {
+  font-size: 9px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__insight-confidence-value {
+  font-size: 11px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__insight-areas > summary {
+  font-size: 11px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__insight-area span:first-child {
+  font-size: 12px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__insight-area span:last-child {
+  font-size: 11px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__treatment-item strong {
+  font-size: 13px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__treatment-item span {
+  font-size: 10px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__treatment-item--empty span {
+  font-size: 12px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__suggested-plan-summary {
+  font-size: 12px;
+}
+
+.fmp-progress-copilot-panel__shell .fmp-progress-copilot__recommendation-card strong {
+  font-size: 12px;
 }
 
 .fmp-progress-copilot-panel__close {
@@ -1635,10 +1701,44 @@
 
 .fmp-progress-copilot-panel__header h3 {
   margin: 0;
-  color: var(--theme-text-primary, #0f172a);
-  font-size: 14px;
   line-height: 1.3;
+}
+
+.fmp-progress-copilot-panel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
   font-weight: 880;
+  background: linear-gradient(
+    135deg,
+    var(--theme-accent-indigo, #4f46e5) 0%,
+    var(--theme-accent, #1976d2) 48%,
+    #7c3aed 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.fmp-progress-copilot-panel__title-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(
+    135deg,
+    var(--theme-accent-indigo, #4f46e5) 0%,
+    var(--theme-accent, #1976d2) 48%,
+    #7c3aed 100%
+  );
+  -webkit-mask-image: url("../../assets/images/ai.svg");
+  mask-image: url("../../assets/images/ai.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 .fmp-progress-copilot-panel__headline {
@@ -1835,10 +1935,6 @@
 .fmp-progress-copilot__suggested-plan[open]
   .fmp-progress-copilot__insight-areas-chevron {
   transform: rotate(180deg);
-}
-
-.fmp-progress-copilot__suggested-plan-heading {
-  font-size: 10px;
 }
 
 .fmp-progress-copilot__suggested-plan-body {
@@ -2398,45 +2494,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-
-.fmp-progress-copilot__insights-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: linear-gradient(
-    135deg,
-    var(--theme-accent-indigo, #4f46e5) 0%,
-    var(--theme-accent, #1976d2) 48%,
-    #7c3aed 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.fmp-progress-copilot__insights-icon {
-  flex-shrink: 0;
-  width: 12px;
-  height: 12px;
-  background: linear-gradient(
-    135deg,
-    var(--theme-accent-indigo, #4f46e5) 0%,
-    var(--theme-accent, #1976d2) 48%,
-    #7c3aed 100%
-  );
-  -webkit-mask-image: url("../../assets/images/ai.svg");
-  mask-image: url("../../assets/images/ai.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
 
 .fmp-progress-copilot__insight-card {
@@ -3511,18 +3568,18 @@
   background: rgba(129, 140, 248, 0.28);
 }
 
-.cdp-dark .fmp-progress-copilot__insights-label,
+.cdp-dark .fmp-progress-copilot-panel__title,
 .fmp-root--aura.fmp-root--viewport-expanded
-  .fmp-progress-copilot__insights-label {
+  .fmp-progress-copilot-panel__title {
   background: linear-gradient(135deg, #93c5fd 0%, #818cf8 48%, #c4b5fd 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-.cdp-dark .fmp-progress-copilot__insights-icon,
+.cdp-dark .fmp-progress-copilot-panel__title-icon,
 .fmp-root--aura.fmp-root--viewport-expanded
-  .fmp-progress-copilot__insights-icon {
+  .fmp-progress-copilot-panel__title-icon {
   background: linear-gradient(135deg, #93c5fd 0%, #818cf8 48%, #c4b5fd 100%);
 }
 
@@ -3563,13 +3620,6 @@
   border-color: rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.24);
   color: rgba(255, 255, 255, 0.88);
-}
-
-.cdp-dark .fmp-progress-copilot-panel__header h3,
-.fmp-root--aura.fmp-root--viewport-expanded
-  .fmp-progress-copilot-panel__header
-  h3 {
-  color: rgba(255, 255, 255, 0.92);
 }
 
 .cdp-dark .fmp-progress-copilot-panel__headline,
