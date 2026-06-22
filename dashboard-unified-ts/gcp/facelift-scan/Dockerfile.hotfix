@@ -1,0 +1,6 @@
+FROM us-central1-docker.pkg.dev/plasma-matter-469702-s1/cloud-run-source-deploy/facelift-scan-api:latest
+
+COPY aura_scripts/generate_patient_aura_assets.py /app/aura_scripts/generate_patient_aura_assets.py
+COPY aura_scripts/wrinkle_cutout_render.py /app/aura_scripts/wrinkle_cutout_render.py
+COPY aura_scripts/scan_airtable.py /app/aura_scripts/scan_airtable.py
+COPY app.py /app/app.py

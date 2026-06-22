@@ -1,0 +1,26 @@
+{
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "foreheadBox": [
+    92,
+    245,
+    934,
+    355
+  ],
+  "variants": {
+    "rose-balanced": {
+      "activePixels": 64986
+    },
+    "violet-balanced": {
+      "activePixels": 65037
+    },
+    "shadow-relief": {
+      "activePixels": 65157
+    },
+    "rose-diagnostic": {
+      "activePixels": 66967
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "source": "/Users/sambrause/Downloads/95948863_3229723333718167_4177504007788429312_n.jpg",
+  "strength": 1.0,
+  "beforeRegion": {
+    "sourceRegion": "left-panel",
+    "autoPanelDetected": true,
+    "panelSplitX": 718,
+    "inputSize": [
+      1440,
+      1440
+    ],
+    "cropSize": [
+      706,
+      1034
+    ]
+  },
+  "afterRegion": {
+    "sourceRegion": "right-panel",
+    "autoPanelDetected": true,
+    "panelSplitX": 718,
+    "inputSize": [
+      1440,
+      1440
+    ],
+    "cropSize": [
+      710,
+      1034
+    ]
+  },
+  "alignment": {
+    "alignment": "ecc-affine",
+    "ecc": 0.8994592945883246,
+    "warp": [
+      [
+        0.9997583627700806,
+        0.0099812475964427,
+        -12.166378021240234
+      ],
+      [
+        -0.0002628518268465996,
+        0.9755046367645264,
+        -0.36684656143188477
+      ]
+    ]
+  },
+  "detection": {
+    "wrinklePathSource": "detected-creases-periocular-v3",
+    "roiSource": "eye-cascade",
+    "pathCount": 14,
+    "eyeBox": [
+      384,
+      447,
+      211,
+      238
+    ],
+    "outerCanthus": [
+      384,
+      547
+    ]
+  },
+  "pathCount": 14,
+  "metrics": {
+    "before": {
+      "creaseMean": 13.021073341369629,
+      "creaseP90": 27.0,
+      "horizontalP90": 29.0,
+      "textureStd": 14.126630783081055
+    },
+    "groundTruthAfter": {
+      "creaseMean": 9.021471977233887,
+      "creaseP90": 19.0,
+      "horizontalP90": 20.0,
+      "textureStd": 8.11384391784668
+    },
+    "simulation": {
+      "creaseMean": 6.953996658325195,
+      "creaseP90": 14.0,
+      "horizontalP90": 15.0,
+      "textureStd": 8.562530517578125
+    },
+    "groundTruthReduction": {
+      "creaseMean": 0.30716372293430627,
+      "creaseP90": 0.2962962962962963,
+      "horizontalP90": 0.31034482758620685,
+      "textureStd": 0.4256348847480086
+    },
+    "simulationReduction": {
+      "creaseMean": 0.46594290071069244,
+      "creaseP90": 0.4814814814814815,
+      "horizontalP90": 0.48275862068965514,
+      "textureStd": 0.3938731287694478
+    },
+    "remainingGap": {
+      "creaseMean": -0.15877917777638617,
+      "creaseP90": -0.18518518518518523,
+      "horizontalP90": -0.1724137931034483,
+      "textureStd": 0.03176175597856079
+    }
+  }
+}

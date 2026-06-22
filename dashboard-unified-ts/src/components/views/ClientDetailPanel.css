@@ -59,7 +59,8 @@
 }
 
 /* Keep logo + close X in the same place when Aura analysis goes full-screen. */
-.client-detail-panel--3d-split.client-detail-panel--analysis-expanded .client-detail-panel-header {
+.client-detail-panel--3d-split.client-detail-panel--analysis-expanded
+  .client-detail-panel-header {
   position: fixed;
   top: 0;
   left: 0;
@@ -187,24 +188,44 @@
 @media (max-width: 900px) {
   .client-detail-panel--3d-split {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto 1fr;
   }
 
   .client-detail-panel--3d-split .client-detail-panel-header {
     grid-column: 1;
   }
 
-  .cdp-face-col {
+  .client-detail-panel--3d-split:not(.client-detail-panel--mobile-face-scroll)
+    .cdp-face-col {
     grid-row: 2;
     grid-column: 1;
     height: clamp(300px, 52vw, 480px);
   }
 
   .client-detail-panel--3d-split .client-detail-panel-scroll {
-    grid-row: 3;
+    grid-row: 2;
     grid-column: 1;
     border-left: none;
-    border-top: 1px solid var(--theme-border);
+    border-top: none;
+  }
+
+  .client-detail-panel--3d-split.client-detail-panel--mobile-face-scroll
+    .client-detail-panel-scroll {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .client-detail-panel--3d-split .cdp-face-col--in-scroll {
+    flex-shrink: 0;
+    height: clamp(260px, 52vw, 380px);
+    min-height: clamp(260px, 52vw, 380px);
+    max-height: clamp(260px, 52vw, 380px);
+    border-bottom: 1px solid var(--theme-border);
+  }
+
+  .client-detail-panel--3d-split .cdp-face-col--in-scroll .fmp-root {
+    min-height: 0;
+    height: 100%;
   }
 }
 
@@ -245,6 +266,7 @@
   gap: 10px;
   margin-bottom: 8px;
   min-width: 0;
+  container-type: inline-size;
 }
 
 .client-detail-panel .cdp-treatment-plan--primary {
@@ -277,7 +299,10 @@
   color: var(--theme-text-muted, #64748b);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .cdp-contact-collapse-btn:hover {
@@ -298,11 +323,11 @@
   background: transparent;
   padding-bottom: 0;
   border-bottom: 0;
+  margin-bottom: 0;
 }
 
-.cdp-client-name-row .modal-header-activity-badge {
+.cdp-client-name-row .client-detail-panel-header-subtitle {
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .cdp-client-name-row .cdp-contact-menu {
@@ -312,6 +337,63 @@
 .cdp-client-name-row .edit-toggle-btn {
   flex-shrink: 0;
   margin-left: 0;
+}
+
+/* Narrow: plan builder subtitle on its own row when shown. */
+@container (max-width: 560px) {
+  .cdp-client-name-row .client-detail-panel-title {
+    order: 0;
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  .cdp-client-name-row .cdp-contact-collapse-btn {
+    order: 1;
+  }
+
+  .cdp-client-name-row .cdp-contact-menu {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .cdp-client-name-row .edit-toggle-btn {
+    order: 3;
+  }
+
+  .cdp-client-name-row .client-detail-panel-header-subtitle {
+    order: 4;
+    flex-basis: 100%;
+    width: fit-content;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .cdp-client-name-row .client-detail-panel-title {
+    order: 0;
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  .cdp-client-name-row .cdp-contact-collapse-btn {
+    order: 1;
+  }
+
+  .cdp-client-name-row .cdp-contact-menu {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .cdp-client-name-row .edit-toggle-btn {
+    order: 3;
+  }
+
+  .cdp-client-name-row .client-detail-panel-header-subtitle {
+    order: 4;
+    flex-basis: 100%;
+    width: fit-content;
+    margin-left: 0;
+  }
 }
 
 .client-detail-panel-header-info {
@@ -409,6 +491,8 @@
 /* Left-align photo and contact info section in panel */
 .client-detail-panel-body .modal-header-with-photo {
   --modal-photo-contact-gap: 24px;
+  display: flex;
+  flex-wrap: nowrap;
   padding-left: 20px !important;
   padding-right: 20px !important;
   padding-top: 20px !important;
@@ -419,8 +503,8 @@
     --modal-photo-contact-gap
   ); /* Space between photo and contact info */
   align-items: flex-start; /* Align to top */
-  background: #fafafa !important; /* Restore gray background */
-  border-bottom: 1px solid var(--theme-border) !important; /* Restore border */
+  background: var(--theme-bg-subtle, #fafafa) !important;
+  border-bottom: 1px solid var(--theme-border) !important;
   border-radius: 8px;
   margin-bottom: 24px;
 }
@@ -515,7 +599,11 @@
   width: 100%;
   height: 100%;
   min-height: 240px;
-  background: linear-gradient(135deg, var(--theme-bg-subtle, #f5f5f5) 0%, var(--theme-bg-inset, #e0e0e0) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--theme-bg-subtle, #f5f5f5) 0%,
+    var(--theme-bg-inset, #e0e0e0) 100%
+  );
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -576,8 +664,98 @@
   max-width: none; /* Take full width */
 }
 
+.client-detail-panel-body .modal-header-with-photo > .detail-section-relative {
+  flex: 1 1 320px;
+  min-width: 0;
+  width: 100%;
+}
+
+.client-detail-panel-body .modal-header-with-photo .cdp-client-name-row,
+.client-detail-panel-body .modal-header-with-photo .contact-info-with-actions {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .client-detail-panel-body .modal-header-with-photo {
+    flex-direction: column !important;
+    --modal-photo-contact-gap: 16px;
+    gap: 16px !important;
+    padding: 16px !important;
+    border-radius: 14px;
+  }
+
+  .client-detail-panel-body
+    .modal-header-with-photo
+    > .detail-section-relative {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .client-detail-panel-body .modal-header-with-photo .cdp-client-name-row {
+    align-items: center;
+  }
+
+  .client-detail-panel-body
+    .modal-header-with-photo
+    .cdp-client-name-row
+    .client-detail-panel-title {
+    flex: 1 1 12rem;
+    min-width: min(100%, 12rem);
+    max-width: none;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  .client-detail-panel-body .modal-header-with-photo .modal-photo-container,
+  .client-detail-panel-body
+    .modal-header-with-photo
+    .modal-photo-placeholder-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  .client-detail-panel-body
+    .modal-header-with-photo
+    .modal-photo-container
+    .web-popup-photo-placeholder {
+    width: 100%;
+    max-width: 100%;
+    min-height: 160px;
+    max-height: 220px;
+  }
+
+  .client-detail-panel-body
+    .modal-header-with-photo
+    .modal-photo-placeholder-wrapper
+    .photo-placeholder-container {
+    min-height: 150px !important;
+    padding: 28px 18px;
+  }
+
+  .client-detail-panel-body
+    .modal-header-with-photo
+    .contact-info-with-actions {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .client-detail-scan-progress-card--top {
+    display: grid;
+  }
+
+  .client-detail-scan-progress-card--analysis {
+    display: none;
+  }
+}
+
 /* In 3D split, align first right-column section with left controls baseline. */
-.client-detail-panel--3d-split .client-detail-panel-main > .modal-contact-section {
+.client-detail-panel--3d-split
+  .client-detail-panel-main
+  > .modal-contact-section {
   margin-top: 0;
   padding-top: 0;
 }
@@ -593,9 +771,36 @@
   box-sizing: border-box;
 }
 
-/* Header layout - name, subtitle or last activity inline */
-.client-detail-panel-activity-inline {
-  margin: 0;
+.modal-contact-section--details-collapsed
+  .cdp-client-name-row
+  .client-detail-panel-title {
+  order: 0;
+  flex: 1 1 auto;
+  max-width: none;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-contact-section--details-collapsed
+  .cdp-client-name-row
+  .cdp-contact-collapse-btn {
+  order: 1;
+  margin-left: auto;
+}
+
+.modal-contact-section--details-collapsed
+  .cdp-client-name-row
+  .cdp-contact-menu {
+  order: 2;
+  margin-left: 0;
+}
+
+.modal-contact-section--details-collapsed
+  .cdp-client-name-row
+  .edit-toggle-btn {
+  display: none;
 }
 
 /* Contact info grid - takes full width */
@@ -604,6 +809,34 @@
   grid-template-columns: repeat(2, 1fr);
   width: 100%;
   max-width: none; /* Take full width */
+}
+
+/* Panel does not import ClientDetailModal.css — contact field typography */
+.client-detail-panel .detail-item label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text-muted, #757575);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.client-detail-panel .detail-status-select-full {
+  padding: 8px 12px;
+  border: 2px solid var(--theme-border, #e8e8e8);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--theme-text-primary, #212121);
+  background: var(--theme-bg-card, #fff);
+  cursor: pointer;
+  width: 100%;
+  max-width: 200px;
+}
+
+.client-detail-panel .detail-status-select-full:focus {
+  outline: none;
+  border-color: var(--theme-accent, #1976d2);
 }
 
 .client-detail-panel .detail-value-muted {
@@ -628,6 +861,108 @@
 
 .client-detail-panel .detail-section-header-flex .detail-section-title {
   margin-bottom: 0;
+}
+
+.client-detail-panel .detail-section-header-flex.detail-section-archive-header {
+  margin-bottom: 0;
+}
+
+/* Monochrome AI action button — matches Show analysis (gradient icon + label) */
+.client-detail-panel .cdp-ai-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 13px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.client-detail-panel .cdp-ai-action-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(15, 23, 42, 0.18);
+  background: #ffffff;
+  box-shadow:
+    0 4px 14px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.client-detail-panel .cdp-ai-action-btn:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.65);
+  outline-offset: 2px;
+}
+
+.client-detail-panel .cdp-ai-action-btn:active {
+  transform: translateY(0);
+}
+
+.client-detail-panel .cdp-ai-action-label {
+  background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 52%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  font-weight: 750;
+}
+
+.client-detail-panel .cdp-ai-action-icon--gradient {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 52%, #6366f1 100%);
+  -webkit-mask-image: url("../../assets/images/ai.svg");
+  mask-image: url("../../assets/images/ai.svg");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.cdp-dark.client-detail-panel .cdp-ai-action-btn {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(28, 28, 28, 0.85);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(10px);
+}
+
+.cdp-dark.client-detail-panel .cdp-ai-action-btn:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(38, 38, 38, 0.92);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.cdp-dark.client-detail-panel .cdp-ai-action-label {
+  background: linear-gradient(135deg, #c4b5fd 0%, #93c5fd 45%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.cdp-dark.client-detail-panel .cdp-ai-action-icon--gradient {
+  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 48%, #818cf8 100%);
 }
 
 .client-detail-panel .detail-offer-claimed-box {
@@ -1083,14 +1418,9 @@
   margin-top: 16px;
 }
 
+.client-detail-panel .detail-section-wellness-overview,
 .client-detail-panel .detail-section-wellness-quiz {
-  border-top: none;
-  padding-top: 20px;
-  margin-top: 20px;
-  background: #fafafa;
-  padding: 20px;
-  border-radius: 8px;
-  border-left: 4px solid var(--theme-accent);
+  margin-top: 16px;
 }
 
 .client-detail-panel .detail-section-patient-files {
@@ -1102,7 +1432,9 @@
   border-left: 4px solid var(--theme-accent);
 }
 
-.client-detail-panel .detail-section-patient-files .patient-media-library__title {
+.client-detail-panel
+  .detail-section-patient-files
+  .patient-media-library__title {
   font-family: inherit;
   font-size: 16px;
   font-weight: 600;
@@ -1117,6 +1449,115 @@
   gap: 8px;
 }
 
+.client-detail-scan-progress-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid rgba(88, 161, 147, 0.24);
+  border-radius: 10px;
+  background: color-mix(in srgb, #58a193 9%, var(--theme-bg-card, #fff));
+}
+
+.client-detail-scan-progress-card--top {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .client-detail-scan-progress-card--top {
+    display: grid;
+  }
+
+  .client-detail-scan-progress-card--analysis {
+    display: none;
+  }
+}
+
+.client-detail-scan-progress-card__copy {
+  min-width: 0;
+}
+
+.client-detail-scan-progress-card__eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--theme-accent, #367588);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.client-detail-scan-progress-card__copy p {
+  margin: 0;
+  color: var(--theme-text-secondary, #475569);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.client-detail-scan-progress-card .dashboard-scan-progress {
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+  padding: 10px 12px;
+}
+
+.client-detail-scan-progress-card .dashboard-scan-progress__topline {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.client-detail-scan-progress-card .dashboard-scan-progress__message {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.client-detail-scan-raw-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 10px;
+}
+
+.client-detail-scan-raw-photo {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid rgba(88, 161, 147, 0.22);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--theme-bg-card, #fff);
+  color: var(--theme-text-secondary, #475569);
+  cursor: pointer;
+  text-align: left;
+}
+
+.client-detail-scan-raw-photo img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  background: var(--theme-bg-subtle, #f8fafc);
+}
+
+.client-detail-scan-raw-photo span {
+  min-width: 0;
+  padding: 0 9px 9px;
+  overflow: hidden;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-detail-scan-raw-photo:hover {
+  border-color: rgba(88, 161, 147, 0.44);
+  color: var(--theme-text-primary, #1f2937);
+}
+
 .client-detail-panel .skin-analysis-header {
   align-items: center;
 }
@@ -1128,13 +1569,6 @@
   margin-left: 8px;
 }
 
-.client-detail-panel .skin-analysis-description {
-  margin: 8px 0 0;
-  font-size: 0.875rem;
-  color: var(--theme-text-secondary);
-  line-height: 1.45;
-}
-
 .client-detail-panel .wellness-quiz-summary {
   margin-top: 8px;
   font-size: 0.875rem;
@@ -1144,6 +1578,69 @@
 .client-detail-panel .wellness-quiz-summary-label {
   font-weight: 500;
   color: var(--theme-text-muted);
+}
+
+.client-detail-panel .skin-analysis-compact {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--theme-bg-card, #fff);
+}
+
+.client-detail-panel .skin-analysis-compact--empty {
+  background: transparent;
+}
+
+.client-detail-panel .skin-analysis-compact--empty .skin-analysis-description {
+  margin: 0;
+}
+
+.client-detail-panel .skin-analysis-compact__main {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.client-detail-panel .skin-analysis-compact__eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-muted, #757575);
+}
+
+.client-detail-panel .skin-analysis-compact .skin-analysis-summary {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.client-detail-panel .skin-analysis-result-description--compact {
+  margin: 0;
+}
+
+.client-detail-panel .skin-analysis-compact__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.client-detail-panel .skin-analysis-compact__meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--theme-bg-subtle, #f8fafc);
+  color: var(--theme-text-secondary, #475569);
+  font-size: 0.72rem;
+  font-weight: 650;
 }
 
 .client-detail-panel .skin-analysis-details {
@@ -1331,9 +1828,9 @@
 }
 
 .client-detail-panel .detail-wellness-intake-interests {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--theme-border, #e2e8f0);
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .client-detail-panel .detail-wellness-intake-interests--under-facial {
@@ -1357,44 +1854,122 @@
 .client-detail-panel .detail-wellness-intake-chip {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 5px 9px;
   font-size: 0.8125rem;
   line-height: 1.3;
-  border-radius: 999px;
-  background: rgba(13, 148, 136, 0.1);
-  border: 1px solid rgba(13, 148, 136, 0.28);
-  color: var(--theme-text-primary, #134e4a);
+  border-radius: 8px;
+  background: var(--theme-bg-subtle, #f8fafc);
+  border: 1px solid var(--theme-border, #e2e8f0);
+  color: var(--theme-text-secondary, #475569);
 }
 
-.client-detail-panel .detail-wellness-plan-excerpt {
-  margin-top: 14px;
-}
+@media (max-width: 768px) {
+  .cdp-dark .cdp-client-name-row--mobile-sticky {
+    background: #111111;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+  }
 
-.client-detail-panel .detail-wellness-plan-list {
-  margin: 8px 0 0;
-  padding-left: 1.15rem;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--theme-text-primary, #212121);
-}
-
-.client-detail-panel .detail-wellness-plan-list li {
-  margin-bottom: 6px;
-}
-
-.client-detail-panel .detail-wellness-plan-treatment {
-  font-weight: 500;
-}
-
-.client-detail-panel .detail-wellness-plan-meta {
-  font-weight: 400;
-  color: var(--theme-text-muted, #64748b);
+  .cdp-dark .cdp-client-name-row--mobile-sticky .client-detail-panel-title {
+    color: #efefef;
+  }
 }
 
 @media (max-width: 768px) {
   /* Add / Manage treatment plan (DiscussedTreatmentsModal) — hidden until mobile UX is ready */
   .client-detail-panel .client-detail-plan-open-modal-btn {
     display: none !important;
+  }
+
+  .client-detail-panel--mobile-face-scroll .cdp-client-name-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-rows: auto;
+    gap: 8px;
+    align-items: center;
+    min-height: 0;
+    margin-bottom: 0;
+  }
+
+  .client-detail-panel--mobile-face-scroll .cdp-client-name-row--mobile-sticky {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    margin: -16px -16px 12px;
+    padding: 10px 16px;
+    background: #fff;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  }
+
+  .client-detail-panel--mobile-face-scroll
+    .modal-contact-section
+    .detail-section-relative
+    > .cdp-client-name-row {
+    display: none;
+  }
+
+  .client-detail-panel--mobile-face-scroll
+    .cdp-client-name-row
+    .client-detail-panel-title {
+    grid-column: 1;
+    grid-row: 1;
+    max-width: none;
+    margin: 0;
+    font-size: 17px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .client-detail-panel--mobile-face-scroll
+    .cdp-client-name-row
+    .cdp-contact-collapse-btn {
+    grid-column: 2;
+    grid-row: 1;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    align-self: center;
+    justify-self: end;
+  }
+
+  .client-detail-panel--mobile-face-scroll
+    .cdp-client-name-row
+    .cdp-contact-menu {
+    grid-column: 3;
+    grid-row: 1;
+    margin-left: 0;
+    justify-self: end;
+  }
+
+  .client-detail-panel--mobile-face-scroll
+    .cdp-client-name-row
+    .edit-toggle-btn {
+    grid-column: 4;
+    grid-row: 1;
+    margin-left: 0;
+    justify-self: end;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    padding: 0;
+  }
+
+  .client-detail-panel--mobile-face-scroll
+    .cdp-client-name-row
+    .client-detail-panel-header-subtitle {
+    display: none;
+  }
+
+  .client-detail-panel--3d-split.client-detail-panel--mobile-face-scroll
+    .client-detail-panel-body {
+    padding: 16px;
   }
 
   .client-detail-panel-header {
@@ -1552,11 +2127,65 @@
   /* Section spacing */
   .detail-section-skin-analysis,
   .detail-section-wellness-quiz,
+  .detail-section-wellness-overview,
   .detail-section-facial-analysis,
   .detail-section-with-border {
     padding: 16px;
     margin-top: 16px;
     border-radius: 12px;
+  }
+
+  .client-detail-panel .detail-section-facial-analysis-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .client-detail-panel .detail-section-facial-analysis-header__primary {
+    width: 100%;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .client-detail-panel .detail-section-facial-analysis-header__heading {
+    min-width: 0;
+  }
+
+  .client-detail-panel .detail-section-facial-analysis-header__actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .client-detail-scan-progress-card {
+    margin-top: 12px;
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .client-detail-scan-progress-card--top {
+    display: grid;
+  }
+
+  .client-detail-scan-progress-card--analysis {
+    display: none;
+  }
+
+  .client-detail-scan-progress-card .dashboard-scan-progress__topline {
+    align-items: flex-start;
+    gap: 4px 10px;
+  }
+
+  .client-detail-scan-progress-card
+    .dashboard-scan-progress__topline
+    span:last-child {
+    white-space: normal;
+    text-align: left;
+  }
+
+  .client-detail-scan-raw-photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .skin-analysis-product-chip {
@@ -1597,7 +2226,10 @@
   color: var(--theme-text-muted);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 .cdp-dark-toggle:hover {
   background: rgba(0, 0, 0, 0.05);
@@ -1610,14 +2242,16 @@
 /* ── Dark mode overrides (temporary — for testing black-bg 3D scan) ──────── */
 .cdp-dark {
   /* Re-map all theme variables to dark equivalents */
-  --theme-bg-card:       #111111;
-  --theme-bg-surface:    #1c1c1c;
-  --theme-text-primary:  #efefef;
+  --theme-bg-card: #111111;
+  --theme-bg-surface: #1c1c1c;
+  --theme-bg-subtle: #1a1a1a;
+  --theme-bg-inset: #252525;
+  --theme-text-primary: #efefef;
   --theme-text-secondary: #c0c0c0;
-  --theme-text-muted:    #8a8a8a;
-  --theme-border:        rgba(255, 255, 255, 0.10);
-  --theme-shadow:        rgba(0, 0, 0, 0.5);
-  --theme-shadow-hover:  rgba(0, 0, 0, 0.7);
+  --theme-text-muted: #8a8a8a;
+  --theme-border: rgba(255, 255, 255, 0.1);
+  --theme-shadow: rgba(0, 0, 0, 0.5);
+  --theme-shadow-hover: rgba(0, 0, 0, 0.7);
   background: #111111;
   color: #efefef;
 }
@@ -1724,7 +2358,10 @@
 .cdp-dark .fmp-overlay-btn--active,
 .cdp-dark .fmp-annotation-regions--overlay[open] > summary {
   background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.35));
-  border-color: var(--theme-accent-soft-border-hover, rgba(125, 211, 192, 0.65));
+  border-color: var(
+    --theme-accent-soft-border-hover,
+    rgba(125, 211, 192, 0.65)
+  );
   color: var(--theme-accent-soft-fg, #b8e8e0);
 }
 .cdp-dark .fmp-annotation-regions__panel {
@@ -1766,6 +2403,13 @@
 }
 
 /* ── Contact section ─────────────────────────────────────────────────────── */
+.cdp-dark .client-detail-panel-body .modal-header-with-photo {
+  background: var(--theme-bg-subtle) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.cdp-dark .detail-item label,
 .cdp-dark .detail-label,
 .cdp-dark .detail-label-small,
 .cdp-dark .contact-actions-label,
@@ -1775,6 +2419,41 @@
 .cdp-dark .detail-value,
 .cdp-dark .detail-value-small {
   color: #efefef;
+}
+
+.cdp-dark .detail-status-select,
+.cdp-dark .detail-status-select-full {
+  background: #252525 !important;
+  color: #efefef !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+.cdp-dark .detail-status-select:focus,
+.cdp-dark .detail-status-select-full:focus {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  outline: none;
+}
+
+.cdp-dark .photo-placeholder-container {
+  background: linear-gradient(135deg, #1c1c1c 0%, #252525 100%);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.cdp-dark .photo-placeholder-text {
+  color: #8a8a8a;
+}
+
+.cdp-dark .photo-placeholder-icon {
+  stroke: #666;
+}
+
+.cdp-dark .modal-photo-loading {
+  background: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cdp-dark .modal-photo-loading-text {
+  color: #8a8a8a;
 }
 .cdp-dark .detail-value-muted {
   color: #8a8a8a;
@@ -1892,18 +2571,6 @@
   --analysis-view-examples-color-hover: #c7d2fe;
 }
 
-/* ── Last Activity badge ─────────────────────────────────────────────────── */
-.cdp-dark .modal-header-activity-badge {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-.cdp-dark .modal-header-activity-label {
-  color: #8a8a8a;
-}
-.cdp-dark .modal-header-activity-value {
-  color: #efefef;
-}
-
 /* ── Client name row (profile header) ─────────────────────────────────────── */
 .cdp-dark .client-detail-panel-title {
   color: #efefef;
@@ -1911,19 +2578,20 @@
 
 /* ── Web popup photo placeholder ─────────────────────────────────────────── */
 .cdp-dark .web-popup-photo-placeholder {
-  background: linear-gradient(135deg, #1c1c1c 0%, #252525 100%);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(145deg, #222 0%, #1a1a1a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-style: solid;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .cdp-dark .web-popup-avatar {
-  background: linear-gradient(135deg, #3d3530 0%, #2a2520 100%);
-  color: #c4b5a8;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(135deg, #4a4038 0%, #332c26 100%);
+  color: #e8ddd4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .cdp-dark .web-popup-placeholder-text {
-  color: #8a8a8a;
+  color: #9a9a9a;
 }
 
 /* ── $50 coupon box ─────────────────────────────────────────────────────── */
@@ -1973,6 +2641,34 @@
   color: #8a8a8a;
 }
 
+.cdp-dark .client-detail-scan-progress-card {
+  border-color: rgba(88, 161, 147, 0.36);
+  background: rgba(88, 161, 147, 0.12);
+}
+
+.cdp-dark .client-detail-scan-progress-card__eyebrow {
+  color: #6ee7b7;
+}
+
+.cdp-dark .client-detail-scan-progress-card__copy p {
+  color: #c0c0c0;
+}
+
+.cdp-dark .client-detail-scan-raw-photo {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #181818;
+  color: #c0c0c0;
+}
+
+.cdp-dark .client-detail-scan-raw-photo img {
+  background: #101010;
+}
+
+.cdp-dark .client-detail-scan-raw-photo:hover {
+  border-color: rgba(110, 231, 183, 0.35);
+  color: #efefef;
+}
+
 /* ── Tag chips (Interested Treatments / Focus Areas) ─────────────────────── */
 .cdp-dark .detail-tag {
   background: rgba(206, 147, 216, 0.12);
@@ -1994,22 +2690,26 @@
   color: #a0aec0;
   border-color: rgba(255, 255, 255, 0.1);
 }
-.cdp-dark .detail-section-status-pill--facial.detail-section-status-pill--tone-muted {
+.cdp-dark
+  .detail-section-status-pill--facial.detail-section-status-pill--tone-muted {
   background: rgba(255, 255, 255, 0.06) !important;
   color: #a0aec0;
   border-color: rgba(255, 255, 255, 0.1);
 }
-.cdp-dark .detail-section-status-pill--facial.detail-section-status-pill--tone-pending {
+.cdp-dark
+  .detail-section-status-pill--facial.detail-section-status-pill--tone-pending {
   background: rgba(245, 158, 11, 0.12) !important;
   color: #fbbf24;
   border-color: rgba(251, 191, 36, 0.25);
 }
-.cdp-dark .detail-section-status-pill--facial.detail-section-status-pill--tone-ready {
+.cdp-dark
+  .detail-section-status-pill--facial.detail-section-status-pill--tone-ready {
   background: rgba(6, 95, 70, 0.25) !important;
   color: #6ee7b7;
   border-color: rgba(110, 231, 183, 0.25);
 }
-.cdp-dark .detail-section-status-pill--facial.detail-section-status-pill--tone-reviewed {
+.cdp-dark
+  .detail-section-status-pill--facial.detail-section-status-pill--tone-reviewed {
   background: rgba(6, 95, 70, 0.25) !important;
   color: #6ee7b7;
   border-color: rgba(110, 231, 183, 0.25);
@@ -2130,10 +2830,9 @@
   color: #efefef;
 }
 
-/* ── Analysis sections (facial, skin, wellness) — hardcoded #fafafa bg ───── */
+/* ── Analysis sections (facial, skin) — hardcoded #fafafa bg ───── */
 .cdp-dark .detail-section-facial-analysis,
 .cdp-dark .detail-section-skin-analysis,
-.cdp-dark .detail-section-wellness-quiz,
 .cdp-dark .detail-section-treatment-plan,
 .cdp-dark .detail-section-patient-files,
 .cdp-dark .detail-section-with-border {
@@ -2141,10 +2840,66 @@
   border-left-color: rgba(255, 255, 255, 0.2);
   border-top-color: rgba(255, 255, 255, 0.08);
 }
+
+.cdp-dark .detail-section-wellness-quiz,
+.cdp-dark .detail-section-wellness-overview {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.cdp-dark .detail-section-wellness--secondary .detail-section-wellness-header__title {
+  color: #a3a3a3;
+}
+
+.cdp-dark .detail-section-archive {
+  background: rgba(244, 67, 54, 0.08);
+  border-color: rgba(244, 67, 54, 0.22);
+  border-left-color: rgba(244, 67, 54, 0.55);
+}
+
+.cdp-dark .detail-section-archive-header .archive-button--danger {
+  background: var(--theme-status-danger-bg, rgba(239, 68, 68, 0.15));
+  color: var(--theme-status-danger-fg, #fca5a5);
+  border-color: var(--theme-status-danger-border, rgba(248, 113, 113, 0.35));
+}
+
+.cdp-dark .detail-section-archive-header .archive-button--danger:hover {
+  background: rgba(239, 68, 68, 0.24);
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.55);
+}
 .cdp-dark .skin-analysis-description,
 .cdp-dark .skin-analysis-result-badge,
-.cdp-dark .wellness-quiz-summary {
+.cdp-dark .wellness-quiz-summary,
+.cdp-dark .detail-wellness-intake-note,
+.cdp-dark .detail-section-archive-description,
+.cdp-dark .detail-section-patient-files .patient-media-library__desc {
   color: #c8c8c8;
+}
+
+.cdp-dark .detail-wellness-intake-chip {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #c8c8c8;
+}
+
+.cdp-dark .skin-analysis-compact {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.cdp-dark .skin-analysis-compact--empty {
+  background: transparent;
+}
+
+.cdp-dark .skin-analysis-compact__eyebrow {
+  color: #8a8a8a;
+}
+
+.cdp-dark .skin-analysis-compact__meta span {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 /* AM / PM skincare routine blocks */
@@ -2249,13 +3004,6 @@
 }
 .cdp-dark .contact-notes {
   color: #a0a0a0;
-}
-
-/* ── Archive section ─────────────────────────────────────────────────────── */
-.cdp-dark .detail-section-archive {
-  background: rgba(244, 67, 54, 0.08);
-  border-left-color: rgba(244, 67, 54, 0.5);
-  border-top-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Expanded Face Mirror lower-right condensed plan builder */
@@ -2377,9 +3125,13 @@
   color: var(--theme-accent-soft-fg, #2c5f6b);
 }
 
-.cdp-expanded-planbuilder--finding-focused .cdp-expanded-planbuilder__header-btn {
+.cdp-expanded-planbuilder--finding-focused
+  .cdp-expanded-planbuilder__header-btn {
   background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.08));
-  border-bottom-color: var(--theme-accent-soft-border, rgba(54, 117, 136, 0.25));
+  border-bottom-color: var(
+    --theme-accent-soft-border,
+    rgba(54, 117, 136, 0.25)
+  );
 }
 
 .cdp-expanded-planbuilder__finding-context {
@@ -2388,7 +3140,8 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--theme-accent-soft-border, rgba(54, 117, 136, 0.2));
+  border-bottom: 1px solid
+    var(--theme-accent-soft-border, rgba(54, 117, 136, 0.2));
   background: var(--theme-accent-soft-bg-active, rgba(54, 117, 136, 0.06));
 }
 
@@ -2426,7 +3179,10 @@
   font-size: 0.68rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .cdp-expanded-planbuilder__finding-context-clear:hover {
@@ -2453,7 +3209,9 @@
   font-size: 0.68rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .cdp-expanded-planbuilder__action-btn:hover {
@@ -2540,11 +3298,14 @@
   padding: 9px 10px 9px 12px;
   border-radius: 10px;
   border: 1px solid var(--theme-border, #e2e8f0);
-  border-left: 2px solid var(--theme-accent-soft-border, rgba(54, 117, 136, 0.45));
+  border-left: 2px solid
+    var(--theme-accent-soft-border, rgba(54, 117, 136, 0.45));
   background: var(--theme-bg-inset, #f8fafc);
   color: var(--theme-text-primary, #111);
   text-align: left;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .cdp-expanded-planbuilder__quick-add-item:hover {
@@ -2623,7 +3384,8 @@
   color: #c2410c;
 }
 
-.cdp-expanded-planbuilder__quick-add > .cdp-expanded-planbuilder__analysis-label {
+.cdp-expanded-planbuilder__quick-add
+  > .cdp-expanded-planbuilder__analysis-label {
   margin-bottom: 8px;
 }
 
@@ -2778,7 +3540,10 @@
   font-size: 0.64rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .cdp-expanded-planbuilder__mini-btn:hover {

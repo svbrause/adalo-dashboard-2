@@ -1,0 +1,9 @@
+{
+  "heatmap": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-existing-crease-wrinkle-masked-heatmap.png",
+  "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-existing-crease-wrinkle-masked-overlay.png",
+  "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-existing-crease-wrinkle-masked-composite.png",
+  "strongOverlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-existing-crease-wrinkle-masked-strong-overlay.png",
+  "strongComposite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-existing-crease-wrinkle-masked-strong-composite.png",
+  "alphaPixels": 101114,
+  "maxAlpha": 183
+}

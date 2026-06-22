@@ -41,17 +41,36 @@ import {
   SLIM_STUDIO_PLAN_BUILDER_TREATMENTS,
   SLIM_STUDIO_TREATMENT_META,
 } from "../../../data/slimStudioOfferings";
+import { SLIM_STUDIO_SKINCARE_CAROUSEL } from "../../../data/slimStudioSkincare";
+import {
+  getGravitasProductOptionsForTreatment,
+  isGravitasProvider,
+  type GravitasProviderContext,
+  GRAVITAS_PLAN_BUILDER_TREATMENTS,
+  GRAVITAS_TREATMENT_META,
+} from "../../../data/gravitasOfferings";
+import { GRAVITAS_SKINCARE_CAROUSEL } from "../../../data/gravitasSkincare";
+import {
+  getPrettyPleaseProductOptionsForTreatment,
+  isPrettyPleaseProvider,
+  type PrettyPleaseProviderContext,
+  PRETTY_PLEASE_PLAN_BUILDER_TREATMENTS,
+  PRETTY_PLEASE_TREATMENT_META,
+} from "../../../data/prettyPleaseOfferings";
+import { PRETTY_PLEASE_SKINCARE_CAROUSEL } from "../../../data/prettyPleaseSkincare";
 
 /** Provider identity for plan-builder / checkout catalog filtering. */
 export type ProviderTreatmentContext =
   | string
   | null
   | undefined
-  | SlimStudioProviderContext;
+  | SlimStudioProviderContext
+  | GravitasProviderContext
+  | PrettyPleaseProviderContext;
 
 function normalizeProviderTreatmentContext(
   provider: ProviderTreatmentContext,
-): SlimStudioProviderContext {
+): SlimStudioProviderContext | GravitasProviderContext {
   if (provider == null || typeof provider === "string") {
     return { code: provider ?? undefined };
   }
@@ -218,7 +237,43 @@ export function getSkincareCarouselItems(provider?: ProviderTreatmentContext): {
   imageUrls?: string[];
 }[] {
   if (isSlimStudioProvider(normalizeProviderTreatmentContext(provider))) {
-    return [{ name: "Medical Grade Skincare" }, { name: "Other" }];
+    return [
+      ...SLIM_STUDIO_SKINCARE_CAROUSEL.map((p: TreatmentBoutiqueProduct) => ({
+        name: p.name,
+        imageUrl: p.imageUrl,
+        productUrl: p.productUrl,
+        description: p.description,
+        price: p.price,
+        imageUrls: p.imageUrls,
+      })),
+      { name: "Other" },
+    ];
+  }
+  if (isGravitasProvider(normalizeProviderTreatmentContext(provider))) {
+    return [
+      ...GRAVITAS_SKINCARE_CAROUSEL.map((p: TreatmentBoutiqueProduct) => ({
+        name: p.name,
+        imageUrl: p.imageUrl,
+        productUrl: p.productUrl,
+        description: p.description,
+        price: p.price,
+        imageUrls: p.imageUrls,
+      })),
+      { name: "Other" },
+    ];
+  }
+  if (isPrettyPleaseProvider(normalizeProviderTreatmentContext(provider))) {
+    return [
+      ...PRETTY_PLEASE_SKINCARE_CAROUSEL.map((p: TreatmentBoutiqueProduct) => ({
+        name: p.name,
+        imageUrl: p.imageUrl,
+        productUrl: p.productUrl,
+        description: p.description,
+        price: p.price,
+        imageUrls: p.imageUrls,
+      })),
+      { name: "Other" },
+    ];
   }
   return [
     ...TREATMENT_BOUTIQUE_SKINCARE.map((p: TreatmentBoutiqueProduct) => ({
@@ -753,7 +808,16 @@ export const FINDING_TO_GOAL_REGION_TREATMENTS: {
     treatments: ["Filler", "Skincare"],
   },
   {
-    keywords: ["under eye hollow", "eyelid bag", "tear trough"],
+    keywords: [
+      "under eye hollow",
+      "eyelid bag",
+      "lower eyelid bag",
+      "lower eyelid sag",
+      "lower eyelid laxity",
+      "lower eyelid - excess skin",
+      "lower eyelid excess skin",
+      "tear trough",
+    ],
     goal: "Rejuvenate Lower Eyelids",
     region: "Under eyes",
     treatments: ["Filler", "Biostimulants", "Other procedures", ...JUDGEMD_FACIAL_SURGERY_PLAN_CATEGORIES],
@@ -987,6 +1051,12 @@ export function getTreatmentOptionsForProvider(
   if (isSlimStudioProvider(ctx)) {
     return [...SLIM_STUDIO_PLAN_BUILDER_TREATMENTS];
   }
+  if (isGravitasProvider(ctx)) {
+    return [...GRAVITAS_PLAN_BUILDER_TREATMENTS];
+  }
+  if (isPrettyPleaseProvider(ctx)) {
+    return [...PRETTY_PLEASE_PLAN_BUILDER_TREATMENTS];
+  }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return [...ALL_TREATMENTS];
   return ALL_TREATMENTS.filter((t) =>
     t === "Skincare" || (TREATMENT_CATEGORIES_IN_PRICE_LIST as readonly string[]).includes(t),
@@ -1007,6 +1077,12 @@ export function getTreatmentProductOptionsForProvider(
   const canon = canonicalPlanTreatmentName(treatment);
   if (isSlimStudioProvider(ctx)) {
     return getSlimStudioProductOptionsForTreatment(canon);
+  }
+  if (isGravitasProvider(ctx)) {
+    return getGravitasProductOptionsForTreatment(canon);
+  }
+  if (isPrettyPleaseProvider(ctx)) {
+    return getPrettyPleaseProductOptionsForTreatment(canon);
   }
   if (isJudgeMdProviderCode(providerCode)) {
     if (canon === "Skincare") {
@@ -1150,6 +1226,8 @@ export const TREATMENT_META: Record<
     priceRange: "Varies",
   },
   ...SLIM_STUDIO_TREATMENT_META,
+  ...GRAVITAS_TREATMENT_META,
+  ...PRETTY_PLEASE_TREATMENT_META,
 };
 
 /** Map each interest (by keyword match) to suggested treatments. */
@@ -1317,6 +1395,20 @@ export function getCheckoutTreatmentTypeOptionsForProvider(
       slimOnly[name] = getSlimStudioProductOptionsForTreatment(name);
     }
     return slimOnly;
+  }
+  if (isGravitasProvider(ctx)) {
+    const gravitasOnly: Record<string, string[]> = {};
+    for (const name of GRAVITAS_PLAN_BUILDER_TREATMENTS) {
+      gravitasOnly[name] = getGravitasProductOptionsForTreatment(name);
+    }
+    return gravitasOnly;
+  }
+  if (isPrettyPleaseProvider(ctx)) {
+    const prettyPleaseOnly: Record<string, string[]> = {};
+    for (const name of PRETTY_PLEASE_PLAN_BUILDER_TREATMENTS) {
+      prettyPleaseOnly[name] = getPrettyPleaseProductOptionsForTreatment(name);
+    }
+    return prettyPleaseOnly;
   }
   if (!isProviderRestrictedToPricingSheet(providerCode)) return base;
   base[ENERGY_TREATMENT_CATEGORY] = getTreatmentProductOptionsForProvider(

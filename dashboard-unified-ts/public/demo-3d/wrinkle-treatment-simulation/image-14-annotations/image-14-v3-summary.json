@@ -1,0 +1,497 @@
+{
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "fine": {
+    "componentCount": 39,
+    "counts": {
+      "Mild": 24,
+      "Moderate": 11,
+      "High": 4
+    },
+    "overallSeverity": "Moderate",
+    "severityIndex": 0.501,
+    "zoneAdaptiveThreshold": true,
+    "elongationFilterApplied": true,
+    "components": [
+      {
+        "tier": "Mild",
+        "score": 0.2196,
+        "pixels": 28,
+        "elongation": 1.75,
+        "bbox": [
+          747,
+          222,
+          16,
+          28
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2666,
+        "pixels": 79,
+        "elongation": 2.06,
+        "bbox": [
+          291,
+          238,
+          68,
+          33
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2795,
+        "pixels": 592,
+        "elongation": 2.16,
+        "bbox": [
+          745,
+          242,
+          58,
+          125
+        ]
+      },
+      {
+        "tier": "High",
+        "score": 0.2864,
+        "pixels": 9,
+        "elongation": 4.5,
+        "bbox": [
+          340,
+          271,
+          9,
+          2
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2031,
+        "pixels": 9,
+        "elongation": 2.0,
+        "bbox": [
+          466,
+          281,
+          8,
+          4
+        ]
+      },
+      {
+        "tier": "High",
+        "score": 0.2854,
+        "pixels": 83,
+        "elongation": 1.45,
+        "bbox": [
+          280,
+          293,
+          38,
+          55
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.1762,
+        "pixels": 10,
+        "elongation": 3.0,
+        "bbox": [
+          466,
+          293,
+          3,
+          9
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2205,
+        "pixels": 46,
+        "elongation": 1.28,
+        "bbox": [
+          695,
+          321,
+          23,
+          18
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2208,
+        "pixels": 16,
+        "elongation": 3.2,
+        "bbox": [
+          466,
+          327,
+          5,
+          16
+        ]
+      },
+      {
+        "tier": "High",
+        "score": 0.3096,
+        "pixels": 95,
+        "elongation": 1.09,
+        "bbox": [
+          278,
+          334,
+          35,
+          32
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2685,
+        "pixels": 37,
+        "elongation": 2.67,
+        "bbox": [
+          787,
+          342,
+          9,
+          24
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.1496,
+        "pixels": 9,
+        "elongation": 2.0,
+        "bbox": [
+          599,
+          347,
+          8,
+          4
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2512,
+        "pixels": 31,
+        "elongation": 1.56,
+        "bbox": [
+          773,
+          369,
+          9,
+          14
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.26,
+        "pixels": 190,
+        "elongation": 4.41,
+        "bbox": [
+          765,
+          378,
+          22,
+          97
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2301,
+        "pixels": 10,
+        "elongation": 5.0,
+        "bbox": [
+          776,
+          390,
+          2,
+          10
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2613,
+        "pixels": 33,
+        "elongation": 2.56,
+        "bbox": [
+          797,
+          407,
+          9,
+          23
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2157,
+        "pixels": 47,
+        "elongation": 1.13,
+        "bbox": [
+          575,
+          423,
+          15,
+          17
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2422,
+        "pixels": 47,
+        "elongation": 2.25,
+        "bbox": [
+          800,
+          434,
+          12,
+          27
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2523,
+        "pixels": 15,
+        "elongation": 2.4,
+        "bbox": [
+          806,
+          460,
+          5,
+          12
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2423,
+        "pixels": 215,
+        "elongation": 1.83,
+        "bbox": [
+          365,
+          472,
+          75,
+          41
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2049,
+        "pixels": 12,
+        "elongation": 2.0,
+        "bbox": [
+          381,
+          479,
+          12,
+          6
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2203,
+        "pixels": 18,
+        "elongation": 2.29,
+        "bbox": [
+          377,
+          502,
+          16,
+          7
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2412,
+        "pixels": 84,
+        "elongation": 1.11,
+        "bbox": [
+          355,
+          516,
+          27,
+          30
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.1629,
+        "pixels": 12,
+        "elongation": 2.2,
+        "bbox": [
+          477,
+          518,
+          11,
+          5
+        ]
+      },
+      {
+        "tier": "High",
+        "score": 0.3431,
+        "pixels": 29,
+        "elongation": 1.13,
+        "bbox": [
+          377,
+          524,
+          17,
+          15
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2482,
+        "pixels": 543,
+        "elongation": 1.82,
+        "bbox": [
+          373,
+          533,
+          87,
+          158
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.1681,
+        "pixels": 9,
+        "elongation": 2.25,
+        "bbox": [
+          586,
+          552,
+          9,
+          4
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.1854,
+        "pixels": 44,
+        "elongation": 2.36,
+        "bbox": [
+          592,
+          558,
+          11,
+          26
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2384,
+        "pixels": 86,
+        "elongation": 1.18,
+        "bbox": [
+          464,
+          582,
+          28,
+          33
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2605,
+        "pixels": 12,
+        "elongation": 2.0,
+        "bbox": [
+          435,
+          589,
+          5,
+          10
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2081,
+        "pixels": 13,
+        "elongation": 2.0,
+        "bbox": [
+          632,
+          675,
+          5,
+          10
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.23,
+        "pixels": 10,
+        "elongation": 3.33,
+        "bbox": [
+          476,
+          684,
+          10,
+          3
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2128,
+        "pixels": 44,
+        "elongation": 1.0,
+        "bbox": [
+          366,
+          691,
+          17,
+          17
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2742,
+        "pixels": 448,
+        "elongation": 1.74,
+        "bbox": [
+          404,
+          701,
+          106,
+          61
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.1391,
+        "pixels": 9,
+        "elongation": 3.0,
+        "bbox": [
+          554,
+          709,
+          9,
+          3
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.2155,
+        "pixels": 30,
+        "elongation": 1.36,
+        "bbox": [
+          361,
+          713,
+          14,
+          19
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2757,
+        "pixels": 191,
+        "elongation": 1.23,
+        "bbox": [
+          509,
+          714,
+          59,
+          48
+        ]
+      },
+      {
+        "tier": "Moderate",
+        "score": 0.2746,
+        "pixels": 57,
+        "elongation": 1.5,
+        "bbox": [
+          533,
+          741,
+          12,
+          18
+        ]
+      },
+      {
+        "tier": "Mild",
+        "score": 0.1946,
+        "pixels": 13,
+        "elongation": 2.4,
+        "bbox": [
+          559,
+          750,
+          12,
+          5
+        ]
+      }
+    ]
+  },
+  "hybrid": {
+    "counts": {
+      "Mild": 41,
+      "Moderate": 19,
+      "High": 4
+    },
+    "overallSeverity": "Mild",
+    "severityIndex": 0.48
+  }
+}

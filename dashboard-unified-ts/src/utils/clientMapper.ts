@@ -320,6 +320,7 @@ function getFacialAnalysisStatus(
       const v = fields[key];
       if (v != null && String(v).trim() !== "") return String(v).trim();
     }
+    if (parseSeverityScoresFromFields(fields)) return "Ready";
   }
   const raw = fields["Pending/Opened"];
   if (raw != null && String(raw).trim() !== "") return String(raw).trim();
@@ -537,6 +538,7 @@ export function mapRecordToClient(
         const frontPhoto =
           fields["Front Photo"] ||
           fields["Front photo"] ||
+          fields["Front Photo (from Form Submissions)"] ||
           fields["frontPhoto"];
         if (frontPhoto && Array.isArray(frontPhoto) && frontPhoto.length > 0) {
           return frontPhoto as any; // Store as array, cast to match string | null type

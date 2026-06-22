@@ -162,7 +162,7 @@ export default function PatientIssuesModal({ client, onClose, onPhotoClick, demo
             <h2>Analysis Results for {client.name}</h2>
             <div className="patient-issues-header-info">
               <div className="patient-issues-activity-badge">
-                <span className="patient-issues-activity-label">Last Activity:</span>
+                <span className="patient-issues-activity-label">Last activity</span>
                 <span className="patient-issues-activity-value">{lastActivityRelative}</span>
               </div>
             </div>

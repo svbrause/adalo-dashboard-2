@@ -1,0 +1,3306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Face Scan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    /* Dashboard dark theme — aligned with theme-dark-vars.css */
+    :root {
+      --theme-bg-page: #111111;
+      --theme-bg-card: #1a1a1a;
+      --theme-bg-inset: #1c1c1c;
+      --theme-border: rgba(255, 255, 255, 0.1);
+      --theme-border-strong: rgba(255, 255, 255, 0.18);
+      --theme-text-primary: #efefef;
+      --theme-text-secondary: #c0c0c0;
+      --theme-text-muted: #8a8a8a;
+      --theme-accent: #367588;
+      --theme-accent-hover: #2c5f6b;
+      --theme-accent-soft: #4a8a9a;
+      --theme-success: #6ee7b7;
+      --theme-warning: #fbbf24;
+      --theme-danger: #fca5a5;
+      --theme-input-bg: #1c1c1c;
+      --theme-input-border: rgba(255, 255, 255, 0.15);
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      min-height: 100%;
+      background: var(--theme-bg-page);
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    body {
+      font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--theme-bg-page);
+      color: var(--theme-text-primary);
+      height: 100dvh;
+      height: calc(var(--app-vh, 1vh) * 100);
+      min-height: 100svh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    .screen {
+      position: fixed;
+      inset: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      transition: opacity 0.35s ease;
+    }
+    .screen.hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+
+    .panel {
+      width: min(100%, 520px);
+      padding: 28px 22px 32px;
+      margin: auto;
+    }
+    .badge {
+      width: 72px; height: 72px; border-radius: 22px;
+      background: linear-gradient(145deg, var(--theme-accent), var(--theme-accent-hover));
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 8px 28px rgba(54, 117, 136, 0.35);
+    }
+    .badge svg {
+      width: 42px;
+      height: 42px;
+      display: block;
+    }
+    h1 { font-size: 28px; font-weight: 700; text-align: center; letter-spacing: -0.5px; }
+    .sub {
+      margin-top: 10px; text-align: center; color: var(--theme-text-secondary);
+      font-size: 14px; line-height: 1.6;
+    }
+    .steps-row {
+      display: flex; gap: 10px; justify-content: center; margin: 24px 0;
+    }
+    .step-chip {
+      background: var(--theme-bg-card); border: 1px solid var(--theme-border);
+      border-radius: var(--radius-md); padding: 10px 14px; font-size: 12px;
+      font-weight: 600; color: var(--theme-text-muted);
+    }
+    .btn-primary {
+      display: block; width: 100%; max-width: 320px; margin: 0 auto;
+      background: var(--theme-accent); color: #fff; border: none;
+      border-radius: 14px; padding: 15px 24px; font-size: 16px; font-weight: 600;
+      font-family: inherit; cursor: pointer;
+      box-shadow: 0 8px 24px rgba(54, 117, 136, 0.35);
+    }
+    .btn-primary:hover { background: var(--theme-accent-hover); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-ghost {
+      background: transparent; border: 1px solid var(--theme-border);
+      color: var(--theme-text-secondary); border-radius: 12px;
+      padding: 12px 20px; font-family: inherit; font-weight: 600; cursor: pointer;
+      margin-top: 12px; width: 100%;
+    }
+
+    .photo-prep-panel {
+      width: min(100%, 520px);
+      padding: 24px 20px 28px;
+      margin: auto;
+    }
+    .photo-prep-kicker {
+      color: var(--theme-accent-soft);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+    .photo-prep-title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+    .photo-prep-sub {
+      max-width: 360px;
+      margin: 0 auto 18px;
+      color: var(--theme-text-secondary);
+      font-size: 13px;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .photo-prep-poses {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .photo-prep-pose {
+      border: 1px solid var(--theme-border);
+      border-radius: 12px;
+      background: var(--theme-bg-card);
+      overflow: hidden;
+    }
+    .photo-prep-pose img {
+      width: 100%;
+      height: 154px;
+      display: block;
+      object-fit: cover;
+      object-position: center 28%;
+      background: #111;
+    }
+    .photo-prep-pose-copy {
+      padding: 10px 12px 12px;
+      text-align: center;
+    }
+    .photo-prep-pose-copy strong {
+      display: block;
+      color: var(--theme-text-primary);
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+    .photo-prep-pose-copy span {
+      display: block;
+      color: var(--theme-text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-top: 4px;
+    }
+    .photo-prep-note {
+      margin: 0 0 16px;
+      color: var(--theme-text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .photo-prep-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .photo-prep-actions .btn-primary,
+    .photo-prep-actions .btn-ghost {
+      max-width: none;
+      margin: 0;
+    }
+    .photo-prep-actions .photo-prep-back {
+      grid-column: 1 / -1;
+      color: var(--theme-text-muted);
+    }
+
+    .intake-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .intake-sub { color: var(--theme-text-secondary); font-size: 13px; line-height: 1.55; margin-bottom: 18px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--theme-text-muted); margin-bottom: 6px; }
+    .field-label-note {
+      font-weight: 500;
+      color: var(--theme-text-muted);
+    }
+    .field input[type="text"],
+    .field input[type="email"],
+    .field input[type="tel"],
+    .field input[type="search"] {
+      width: 100%; padding: 12px 14px; border-radius: 10px;
+      border: 1px solid var(--theme-input-border); background: var(--theme-input-bg);
+      color: var(--theme-text-primary); font-family: inherit; font-size: 16px;
+    }
+    .field input[type="search"] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .field input[type="search"]::-webkit-search-cancel-button,
+    .field input[type="search"]::-webkit-search-decoration {
+      -webkit-appearance: none;
+    }
+    .field input:focus {
+      outline: none; border-color: var(--theme-accent-soft);
+      box-shadow: 0 0 0 3px rgba(54, 117, 136, 0.2);
+    }
+    .field input:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 420px) { .field-row { grid-template-columns: 1fr; } }
+    .focus-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .field .focus-check {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0;
+      min-height: 38px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--theme-border);
+      background: var(--theme-bg-inset);
+      color: var(--theme-text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    }
+    .field .focus-check input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .field .focus-check:has(input:checked) {
+      border-color: var(--theme-accent-soft);
+      background: rgba(54, 117, 136, 0.22);
+      color: var(--theme-text-primary);
+    }
+    .field .focus-check:focus-within {
+      outline: none;
+      border-color: var(--theme-accent-soft);
+      box-shadow: 0 0 0 3px rgba(54, 117, 136, 0.2);
+    }
+    .focus-followup {
+      margin-top: 2px;
+    }
+    .form-error { color: var(--theme-danger); font-size: 13px; min-height: 18px; margin: 8px 0; }
+    .intake-actions {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .intake-actions .btn-primary {
+      flex: 1 1 auto;
+      width: auto;
+      max-width: none;
+      margin: 0;
+      padding-top: 14px;
+      padding-bottom: 14px;
+    }
+    .intake-actions .btn-ghost {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 88px;
+      margin-top: 0;
+      padding-top: 14px;
+      padding-bottom: 14px;
+    }
+
+    .client-search-field {
+      margin-bottom: 18px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--theme-border);
+    }
+    .client-search-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--theme-border);
+      background: var(--theme-bg-inset);
+    }
+    .client-search-card--disabled {
+      opacity: 0.72;
+    }
+    .client-search-input-wrap {
+      position: relative;
+    }
+    .client-search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: var(--theme-text-muted);
+      pointer-events: none;
+    }
+    .field .client-search-input-wrap .client-search-input {
+      width: 100%;
+      padding: 12px 14px 12px 56px;
+      border-radius: 10px;
+      border: 1px solid var(--theme-input-border);
+      background: var(--theme-bg-card);
+      color: var(--theme-text-primary);
+      font-family: inherit;
+      font-size: 16px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .client-search-input-wrap .client-search-input::-webkit-search-cancel-button,
+    .client-search-input-wrap .client-search-input::-webkit-search-decoration {
+      -webkit-appearance: none;
+      appearance: none;
+      display: none;
+    }
+    .client-search-input-wrap .client-search-input::placeholder {
+      color: rgba(138, 138, 138, 0.85);
+    }
+    .client-search-input-wrap .client-search-input:focus {
+      outline: none;
+      border-color: var(--theme-accent-soft);
+      box-shadow: 0 0 0 3px rgba(54, 117, 136, 0.2);
+    }
+    .client-search-input-wrap .client-search-input:disabled {
+      background: var(--theme-input-bg);
+      cursor: not-allowed;
+    }
+    .client-search-hint {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--theme-text-muted);
+    }
+    .client-search-results {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      z-index: 30;
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--theme-border);
+      border-radius: 10px;
+      background: var(--theme-bg-card);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+    .client-search-results.hidden { display: none; }
+    .client-search-item {
+      display: block;
+      width: 100%;
+      padding: 11px 12px;
+      border: none;
+      border-bottom: 1px solid var(--theme-border);
+      background: transparent;
+      color: var(--theme-text-primary);
+      text-align: left;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .client-search-item:last-child { border-bottom: none; }
+    .client-search-item:hover,
+    .client-search-item:focus-visible {
+      background: rgba(54, 117, 136, 0.12);
+      outline: none;
+    }
+    .client-search-item-name {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--theme-text-primary);
+    }
+    .client-search-item-meta {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--theme-text-muted);
+    }
+    .client-search-empty {
+      padding: 14px 12px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--theme-text-muted);
+      text-align: center;
+    }
+    .selected-client-banner {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(54, 117, 136, 0.35);
+      background: rgba(54, 117, 136, 0.1);
+    }
+    .selected-client-banner.hidden { display: none; }
+    .selected-client-banner__copy {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .selected-client-banner__eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--theme-accent-soft);
+    }
+    .selected-client-banner strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--theme-text-primary);
+      line-height: 1.3;
+    }
+    .selected-client-banner span {
+      display: block;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--theme-text-secondary);
+    }
+    .selected-client-clear {
+      flex-shrink: 0;
+      border: 1px solid var(--theme-border);
+      border-radius: 8px;
+      background: var(--theme-bg-card);
+      color: var(--theme-text-secondary);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 11px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    .selected-client-clear:hover {
+      border-color: var(--theme-border-strong);
+      color: var(--theme-text-primary);
+      background: var(--theme-bg-inset);
+    }
+    .duplicate-client-warning {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 4px 0 16px;
+      padding: 14px 14px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(217, 119, 6, 0.45);
+      background: rgba(251, 191, 36, 0.12);
+    }
+    .duplicate-client-warning.hidden { display: none; }
+    .duplicate-client-warning__copy strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--theme-text-primary);
+      margin-bottom: 4px;
+    }
+    .duplicate-client-warning__copy p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--theme-text-secondary);
+    }
+    .duplicate-client-warning__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .duplicate-client-warning__actions .btn-sm {
+      min-height: 36px;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    .duplicate-client-warning__matches {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .duplicate-client-match-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(217, 119, 6, 0.35);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.55);
+      padding: 10px 12px;
+      cursor: pointer;
+      color: var(--theme-text-primary);
+    }
+    .duplicate-client-match-btn:hover,
+    .duplicate-client-match-btn:focus-visible {
+      border-color: rgba(217, 119, 6, 0.65);
+      background: rgba(255, 255, 255, 0.85);
+      outline: none;
+    }
+    .duplicate-client-match-btn strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .duplicate-client-match-btn span {
+      display: block;
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--theme-text-muted);
+    }
+
+    /* Capture */
+    #captureScreen {
+      padding: 0;
+      overflow: hidden;
+    }
+    .capture-header {
+      width: 100%; padding: 16px 20px 8px; background: var(--theme-bg-card);
+      border-bottom: 1px solid var(--theme-border);
+      flex: 0 0 auto;
+    }
+    .photo-view-label {
+      text-align: center;
+      color: var(--theme-text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+    .step-bar { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
+    .step-dot {
+      min-width: 46px; height: 28px; padding: 0 9px; border-radius: 999px; display: flex; align-items: center;
+      justify-content: center; font-size: 10px; font-weight: 700;
+      border: 2px solid var(--theme-border); color: var(--theme-text-muted);
+      white-space: nowrap;
+    }
+    .step-dot.active { border-color: var(--theme-accent); color: var(--theme-accent); background: rgba(54,117,136,0.15); }
+    .step-dot.done { border-color: var(--theme-success); color: var(--theme-success); background: rgba(110,231,183,0.12); }
+    .step-line { width: 18px; height: 2px; background: var(--theme-border); }
+    .step-line.done { background: var(--theme-success); }
+    .capture-title { text-align: center; font-size: 18px; font-weight: 700; margin-top: 12px; }
+    .capture-instr { text-align: center; font-size: 13px; color: var(--theme-text-secondary); margin-top: 4px; }
+    .capture-instr:empty { display: none; }
+
+    .capture-mode-tabs {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+    .capture-mode-tab {
+      min-width: 108px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--theme-border);
+      background: var(--theme-bg-inset);
+      color: var(--theme-text-secondary);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .capture-mode-tab--active {
+      border-color: rgba(54, 117, 136, 0.45);
+      background: rgba(54, 117, 136, 0.16);
+      color: var(--theme-text-primary);
+    }
+    .step-dot.optional {
+      border-style: dashed;
+    }
+    .btn-skip {
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: var(--theme-text-muted);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .btn-skip:hover {
+      color: var(--theme-text-secondary);
+    }
+    .btn-skip.hidden { display: none; }
+
+    .upload-panel {
+      flex: 1;
+      width: 100%;
+      padding: 14px 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .upload-panel.hidden { display: none; }
+    .upload-panel-hint { display: none; }
+    .upload-slots {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    #uploadSlot0 { order: 0; }
+    #uploadSlot4 { order: 1; }
+    #uploadSlot1 { order: 2; }
+    #uploadSlot2 { order: 3; }
+    #uploadSlot3 { order: 4; }
+    #uploadSlot0,
+    #uploadSlot4 {
+      border-color: rgba(54, 117, 136, 0.55);
+    }
+    .upload-slot {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      min-height: 180px;
+      padding: 9px;
+      border-radius: 12px;
+      border: 1px dashed var(--theme-border-strong);
+      background: var(--theme-bg-inset);
+      cursor: pointer;
+      text-align: center;
+      overflow: hidden;
+    }
+    .upload-slot.has-file {
+      border-style: solid;
+      border-color: rgba(54, 117, 136, 0.45);
+    }
+    .upload-slot--drag-over {
+      border-color: var(--theme-accent-soft);
+      background: rgba(54, 117, 136, 0.14);
+      box-shadow: 0 0 0 3px rgba(54, 117, 136, 0.18);
+    }
+    .upload-slot.has-file.upload-slot--drag-over {
+      border-color: var(--theme-accent);
+    }
+    .upload-slot input {
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      z-index: 2;
+      display: block;
+      width: calc(100% + 4px);
+      height: calc(100% + 4px);
+      opacity: 0;
+      cursor: pointer;
+    }
+    .upload-slot > :not(input) {
+      pointer-events: none;
+    }
+    .upload-slot-label {
+      order: 0;
+      width: 100%;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--theme-text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      text-align: left;
+    }
+    .upload-slot-name {
+      min-width: 0;
+      line-height: 1.15;
+    }
+    .upload-slot-guide-frame {
+      order: 1;
+      position: relative;
+      width: 100%;
+    }
+    .upload-slot-guide {
+      display: block;
+      width: 100%;
+      height: 104px;
+      border-radius: 8px;
+      object-fit: contain;
+      object-position: center;
+      background: #111;
+    }
+    .upload-slot.has-file .upload-slot-guide-frame {
+      display: none;
+    }
+    .upload-slot-example-label {
+      position: absolute;
+      top: 7px;
+      left: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(0, 0, 0, 0.62);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      line-height: 1.1;
+      text-transform: uppercase;
+      backdrop-filter: blur(5px);
+    }
+    .slot-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 999px;
+      line-height: 1.2;
+    }
+    .slot-badge--required {
+      color: var(--theme-accent-soft);
+      border: 1px solid rgba(54, 117, 136, 0.35);
+      background: rgba(54, 117, 136, 0.12);
+    }
+    .slot-badge--optional {
+      color: var(--theme-text-muted);
+      border: 1px solid var(--theme-border);
+      background: var(--theme-bg-card);
+    }
+    .upload-slot-help {
+      order: 2;
+      min-width: min(132px, 100%);
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(54, 117, 136, 0.48);
+      background: rgba(54, 117, 136, 0.22);
+      color: var(--theme-text-primary);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+    .upload-slot.has-file .upload-slot-help {
+      border-color: var(--theme-border-strong);
+      background: var(--theme-bg-card);
+      color: var(--theme-text-secondary);
+    }
+    .upload-slot-preview-wrap {
+      order: 1;
+      display: none;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .upload-slot.has-file .upload-slot-preview-wrap {
+      display: block;
+    }
+    .upload-slot-preview {
+      width: 100%;
+      height: 104px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #000;
+      display: block;
+    }
+    .stage-wrap {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .stage-wrap.hidden { display: none; }
+    .camera-pose-guide {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--theme-border);
+      border-bottom: 1px solid var(--theme-border);
+      background: var(--theme-bg-card);
+    }
+    .camera-pose-guide img {
+      width: 56px;
+      height: 64px;
+      border-radius: 8px;
+      object-fit: cover;
+      object-position: center 28%;
+      background: #111;
+      border: 1px solid var(--theme-border);
+      flex: 0 0 auto;
+    }
+    .camera-pose-guide span {
+      display: block;
+      color: var(--theme-text-primary);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .camera-pose-guide p {
+      margin: 3px 0 0;
+      color: var(--theme-text-muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .stage {
+      position: relative; flex: 1; background: #000; overflow: hidden;
+      max-height: min(52dvh, 420px);
+    }
+    .stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity 0.12s; }
+    .flash.on { opacity: 0.85; }
+    .thumbs { display: flex; gap: 6px; padding: 10px 16px; justify-content: center; flex-wrap: wrap; }
+    .thumb {
+      display: none;
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 2px solid var(--theme-border);
+    }
+    .thumb.show {
+      display: block;
+      border-color: var(--theme-accent);
+    }
+
+    .capture-footer {
+      width: 100%; padding: 14px 20px 24px; background: var(--theme-bg-card);
+      border-top: 1px solid var(--theme-border);
+      flex: 0 0 auto;
+      position: relative;
+      z-index: 5;
+    }
+    .capture-screen--upload .status-pill {
+      display: none;
+    }
+    .capture-actions {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .capture-actions .btn-capture {
+      flex: 1 1 auto;
+    }
+    .capture-actions .btn-ghost {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 88px;
+      margin-top: 0;
+      padding-top: 15px;
+      padding-bottom: 15px;
+    }
+    .status-pill {
+      text-align: center; font-size: 13px; font-weight: 600;
+      color: var(--theme-text-muted); margin-bottom: 12px; min-height: 20px;
+    }
+    .status-pill.ok { color: var(--theme-success); }
+    .status-pill.warn { color: var(--theme-warning); }
+    .btn-capture {
+      width: 100%; padding: 15px; border-radius: 14px; border: none;
+      font-family: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
+      background: var(--theme-bg-inset); color: var(--theme-text-muted);
+    }
+    .btn-capture.ready { background: var(--theme-accent); color: #fff; box-shadow: 0 8px 24px rgba(54,117,136,0.35); }
+
+    /* Loading / complete */
+    .load-panel { text-align: center; padding: 48px 24px; }
+    .load-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+    .progress-track {
+      width: min(280px, 90vw); height: 6px; border-radius: 99px;
+      background: var(--theme-bg-inset); margin: 0 auto 16px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; width: 0%; background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent-soft));
+      transition: width 0.4s ease;
+    }
+    .load-status { font-size: 13px; color: var(--theme-text-secondary); }
+    .complete-ring {
+      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 20px;
+      border: 3px solid var(--theme-success); display: flex; align-items: center; justify-content: center;
+      background: rgba(110, 231, 183, 0.1);
+    }
+    .complete-thumbs { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 24px 0; }
+    .complete-thumb-wrap { text-align: center; flex: 0 1 72px; }
+    .complete-thumb-wrap img {
+      width: 72px; height: 72px; object-fit: cover; border-radius: 12px;
+      border: 2px solid var(--theme-border);
+    }
+    .complete-thumb-wrap span { display: block; font-size: 11px; color: var(--theme-text-muted); margin-top: 6px; font-weight: 600; }
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      .panel {
+        padding: 22px 16px 28px;
+      }
+      .photo-prep-panel {
+        padding: 18px 16px calc(22px + env(safe-area-inset-bottom));
+      }
+      .photo-prep-title {
+        font-size: 24px;
+      }
+      .photo-prep-sub {
+        font-size: 12px;
+        margin-bottom: 14px;
+      }
+      .photo-prep-poses {
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .photo-prep-pose img {
+        height: 132px;
+      }
+      .photo-prep-pose-copy {
+        padding: 9px 8px 10px;
+      }
+      .photo-prep-pose-copy strong {
+        font-size: 14px;
+      }
+      .photo-prep-note {
+        margin-bottom: 14px;
+      }
+      .photo-prep-actions {
+        grid-template-columns: 1fr;
+      }
+      .capture-header {
+        padding: 10px 14px 8px;
+      }
+      .photo-view-label {
+        display: none;
+      }
+      .step-bar {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        gap: 4px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+      }
+      .step-bar::-webkit-scrollbar {
+        display: none;
+      }
+      .step-dot {
+        flex: 0 0 auto;
+        min-width: 54px;
+        height: 28px;
+        padding: 0 8px;
+      }
+      .step-line {
+        flex: 0 0 12px;
+        width: 12px;
+      }
+      .capture-title {
+        font-size: 18px;
+        margin-top: 6px;
+      }
+      .capture-instr {
+        font-size: 12px;
+      }
+      .capture-mode-tabs {
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .capture-mode-tab {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 10px;
+        font-size: 13px;
+      }
+      .capture-screen--camera .capture-header {
+        padding-bottom: 10px;
+      }
+      .upload-panel {
+        padding: 8px 12px 14px;
+        gap: 8px;
+      }
+      .upload-slots {
+        gap: 8px;
+      }
+      .upload-slot {
+        min-height: 180px;
+        padding: 8px;
+        border-radius: 10px;
+      }
+      .upload-slot-label {
+        font-size: 14px;
+        line-height: 1.15;
+      }
+      .upload-slot-help {
+        min-width: min(128px, 100%);
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+      .slot-badge {
+        font-size: 8px;
+        padding: 2px 5px;
+      }
+      .upload-slot-guide,
+      .upload-slot-preview {
+        height: 88px;
+      }
+      .upload-slot-example-label {
+        top: 6px;
+        left: 6px;
+        font-size: 8px;
+        padding: 3px 6px;
+      }
+      .camera-pose-guide {
+        padding: 8px 14px;
+      }
+      .camera-pose-guide img {
+        width: 46px;
+        height: 54px;
+      }
+      .capture-screen--camera .stage {
+        min-height: min(44svh, 360px);
+        max-height: none;
+      }
+      .thumbs {
+        padding: 8px 12px;
+      }
+      .capture-footer {
+        padding: 12px 14px calc(16px + env(safe-area-inset-bottom));
+      }
+      .status-pill {
+        margin-bottom: 10px;
+        font-size: 12px;
+      }
+      .capture-actions {
+        gap: 8px;
+      }
+      .capture-actions .btn-ghost {
+        min-width: 76px;
+        padding: 13px 14px;
+      }
+      .btn-capture {
+        padding: 13px 12px;
+        font-size: 15px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .upload-slots {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) and (max-height: 700px) {
+      .capture-title {
+        font-size: 18px;
+      }
+      .capture-screen--camera .stage {
+        min-height: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="introScreen" class="screen">
+  <div class="panel">
+    <div class="badge" aria-hidden="true">
+      <svg viewBox="0 0 44 44" fill="none">
+        <path d="M26.3 6.3c-7 0-12.8 5.7-12.8 12.8 0 5.2 3.1 9.7 7.6 11.7v5.1h11.2v-4.3c4.2-2.1 7-6.4 7-11.4 0-7.7-5.6-13.9-13-13.9Z" fill="white" opacity="0.18"/>
+        <path d="M29.8 7.9c-6.8-1.8-14 2.4-16.1 9.5-1.8 6.1 1 12.4 6.4 15" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M30.7 13.1c2.5 1.8 4 4.8 3.8 8.1-.1 1.5 1.3 2.4 2.5 3.2.8.5.6 1.8-.3 2.1l-2.7 1" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M30 30.9c-1.5 1.4-3.6 2.2-6 2.2" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M20.3 36.4h11.1" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M22 15.7c2.1-1.5 4.9-1.7 7.1-.4" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M22.5 22.8c1.7.8 3.7.8 5.4 0" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 class="intro-title">In-clinic face scan</h1>
+    <p class="sub intro-sub">Confirm patient details, then capture or upload face photos. Front and right profile are required; extra angles are optional.</p>
+    <div class="steps-row">
+      <div class="step-chip">1 · Details</div>
+      <div class="step-chip">2 · Photos</div>
+    </div>
+    <button class="btn-primary" id="beginBtn" type="button">Get started</button>
+  </div>
+</div>
+
+<div id="intakeScreen" class="screen hidden">
+  <div class="panel">
+    <h2 class="intake-title">Patient details</h2>
+    <p class="intake-sub">Enter patient details, then pick focus areas. If the email is already on file, this scan will update that patient's analysis.</p>
+    <form id="intakeForm" novalidate>
+      <div class="field client-search-field hidden" id="clientSearchField">
+        <label for="clientSearchInput">
+          Existing patient match <span class="field-label-note">(automatic by email)</span>
+        </label>
+        <div class="client-search-card" id="clientSearchCard">
+          <div class="client-search-input-wrap">
+            <svg class="client-search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/>
+              <path d="M16 16 L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <input
+              id="clientSearchInput"
+              class="client-search-input"
+              type="text"
+              placeholder="Matched automatically by email"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <div id="clientSearchResults" class="client-search-results hidden" role="listbox" aria-label="Matching patients"></div>
+          </div>
+          <p class="client-search-hint" id="clientSearchHint">Link this scan to someone already in your chart.</p>
+          <div id="selectedClientBanner" class="selected-client-banner hidden">
+            <div class="selected-client-banner__copy">
+              <span class="selected-client-banner__eyebrow">Linked to chart</span>
+              <strong id="selectedClientName"></strong>
+              <span id="selectedClientMeta"></span>
+            </div>
+            <button type="button" class="selected-client-clear" id="clearSelectedClientBtn">Clear</button>
+          </div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="intakeFirstName">First name</label>
+          <input id="intakeFirstName" name="firstName" type="text" autocomplete="given-name" placeholder="Jane" required/>
+        </div>
+        <div class="field">
+          <label for="intakeLastName">Last name</label>
+          <input id="intakeLastName" name="lastName" type="text" autocomplete="family-name" placeholder="Smith" required/>
+        </div>
+      </div>
+      <div class="field">
+        <label for="intakeEmail">Email</label>
+        <input id="intakeEmail" name="email" type="email" autocomplete="email" placeholder="name@example.com" required/>
+      </div>
+      <div class="field">
+        <label for="intakePhone">Phone</label>
+        <input id="intakePhone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 555-0100" required/>
+      </div>
+      <div id="duplicateClientWarning" class="duplicate-client-warning hidden" role="alert" aria-live="polite">
+        <div class="duplicate-client-warning__copy">
+          <strong id="duplicateClientTitle">Patient already on file</strong>
+          <p id="duplicateClientMessage"></p>
+          <div id="duplicateClientMatches" class="duplicate-client-warning__matches hidden"></div>
+        </div>
+        <div class="duplicate-client-warning__actions">
+          <button type="button" class="btn-primary btn-sm" id="duplicateClientPrefillBtn">Use existing patient</button>
+          <button type="button" class="btn-ghost btn-sm" id="duplicateClientDismissBtn">Dismiss</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>What are your focus areas? <span class="field-label-note">(pick at least one)</span></label>
+        <div class="focus-grid">
+          <label class="focus-check"><input type="checkbox" name="whatAreas" value="face" id="whatAreaFace"/> Face</label>
+          <label class="focus-check"><input type="checkbox" name="whatAreas" value="skin" id="whatAreaSkin"/> Skin</label>
+          <label class="focus-check"><input type="checkbox" name="whatAreas" value="wellness"/> Wellness</label>
+          <label class="focus-check"><input type="checkbox" name="whatAreas" value="other"/> Other</label>
+        </div>
+      </div>
+      <div class="field focus-followup hidden" id="faceRegionsFollowUp" aria-hidden="true">
+        <label>Which regions of the face are focus areas? <span class="field-label-note">(pick at least one)</span></label>
+        <div class="focus-grid">
+          <label class="focus-check"><input type="checkbox" name="faceRegions" value="forehead-eyebrows"/> Forehead and eyebrows</label>
+          <label class="focus-check"><input type="checkbox" name="faceRegions" value="eyes"/> Eyes</label>
+          <label class="focus-check"><input type="checkbox" name="faceRegions" value="cheeks"/> Cheeks</label>
+          <label class="focus-check"><input type="checkbox" name="faceRegions" value="lips"/> Lips</label>
+          <label class="focus-check"><input type="checkbox" name="faceRegions" value="face-neck-aging"/> Face and neck aging</label>
+          <label class="focus-check"><input type="checkbox" name="faceRegions" value="earlobes"/> Earlobes</label>
+          <label class="focus-check"><input type="checkbox" name="faceRegions" value="jawline-chin"/> Jawline/chin</label>
+          <label class="focus-check"><input type="checkbox" name="faceRegions" value="other"/> Other</label>
+        </div>
+      </div>
+      <div class="field focus-followup hidden" id="skinComplaintsFollowUp" aria-hidden="true">
+        <label>Which skin complaints? <span class="field-label-note">(pick at least one)</span></label>
+        <div class="focus-grid">
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="acne"/> Acne</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="wrinkles"/> Wrinkles</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="pigment"/> Pigment</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="texture"/> Texture</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="sun-damage"/> Sun damage</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="thin"/> Thin</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="thick"/> Thick</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="oily"/> Oily</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="dry"/> Dry</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="redness"/> Redness</label>
+          <label class="focus-check"><input type="checkbox" name="skinComplaints" value="other"/> Other</label>
+        </div>
+      </div>
+      <p class="form-error" id="intakeFormError" role="alert"></p>
+      <div class="intake-actions">
+        <button type="button" class="btn-ghost" id="intakeBackBtn">Back</button>
+        <button type="submit" class="btn-primary" id="intakeContinueBtn">Continue to photos</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="photoPrepScreen" class="screen hidden">
+  <div class="photo-prep-panel">
+    <p class="photo-prep-kicker">Photos</p>
+    <h2 class="photo-prep-title">Start with two angles</h2>
+    <p class="photo-prep-sub">Add these required photos first. Extra angles are optional on the next screen.</p>
+    <div class="photo-prep-poses" aria-label="Required photo examples">
+      <div class="photo-prep-pose">
+        <img src="https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-front-color.png" alt="Front photo example"/>
+        <div class="photo-prep-pose-copy">
+          <strong>Front</strong>
+          <span>Face forward</span>
+        </div>
+      </div>
+      <div class="photo-prep-pose">
+        <img src="https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-profile-right-color.png" alt="Right profile photo example"/>
+        <div class="photo-prep-pose-copy">
+          <strong>Right profile</strong>
+          <span>Turn to the right side</span>
+        </div>
+      </div>
+    </div>
+    <p class="photo-prep-note">Use even light, keep the camera at face height, and keep hair clear of the face.</p>
+    <div class="photo-prep-actions">
+      <button type="button" class="btn-primary" id="photoPrepUploadBtn">Upload photos</button>
+      <button type="button" class="btn-ghost" id="photoPrepCameraBtn">Use camera</button>
+      <button type="button" class="btn-ghost photo-prep-back" id="photoPrepBackBtn">Back to details</button>
+    </div>
+  </div>
+</div>
+
+<div id="captureScreen" class="screen hidden">
+  <div class="capture-header">
+    <div class="photo-view-label">Required steps</div>
+    <div class="step-bar" aria-label="Required scan steps">
+      <div class="step-dot done" id="flowStep0">Details</div>
+      <div class="step-line done" id="flowLine0"></div>
+      <div class="step-dot active" id="flowStep1">Front</div>
+      <div class="step-line" id="flowLine1"></div>
+      <div class="step-dot" id="flowStep2">Right</div>
+    </div>
+    <div class="capture-title" id="stepTitle">Front view</div>
+    <div class="capture-instr" id="stepInstr">Look straight at the camera.</div>
+    <div class="capture-mode-tabs" role="tablist" aria-label="Photo source">
+      <button type="button" class="capture-mode-tab" data-mode="camera" id="captureModeCameraBtn">Use camera</button>
+      <button type="button" class="capture-mode-tab capture-mode-tab--active" data-mode="upload" id="captureModeUploadBtn">Upload photos</button>
+    </div>
+  </div>
+  <div class="stage-wrap hidden" id="cameraPanel">
+    <div class="camera-pose-guide" id="cameraPoseGuide">
+      <img id="cameraGuideImg" src="https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-front-color.png" alt="Example pose"/>
+      <div>
+        <span id="cameraGuideLabel">Front</span>
+        <p id="cameraGuideText">Match this angle, then capture.</p>
+      </div>
+    </div>
+    <div class="stage">
+      <video id="video" playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="flash" id="flashOverlay"></div>
+    </div>
+    <div class="thumbs">
+      <img class="thumb" id="thumb0" alt="" hidden/>
+      <img class="thumb" id="thumb1" alt="" hidden/>
+      <img class="thumb" id="thumb2" alt="" hidden/>
+      <img class="thumb" id="thumb3" alt="" hidden/>
+      <img class="thumb" id="thumb4" alt="" hidden/>
+    </div>
+  </div>
+  <div id="uploadPanel" class="upload-panel">
+    <p class="upload-panel-hint">Required: Front + right profile. Optional: add extra angles if available.</p>
+    <div class="upload-slots">
+      <label class="upload-slot" id="uploadSlot0">
+        <input type="file" id="uploadInput0" accept="image/*,.heic,.heif" multiple/>
+        <span class="upload-slot-guide-frame">
+          <img class="upload-slot-guide" src="https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-front-color.png" alt="" aria-hidden="true"/>
+          <span class="upload-slot-example-label">Example</span>
+        </span>
+        <span class="upload-slot-label"><span class="upload-slot-name">Front</span><span class="slot-badge slot-badge--required">required</span></span>
+        <span class="upload-slot-help">Tap to add</span>
+        <div class="upload-slot-preview-wrap">
+          <img class="upload-slot-preview" id="uploadPreview0" alt="" hidden/>
+        </div>
+      </label>
+      <label class="upload-slot" id="uploadSlot1">
+        <input type="file" id="uploadInput1" accept="image/*,.heic,.heif" multiple/>
+        <span class="upload-slot-guide-frame">
+          <img class="upload-slot-guide" src="https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-three-quarter-left-color.png" alt="" aria-hidden="true"/>
+          <span class="upload-slot-example-label">Example</span>
+        </span>
+        <span class="upload-slot-label"><span class="upload-slot-name">Half-left</span><span class="slot-badge slot-badge--optional">optional</span></span>
+        <span class="upload-slot-help">Tap to add</span>
+        <div class="upload-slot-preview-wrap">
+          <img class="upload-slot-preview" id="uploadPreview1" alt="" hidden/>
+        </div>
+      </label>
+      <label class="upload-slot" id="uploadSlot2">
+        <input type="file" id="uploadInput2" accept="image/*,.heic,.heif" multiple/>
+        <span class="upload-slot-guide-frame">
+          <img class="upload-slot-guide" src="https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-three-quarter-right-color.png" alt="" aria-hidden="true"/>
+          <span class="upload-slot-example-label">Example</span>
+        </span>
+        <span class="upload-slot-label"><span class="upload-slot-name">Half-right</span><span class="slot-badge slot-badge--optional">optional</span></span>
+        <span class="upload-slot-help">Tap to add</span>
+        <div class="upload-slot-preview-wrap">
+          <img class="upload-slot-preview" id="uploadPreview2" alt="" hidden/>
+        </div>
+      </label>
+      <label class="upload-slot" id="uploadSlot3">
+        <input type="file" id="uploadInput3" accept="image/*,.heic,.heif" multiple/>
+        <span class="upload-slot-guide-frame">
+          <img class="upload-slot-guide" src="https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-profile-left-color.png" alt="" aria-hidden="true"/>
+          <span class="upload-slot-example-label">Example</span>
+        </span>
+        <span class="upload-slot-label"><span class="upload-slot-name">Left profile</span><span class="slot-badge slot-badge--optional">optional</span></span>
+        <span class="upload-slot-help">Tap to add</span>
+        <div class="upload-slot-preview-wrap">
+          <img class="upload-slot-preview" id="uploadPreview3" alt="" hidden/>
+        </div>
+      </label>
+      <label class="upload-slot" id="uploadSlot4">
+        <input type="file" id="uploadInput4" accept="image/*,.heic,.heif" multiple/>
+        <span class="upload-slot-guide-frame">
+          <img class="upload-slot-guide" src="https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-profile-right-color.png" alt="" aria-hidden="true"/>
+          <span class="upload-slot-example-label">Example</span>
+        </span>
+        <span class="upload-slot-label"><span class="upload-slot-name">Right profile</span><span class="slot-badge slot-badge--required">required</span></span>
+        <span class="upload-slot-help">Tap to add</span>
+        <div class="upload-slot-preview-wrap">
+          <img class="upload-slot-preview" id="uploadPreview4" alt="" hidden/>
+        </div>
+      </label>
+    </div>
+  </div>
+  <div class="capture-footer">
+    <div class="status-pill" id="statusPill">Add front and right profile photos to continue</div>
+    <button type="button" class="btn-skip hidden" id="captureSkipBtn">Skip optional view</button>
+    <div class="capture-actions">
+      <button type="button" class="btn-ghost" id="captureBackBtn">Back</button>
+      <button class="btn-capture" id="captureBtn" type="button" disabled>Upload required photos to continue</button>
+    </div>
+  </div>
+</div>
+
+<div id="loadingScreen" class="screen hidden">
+  <div class="load-panel">
+    <div class="load-title">Posting photos</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="load-status" id="loadStatus">Saving…</div>
+  </div>
+</div>
+
+<div id="completeScreen" class="screen hidden">
+  <div class="panel">
+    <div class="complete-ring">
+      <svg width="36" height="36" viewBox="0 0 42 42" fill="none" aria-hidden="true">
+        <path d="M 10 21 L 18 29 L 32 13" stroke="#6ee7b7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h2 style="text-align:center;font-size:24px;font-weight:700;">Capture completed successfully</h2>
+    <p class="sub" id="completePhotoSummary" style="margin-bottom:0;">Photos captured and posted to the dashboard. Processing can take up to 5 minutes. You can close this window now.</p>
+    <div class="complete-thumbs">
+      <div class="complete-thumb-wrap"><img id="cThumb0" alt="Front"/><span>Front</span></div>
+      <div class="complete-thumb-wrap"><img id="cThumb1" alt="Half-left"/><span>Half-left</span></div>
+      <div class="complete-thumb-wrap"><img id="cThumb2" alt="Half-right"/><span>Half-right</span></div>
+      <div class="complete-thumb-wrap"><img id="cThumb3" alt="Left profile"/><span>Left profile</span></div>
+      <div class="complete-thumb-wrap"><img id="cThumb4" alt="Right profile"/><span>Right profile</span></div>
+    </div>
+    <button class="btn-primary" id="closeScanBtn" type="button">Close</button>
+  </div>
+</div>
+
+<script type="module">
+const MEDIAPIPE_VISION_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs";
+let FaceLandmarker = null;
+let FilesetResolver = null;
+
+async function loadMediaPipeVision() {
+  if (FaceLandmarker && FilesetResolver) return;
+  const MediaPipeVision = await import(MEDIAPIPE_VISION_URL);
+  ({ FaceLandmarker, FilesetResolver } = MediaPipeVision);
+}
+
+const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const PHOTO_COUNT = 5;
+/** Maps capture slot index → scan photo keys. */
+const PHOTO_SLOT_KEYS = ["front", "left45", "right45", "left90", "right90"];
+/** Front and right profile are required; 45° views and left profile are optional. */
+const PHOTO_REQUIRED = [true, false, false, false, true];
+const LANDMARK_SMOOTH = 0.75;
+const MANUAL_CLIENT_SEARCH_ENABLED = false;
+const CAMERA_POSE_VALIDATION_DEFAULT = window.__clinicScanPoseValidationDefault === true;
+const PHOTO_GUIDES = [
+  {
+    src: "https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-front-color.png",
+    label: "Front",
+    text: "Face forward, then capture.",
+  },
+  {
+    src: "https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-three-quarter-left-color.png",
+    label: "Half-left",
+    text: "Turn halfway left.",
+  },
+  {
+    src: "https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-three-quarter-right-color.png",
+    label: "Half-right",
+    text: "Turn halfway right.",
+  },
+  {
+    src: "https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-profile-left-color.png",
+    label: "Left profile",
+    text: "Turn to the left side.",
+  },
+  {
+    src: "https://storage.googleapis.com/test-deploy-august25/demo-3d/tanya-tan/tanya-tan-profile-right-color.png",
+    label: "Right profile",
+    text: "Turn to the right side.",
+  },
+];
+
+const STEPS = [
+  {
+    title: "Front view",
+    shortLabel: "Front",
+    instr: "Match the front example.",
+    guide: PHOTO_GUIDES[0],
+    optional: false,
+    yawOk: (y) => Math.abs(y) <= 28,
+    hint: (y) => (Math.abs(y) <= 28 ? "Good — hold still" : "Face the camera more directly"),
+  },
+  {
+    title: "Half-left",
+    shortLabel: "Left",
+    instr: "Match the half-left example.",
+    guide: PHOTO_GUIDES[1],
+    optional: true,
+    yawOk: (y) => y <= -30 && y >= -65,
+    hint: (y) => {
+      if (y > -30) return "Turn further to your left";
+      if (y < -65) return "Turn back slightly toward center";
+      return "Good — hold still";
+    },
+  },
+  {
+    title: "Half-right",
+    shortLabel: "Right",
+    instr: "Match the half-right example.",
+    guide: PHOTO_GUIDES[2],
+    optional: true,
+    yawOk: (y) => y >= 30 && y <= 65,
+    hint: (y) => {
+      if (y < 30) return "Turn further to your right";
+      if (y > 65) return "Turn back slightly toward center";
+      return "Good — hold still";
+    },
+  },
+  {
+    title: "Left profile",
+    shortLabel: "Left",
+    instr: "Match the left profile example.",
+    guide: PHOTO_GUIDES[3],
+    optional: true,
+    yawOk: (y) => y <= -68,
+    hint: (y) => (y <= -68 ? "Good — hold still" : "Turn further to your left"),
+  },
+  {
+    title: "Right profile",
+    shortLabel: "Right",
+    instr: "Match the right profile example.",
+    guide: PHOTO_GUIDES[4],
+    optional: false,
+    yawOk: (y) => y >= 68,
+    hint: (y) => (y >= 68 ? "Good — hold still" : "Turn further to your right"),
+  },
+];
+
+const CAMERA_STEP_INDICES = PHOTO_REQUIRED.reduce((steps, required, index) => {
+  if (required) steps.push(index);
+  return steps;
+}, []);
+
+const REQUIRED_FLOW_STEPS = [
+  { label: "Details", title: "Patient details" },
+  ...CAMERA_STEP_INDICES.map((slotIndex) => ({
+    label: STEPS[slotIndex]?.shortLabel || String(slotIndex + 1),
+    title: STEPS[slotIndex]?.title || `Photo ${slotIndex + 1}`,
+    slotIndex,
+  })),
+];
+
+const LEFT_EYE = [33, 133, 159, 145];
+const RIGHT_EYE = [362, 263, 386, 374];
+
+const REGION_MAP_LABEL_TO_VALUE = {
+  Eyebrows: "forehead-eyebrows",
+  Eyes: "eyes",
+  Cheeks: "cheeks",
+  Nose: "nose",
+  Lips: "lips",
+  "Face and neck aging": "face-neck-aging",
+  Ears: "earlobes",
+  "Jawline/chin": "jawline-chin",
+};
+
+const SKIN_MAP_LABEL_TO_VALUE = {
+  Acne: "acne",
+  Wrinkles: "wrinkles",
+  Pigment: "pigment",
+  Texture: "texture",
+  "Sun damage": "sun-damage",
+  Thin: "thin",
+  Thick: "thick",
+  Oily: "oily",
+  Dry: "dry",
+  Redness: "redness",
+};
+
+const WHAT_AREA_PREFILL_MAP = {
+  face: "face",
+  skin: "skin",
+  wellness: "wellness",
+  other: "other",
+  Face: "face",
+  Skin: "skin",
+  Wellness: "wellness",
+  Other: "other",
+  Body: "other",
+};
+
+const SCREENS = ["introScreen", "intakeScreen", "photoPrepScreen", "captureScreen", "loadingScreen", "completeScreen"];
+function syncAppViewportHeight() {
+  const height = window.visualViewport?.height || window.innerHeight;
+  if (!height) return;
+  document.documentElement.style.setProperty("--app-vh", `${height * 0.01}px`);
+}
+syncAppViewportHeight();
+window.visualViewport?.addEventListener("resize", syncAppViewportHeight);
+window.visualViewport?.addEventListener("scroll", syncAppViewportHeight);
+window.addEventListener("resize", syncAppViewportHeight);
+
+function showScreen(id) {
+  SCREENS.forEach((s) => document.getElementById(s).classList.toggle("hidden", s !== id));
+}
+
+let faceLandmarker = null;
+let stream = null;
+let animId = null;
+let running = false;
+let lastVideoTime = -1;
+let smoothedLM = null;
+let smoothedYaw = null;
+let currentStep = 0;
+let capturedImages = Array(PHOTO_COUNT).fill(null);
+let canCapture = false;
+let intakeFormData = null;
+let selectedClientMatch = null;
+let selectedClientMatchSource = "";
+let photoInputMode = "upload";
+let cameraPoseValidationEnabled = CAMERA_POSE_VALIDATION_DEFAULT;
+let uploadPreviewUrls = Array(PHOTO_COUNT).fill(null);
+let searchRequestCounter = 0;
+const pendingSearchResolvers = new Map();
+let searchDebounceTimer = null;
+let contactLookupRequestCounter = 0;
+const pendingContactLookupResolvers = new Map();
+let contactLookupDebounceTimer = null;
+let pendingDuplicateMatches = [];
+let duplicateDismissedForKey = "";
+
+const clientSearchInput = document.getElementById("clientSearchInput");
+const clientSearchResults = document.getElementById("clientSearchResults");
+const clientSearchHint = document.getElementById("clientSearchHint");
+const selectedClientBanner = document.getElementById("selectedClientBanner");
+const selectedClientName = document.getElementById("selectedClientName");
+const selectedClientMeta = document.getElementById("selectedClientMeta");
+const clearSelectedClientBtn = document.getElementById("clearSelectedClientBtn");
+const duplicateClientWarning = document.getElementById("duplicateClientWarning");
+const duplicateClientTitle = document.getElementById("duplicateClientTitle");
+const duplicateClientMessage = document.getElementById("duplicateClientMessage");
+const duplicateClientMatches = document.getElementById("duplicateClientMatches");
+const duplicateClientPrefillBtn = document.getElementById("duplicateClientPrefillBtn");
+const duplicateClientDismissBtn = document.getElementById("duplicateClientDismissBtn");
+const cameraPanel = document.getElementById("cameraPanel");
+const uploadPanel = document.getElementById("uploadPanel");
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const flashEl = document.getElementById("flashOverlay");
+const captureBtn = document.getElementById("captureBtn");
+const captureSkipBtn = document.getElementById("captureSkipBtn");
+const statusPill = document.getElementById("statusPill");
+const cameraGuideImg = document.getElementById("cameraGuideImg");
+const cameraGuideLabel = document.getElementById("cameraGuideLabel");
+const cameraGuideText = document.getElementById("cameraGuideText");
+
+function canSearchExistingClients() {
+  return Boolean(window.parent && window.parent !== window);
+}
+
+const DEFAULT_CLINIC_SCAN_API_BASE =
+  location.hostname === "localhost" || location.hostname === "127.0.0.1"
+    ? "" // relative — Vite proxy routes /api/* to local server.py
+    : "https://ponce-patient-backend.vercel.app";
+
+function getClinicScanApiBase() {
+  const base = window.__clinicScanApiBase !== undefined
+    ? window.__clinicScanApiBase
+    : DEFAULT_CLINIC_SCAN_API_BASE;
+  return String(base).replace(/\/$/, "");
+}
+
+function getProviderContext() {
+  const fromInit = window.__clinicScanProvider || {};
+  const qs = new URLSearchParams(location.search);
+  return {
+    id: fromInit.id || qs.get("providerId") || "",
+    name: fromInit.name || qs.get("providerName") || "",
+    code: fromInit.code || qs.get("providerCode") || "",
+  };
+}
+
+function buildPhotoPayload() {
+  const photos = {};
+  capturedImages.forEach((url, index) => {
+    if (!url) return;
+    photos[PHOTO_SLOT_KEYS[index]] = url;
+  });
+  return photos;
+}
+
+function countProvidedPhotos(photos) {
+  return Object.keys(photos).length;
+}
+
+async function pollScanJob(jobId, fillEl, statusEl, estimatedSeconds) {
+  const apiBase = getClinicScanApiBase();
+  const estimatedMs = Math.max(Number(estimatedSeconds) || 180, 120) * 1000;
+  const timeoutMs = Math.max(estimatedMs + 20 * 60 * 1000, 55 * 60 * 1000);
+  const started = Date.now();
+  const statusPaths = [`/api/scan/status/${jobId}`, `/api/scan/status/${jobId}/json`];
+
+  let consecutiveErrors = 0;
+  const maxConsecutiveErrors = 8;
+  while (true) {
+    let data = null;
+    for (const path of statusPaths) {
+      try {
+        const res = await fetch(`${apiBase}${path}`);
+        if (res.status === 404 && path.endsWith("/json")) continue;
+        // 429 or 5xx are transient — back off and retry rather than fail
+        if (res.status === 429 || res.status >= 500) {
+          console.warn(`[scan] Status poll ${res.status}; will retry`);
+          break;
+        }
+        if (!res.ok) break;
+        const text = await res.text();
+        try { data = JSON.parse(text); } catch { break; }
+        break;
+      } catch {
+        // try next path
+      }
+    }
+    if (!data) {
+      consecutiveErrors++;
+      if (consecutiveErrors >= maxConsecutiveErrors) {
+        throw new Error("Could not check scan progress after several retries.");
+      }
+      // Back off before retrying a transient error
+      await new Promise((resolve) => setTimeout(resolve, Math.min(consecutiveErrors * 2000, 10000)));
+      continue;
+    }
+    consecutiveErrors = 0;
+    const progress = typeof data.progress === "number" ? data.progress : 0.08;
+    fillEl.style.width = `${Math.max(8, Math.round(progress * 100))}%`;
+    statusEl.textContent = data.message || data.status || "Processing photos…";
+
+    if (data.status === "done" || data.status === "partial") return data;
+    if (data.status === "error") {
+      throw new Error(data.error || data.detail || data.warning || "Scan pipeline failed.");
+    }
+
+    if (Date.now() - started > timeoutMs) {
+      throw new Error(
+        "Scan is taking longer than expected. The Form Submission was saved, but the 3D analysis is still running.",
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+}
+
+function parseSubmitErrorResponse(statusText, errBody) {
+  if (errBody && typeof errBody.detail === "string" && errBody.detail.trim()) {
+    return errBody.detail;
+  }
+  if (Array.isArray(errBody?.detail)) {
+    return errBody.detail.map((item) => item?.msg || item?.message || String(item)).join(", ");
+  }
+  if (typeof errBody?.error === "string" && errBody.error.trim()) return errBody.error;
+  if (typeof errBody?.message === "string" && errBody.message.trim()) return errBody.message;
+  return statusText || "Submission failed.";
+}
+
+async function ensureScanServerReady() {
+  const apiBase = getClinicScanApiBase();
+  try {
+    const isLocal = !apiBase || (() => {
+      try { const h = new URL(apiBase).hostname; return h === "localhost" || h === "127.0.0.1"; }
+      catch { return false; }
+    })();
+    if (!isLocal) return;
+    const res = await fetch(`${apiBase}/health`, { method: "GET" });
+    if (!res.ok) throw new Error("health check failed");
+  } catch {
+    throw new Error(
+      "Scan server is not running. Open a second terminal and run: npm run scan-server",
+    );
+  }
+}
+
+function setInput(id, value) {
+  const el = document.getElementById(id);
+  if (el && value) el.value = value;
+}
+
+function setInputIfBlank(id, value) {
+  const el = document.getElementById(id);
+  if (el && !el.value.trim() && value) el.value = value;
+}
+
+function getCheckedValues(selector) {
+  return Array.from(document.querySelectorAll(selector))
+    .filter((el) => el.checked)
+    .map((el) => el.value);
+}
+
+function checkByValue(name, value) {
+  const el = document.querySelector(`#intakeForm input[name="${name}"][value="${value}"]`);
+  if (el) el.checked = true;
+}
+
+function syncFocusFollowUps() {
+  const faceChecked = document.getElementById("whatAreaFace")?.checked;
+  const skinChecked = document.getElementById("whatAreaSkin")?.checked;
+  const faceBlock = document.getElementById("faceRegionsFollowUp");
+  const skinBlock = document.getElementById("skinComplaintsFollowUp");
+
+  if (faceBlock) {
+    faceBlock.classList.toggle("hidden", !faceChecked);
+    faceBlock.setAttribute("aria-hidden", faceChecked ? "false" : "true");
+    if (!faceChecked) {
+      faceBlock.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+        el.checked = false;
+      });
+    }
+  }
+  if (skinBlock) {
+    skinBlock.classList.toggle("hidden", !skinChecked);
+    skinBlock.setAttribute("aria-hidden", skinChecked ? "false" : "true");
+    if (!skinChecked) {
+      skinBlock.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+        el.checked = false;
+      });
+    }
+  }
+}
+
+function checkRegionValue(value) {
+  checkByValue("faceRegions", value);
+}
+
+function applyFaceRegionLabels(labels) {
+  document.querySelectorAll('#intakeForm input[name="faceRegions"]').forEach((el) => {
+    el.checked = false;
+  });
+  const list = labels || [];
+  list.forEach((label) => {
+    const mapped = REGION_MAP_LABEL_TO_VALUE[label];
+    if (mapped) checkRegionValue(mapped);
+  });
+  if (list.length > 0) checkByValue("whatAreas", "face");
+  syncFocusFollowUps();
+}
+
+function applySkinComplaintLabels(labels) {
+  document.querySelectorAll('#intakeForm input[name="skinComplaints"]').forEach((el) => {
+    el.checked = false;
+  });
+  const list = labels || [];
+  list.forEach((label) => {
+    const mapped = SKIN_MAP_LABEL_TO_VALUE[label];
+    if (mapped) checkByValue("skinComplaints", mapped);
+  });
+  if (list.length > 0) checkByValue("whatAreas", "skin");
+  syncFocusFollowUps();
+}
+
+function updateSelectedClientBanner() {
+  if (!selectedClientMatch) {
+    selectedClientBanner.classList.add("hidden");
+    return;
+  }
+  selectedClientName.textContent = selectedClientMatch.name;
+  const meta = [selectedClientMatch.email, selectedClientMatch.phone].filter(Boolean).join(" · ");
+  selectedClientMeta.textContent = meta;
+  selectedClientBanner.classList.remove("hidden");
+}
+
+function applyClientMatch(match, options = {}) {
+  const { source = "manual", prefill = true, showNotice = false } = options;
+  selectedClientMatch = match;
+  selectedClientMatchSource = source;
+  window.__clinicScanContext = {
+    recordId: match.id,
+    tableName: match.tableSource,
+  };
+  if (prefill) {
+    setInput("intakeFirstName", match.firstName);
+    setInput("intakeLastName", match.lastName);
+    setInput("intakeEmail", match.email);
+    if (match.phone) setInput("intakePhone", formatPhoneInput(match.phone));
+    applyFaceRegionLabels(match.faceRegions);
+  } else {
+    setInputIfBlank("intakeFirstName", match.firstName);
+    setInputIfBlank("intakeLastName", match.lastName);
+    if (match.phone) setInputIfBlank("intakePhone", formatPhoneInput(match.phone));
+  }
+  clientSearchInput.value = match.name;
+  clientSearchResults.classList.add("hidden");
+  clientSearchHint.textContent = source === "email"
+    ? "Existing patient matched by email."
+    : "Patient linked — details filled below.";
+  updateSelectedClientBanner();
+  if (showNotice) {
+    showExistingPatientNotice(match);
+  } else {
+    hideDuplicateWarning();
+  }
+  syncClinicDoneButton();
+}
+
+function clearSelectedClient() {
+  selectedClientMatch = null;
+  selectedClientMatchSource = "";
+  const prefill = window.__clinicScanContext?.fromUrlPrefill;
+  window.__clinicScanContext = {
+    recordId: prefill ? window.__clinicScanContext.recordId : "",
+    tableName: prefill ? window.__clinicScanContext.tableName : "",
+    fromUrlPrefill: Boolean(prefill),
+  };
+  clientSearchInput.value = "";
+  clientSearchHint.textContent = "Link this scan to someone already in your chart.";
+  updateSelectedClientBanner();
+  syncClinicDoneButton();
+  scheduleContactDuplicateCheck();
+}
+
+function getIntakeEmailValue() {
+  return document.getElementById("intakeEmail").value.trim().toLowerCase();
+}
+
+function getIntakePhoneValue() {
+  return formatPhoneInput(document.getElementById("intakePhone").value);
+}
+
+function getContactLookupKey(email, phone) {
+  const digits = getPhoneDigits(phone);
+  return `${email}|${digits}`;
+}
+
+function describeContactMatchReason(match) {
+  if (match.matchedEmail && match.matchedPhone) return "email and phone";
+  if (match.matchedEmail) return "email";
+  return "phone";
+}
+
+function buildDuplicateWarningMessage(matches) {
+  if (matches.length === 1) {
+    const match = matches[0];
+    return `A patient named ${match.name} already uses this email. This scan will update their analysis.`;
+  }
+  return "This email matches multiple patients already on file. Choose which chart should receive the new analysis.";
+}
+
+function hideDuplicateWarning() {
+  pendingDuplicateMatches = [];
+  duplicateClientWarning?.classList.add("hidden");
+  duplicateClientMatches?.classList.add("hidden");
+  if (duplicateClientMatches) duplicateClientMatches.innerHTML = "";
+  if (duplicateClientPrefillBtn) duplicateClientPrefillBtn.classList.remove("hidden");
+  if (duplicateClientDismissBtn) duplicateClientDismissBtn.classList.remove("hidden");
+}
+
+function showExistingPatientNotice(match) {
+  if (!duplicateClientWarning) return;
+  pendingDuplicateMatches = [];
+  duplicateClientTitle.textContent = "Existing patient matched";
+  duplicateClientMessage.textContent =
+    `New photos will regenerate the analysis for ${match.name || "this patient"} instead of creating a duplicate patient.`;
+  duplicateClientMatches?.classList.add("hidden");
+  if (duplicateClientMatches) duplicateClientMatches.innerHTML = "";
+  duplicateClientPrefillBtn?.classList.add("hidden");
+  duplicateClientDismissBtn?.classList.add("hidden");
+  duplicateClientWarning.classList.remove("hidden");
+}
+
+function showDuplicateWarning(matches) {
+  if (!duplicateClientWarning || !matches.length) {
+    hideDuplicateWarning();
+    return;
+  }
+
+  pendingDuplicateMatches = matches.slice();
+  duplicateClientTitle.textContent =
+    matches.length === 1 ? "Patient already on file" : "Multiple matching patients";
+  duplicateClientMessage.textContent = buildDuplicateWarningMessage(matches);
+
+  if (matches.length === 1) {
+    duplicateClientMatches.classList.add("hidden");
+    duplicateClientMatches.innerHTML = "";
+    duplicateClientPrefillBtn.classList.remove("hidden");
+    duplicateClientDismissBtn?.classList.add("hidden");
+    duplicateClientPrefillBtn.textContent = `Update ${matches[0].name}`;
+    duplicateClientPrefillBtn.onclick = () => applyClientMatch(matches[0]);
+  } else {
+    duplicateClientPrefillBtn.classList.add("hidden");
+    duplicateClientDismissBtn?.classList.add("hidden");
+    duplicateClientMatches.classList.remove("hidden");
+    duplicateClientMatches.innerHTML = "";
+    matches.forEach((match) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "duplicate-client-match-btn";
+      const reason = describeContactMatchReason(match);
+      btn.innerHTML = `<strong>${match.name}</strong><span>Matched by ${reason} · ${[match.email, match.phone].filter(Boolean).join(" · ")}</span>`;
+      btn.addEventListener("click", () => applyClientMatch(match));
+      duplicateClientMatches.appendChild(btn);
+    });
+  }
+
+  duplicateClientWarning.classList.remove("hidden");
+}
+
+window.addEventListener("message", (event) => {
+  if (event.origin !== window.location.origin) return;
+  const data = event.data;
+  if (!data || typeof data !== "object") return;
+
+  if (data.type === "clinic-scan-init") {
+    window.__clinicScanProvider = {
+      id: String(data.providerId ?? ""),
+      name: String(data.providerName ?? ""),
+      code: String(data.providerCode ?? ""),
+    };
+    if (data.scanApiBase) {
+      window.__clinicScanApiBase = String(data.scanApiBase);
+    }
+    return;
+  }
+
+  if (data.type === "clinic-scan-search-results") {
+    const resolve = pendingSearchResolvers.get(data.requestId);
+    if (!resolve) return;
+    pendingSearchResolvers.delete(data.requestId);
+    resolve(Array.isArray(data.results) ? data.results : []);
+    return;
+  }
+
+  if (data.type === "clinic-scan-lookup-contact-results") {
+    const resolve = pendingContactLookupResolvers.get(data.requestId);
+    if (!resolve) return;
+    pendingContactLookupResolvers.delete(data.requestId);
+    resolve(Array.isArray(data.results) ? data.results : []);
+  }
+});
+
+function requestClientSearch(query) {
+  return new Promise((resolve) => {
+    if (!canSearchExistingClients()) {
+      resolve([]);
+      return;
+    }
+    const requestId = `cs-${++searchRequestCounter}-${Date.now()}`;
+    pendingSearchResolvers.set(requestId, resolve);
+    window.parent.postMessage(
+      { type: "clinic-scan-search-clients", requestId, query },
+      window.location.origin,
+    );
+    setTimeout(() => {
+      if (!pendingSearchResolvers.has(requestId)) return;
+      pendingSearchResolvers.delete(requestId);
+      resolve([]);
+    }, 8000);
+  });
+}
+
+function renderClientSearchResults(results) {
+  clientSearchResults.innerHTML = "";
+  if (!results.length) {
+    const empty = document.createElement("div");
+    empty.className = "client-search-empty";
+    empty.textContent = "No matching patients found.";
+    clientSearchResults.appendChild(empty);
+    clientSearchResults.classList.remove("hidden");
+    return;
+  }
+  results.forEach((match) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "client-search-item";
+    btn.setAttribute("role", "option");
+    const nameEl = document.createElement("span");
+    nameEl.className = "client-search-item-name";
+    nameEl.textContent = match.name;
+    const metaEl = document.createElement("span");
+    metaEl.className = "client-search-item-meta";
+    metaEl.textContent = [match.email, match.phone].filter(Boolean).join(" · ") || match.tableSource;
+    btn.append(nameEl, metaEl);
+    btn.addEventListener("click", () => applyClientMatch(match));
+    clientSearchResults.appendChild(btn);
+  });
+  clientSearchResults.classList.remove("hidden");
+}
+
+function requestContactLookup(email, phone) {
+  return new Promise((resolve) => {
+    if (!canSearchExistingClients()) {
+      resolve([]);
+      return;
+    }
+    const requestId = `cs-contact-${++contactLookupRequestCounter}-${Date.now()}`;
+    pendingContactLookupResolvers.set(requestId, resolve);
+    window.parent.postMessage(
+      {
+        type: "clinic-scan-lookup-contact",
+        requestId,
+        email: email || "",
+        phone: phone || "",
+      },
+      window.location.origin,
+    );
+    setTimeout(() => {
+      if (!pendingContactLookupResolvers.has(requestId)) return;
+      pendingContactLookupResolvers.delete(requestId);
+      resolve([]);
+    }, 8000);
+  });
+}
+
+async function checkForDuplicateContact() {
+  if (!canSearchExistingClients()) {
+    hideDuplicateWarning();
+    return;
+  }
+
+  const email = getIntakeEmailValue();
+  const phone = getIntakePhoneValue();
+  document.getElementById("intakePhone").value = phone;
+  const emailValid = email.includes("@") && email.includes(".");
+
+  if (!emailValid) {
+    hideDuplicateWarning();
+    return;
+  }
+
+  if (selectedClientMatch) {
+    const linkedEmail = String(selectedClientMatch.email ?? "").trim().toLowerCase();
+    const sameEmail = emailValid && linkedEmail === email;
+    if (sameEmail) {
+      if (selectedClientMatchSource === "email") {
+        showExistingPatientNotice(selectedClientMatch);
+      } else {
+        hideDuplicateWarning();
+      }
+      return;
+    }
+    if (selectedClientMatchSource === "email") {
+      clearSelectedClient();
+    }
+  }
+
+  const matches = await requestContactLookup(email, "");
+  const filtered = matches.filter((match) => {
+    const matchEmail = String(match.email ?? "").trim().toLowerCase();
+    return (
+      match.id !== selectedClientMatch?.id &&
+      match.tableSource === "Patients" &&
+      match.matchedEmail &&
+      matchEmail === email
+    );
+  });
+  if (!filtered.length) {
+    hideDuplicateWarning();
+    return;
+  }
+
+  if (filtered.length === 1) {
+    applyClientMatch(filtered[0], {
+      source: "email",
+      prefill: false,
+      showNotice: true,
+    });
+    return;
+  }
+
+  showDuplicateWarning(filtered);
+}
+
+function scheduleContactDuplicateCheck(delayMs = 350) {
+  clearTimeout(contactLookupDebounceTimer);
+  contactLookupDebounceTimer = setTimeout(() => {
+    checkForDuplicateContact().catch(console.error);
+  }, delayMs);
+}
+
+function initContactDuplicateUi() {
+  const emailInput = document.getElementById("intakeEmail");
+  const phoneInput = document.getElementById("intakePhone");
+
+  const handleContactFieldChange = () => {
+    const lookupKey = getContactLookupKey(getIntakeEmailValue(), getIntakePhoneValue());
+    if (duplicateDismissedForKey && duplicateDismissedForKey !== lookupKey) {
+      duplicateDismissedForKey = "";
+    }
+    scheduleContactDuplicateCheck();
+  };
+
+  emailInput?.addEventListener("input", handleContactFieldChange);
+  emailInput?.addEventListener("blur", () => scheduleContactDuplicateCheck(0));
+  phoneInput?.addEventListener("input", handleContactFieldChange);
+  phoneInput?.addEventListener("blur", () => scheduleContactDuplicateCheck(0));
+
+  duplicateClientDismissBtn?.addEventListener("click", () => {
+    duplicateDismissedForKey = getContactLookupKey(
+      getIntakeEmailValue(),
+      getIntakePhoneValue(),
+    );
+    hideDuplicateWarning();
+  });
+}
+
+async function handleClientSearchInput() {
+  const query = clientSearchInput.value.trim();
+  if (query.length < 2) {
+    clientSearchResults.classList.add("hidden");
+    clientSearchHint.textContent = "Link this scan to someone already in your chart.";
+    return;
+  }
+  if (!canSearchExistingClients()) {
+    clientSearchHint.textContent = "Patient search is available when opened from the dashboard.";
+    return;
+  }
+  clientSearchHint.textContent = "Searching your patient list…";
+  const results = await requestClientSearch(query);
+  clientSearchHint.textContent = results.length
+    ? "Select a patient to link this scan."
+    : "No matches — enter details below for a new patient.";
+  renderClientSearchResults(results);
+}
+
+function setPhotoInputMode(mode) {
+  photoInputMode = mode === "upload" ? "upload" : "camera";
+  document.querySelectorAll(".capture-mode-tab").forEach((btn) => {
+    btn.classList.toggle("capture-mode-tab--active", btn.dataset.mode === photoInputMode);
+  });
+  const isUpload = photoInputMode === "upload";
+  const captureScreen = document.getElementById("captureScreen");
+  captureScreen?.classList.toggle("capture-screen--camera", !isUpload);
+  captureScreen?.classList.toggle("capture-screen--upload", isUpload);
+  cameraPanel.classList.toggle("hidden", isUpload);
+  uploadPanel.classList.toggle("hidden", !isUpload);
+  refreshStepBar();
+  if (isUpload) {
+    stopCamera();
+    updateUploadContinueState();
+    captureSkipBtn?.classList.add("hidden");
+    return;
+  }
+  cameraPoseValidationEnabled = CAMERA_POSE_VALIDATION_DEFAULT;
+  smoothedYaw = null;
+  startCameraIfNeeded();
+  updateCameraStepControls();
+  setCaptureReady(false, "Starting camera…", "");
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const MAX_UPLOAD_BYTES = 24 * 1024 * 1024;
+const UPLOAD_FILE_HELP = "a JPG, PNG, WebP, HEIC, or HEIF photo";
+
+function isHeicUploadFile(file) {
+  const type = String(file?.type || "").toLowerCase();
+  const name = String(file?.name || "").toLowerCase();
+  return type.includes("heic") || type.includes("heif") || /\.(heic|heif)$/i.test(name);
+}
+
+function loadImageElementFromFile(file) {
+  const objectUrl = URL.createObjectURL(file);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read image"));
+    };
+    img.src = objectUrl;
+  });
+}
+
+function imageSourceSize(source) {
+  const width = source.naturalWidth || source.videoWidth || source.width || 0;
+  const height = source.naturalHeight || source.videoHeight || source.height || 0;
+  return { width, height };
+}
+
+async function decodeImageFile(file) {
+  if ("createImageBitmap" in window) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch (_) {
+      // Fall back to an object URL below; Safari support varies by file type.
+    }
+  }
+  return loadImageElementFromFile(file);
+}
+
+async function normalizeImageFileToJpegDataUrl(file) {
+  let source = null;
+  try {
+    source = await decodeImageFile(file);
+    const { width, height } = imageSourceSize(source);
+    if (!width || !height) throw new Error("Image has no readable dimensions");
+
+    const maxDimension = 1600;
+    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    const canvasEl = document.createElement("canvas");
+    canvasEl.width = Math.max(1, Math.round(width * scale));
+    canvasEl.height = Math.max(1, Math.round(height * scale));
+    const canvasCtx = canvasEl.getContext("2d");
+    if (!canvasCtx) throw new Error("Could not prepare image");
+    canvasCtx.drawImage(source, 0, 0, canvasEl.width, canvasEl.height);
+    const dataUrl = canvasEl.toDataURL("image/jpeg", 0.84);
+    if (!dataUrl || dataUrl === "data:,") throw new Error("Could not encode image");
+    return dataUrl;
+  } catch (err) {
+    if (isHeicUploadFile(file)) {
+      throw new Error("This phone photo could not be decoded. Try the Camera tab, or choose a JPEG/Most Compatible version from Photos.");
+    }
+    const rawDataUrl = await readFileAsDataUrl(file);
+    if (typeof rawDataUrl === "string" && rawDataUrl.startsWith("data:image/")) {
+      return rawDataUrl;
+    }
+    throw err;
+  } finally {
+    if (source && typeof source.close === "function") source.close();
+  }
+}
+
+function setPhotoPreview(index, dataUrl) {
+  const slot = document.getElementById(`uploadSlot${index}`);
+  const preview = document.getElementById(`uploadPreview${index}`);
+  const thumb = document.getElementById(`thumb${index}`);
+  const action = slot?.querySelector(".upload-slot-help");
+  if (dataUrl) {
+    if (preview) {
+      preview.src = dataUrl;
+      preview.hidden = false;
+    }
+    if (thumb) {
+      thumb.src = dataUrl;
+      thumb.hidden = false;
+      thumb.classList.add("show");
+    }
+    if (action) action.textContent = "Replace photo";
+    slot?.classList.add("has-file");
+    return;
+  }
+  if (preview) {
+    preview.hidden = true;
+    preview.removeAttribute("src");
+  }
+  if (thumb) {
+    thumb.hidden = true;
+    thumb.removeAttribute("src");
+    thumb.classList.remove("show");
+  }
+  if (action) action.textContent = "Tap to add";
+  slot?.classList.remove("has-file");
+}
+
+async function handleUploadInput(index, file) {
+  if (!file) return;
+  if (!isImageUploadFile(file)) {
+    alert(`Please choose ${UPLOAD_FILE_HELP}.`);
+    return;
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    alert("Image is too large. Choose a photo under 24 MB.");
+    return;
+  }
+  statusPill.textContent = "Preparing photo…";
+  const dataUrl = await normalizeImageFileToJpegDataUrl(file);
+  uploadPreviewUrls[index] = dataUrl;
+  setPhotoPreview(index, dataUrl);
+  refreshStepBar();
+  updateUploadContinueState();
+}
+
+function isImageUploadFile(file) {
+  if (!file) return false;
+  const type = String(file.type || "").toLowerCase();
+  if (["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"].includes(type)) {
+    return true;
+  }
+  return /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name || "");
+}
+
+function getImageFilesFromTransfer(dataTransfer) {
+  if (!dataTransfer?.files?.length) return [];
+  return Array.from(dataTransfer.files).filter(isImageUploadFile);
+}
+
+async function distributeFilesToEmptySlots(files) {
+  if (!files.length) {
+    alert(`Drop ${UPLOAD_FILE_HELP}.`);
+    return;
+  }
+  let fileIndex = 0;
+  for (let slotIndex = 0; slotIndex < PHOTO_COUNT && fileIndex < files.length; slotIndex++) {
+    if (uploadPreviewUrls[slotIndex]) continue;
+    await handleUploadInput(slotIndex, files[fileIndex]);
+    fileIndex++;
+  }
+  const remaining = files.length - fileIndex;
+  if (remaining > 0) {
+    alert(`${remaining} extra photo${remaining === 1 ? "" : "s"} could not be added — all slots are full.`);
+  }
+}
+
+async function handleUploadFilesForSlot(index, fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  const imageFiles = files.filter(isImageUploadFile);
+  if (!imageFiles.length) {
+    alert(`Please choose ${UPLOAD_FILE_HELP}.`);
+    return;
+  }
+  if (imageFiles.length < files.length) {
+    alert(`${files.length - imageFiles.length} file${files.length - imageFiles.length === 1 ? "" : "s"} skipped because they were not supported photos.`);
+  }
+  await handleUploadInput(index, imageFiles[0]);
+  if (imageFiles.length > 1) {
+    await distributeFilesToEmptySlots(imageFiles.slice(1));
+  }
+}
+
+function initUploadDragDrop() {
+  for (let i = 0; i < PHOTO_COUNT; i++) {
+    const slot = document.getElementById(`uploadSlot${i}`);
+    if (!slot) continue;
+    let dragDepth = 0;
+
+    slot.addEventListener("dragenter", (event) => {
+      event.preventDefault();
+      dragDepth += 1;
+      slot.classList.add("upload-slot--drag-over");
+    });
+    slot.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    });
+    slot.addEventListener("dragleave", (event) => {
+      event.preventDefault();
+      dragDepth -= 1;
+      if (dragDepth <= 0) {
+        dragDepth = 0;
+        slot.classList.remove("upload-slot--drag-over");
+      }
+    });
+    slot.addEventListener("drop", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dragDepth = 0;
+      slot.classList.remove("upload-slot--drag-over");
+      const files = getImageFilesFromTransfer(event.dataTransfer);
+      if (!files.length) {
+        alert(`Drop ${UPLOAD_FILE_HELP}.`);
+        return;
+      }
+      handleUploadInput(i, files[0]).catch(console.error);
+      if (files.length > 1) {
+        distributeFilesToEmptySlots(files.slice(1)).catch(console.error);
+      }
+    });
+  }
+
+  const slotsContainer = document.querySelector(".upload-slots");
+  slotsContainer?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+  slotsContainer?.addEventListener("drop", (event) => {
+    if (event.target.closest(".upload-slot")) return;
+    event.preventDefault();
+    distributeFilesToEmptySlots(getImageFilesFromTransfer(event.dataTransfer)).catch(console.error);
+  });
+}
+
+function countUploadedPhotos() {
+  return uploadPreviewUrls.filter(Boolean).length;
+}
+
+function countRequiredMissing(urls) {
+  return PHOTO_REQUIRED.reduce((count, required, index) => (
+    required && !urls[index] ? count + 1 : count
+  ), 0);
+}
+
+function requiredPhotosReady(urls) {
+  return countRequiredMissing(urls) === 0;
+}
+
+function updateUploadContinueState() {
+  if (photoInputMode !== "upload") return;
+  const ready = requiredPhotosReady(uploadPreviewUrls);
+  const uploaded = countUploadedPhotos();
+  const missingRequired = countRequiredMissing(uploadPreviewUrls);
+  captureBtn.disabled = !ready;
+  captureBtn.classList.toggle("ready", ready);
+  captureBtn.textContent = ready
+    ? "Submit scan"
+    : missingRequired === 1
+      ? "Add 1 photo"
+      : `Add ${missingRequired} photos`;
+  statusPill.textContent = ready
+    ? uploaded > PHOTO_REQUIRED.filter(Boolean).length
+      ? `Required photos ready · ${uploaded} total selected`
+      : "Required photos ready"
+    : uploaded > 0
+      ? `${uploaded} selected · ${missingRequired} required photo${missingRequired === 1 ? "" : "s"} still needed`
+      : "Add front and right profile photos to continue";
+  statusPill.className = "status-pill" + (ready ? " ok" : "");
+}
+
+function finishUploadedPhotos() {
+  if (!requiredPhotosReady(uploadPreviewUrls)) return;
+  capturedImages = uploadPreviewUrls.slice();
+  stopCamera();
+  finishScan();
+}
+
+function initClientSearchUi() {
+  const searchCard = document.getElementById("clientSearchCard");
+  if (!MANUAL_CLIENT_SEARCH_ENABLED) {
+    clientSearchInput.disabled = true;
+    searchCard?.classList.add("client-search-card--disabled");
+    clearSelectedClientBtn.addEventListener("click", clearSelectedClient);
+    return;
+  }
+  if (!canSearchExistingClients()) {
+    clientSearchHint.textContent = "Open this scan from the dashboard to search existing patients.";
+    clientSearchInput.disabled = true;
+    searchCard?.classList.add("client-search-card--disabled");
+    return;
+  }
+  clientSearchInput.addEventListener("input", () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      handleClientSearchInput().catch(console.error);
+    }, 250);
+  });
+  clientSearchInput.addEventListener("focus", () => {
+    if (clientSearchInput.value.trim().length >= 2) {
+      handleClientSearchInput().catch(console.error);
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".client-search-input-wrap")) {
+      clientSearchResults.classList.add("hidden");
+    }
+  });
+  clearSelectedClientBtn.addEventListener("click", clearSelectedClient);
+}
+
+function syncCompleteScreenActions() {}
+
+function completeSaveTargetLabel() {
+  return window.__clinicScanContext?.recordId ? "patient chart" : "Form Submissions";
+}
+
+function getIntakeClientName(intake) {
+  return [intake?.firstName, intake?.lastName]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function renderCompletePhotos() {
+  capturedImages.forEach((url, i) => {
+    const el = document.getElementById(`cThumb${i}`);
+    const wrap = el?.closest(".complete-thumb-wrap");
+    if (!wrap || !el) return;
+    if (url) {
+      el.src = url;
+      wrap.classList.remove("hidden");
+    } else {
+      el.removeAttribute("src");
+      wrap.classList.add("hidden");
+    }
+  });
+}
+
+function postClinicScanMessage(payload) {
+  let posted = false;
+  if (window.parent && window.parent !== window) {
+    try {
+      window.parent.postMessage(payload, window.location.origin);
+      posted = true;
+    } catch (_) {}
+  }
+  if (window.opener && !window.opener.closed) {
+    try {
+      window.opener.postMessage(payload, window.location.origin);
+      posted = true;
+    } catch (_) {}
+  }
+  return posted;
+}
+
+function clinicScanMessageDetail() {
+  const ctx = window.__clinicScanContext || {};
+  const detail = window.__clinicScanSubmitDetail || {};
+  return {
+    recordId: detail.recordId || ctx.recordId || "",
+    tableName: detail.tableName || ctx.tableName || "",
+    jobId: detail.jobId || "",
+    estimatedSeconds: detail.estimatedSeconds || 180,
+    clientName: detail.clientName || "",
+    apiBase: detail.apiBase || getClinicScanApiBase(),
+    formSubmissionId: detail.formSubmissionId || "",
+    patientCreated: Boolean(detail.patientCreated),
+    patientMatchedBy: detail.patientMatchedBy || "",
+  };
+}
+
+function notifyDashboardScanStarted() {
+  const detail = clinicScanMessageDetail();
+  if (!detail.recordId || !detail.jobId) return;
+  const key = `${detail.recordId}:${detail.jobId}`;
+  if (window.__clinicScanJobStartedMessageKey === key) return;
+  window.__clinicScanJobStartedMessageKey = key;
+  postClinicScanMessage({
+    type: "clinic-scan-job-started",
+    ...detail,
+  });
+}
+
+function notifyDashboardViewClient() {
+  const posted = postClinicScanMessage({
+    type: "clinic-scan-complete",
+    ...clinicScanMessageDetail(),
+  });
+  if (!posted) {
+    window.close();
+  }
+}
+
+function syncClinicDoneButton() {
+  syncCompleteScreenActions();
+}
+
+function smoothLM(current) {
+  if (!smoothedLM) {
+    smoothedLM = current.map((lm) => ({ ...lm }));
+    return smoothedLM;
+  }
+  for (let i = 0; i < current.length; i++) {
+    smoothedLM[i].x = smoothedLM[i].x * LANDMARK_SMOOTH + current[i].x * (1 - LANDMARK_SMOOTH);
+    smoothedLM[i].y = smoothedLM[i].y * LANDMARK_SMOOTH + current[i].y * (1 - LANDMARK_SMOOTH);
+  }
+  return smoothedLM;
+}
+
+function getYaw(lm) {
+  const nose = lm[1] || lm[4];
+  if (!nose) return smoothedYaw ?? 0;
+  let lx = 0, rx = 0;
+  for (const i of LEFT_EYE) lx += lm[i].x;
+  for (const i of RIGHT_EYE) rx += lm[i].x;
+  lx /= LEFT_EYE.length;
+  rx /= RIGHT_EYE.length;
+  const cx = (lx + rx) / 2;
+  const iow = Math.abs(rx - lx) || 0.12;
+  const raw = Math.max(-1, Math.min(1, (nose.x - cx) / (iow * 0.7 + 1e-6))) * 90;
+  smoothedYaw = smoothedYaw == null ? raw : smoothedYaw * 0.82 + raw * 0.18;
+  return Math.round(smoothedYaw);
+}
+
+function facePresent(lm) {
+  if (!lm || lm.length < 100) return false;
+  const key = [1, 33, 263, 152];
+  return key.every((i) => lm[i] && lm[i].x > 0.02 && lm[i].x < 0.98 && lm[i].y > 0.02 && lm[i].y < 0.98);
+}
+
+function looselyAligned(lm) {
+  let minX = 1, minY = 1, maxX = 0, maxY = 0;
+  for (const p of lm) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const fh = maxY - minY;
+  const sizeOk = fh >= 0.1 && fh <= 0.92;
+  const centered = Math.hypot(cx - 0.5, cy - 0.52) < 0.28;
+  return sizeOk && centered;
+}
+
+function drawGuide(ok) {
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2, cy = h * 0.52;
+  const rx = w * 0.2, ry = h * 0.34;
+  ctx.save();
+  ctx.strokeStyle = ok ? "rgba(110,231,183,0.9)" : "rgba(251,191,36,0.85)";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function getPhotoUrlsForCurrentMode() {
+  return photoInputMode === "upload" ? uploadPreviewUrls : capturedImages;
+}
+
+function isRequiredFlowStepDone(step, urls) {
+  if (!step) return false;
+  if (typeof step.slotIndex !== "number") return true;
+  return Boolean(urls[step.slotIndex]);
+}
+
+function getActiveRequiredFlowIndex(urls) {
+  const firstMissingIndex = REQUIRED_FLOW_STEPS.findIndex(
+    (step) => typeof step.slotIndex === "number" && !urls[step.slotIndex],
+  );
+  if (firstMissingIndex === -1) return -1;
+  return firstMissingIndex;
+}
+
+function updateCameraPoseGuide() {
+  const guide = STEPS[currentStep]?.guide || PHOTO_GUIDES[0];
+  if (cameraGuideImg) {
+    cameraGuideImg.src = guide.src;
+    cameraGuideImg.alt = `${guide.label} example`;
+  }
+  if (cameraGuideLabel) cameraGuideLabel.textContent = guide.label;
+  if (cameraGuideText) cameraGuideText.textContent = guide.text;
+}
+
+function cameraGuideMessage(step = STEPS[currentStep]) {
+  const guide = step?.guide || PHOTO_GUIDES[0];
+  return `${guide.label}: match the example, then capture.`;
+}
+
+function refreshStepBar() {
+  const urls = getPhotoUrlsForCurrentMode();
+  const cameraActiveIndex = REQUIRED_FLOW_STEPS.findIndex(
+    (step) => step.slotIndex === currentStep,
+  );
+  const activeIndex = photoInputMode === "camera" && cameraActiveIndex >= 0
+    ? cameraActiveIndex
+    : getActiveRequiredFlowIndex(urls);
+
+  for (let i = 0; i < REQUIRED_FLOW_STEPS.length; i++) {
+    const flowStep = REQUIRED_FLOW_STEPS[i];
+    const dot = document.getElementById(`flowStep${i}`);
+    if (!dot) continue;
+    const done = isRequiredFlowStepDone(flowStep, urls);
+    if (done) {
+      dot.className = "step-dot done";
+      dot.textContent = `✓ ${flowStep.label}`;
+    } else if (i === activeIndex) {
+      dot.className = "step-dot active";
+      dot.textContent = flowStep.label;
+    } else {
+      dot.className = "step-dot";
+      dot.textContent = flowStep.label;
+    }
+    dot.title = flowStep.title;
+    const line = document.getElementById(`flowLine${i}`);
+    if (line) line.className = "step-line" + (activeIndex === -1 || activeIndex > i ? " done" : "");
+  }
+  const step = STEPS[currentStep];
+  if (!step) return;
+  updateCameraPoseGuide();
+  if (photoInputMode === "upload") {
+    document.getElementById("stepTitle").textContent = "Add photos";
+    document.getElementById("stepInstr").textContent = "";
+    updateCameraStepControls();
+    return;
+  }
+  document.getElementById("stepTitle").textContent = step.optional
+    ? `${step.title} (optional)`
+    : step.title;
+  document.getElementById("stepInstr").textContent = step.instr;
+  updateCameraStepControls();
+}
+
+function updateCameraStepControls() {
+  updateCameraPoseGuide();
+  if (photoInputMode !== "camera") {
+    captureSkipBtn?.classList.add("hidden");
+    return;
+  }
+  const step = STEPS[currentStep];
+  captureSkipBtn?.classList.toggle("hidden", !step?.optional);
+}
+
+function setCaptureReady(ready, message, tone = "warn") {
+  canCapture = ready;
+  const step = STEPS[currentStep];
+  if (photoInputMode === "camera") {
+    captureBtn.disabled = !ready;
+    captureBtn.classList.toggle("ready", ready);
+    captureBtn.textContent = ready
+      ? "Capture photo"
+      : step?.optional
+        ? "Capture photo or skip below"
+        : "Position your face in frame";
+  }
+  statusPill.textContent = message;
+  statusPill.className = "status-pill" + (ready ? " ok" : tone === "warn" ? " warn" : "");
+}
+
+function renderLoop() {
+  if (!running) return;
+  const w = video.videoWidth || 1280;
+  const h = video.videoHeight || 720;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  ctx.clearRect(0, 0, w, h);
+  ctx.save();
+  ctx.translate(w, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0, w, h);
+  ctx.restore();
+
+  const step = STEPS[currentStep];
+  if (!cameraPoseValidationEnabled) {
+    drawGuide(true);
+    setCaptureReady(true, cameraGuideMessage(step), "");
+    animId = requestAnimationFrame(renderLoop);
+    return;
+  }
+
+  let lm = null;
+  if (video.currentTime !== lastVideoTime && faceLandmarker) {
+    lastVideoTime = video.currentTime;
+    const res = faceLandmarker.detectForVideo(video, performance.now());
+    if (res.faceLandmarks?.length) lm = smoothLM(res.faceLandmarks[0]);
+  } else if (smoothedLM) {
+    lm = smoothedLM;
+  }
+
+  if (lm && step) {
+    const yaw = getYaw(lm);
+    const present = facePresent(lm);
+    const aligned = looselyAligned(lm);
+    const angleOk = step.yawOk(yaw);
+    const ok = present && aligned && angleOk;
+    drawGuide(ok);
+    setCaptureReady(ok, ok ? step.hint(yaw) : !present ? "Move your face into view" : !aligned ? "Center your face in the oval" : step.hint(yaw));
+  } else {
+    drawGuide(false);
+    setCaptureReady(false, "Looking for your face…");
+  }
+  animId = requestAnimationFrame(renderLoop);
+}
+
+async function initModel() {
+  await loadMediaPipeVision();
+  const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+  faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: MODEL_URL },
+    runningMode: "VIDEO",
+    numFaces: 1,
+    minFaceDetectionConfidence: 0.35,
+    minFacePresenceConfidence: 0.35,
+    minTrackingConfidence: 0.35,
+  });
+}
+
+async function startCamera() {
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+    audio: false,
+  });
+  video.srcObject = stream;
+  await video.play();
+  running = true;
+  lastVideoTime = -1;
+  renderLoop();
+}
+
+function stopCamera() {
+  running = false;
+  cancelAnimationFrame(animId);
+  stream?.getTracks().forEach((t) => t.stop());
+  stream = null;
+}
+
+async function startCameraIfNeeded() {
+  if (stream || photoInputMode === "upload") return;
+  try {
+    if (cameraPoseValidationEnabled && !faceLandmarker) await initModel();
+    await startCamera();
+  } catch (err) {
+    console.error(err);
+    alert("Could not access the camera. Allow camera access, switch to Upload photos, or use HTTPS.");
+    setPhotoInputMode("upload");
+  }
+}
+
+function openPhotoPrep() {
+  stopCamera();
+  showScreen("photoPrepScreen");
+}
+
+async function openCapture(mode = "upload") {
+  stopCamera();
+  showScreen("captureScreen");
+  currentStep = 0;
+  capturedImages = Array(PHOTO_COUNT).fill(null);
+  canCapture = false;
+  smoothedLM = null;
+  smoothedYaw = null;
+  refreshStepBar();
+  uploadPreviewUrls = Array(PHOTO_COUNT).fill(null);
+  for (let i = 0; i < PHOTO_COUNT; i++) {
+    setPhotoPreview(i, null);
+    const input = document.getElementById(`uploadInput${i}`);
+    if (input) input.value = "";
+  }
+  setPhotoInputMode(mode);
+}
+
+function goBackFromCapture() {
+  stopCamera();
+  currentStep = 0;
+  capturedImages = Array(PHOTO_COUNT).fill(null);
+  canCapture = false;
+  smoothedLM = null;
+  smoothedYaw = null;
+  uploadPreviewUrls = Array(PHOTO_COUNT).fill(null);
+  for (let i = 0; i < PHOTO_COUNT; i++) {
+    setPhotoPreview(i, null);
+    const input = document.getElementById(`uploadInput${i}`);
+    if (input) input.value = "";
+  }
+  setPhotoInputMode("upload");
+  openPhotoPrep();
+}
+
+function advanceCaptureStep() {
+  const currentRequiredIndex = CAMERA_STEP_INDICES.indexOf(currentStep);
+  const nextStep = currentRequiredIndex >= 0
+    ? CAMERA_STEP_INDICES[currentRequiredIndex + 1]
+    : CAMERA_STEP_INDICES.find((slotIndex) => slotIndex > currentStep);
+  if (typeof nextStep !== "number") {
+    stopCamera();
+    finishScan();
+    return;
+  }
+  currentStep = nextStep;
+  refreshStepBar();
+  smoothedLM = null;
+  smoothedYaw = null;
+  setCaptureReady(
+    !cameraPoseValidationEnabled,
+    cameraPoseValidationEnabled
+      ? STEPS[currentStep]?.hint(0) || "Adjust for the next view"
+      : cameraGuideMessage(STEPS[currentStep]),
+    cameraPoseValidationEnabled ? "warn" : "",
+  );
+}
+
+function skipOptionalCaptureStep() {
+  const step = STEPS[currentStep];
+  if (!step?.optional) return;
+  capturedImages[currentStep] = null;
+  setPhotoPreview(currentStep, null);
+  advanceCaptureStep();
+}
+
+function doCapture() {
+  if (!canCapture) return;
+  flashEl.classList.add("on");
+  setTimeout(() => flashEl.classList.remove("on"), 140);
+  const w = video.videoWidth || canvas.width;
+  const h = video.videoHeight || canvas.height;
+  const tmp = document.createElement("canvas");
+  tmp.width = w;
+  tmp.height = h;
+  const tctx = tmp.getContext("2d");
+  tctx.translate(w, 0);
+  tctx.scale(-1, 1);
+  tctx.drawImage(video, 0, 0, w, h);
+  capturedImages[currentStep] = tmp.toDataURL("image/jpeg", 0.88);
+  setPhotoPreview(currentStep, capturedImages[currentStep]);
+  advanceCaptureStep();
+}
+
+
+async function finishScan() {
+  const photos = buildPhotoPayload();
+  if (countProvidedPhotos(photos) < 2) {
+    alert("Add at least two photos before submitting.");
+    showScreen("captureScreen");
+    return;
+  }
+
+  showScreen("loadingScreen");
+  const fill = document.getElementById("progressFill");
+  const status = document.getElementById("loadStatus");
+  fill.style.width = "8%";
+  status.textContent = "Saving patient chart…";
+
+  const ctx = window.__clinicScanContext || {};
+  const provider = getProviderContext();
+  const intake = intakeFormData || collectIntakeData();
+
+  try {
+    await ensureScanServerReady();
+    const submitRes = await fetch(`${getClinicScanApiBase()}/api/clinic-scan/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerName: provider.name,
+        providerId: provider.id,
+        patientRecordId: ctx.recordId || "",
+        patientTableName: ctx.tableName || "Patients",
+        intake,
+        photos,
+        quality: "standard",
+      }),
+    });
+
+    if (!submitRes.ok) {
+      const errBody = await submitRes.json().catch(() => ({}));
+      throw new Error(parseSubmitErrorResponse(submitRes.statusText, errBody));
+    }
+
+    const submitData = await submitRes.json();
+    if (submitData.formSubmissionId) {
+      window.__clinicScanSubmissionId = submitData.formSubmissionId;
+    }
+    if (submitData.patientRecordId) {
+      window.__clinicScanContext = {
+        ...ctx,
+        recordId: submitData.patientRecordId,
+        tableName: submitData.patientTableName || ctx.tableName || "Patients",
+      };
+    }
+
+    const linkedPatientId = window.__clinicScanContext?.recordId || "";
+    const linkedTableName = window.__clinicScanContext?.tableName || "Patients";
+    const estimatedSeconds = Number(submitData.estimatedSeconds) || 180;
+    window.__clinicScanSubmitDetail = {
+      recordId: linkedPatientId,
+      tableName: linkedTableName,
+      jobId: submitData.jobId || "",
+      estimatedSeconds,
+      clientName: getIntakeClientName(intake),
+      apiBase: getClinicScanApiBase(),
+      formSubmissionId: submitData.formSubmissionId || "",
+      patientCreated: Boolean(submitData.patientCreated),
+      patientMatchedBy: submitData.patientMatchedBy || "",
+    };
+    notifyDashboardScanStarted();
+
+    fill.style.width = "100%";
+    status.textContent = "Photos posted";
+    renderCompletePhotos();
+    const providedCount = capturedImages.filter(Boolean).length;
+    const summary = document.getElementById("completePhotoSummary");
+    if (summary) {
+      const targetLabel = completeSaveTargetLabel();
+      const photoText = `${providedCount} photo${providedCount === 1 ? "" : "s"}`;
+      const processingText = submitData.jobId
+        ? "The facial analysis and annotations will appear in the dashboard when ready."
+        : "The photos were saved, but analysis did not start automatically.";
+      summary.textContent = `${photoText} captured and posted to the ${targetLabel}. ${processingText} You can close this window now.`;
+    }
+    showScreen("completeScreen");
+    syncCompleteScreenActions();
+    return;
+  } catch (err) {
+    console.error(err);
+    const rawMessage = err?.message || String(err || "Submission failed.");
+    const friendlyMessage = rawMessage.toLowerCase().includes("failed to fetch")
+      ? "Upload could not be confirmed. Check the connection and try again."
+      : `Upload could not be confirmed: ${rawMessage}`;
+    status.textContent = friendlyMessage;
+    fill.style.width = "0%";
+    const pill = document.getElementById("statusPill");
+    if (pill) {
+      pill.textContent = friendlyMessage;
+      pill.classList.remove("ok");
+      pill.classList.add("warn");
+    }
+    showScreen("captureScreen");
+    return;
+  }
+}
+
+function resetAll() {
+  stopCamera();
+  currentStep = 0;
+  capturedImages = Array(PHOTO_COUNT).fill(null);
+  smoothedLM = null;
+  smoothedYaw = null;
+  canCapture = false;
+  intakeFormData = null;
+  selectedClientMatch = null;
+  photoInputMode = "upload";
+  uploadPreviewUrls = Array(PHOTO_COUNT).fill(null);
+  pendingDuplicateMatches = [];
+  duplicateDismissedForKey = "";
+  clientSearchInput.value = "";
+  clientSearchResults.classList.add("hidden");
+  updateSelectedClientBanner();
+  hideDuplicateWarning();
+  document.getElementById("intakeForm")?.reset();
+  document.getElementById("intakeFormError").textContent = "";
+  syncFocusFollowUps();
+  for (let i = 0; i < PHOTO_COUNT; i++) {
+    setPhotoPreview(i, null);
+    const input = document.getElementById(`uploadInput${i}`);
+    if (input) input.value = "";
+  }
+  document.getElementById("progressFill").style.width = "0%";
+}
+
+function getPhoneDigits(s) {
+  return String(s || "").replace(/\D/g, "");
+}
+
+function formatPhoneInput(raw) {
+  let d = getPhoneDigits(raw);
+  if (d.length >= 11 && d[0] === "1") d = d.slice(1);
+  d = d.slice(0, 10);
+  if (!d) return "";
+  if (d.length <= 3) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
+function validateIntake() {
+  const errEl = document.getElementById("intakeFormError");
+  errEl.textContent = "";
+  const first = document.getElementById("intakeFirstName").value.trim();
+  const last = document.getElementById("intakeLastName").value.trim();
+  const email = getIntakeEmailValue();
+  const phone = getIntakePhoneValue();
+  document.getElementById("intakePhone").value = phone;
+  const lookupKey = getContactLookupKey(email, phone);
+  const whatAreas = getCheckedValues('#intakeForm input[name="whatAreas"]:checked');
+
+  if (!first) { errEl.textContent = "First name is required."; return false; }
+  if (!last) { errEl.textContent = "Last name is required."; return false; }
+  if (!email || !email.includes("@") || !email.includes(".")) {
+    errEl.textContent = "Enter a valid email address.";
+    return false;
+  }
+  if (getPhoneDigits(phone).length < 10) {
+    errEl.textContent = "Enter a 10-digit phone number.";
+    return false;
+  }
+  if (
+    pendingDuplicateMatches.length > 0 &&
+    !selectedClientMatch &&
+    duplicateDismissedForKey !== lookupKey
+  ) {
+    showDuplicateWarning(pendingDuplicateMatches);
+    errEl.textContent =
+      "This email is already on file. Choose the existing patient to regenerate their analysis.";
+    duplicateClientWarning?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return false;
+  }
+  if (whatAreas.length === 0) {
+    errEl.textContent = "Select at least one focus area.";
+    return false;
+  }
+  if (whatAreas.includes("face")) {
+    const regions = getCheckedValues('#intakeForm input[name="faceRegions"]:checked');
+    if (regions.length === 0) {
+      errEl.textContent = "Select at least one face region.";
+      return false;
+    }
+  }
+  if (whatAreas.includes("skin")) {
+    const complaints = getCheckedValues('#intakeForm input[name="skinComplaints"]:checked');
+    if (complaints.length === 0) {
+      errEl.textContent = "Select at least one skin complaint.";
+      return false;
+    }
+  }
+  return true;
+}
+
+function collectIntakeData() {
+  const phoneRaw = document.getElementById("intakePhone").value;
+  const digits = getPhoneDigits(phoneRaw);
+  const ten = digits.length === 11 && digits[0] === "1" ? digits.slice(1) : digits.slice(0, 10);
+  return {
+    firstName: document.getElementById("intakeFirstName").value.trim(),
+    lastName: document.getElementById("intakeLastName").value.trim(),
+    email: document.getElementById("intakeEmail").value.trim().toLowerCase(),
+    phone: ten.length === 10 ? `+1${ten}` : phoneRaw.trim(),
+    whatAreas: getCheckedValues('#intakeForm input[name="whatAreas"]:checked'),
+    faceFocusRegions: getCheckedValues('#intakeForm input[name="faceRegions"]:checked'),
+    skinComplaints: getCheckedValues('#intakeForm input[name="skinComplaints"]:checked'),
+  };
+}
+
+document.getElementById("beginBtn").addEventListener("click", () => {
+  resetAll();
+  showScreen("intakeScreen");
+});
+
+document.getElementById("intakeBackBtn").addEventListener("click", () => showScreen("introScreen"));
+
+document.getElementById("photoPrepBackBtn")?.addEventListener("click", () => showScreen("intakeScreen"));
+document.getElementById("photoPrepUploadBtn")?.addEventListener("click", () => openCapture("upload"));
+document.getElementById("photoPrepCameraBtn")?.addEventListener("click", () => openCapture("camera"));
+
+document.getElementById("captureBackBtn").addEventListener("click", goBackFromCapture);
+captureSkipBtn?.addEventListener("click", skipOptionalCaptureStep);
+
+document.getElementById("intakeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (canSearchExistingClients() && !selectedClientMatch) {
+    await checkForDuplicateContact();
+  }
+  if (!validateIntake()) return;
+  intakeFormData = collectIntakeData();
+  currentStep = 0;
+  capturedImages = Array(PHOTO_COUNT).fill(null);
+  openPhotoPrep();
+});
+
+document.getElementById("intakePhone").addEventListener("input", (e) => {
+  e.target.value = formatPhoneInput(e.target.value);
+});
+
+captureBtn.addEventListener("click", () => {
+  if (photoInputMode === "upload") {
+    finishUploadedPhotos();
+    return;
+  }
+  doCapture();
+});
+
+document.getElementById("captureModeCameraBtn").addEventListener("click", () => setPhotoInputMode("camera"));
+document.getElementById("captureModeUploadBtn").addEventListener("click", () => setPhotoInputMode("upload"));
+for (let i = 0; i < PHOTO_COUNT; i++) {
+  document.getElementById(`uploadInput${i}`)?.addEventListener("change", (e) => {
+    const input = e.currentTarget;
+    const files = Array.from(input?.files || []);
+    if (input) input.value = "";
+    handleUploadFilesForSlot(i, files).catch((err) => {
+      console.error(err);
+      alert(err?.message || "Could not prepare that photo. Try another image or use the Camera tab.");
+      updateUploadContinueState();
+    });
+  });
+}
+initUploadDragDrop();
+
+initClientSearchUi();
+initContactDuplicateUi();
+
+document.querySelectorAll('#intakeForm input[name="whatAreas"]').forEach((el) => {
+  el.addEventListener("change", syncFocusFollowUps);
+});
+syncFocusFollowUps();
+
+document.getElementById("closeScanBtn")?.addEventListener("click", notifyDashboardViewClient);
+
+window.addEventListener("beforeunload", stopCamera);
+
+// ── Dashboard prefill (opened from Scan In Clinic) ─────────
+(function applyDashboardClinicPrefill() {
+  const qs = new URLSearchParams(location.search);
+  const recordId = qs.get("r") || "";
+  const tableName = qs.get("t") || "";
+  const firstName = qs.get("firstName") || "";
+  const lastName = qs.get("lastName") || "";
+  const email = qs.get("email") || "";
+  const phone = qs.get("phone") || "";
+  const faceRegions = (qs.get("faceRegions") || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const whatAreas = (qs.get("whatAreas") || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const skinComplaints = (qs.get("skinComplaints") || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const providerId = qs.get("providerId") || "";
+  const providerName = qs.get("providerName") || "";
+
+  if (providerId || providerName) {
+    window.__clinicScanProvider = {
+      id: providerId,
+      name: providerName,
+      code: qs.get("providerCode") || "",
+    };
+  }
+
+  if (!recordId && !firstName && !email) return;
+
+  window.__clinicScanContext = {
+    recordId,
+    tableName,
+    fromUrlPrefill: Boolean(recordId),
+  };
+
+  const introTitle = document.querySelector(".intro-title");
+  const introSub = document.querySelector(".intro-sub");
+  if (introTitle && (firstName || lastName)) {
+    introTitle.textContent = `Scan for ${[firstName, lastName].filter(Boolean).join(" ")}`.trim();
+  }
+  if (introSub && recordId) {
+    introSub.textContent = "Confirm details, add or upload photos (front and right profile required), then return to the chart.";
+  }
+
+  function checkRegionLabel(label) {
+    const v = REGION_MAP_LABEL_TO_VALUE[label];
+    if (v) checkRegionValue(v);
+  }
+
+  function checkSkinComplaintLabel(label) {
+    const v = SKIN_MAP_LABEL_TO_VALUE[label];
+    if (v) checkByValue("skinComplaints", v);
+  }
+
+  setInput("intakeFirstName", firstName);
+  setInput("intakeLastName", lastName);
+  setInput("intakeEmail", email);
+  if (phone) setInput("intakePhone", formatPhoneInput(phone));
+  whatAreas.forEach((area) => {
+    const value = WHAT_AREA_PREFILL_MAP[area];
+    if (value) checkByValue("whatAreas", value);
+  });
+  faceRegions.forEach((label) => checkRegionLabel(label));
+  skinComplaints.forEach((label) => checkSkinComplaintLabel(label));
+  if (faceRegions.length > 0 && !whatAreas.length) checkByValue("whatAreas", "face");
+  if (skinComplaints.length > 0 && !whatAreas.some((area) => WHAT_AREA_PREFILL_MAP[area] === "skin")) {
+    checkByValue("whatAreas", "skin");
+  }
+  syncFocusFollowUps();
+  syncCompleteScreenActions();
+})();
+</script>
+</body>
+</html>

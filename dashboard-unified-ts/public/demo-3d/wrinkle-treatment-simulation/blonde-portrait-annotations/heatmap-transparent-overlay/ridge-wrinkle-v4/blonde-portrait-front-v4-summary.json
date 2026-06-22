@@ -1,0 +1,34 @@
+{
+  "componentCount": 10,
+  "counts": {
+    "mild": 6,
+    "moderate": 2,
+    "high": 2
+  },
+  "outputs": {
+    "v4-wrinkle-ridges-diagnostic": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-wrinkle-v4/blonde-portrait-front-v4-wrinkle-ridges-diagnostic-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-wrinkle-v4/blonde-portrait-front-v4-wrinkle-ridges-diagnostic-composite.png",
+      "alphaPixels": 45467,
+      "maxAlpha": 194
+    },
+    "v4-wrinkle-ridges-strong": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-wrinkle-v4/blonde-portrait-front-v4-wrinkle-ridges-strong-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-wrinkle-v4/blonde-portrait-front-v4-wrinkle-ridges-strong-composite.png",
+      "alphaPixels": 46973,
+      "maxAlpha": 213
+    },
+    "v4-wrinkle-ridges-subtle": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-wrinkle-v4/blonde-portrait-front-v4-wrinkle-ridges-subtle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-wrinkle-v4/blonde-portrait-front-v4-wrinkle-ridges-subtle-composite.png",
+      "alphaPixels": 43483,
+      "maxAlpha": 145
+    }
+  },
+  "method": [
+    "Heatmap signal is converted to connected ridge skeletons.",
+    "Small/round blobs are filtered out.",
+    "Ridges are rendered as soft continuous wrinkle bands with only faint local texture around them.",
+    "Forehead horizontal ridges receive extra continuity from the diagnostic heatmap."
+  ]
+}

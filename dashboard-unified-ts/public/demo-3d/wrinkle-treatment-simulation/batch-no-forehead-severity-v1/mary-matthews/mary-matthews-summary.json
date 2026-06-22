@@ -1,0 +1,22 @@
+{
+  "name": "Mary_Matthews_front",
+  "slug": "mary-matthews",
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "browTop": 319,
+  "noForeheadY": 316,
+  "activePixels": {
+    "shadow": 16327,
+    "rose": 16306,
+    "blue": 16213
+  },
+  "files": {
+    "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-shadow-severity-composite.png",
+    "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-rose-severity-composite.png",
+    "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-blue-severity-composite.png"
+  },
+  "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-response-map-no-forehead.png",
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-comparison.jpg"
+}

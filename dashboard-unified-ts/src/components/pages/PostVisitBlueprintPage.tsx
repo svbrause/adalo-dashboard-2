@@ -38,6 +38,9 @@ import {
 import { isJudgeMdProviderCode } from "../../data/judgeMdPricing2026";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { isSlimStudioProvider } from "../../data/slimStudioOfferings";
+import { isGravitasProvider } from "../../data/gravitasOfferings";
+import { isPrettyPleaseProvider } from "../../data/prettyPleaseOfferings";
+import { resolveProviderFinancingUrl } from "../../utils/checkoutFinancingCopy";
 import { buildWellnestBlueprintCasePhotos } from "../../utils/wellnestBlueprintCases";
 import PvbHeroMedia from "../postVisitBlueprint/PvbHeroMedia";
 import { PvbNarrativeAudioControls } from "../postVisitBlueprint/PvbNarrativeAudioControls";
@@ -62,6 +65,7 @@ import {
   buildPvbPlanBridgeParagraph,
   sanitizeAestheticIntelligenceText,
 } from "../../utils/pvbOverviewNarratives";
+import { buildPvbChapterInsightVisual } from "../../utils/pvbChapterInsightVisuals";
 import {
   buildPvbMainOverviewSpeechText,
   buildPvbMainOverviewSections,
@@ -85,6 +89,7 @@ import {
 } from "../postVisitBlueprint/PvbAnalysisSubpages";
 import { AiSparkleLogo, GeminiWordmark } from "../ai/AiGeminiBrand";
 import { MintMembershipInfoTrigger } from "../shared/MintMembershipInfoTrigger";
+import { CheckoutFinancingSection } from "../modals/DiscussedTreatmentsModal/CheckoutFinancingSection";
 import {
   getQuoteLineDiscussedItemIndexOrder,
   partitionQuoteLineIndices,
@@ -127,6 +132,7 @@ const THE_TREATMENT_BRAND_LOGO_SRC =
   "/post-visit-blueprint/videos/The%20Treatment%20Mint%20and%20Gray.png";
 const JUDGEMD_BRAND_LOGO_SRC = "/branding/judgemd-brand-logo.svg";
 const SLIM_STUDIO_BRAND_LOGO_SRC = "/branding/slim-studio-logo.svg";
+const GRAVITAS_BRAND_LOGO_SRC = "/demo/gravitas-medspa-logo.png";
 const SLIM_STUDIO_MARKETING_SITE_URL = "https://slimstudioatlanta.com/";
 const WELLNEST_BRAND_LOGO_SRC =
   "https://wellnestmd.com/wp-content/uploads/2024/12/nav-logo-5.svg";
@@ -154,6 +160,14 @@ function PvbBrandBar({
     code: providerCode,
     name: providerName,
   });
+  const isGravitas = isGravitasProvider({
+    code: providerCode,
+    name: providerName,
+  });
+  const isPrettyPlease = isPrettyPleaseProvider({
+    code: providerCode,
+    name: providerName,
+  });
   const brandLogoSrc = isAdminSender
     ? ponceBrandLogoSrc
     : isWellnest
@@ -164,7 +178,9 @@ function PvbBrandBar({
           ? JUDGEMD_BRAND_LOGO_SRC
           : isSlimStudio
             ? SLIM_STUDIO_BRAND_LOGO_SRC
-            : ""; // Other providers: no logo shown until theirs is configured
+            : isGravitas
+              ? GRAVITAS_BRAND_LOGO_SRC
+              : ""; // Other providers: no logo shown until theirs is configured
   const brandLabel = isAdminSender
     ? "Ponce AI"
     : isWellnest
@@ -175,6 +191,10 @@ function PvbBrandBar({
           ? (providerName?.trim() || "JudgeMD")
           : isSlimStudio
             ? "Slim Studio Face & Body"
+            : isGravitas
+              ? "Gravitas Medspa"
+              : isPrettyPlease
+                ? "Pretty Please Aesthetics"
             : (providerName?.trim() || "Your provider");
   return (
     <header className="pvb-brand-bar" aria-label={brandLabel}>
@@ -1246,6 +1266,19 @@ export default function PostVisitBlueprintPage() {
   const finalTotal = effectivePreviewMintMember
     ? toggledTotal * 0.9
     : toggledTotal;
+  const quoteFinancingScope =
+    toggledSkincareSub > 0 && toggledTreatmentsSub > 0
+      ? ("treatments_only" as const)
+      : ("default" as const);
+  const quoteFinancingTotal =
+    quoteFinancingScope === "treatments_only"
+      ? effectivePreviewMintMember && toggledTotal > 0
+        ? toggledTreatmentsSub * (finalTotal / toggledTotal)
+        : toggledTreatmentsSub
+      : finalTotal;
+  const blueprintFinancingUrl =
+    blueprint.cta.financingUrl?.trim() ||
+    resolveProviderFinancingUrl(blueprint.providerCode);
 
   /* ── Render ── */
 
@@ -1576,6 +1609,49 @@ export default function PostVisitBlueprintPage() {
                   </h2>
                   {sectionChapters.map((chapter) => {
                     const i = chapterIndexMap.get(chapter.key) ?? 0;
+                    const planRow =
+                      analysisDisplay?.planByTreatment.find(
+                        (r) => r.key === chapter.key,
+                      ) ?? null;
+                    const chapterAnalysisContext = analysisDisplay
+                      ? {
+                          overviewSnapshot: analysisDisplay.overviewSnapshot,
+                          planRow,
+                          skincareQuiz: blueprint.patient.skincareQuiz ?? null,
+                          provider: {
+                            code: blueprint.providerCode ?? undefined,
+                            name: blueprint.providerName ?? undefined,
+                          },
+                          relatedSkincareAddOns:
+                            chapter.treatment.trim().toLowerCase() ===
+                            "skincare"
+                              ? []
+                              : blueprint.discussedItems.filter(
+                                  (item) =>
+                                    item.treatment.trim().toLowerCase() ===
+                                      "skincare" &&
+                                    skincareAddOnSourceMatchesChapter(
+                                      item,
+                                      chapter,
+                                    ),
+                                ),
+                        }
+                      : undefined;
+                    const chapterInsightVisual = buildPvbChapterInsightVisual(
+                      chapter,
+                      {
+                        patientId: blueprint.patient.id,
+                        patientName: blueprint.patient.name,
+                        heroPhotoUrl,
+                      },
+                      analysisDisplay
+                        ? {
+                            snapshot: analysisDisplay.overviewSnapshot,
+                            planRow,
+                          }
+                        : undefined,
+                      i,
+                    );
                     const postCareForTreatments =
                       chapter.treatment.trim().toLowerCase() === "skincare" &&
                       chapter.planItems.length > 0
@@ -1609,35 +1685,8 @@ export default function PostVisitBlueprintPage() {
                         anchorId={treatmentChapterAnchorId(chapter.key)}
                         postCareForTreatments={postCareForTreatments}
                         mirrorImageUrl={heroPhotoUrl}
-                        chapterAnalysisContext={
-                          analysisDisplay
-                            ? {
-                                overviewSnapshot:
-                                  analysisDisplay.overviewSnapshot,
-                                planRow:
-                                  analysisDisplay.planByTreatment.find(
-                                    (r) => r.key === chapter.key,
-                                  ) ?? null,
-                                skincareQuiz:
-                                  blueprint.patient.skincareQuiz ?? null,
-                                relatedSkincareAddOns:
-                                  chapter.treatment
-                                    .trim()
-                                    .toLowerCase() === "skincare"
-                                    ? []
-                                    : blueprint.discussedItems.filter(
-                                        (item) =>
-                                          item.treatment
-                                            .trim()
-                                            .toLowerCase() === "skincare" &&
-                                          skincareAddOnSourceMatchesChapter(
-                                            item,
-                                            chapter,
-                                          ),
-                                      ),
-                              }
-                            : undefined
-                        }
+                        chapterInsightVisual={chapterInsightVisual}
+                        chapterAnalysisContext={chapterAnalysisContext}
                         chapterGlossaryTerms={filterGlossaryTermsForChapter(
                           planGlossaryTerms,
                           chapter.key,
@@ -2068,6 +2117,15 @@ export default function PostVisitBlueprintPage() {
                       </span>
                       <strong>{formatPrice(finalTotal)}</strong>
                     </div>
+                    <CheckoutFinancingSection
+                      totalAmount={quoteFinancingTotal}
+                      hasUnknownPrices={blueprint.quote.hasUnknownPrices}
+                      financingUrl={blueprintFinancingUrl}
+                      provider={blueprint.providerCode}
+                      variant="integrated"
+                      integratedSurface="pvb-drawer"
+                      financingScope={quoteFinancingScope}
+                    />
                   </div>
                 </div>
                 {bookingIntentError ? (

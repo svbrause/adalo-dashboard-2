@@ -13,3 +13,9 @@ google-auth>=2.29
 opencv-python-headless>=4.8
 numpy>=1.24
 Pillow>=10.0
+
+# Optional: higher-quality background removal for /clinic-scan/ (/remove-bg endpoint):
+# rembg>=2.0
+
+# Load .env.scan-server for local scan-server credentials:
+python-dotenv>=1.0

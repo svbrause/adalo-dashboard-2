@@ -1,0 +1,37 @@
+{
+  "source": "/Users/sambrause/Downloads/95948863_3229723333718167_4177504007788429312_n.jpg",
+  "guideMask": null,
+  "guidedHealMode": null,
+  "pathCount": 14,
+  "mode": "tox",
+  "strength": 0.9,
+  "preset": "reference",
+  "region": {
+    "sourceRegion": "left-panel",
+    "autoPanelDetected": true,
+    "panelSplitX": 718,
+    "inputSize": [
+      1440,
+      1440
+    ],
+    "cropSize": [
+      706,
+      1034
+    ]
+  },
+  "detection": {
+    "wrinklePathSource": "detected-creases-periocular-v3",
+    "roiSource": "eye-cascade",
+    "pathCount": 14,
+    "eyeBox": [
+      384,
+      447,
+      211,
+      238
+    ],
+    "outerCanthus": [
+      384,
+      547
+    ]
+  }
+}

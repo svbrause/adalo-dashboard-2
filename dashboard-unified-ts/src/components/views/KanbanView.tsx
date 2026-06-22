@@ -13,8 +13,16 @@ import {
   resolveClientFrontPhotoDisplayUrl,
   warmClientFrontPhoto,
 } from "../../utils/photoLoading";
-import ClientDetailModal from "../modals/ClientDetailModal";
+import ClientDetailPanel from "./ClientDetailPanel";
 import { useRouteSyncedClientSelection } from "../../hooks/useRouteSyncedClientSelection";
+import DashboardScanProgress, {
+  isDashboardScanPinned,
+  shouldShowDashboardScanProgress,
+} from "../common/DashboardScanProgress";
+import {
+  subscribeAllBackgroundScanJobs,
+  type BackgroundScanSnapshot,
+} from "../../utils/scanJobBackground";
 import "./KanbanView.css";
 
 export default function KanbanView() {
@@ -31,12 +39,25 @@ export default function KanbanView() {
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
   >(null);
-  const { selectClient, clearClient } = useRouteSyncedClientSelection(
+  const { selectClient, clearClient, routeSection } = useRouteSyncedClientSelection(
     selectedClient,
     setSelectedClient,
   );
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null);
   const [clientPhotos, setClientPhotos] = useState<Record<string, string>>({});
+  const [scanSnapshots, setScanSnapshots] = useState<BackgroundScanSnapshot[]>(
+    [],
+  );
+
+  useEffect(() => subscribeAllBackgroundScanJobs(setScanSnapshots), []);
+
+  const scanSnapshotByClientId = useMemo(() => {
+    const map = new Map<string, BackgroundScanSnapshot>();
+    scanSnapshots.forEach((snapshot) => {
+      map.set(snapshot.recordId, snapshot);
+    });
+    return map;
+  }, [scanSnapshots]);
 
   // Filter and sort clients (Clients view = Patients only; Leads uses ListView)
   const processedClients = useMemo(() => {
@@ -52,7 +73,17 @@ export default function KanbanView() {
   > = ["new", "contacted", "requested-consult", "scheduled", "converted", "current-client"];
 
   const getClientsByStatus = (status: (typeof statuses)[0]) => {
-    return processedClients.filter((client) => client.status === status);
+    return processedClients
+      .filter((client) => client.status === status)
+      .sort((a, b) => {
+        const aScan = scanSnapshotByClientId.get(a.id);
+        const bScan = scanSnapshotByClientId.get(b.id);
+        const aPinned = isDashboardScanPinned(aScan);
+        const bPinned = isDashboardScanPinned(bScan);
+        if (aPinned !== bPinned) return aPinned ? -1 : 1;
+        if (aPinned && bPinned) return bScan.startedAt - aScan.startedAt;
+        return 0;
+      });
   };
 
   // Load photos for visible clients in Kanban using batch loading
@@ -191,11 +222,16 @@ export default function KanbanView() {
                       resolveClientFrontPhotoDisplayUrl(client) ||
                       clientPhotos[client.id] ||
                       null;
+                    const scanSnapshot = scanSnapshotByClientId.get(client.id);
+                    const showScanProgress =
+                      shouldShowDashboardScanProgress(scanSnapshot);
 
                     return (
                       <div
                         key={client.id}
-                        className={`client-card ${draggedClientId === client.id ? "dragging" : ""}`}
+                        className={`client-card ${
+                          draggedClientId === client.id ? "dragging" : ""
+                        }${showScanProgress ? " client-card--scan-active" : ""}`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, client.id)}
                         onDragEnd={handleDragEnd}
@@ -238,6 +274,12 @@ export default function KanbanView() {
                             </div>
                           </div>
                         </div>
+                        {showScanProgress && (
+                          <DashboardScanProgress
+                            snapshot={scanSnapshot}
+                            compact
+                          />
+                        )}
                         <div className="lead-card-footer">
                           <span className="lead-date">
                             {formatRelativeDate(client.createdAt)}
@@ -254,11 +296,12 @@ export default function KanbanView() {
       </div>
 
       {selectedClient && (
-        <ClientDetailModal
+        <ClientDetailPanel
           client={
             clients.find((c) => c.id === selectedClient.id) ?? selectedClient
           }
           onClose={clearClient}
+          initialSection={routeSection ?? undefined}
           onUpdate={() => refreshClients(true)}
         />
       )}

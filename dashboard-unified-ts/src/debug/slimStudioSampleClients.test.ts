@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  SLIM_STUDIO_PLAN_BUILDER_TREATMENTS,
   SLIM_STUDIO_PROVIDER_CODE,
   SLIM_STUDIO_PROVIDER_RECORD_ID,
 } from "../data/slimStudioOfferings";
@@ -23,10 +22,9 @@ describe("filterOutSlimStudioSamplesDuplicatedByName", () => {
     ({ id, name, tableSource: "Patients" }) as Client;
 
   it("removes a demo when a live client has the same name (case/spacing)", () => {
-    const live = [dummyLive("  maya  chen  ", "recA")];
+    const live = [dummyLive("  tanya  tan  ", "recA")];
     const out = filterOutSlimStudioSamplesDuplicatedByName(live, samples);
-    expect(out.find((c) => c.id === "slimstudio-demo-maya")).toBeUndefined();
-    expect(out.find((c) => c.id === "slimstudio-demo-jennifer")).toBeDefined();
+    expect(out.find((c) => c.id === "slimstudio-demo-tanya")).toBeUndefined();
   });
 
   it("keeps all samples when no name overlap", () => {
@@ -36,38 +34,16 @@ describe("filterOutSlimStudioSamplesDuplicatedByName", () => {
     );
   });
 
-  it("includes Admin showcase demos duplicated for Slim Studio", () => {
-    const emily = samples.find((c) => c.id === "slimstudio-demo-emily");
-    const tanya = samples.find((c) => c.id === "slimstudio-demo-tanya");
-    const courtney = samples.find((c) => c.id === "slimstudio-demo-courtney");
-
-    expect(emily?.name).toBe("Emily Dunhill");
-    expect(samples.find((c) => c.id === "slimstudio-demo-allison")?.name).toBe(
-      "Allison Baum",
-    );
+  it("includes the Tanya Tan showcase demo for Slim Studio", () => {
+    expect(samples).toHaveLength(1);
+    const tanya = samples[0];
     expect(tanya?.name).toBe("Tanya Tan");
-    expect(courtney?.name).toBe("Courtney Bellamy");
-
-    expect(emily?.severityScoresFromAnalyses?.submission_id).toBe(
-      "slimstudio-demo-emily",
-    );
     expect(tanya?.severityScoresFromAnalyses?.submission_id).toBe(
       "slimstudio-demo-tanya",
     );
     expect(tanya?.skincareQuiz?.completedAt).toBeTruthy();
-    expect(courtney?.auraManifestUrl).toContain("courtney-bellamy");
-    expect(courtney?.severityScoresFromAnalyses?.issues?.["Red Spots"]?.predicted).toBe(
-      true,
-    );
-  });
-
-  it("covers every Slim Studio plan-builder treatment across demo patients", () => {
-    const treatments = new Set(
-      samples.flatMap((c) => (c.discussedItems ?? []).map((i) => i.treatment)),
-    );
-    for (const name of SLIM_STUDIO_PLAN_BUILDER_TREATMENTS) {
-      expect(treatments.has(name), `missing demo plan item for ${name}`).toBe(true);
-    }
+    expect(tanya?.demoFacialAnalysisAi).toBeTruthy();
+    expect(tanya?.galleryPhotoSlots?.length).toBeGreaterThan(0);
   });
 
   it("injects demos for Slim Studio provider without requiring dev mode", () => {
@@ -77,7 +53,13 @@ describe("filterOutSlimStudioSamplesDuplicatedByName", () => {
       name: "Slim Studio Face & Body",
     };
     expect(isSlimStudioSampleClientInjectionEnabled(provider)).toBe(true);
-    expect(getSlimStudioSampleClientsIfEnabled(provider).length).toBeGreaterThan(0);
+    const injected = getSlimStudioSampleClientsIfEnabled(provider);
+    expect(injected).toHaveLength(1);
+    expect(injected[0]?.name).toBe("Tanya Tan");
+    expect(injected.every((c) => c.tableSource === "Patients")).toBe(true);
+    expect(injected.some((c) => c.email?.includes("@demo.slimstudio.local"))).toBe(
+      true,
+    );
   });
 
   it("resolves a positive price for every demo plan line", () => {

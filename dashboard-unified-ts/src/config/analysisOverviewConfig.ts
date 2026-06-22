@@ -7,6 +7,8 @@
 /** Airtable / legacy labels → canonical issue keys used in CATEGORIES. */
 const ISSUE_SYNONYMS: Record<string, string> = {
   "under eye hollowing": "under eye hollow",
+  "cheek volume loss": "mid cheek flattening",
+  "jawline definition": "ill-defined jawline",
 };
 
 export function normalizeIssue(name: unknown): string {
@@ -69,6 +71,9 @@ export const CATEGORIES: CategoryDef[] = [
       {
         name: "Texture",
         issues: [
+          "Uneven Skin Texture",
+          "Enlarged Pores",
+          "Acne / Breakouts",
           "Dry Skin",
           "Whiteheads",
           "Blackheads",
@@ -79,6 +84,7 @@ export const CATEGORIES: CategoryDef[] = [
       {
         name: "Pigmentation",
         issues: [
+          "Facial Redness",
           "Dark Spots",
           "Red Spots",
           "Scars",

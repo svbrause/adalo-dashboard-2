@@ -49,6 +49,13 @@ def upload_aura_manifest_to_gcs(
             content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
             blob = bucket.blob(blob_name)
             blob.upload_from_filename(str(path), content_type=content_type)
+            try:
+                blob.make_public()
+            except Exception as exc:
+                # Uniform bucket-level access disables per-object ACLs. The scan
+                # bucket is normally public-readable, so keep the stable URL and
+                # continue rather than failing the completed scan.
+                print(f"[aura-gcs] make_public skipped for {blob_name}: {exc}", flush=True)
             url_map[path.name] = f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
 
         def rewrite(url: str | None) -> str | None:
@@ -74,11 +81,14 @@ def upload_aura_manifest_to_gcs(
             angles_out[angle] = {
                 **asset,
                 "src": rewrite(asset.get("src")),
+                "srcCutout": rewrite(asset.get("srcCutout")),
                 "srcOriginal": rewrite(asset.get("srcOriginal")),
                 "srcTexture": rewrite(asset.get("srcTexture")),
                 "srcPigmentation": rewrite(asset.get("srcPigmentation")),
                 "srcRedness": rewrite(asset.get("srcRedness")),
                 "srcPores": rewrite(asset.get("srcPores")),
+                "srcWrinkles": rewrite(asset.get("srcWrinkles")),
+                "srcWrinklesView": rewrite(asset.get("srcWrinklesView")),
             }
         out["angles"] = angles_out
 
@@ -91,6 +101,19 @@ def upload_aura_manifest_to_gcs(
                 if isinstance(by_angle, dict):
                     cv_out[mask_field] = {a: rewrite(u) for a, u in by_angle.items()}
             out["cvAnnotations"] = cv_out
+
+        # Re-upload the manifest JSON with rewritten GCS URLs so that page-reload
+        # manifest fetches get public URLs, not local /demo-3d/ paths.
+        manifest_blob_name = f"{prefix}/{slug}-aura-manifest.json"
+        manifest_blob = bucket.blob(manifest_blob_name)
+        manifest_blob.upload_from_string(
+            json.dumps(out, ensure_ascii=False),
+            content_type="application/json",
+        )
+        try:
+            manifest_blob.make_public()
+        except Exception as exc:
+            print(f"[aura-gcs] make_public skipped for manifest: {exc}", flush=True)
 
         print(f"[aura-gcs] Uploaded {len(url_map)} files for {slug}", flush=True)
         return out

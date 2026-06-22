@@ -35,6 +35,7 @@ export default function PvbHeroMedia({
           showAnnotations={showAnnotations}
           highlightTerms={highlightTerms}
           showHint={false}
+          wheelZoomEnabled={false}
         />
         <div className="pvb-hero-gradient" />
       </div>

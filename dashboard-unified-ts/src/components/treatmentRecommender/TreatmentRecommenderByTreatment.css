@@ -175,6 +175,7 @@
   justify-content: space-between;
   gap: 10px;
   width: 100%;
+  flex-wrap: nowrap;
 }
 
 .treatment-recommender-by-treatment__plan-title-block {
@@ -763,8 +764,46 @@
   flex-direction: row;
   flex-shrink: 0;
   align-items: flex-start;
+  gap: 6px;
   align-self: stretch;
   padding: 10px 10px 10px 0;
+}
+
+.treatment-recommender-by-treatment__plan-row-complete {
+  flex-shrink: 0;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 9px;
+  box-sizing: border-box;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 750;
+  color: var(--theme-accent-soft-fg, #2c5f6b);
+  background: var(--theme-accent-soft-bg, rgba(54, 117, 136, 0.08));
+  border: 1px solid var(--theme-accent-soft-border, rgba(54, 117, 136, 0.26));
+  border-radius: 7px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.treatment-recommender-by-treatment__plan-row-complete:hover {
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.32);
+}
+
+.treatment-recommender-by-treatment__plan-row-complete--checked {
+  color: var(--theme-text-muted, #64748b);
+  background: var(--theme-bg-subtle, #f8fafc);
+  border-color: var(--theme-border, #e2e8f0);
 }
 
 .treatment-recommender-by-treatment__plan-row-remove {
@@ -1122,6 +1161,99 @@
 
 .treatment-recommender-by-treatment__search-row {
   margin: 0 0 10px;
+}
+
+.treatment-recommender-by-treatment__finding-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent, #377487) 28%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--theme-accent, #377487) 8%, transparent);
+}
+
+.treatment-recommender-by-treatment__finding-filter-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.treatment-recommender-by-treatment__finding-filter-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-text-secondary, #5f6368);
+  white-space: nowrap;
+}
+
+.treatment-recommender-by-treatment__finding-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.treatment-recommender-by-treatment__finding-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid var(--theme-accent, #377487);
+  border-radius: 999px;
+  background: var(--theme-surface, #fff);
+  color: var(--theme-accent, #377487);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.treatment-recommender-by-treatment__finding-filter-chip:hover {
+  background: color-mix(in srgb, var(--theme-accent, #377487) 10%, #fff);
+}
+
+.treatment-recommender-by-treatment__finding-filter-chip-remove {
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.treatment-recommender-by-treatment__finding-filter-clear {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--theme-accent, #377487);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.treatment-recommender-by-treatment__finding-filter-clear:hover {
+  opacity: 0.85;
+}
+
+.cdp-dark .treatment-recommender-by-treatment__finding-filter-bar {
+  background: color-mix(in srgb, var(--theme-accent, #60a5fa) 12%, transparent);
+  border-color: color-mix(in srgb, var(--theme-accent, #60a5fa) 35%, transparent);
+}
+
+.cdp-dark .treatment-recommender-by-treatment__finding-filter-chip {
+  background: color-mix(in srgb, #000 20%, transparent);
+  color: var(--theme-text-primary, #e8eaed);
+  border-color: color-mix(in srgb, var(--theme-accent, #60a5fa) 45%, transparent);
+}
+
+.cdp-dark .treatment-recommender-by-treatment__finding-filter-label {
+  color: var(--theme-text-secondary, #9aa0a6);
+}
+
+.cdp-dark .treatment-recommender-by-treatment__finding-filter-clear {
+  color: var(--theme-accent, #60a5fa);
 }
 
 .treatment-recommender-by-treatment__focus-toggle-row {

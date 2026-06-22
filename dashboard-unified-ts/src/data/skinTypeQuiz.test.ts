@@ -6,9 +6,13 @@ import {
   getResultSummary,
   buildSkincareQuizPayload,
   getRecommendedProductsForSkinType,
+  getRoutineNotesBySkinType,
   SKIN_TYPE_QUIZ,
   type GemstoneId,
 } from "./skinTypeQuiz";
+import { SLIM_STUDIO_DEMO_PROVIDER } from "./slimStudioOfferings";
+import { GRAVITAS_DEMO_PROVIDER } from "./gravitasOfferings";
+import { PRETTY_PLEASE_DEMO_PROVIDER } from "./prettyPleaseOfferings";
 
 const GEMSTONES: GemstoneId[] = [
   "opal", "pearl", "jade", "quartz", "amber", "moonstone", "turquoise", "diamond",
@@ -102,6 +106,74 @@ describe("skinTypeQuiz", () => {
         expect(Array.isArray(products)).toBe(true);
         expect(products.length).toBeGreaterThan(0);
       }
+    });
+
+    it("returns Slim Studio ISDIN/Hydrinity/Skinade catalog for Slim Studio provider", () => {
+      const products = getRecommendedProductsForSkinType("amber", SLIM_STUDIO_DEMO_PROVIDER);
+      expect(products.length).toBeGreaterThan(0);
+      expect(products.some((p) => p.startsWith("ISDIN"))).toBe(true);
+      expect(products.some((p) => p.startsWith("Hydrinity"))).toBe(true);
+      expect(products.some((p) => p.includes("SkinCeuticals"))).toBe(false);
+    });
+
+    it("uses Slim Studio routine notes when provider is Slim Studio", () => {
+      const routine = getRoutineNotesBySkinType("amber", SLIM_STUDIO_DEMO_PROVIDER);
+      const allProducts = [
+        ...routine.am.flatMap((s) => s.productNames),
+        ...routine.pm.flatMap((s) => s.productNames),
+      ];
+      expect(allProducts.some((p) => p.startsWith("ISDIN"))).toBe(true);
+      expect(allProducts.some((p) => p.startsWith("Hydrinity"))).toBe(true);
+    });
+
+    it("returns Gravitas catalog for Gravitas272 provider", () => {
+      const products = getRecommendedProductsForSkinType("opal", GRAVITAS_DEMO_PROVIDER);
+      expect(products.length).toBeGreaterThan(0);
+      expect(
+        products.some(
+          (p) =>
+            p.includes("Acne Blend") ||
+            p.includes("Oil Control") ||
+            p.includes("Blemish Corrector"),
+        ),
+      ).toBe(true);
+      expect(products.some((p) => p.includes("SkinCeuticals"))).toBe(false);
+    });
+
+    it("uses Gravitas Acne Erase / Clear Skin routines when provider is Gravitas", () => {
+      const acneRoutine = getRoutineNotesBySkinType("opal", GRAVITAS_DEMO_PROVIDER);
+      expect(acneRoutine.am.length).toBeGreaterThan(0);
+      expect(
+        acneRoutine.am.some((s) => s.label.toLowerCase().includes("oil control")),
+      ).toBe(true);
+      const clearRoutine = getRoutineNotesBySkinType("jade", GRAVITAS_DEMO_PROVIDER);
+      expect(
+        clearRoutine.am.some((s) => s.label.toLowerCase().includes("powerhouse")),
+      ).toBe(true);
+    });
+
+    it("returns Pretty Please shop catalog for PrettyPlease5357 provider", () => {
+      const products = getRecommendedProductsForSkinType("amber", PRETTY_PLEASE_DEMO_PROVIDER);
+      expect(products.length).toBeGreaterThan(0);
+      expect(
+        products.some(
+          (p) =>
+            p.includes("Brightening Facial Wash") ||
+            p.includes("Firma-Bright") ||
+            p.includes("LumaPro-C"),
+        ),
+      ).toBe(true);
+      expect(products.some((p) => p.includes("SkinCeuticals"))).toBe(false);
+    });
+
+    it("uses Pretty Please core regimen routines when provider is Pretty Please", () => {
+      const routine = getRoutineNotesBySkinType("amber", PRETTY_PLEASE_DEMO_PROVIDER);
+      expect(
+        routine.am.some((s) => s.label.toLowerCase().includes("brightening facial wash")),
+      ).toBe(true);
+      expect(
+        routine.pm.some((s) => s.label.toLowerCase().includes("retinol")),
+      ).toBe(true);
     });
   });
 });

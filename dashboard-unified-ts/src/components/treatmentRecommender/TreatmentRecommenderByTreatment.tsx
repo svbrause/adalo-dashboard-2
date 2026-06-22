@@ -467,7 +467,7 @@ function extraTextForTreatmentSearch(
   }
 
   if (treatment === "Skincare") {
-    for (const row of getSkincareCarouselItems()) {
+    for (const row of getSkincareCarouselItems(provider)) {
       if (row.name?.trim()) chunks.push(row.name.trim());
     }
   }
@@ -1376,6 +1376,20 @@ function AddPlanFieldPricingHint({ message }: { message: string }) {
   );
 }
 
+function dedupeTrimmedStrings(values: readonly string[] | null | undefined): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values ?? []) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out;
+}
+
 export interface TreatmentRecommenderByTreatmentProps {
   client: Client;
   onBack: () => void;
@@ -1412,6 +1426,12 @@ export interface TreatmentRecommenderByTreatmentProps {
   /** Scroll to and highlight this treatment card once (e.g. “Learn more” from embedded recommender). */
   initialFocusTreatmentName?: string | null;
   onConsumedInitialFocusTreatmentName?: () => void;
+  /** Pre-select finding filter chips (e.g. “Treat Dark Spots” from analysis). */
+  initialFindingsToAddress?: string[] | null;
+  /** Fires when the user changes finding filter chips (e.g. to sync modal title). */
+  onFindingFilterChange?: (findings: string[]) => void;
+  /** Popup plan builder hides the client photo so the plan starts at the top. */
+  hideClientPhoto?: boolean;
 }
 
 export default function TreatmentRecommenderByTreatment({
@@ -1429,6 +1449,9 @@ export default function TreatmentRecommenderByTreatment({
   onConsumedInitialOpenPlanItemId,
   initialFocusTreatmentName,
   onConsumedInitialFocusTreatmentName,
+  initialFindingsToAddress,
+  onFindingFilterChange,
+  hideClientPhoto = false,
 }: TreatmentRecommenderByTreatmentProps) {
   const { provider, setProvider } = useDashboard();
   const providerCatalogContext = useMemo(
@@ -1453,11 +1476,33 @@ export default function TreatmentRecommenderByTreatment({
   const [lastAddedItem, setLastAddedItem] = useState<DiscussedItem | null>(
     null,
   );
-  const filterState = useMemo<TreatmentRecommenderFilterState>(
+  const [filterState, setFilterState] = useState<TreatmentRecommenderFilterState>(
     () => ({
       ...DEFAULT_RECOMMENDER_FILTER_STATE,
+      findingsToAddress: dedupeTrimmedStrings(initialFindingsToAddress),
     }),
-    [],
+  );
+
+  const updateFilterState = useCallback(
+    (patch: Partial<TreatmentRecommenderFilterState>) => {
+      setFilterState((prev) => {
+        const normalizedPatch =
+          patch.findingsToAddress !== undefined
+            ? {
+                ...patch,
+                findingsToAddress: dedupeTrimmedStrings(
+                  patch.findingsToAddress,
+                ),
+              }
+            : patch;
+        const next = { ...prev, ...normalizedPatch };
+        if (normalizedPatch.findingsToAddress !== undefined) {
+          onFindingFilterChange?.(normalizedPatch.findingsToAddress);
+        }
+        return next;
+      });
+    },
+    [onFindingFilterChange],
   );
 
   useEffect(() => {
@@ -2832,14 +2877,13 @@ export default function TreatmentRecommenderByTreatment({
     treatmentPhotos.filter((p) => photoMatchesTreatment(p, treatmentName));
 
   const combinedFindings = useMemo(() => {
-    const fromClient = Array.from(detectedIssues);
     const fromFilter = filterState.findingsToAddress || [];
+    if (fromFilter.length > 0) {
+      return [...fromFilter];
+    }
+    const fromClient = Array.from(detectedIssues);
     const fromConcerns = getFindingsFromConcerns(filterState.generalConcerns);
-    const set = new Set<string>([
-      ...fromClient,
-      ...fromFilter,
-      ...fromConcerns,
-    ]);
+    const set = new Set<string>([...fromClient, ...fromConcerns]);
     return Array.from(set);
   }, [
     detectedIssues,
@@ -2931,10 +2975,31 @@ export default function TreatmentRecommenderByTreatment({
     });
   }, [suggestedTreatments, provider?.code, wellnessIntakeGoals]);
 
+  const activeFindingFilters = dedupeTrimmedStrings(
+    filterState.findingsToAddress,
+  );
+
+  const treatmentsMatchingFindingFilters = useMemo(() => {
+    if (activeFindingFilters.length === 0) return null;
+    const names = getSuggestedTreatmentsForFindings(
+      activeFindingFilters,
+      providerCatalogContext,
+    ).map((s) => s.treatment);
+    if (names.length === 0) return null;
+    return new Set(names);
+  }, [activeFindingFilters, providerCatalogContext]);
+
+  const findingFilteredTreatmentsToShow = useMemo(() => {
+    if (!treatmentsMatchingFindingFilters) return treatmentsToShow;
+    return treatmentsToShow.filter((treatment) =>
+      treatmentsMatchingFindingFilters.has(treatment),
+    );
+  }, [treatmentsToShow, treatmentsMatchingFindingFilters]);
+
   const searchedTreatmentsToShow = useMemo(() => {
     const q = treatmentSearchQuery.trim();
-    if (!q) return treatmentsToShow;
-    return treatmentsToShow.filter((treatment) => {
+    if (!q) return findingFilteredTreatmentsToShow;
+    return findingFilteredTreatmentsToShow.filter((treatment) => {
       const wellnestOffering = getWellnestOfferingByTreatmentName(treatment);
       const groupLabel = wellnestOffering?.browseGroup
         ? (WELLNEST_BROWSE_GROUP_LABELS[wellnestOffering.browseGroup] ?? "")
@@ -2951,7 +3016,7 @@ export default function TreatmentRecommenderByTreatment({
       return treatmentRecommenderCatalogSearchMatches(haystack, q);
     });
   }, [
-    treatmentsToShow,
+    findingFilteredTreatmentsToShow,
     treatmentSearchQuery,
     provider?.code,
     effectivePriceList,
@@ -3536,6 +3601,7 @@ export default function TreatmentRecommenderByTreatment({
   const hasFront = frontPhotoUrl != null;
   const hasSide = sidePhotoUrl != null;
   const hasAnyClientPhoto = hasFront || hasSide;
+  const showClientPhoto = hasAnyClientPhoto && !hideClientPhoto;
 
   /** Plan items grouped by section (Skincare first when present, then Now, Add next visit, Scheduled, Wishlist, Completed). */
   const planItemsBySection = useMemo(() => {
@@ -3691,7 +3757,7 @@ export default function TreatmentRecommenderByTreatment({
   return (
     <div className="treatment-recommender-by-treatment">
       <aside className="treatment-recommender-by-treatment__client-column">
-        {hasAnyClientPhoto && (
+        {showClientPhoto && (
           <>
             <div
               className={`treatment-recommender-by-treatment__client-photo-wrap ${
@@ -3759,7 +3825,7 @@ export default function TreatmentRecommenderByTreatment({
 
         <div
           className={`treatment-recommender-by-treatment__plan-section${
-            !hasAnyClientPhoto
+            !hasAnyClientPhoto || hideClientPhoto
               ? " treatment-recommender-by-treatment__plan-section--no-client-photo"
               : ""
           }`}
@@ -4248,6 +4314,54 @@ export default function TreatmentRecommenderByTreatment({
           <h2 className="treatment-recommender-by-treatment__screen-heading">
             Treatment recommendations
           </h2>
+
+          {activeFindingFilters.length > 0 ? (
+            <div
+              className="treatment-recommender-by-treatment__finding-filter-bar"
+              role="region"
+              aria-label="Finding filter"
+            >
+              <div className="treatment-recommender-by-treatment__finding-filter-copy">
+                <span className="treatment-recommender-by-treatment__finding-filter-label">
+                  Focused finding
+                </span>
+                <div className="treatment-recommender-by-treatment__finding-filter-chips">
+                  {activeFindingFilters.map((finding) => (
+                    <button
+                      key={finding}
+                      type="button"
+                      className="treatment-recommender-by-treatment__finding-filter-chip"
+                      onClick={() =>
+                        updateFilterState({
+                          findingsToAddress: activeFindingFilters.filter(
+                            (f) => f !== finding,
+                          ),
+                        })
+                      }
+                      aria-label={`Remove ${finding} filter`}
+                      title={`Remove ${finding} filter`}
+                    >
+                      <span>{finding}</span>
+                      <span
+                        className="treatment-recommender-by-treatment__finding-filter-chip-remove"
+                        aria-hidden
+                      >
+                        ×
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="treatment-recommender-by-treatment__finding-filter-clear"
+                onClick={() => updateFilterState({ findingsToAddress: [] })}
+              >
+                Show all treatments
+              </button>
+            </div>
+          ) : null}
+
           <div className="treatment-recommender-by-treatment__search-row">
             <input
               type="search"
@@ -4303,7 +4417,9 @@ export default function TreatmentRecommenderByTreatment({
           <div className="treatment-recommender-by-treatment__cards">
             {visibleTreatmentCount === 0 ? (
               <p className="treatment-recommender-by-treatment__empty">
-                No treatments match your current search or selection.
+                {activeFindingFilters.length > 0
+                  ? "No treatments match this focused finding for this provider. Try clearing the filter or search."
+                  : "No treatments match your current search or selection."}
               </p>
             ) : (
               treatmentRecommenderCardSpecs.map((spec) => {
@@ -7255,7 +7371,9 @@ export default function TreatmentRecommenderByTreatment({
                         value={wellnestArticlePhone}
                         placeholder="(555) 555-5555"
                         onChange={(e) =>
-                          setWellnestArticlePhone(e.target.value)
+                          setWellnestArticlePhone(
+                            formatPhoneDisplay(e.target.value),
+                          )
                         }
                       />
                       <label

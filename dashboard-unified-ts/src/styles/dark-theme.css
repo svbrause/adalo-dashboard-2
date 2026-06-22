@@ -110,6 +110,30 @@ body.dark-mode .search-box-main > svg {
   color: #666 !important;
 }
 
+/* Mobile Clients / Leads segmented control — hardcoded light pill in ViewControls.css */
+@media (max-width: 768px) {
+  body.dark-mode .mobile-primary-view-switch {
+    background: rgba(255, 255, 255, 0.07) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 1px 2px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  body.dark-mode .mobile-primary-view-switch__btn {
+    color: rgba(255, 255, 255, 0.62) !important;
+  }
+
+  body.dark-mode .mobile-primary-view-switch__btn--active {
+    background: var(--theme-accent-soft, #6eb8c4) !important;
+    color: #071316 !important;
+    font-weight: 800 !important;
+    box-shadow:
+      0 0 0 1px rgba(184, 232, 224, 0.65),
+      0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  }
+}
+
 /* Filter selects */
 body.dark-mode .filter-select,
 body.dark-mode .filter-input {
@@ -305,14 +329,16 @@ body.dark-mode .main-header .page-title {
 }
 
 body.dark-mode .main-header .btn-secondary,
-body.dark-mode .main-header .scan-client-btn {
+body.dark-mode .main-header .scan-client-btn,
+body.dark-mode .main-header .dark-mode-toggle {
   background: #222 !important;
   color: #efefef !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 body.dark-mode .main-header .btn-secondary:hover,
-body.dark-mode .main-header .scan-client-btn:hover {
+body.dark-mode .main-header .scan-client-btn:hover,
+body.dark-mode .main-header .dark-mode-toggle:hover {
   background: #2a2a2a !important;
 }
 
@@ -342,14 +368,20 @@ body.dark-mode .main-header .scan-client-option:hover {
   }
 
   body.dark-mode .header-right .btn-secondary,
-  body.dark-mode .header-right .scan-client-btn {
+  body.dark-mode .header-right .scan-client-btn,
+  body.dark-mode .header-primary-actions .btn-secondary,
+  body.dark-mode .header-primary-actions .scan-client-btn,
+  body.dark-mode .main-header .dark-mode-toggle {
     background: #1a1a1a !important;
     color: #efefef !important;
     border-color: rgba(255, 255, 255, 0.12) !important;
   }
 
   body.dark-mode .header-right .btn-secondary:active,
-  body.dark-mode .header-right .scan-client-btn:active {
+  body.dark-mode .header-right .scan-client-btn:active,
+  body.dark-mode .header-primary-actions .btn-secondary:active,
+  body.dark-mode .header-primary-actions .scan-client-btn:active,
+  body.dark-mode .main-header .dark-mode-toggle:active {
     background: #252525 !important;
   }
 
@@ -583,7 +615,7 @@ body.dark-mode textarea::placeholder {
 }
 
 body.dark-mode .dark-mode-toggle {
-  color: #c8a800;
+  color: #efefef;
 }
 
 /* ── Facial status pills (client detail + elsewhere) ─────────────────────── */
@@ -892,6 +924,42 @@ body.dark-mode .ao-score-bar__score {
 body.dark-mode .share-tp-link-dialog-footer {
   background: #1a1a1a !important;
   border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode
+  .treatment-plan-checkout-blueprint-compose-modal.share-treatment-plan-link-dialog
+  .treatment-plan-checkout-blueprint-compose-label,
+body.dark-mode .share-tp-link-sms-fixed-intro {
+  color: var(--theme-text-primary, #efefef);
+}
+
+body.dark-mode .share-tp-link-compose-section-lede {
+  color: var(--theme-text-secondary, #b0b0b0);
+}
+
+body.dark-mode .treatment-plan-checkout-blueprint-compose-phone,
+body.dark-mode .treatment-plan-checkout-blueprint-compose-textarea {
+  color: var(--theme-text-primary, #efefef);
+  background: #242424;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+body.dark-mode .treatment-plan-checkout-blueprint-compose-phone::placeholder,
+body.dark-mode .treatment-plan-checkout-blueprint-compose-textarea::placeholder {
+  color: #8a8a8a;
+}
+
+body.dark-mode .treatment-plan-checkout-blueprint-compose-phone:focus,
+body.dark-mode .treatment-plan-checkout-blueprint-compose-textarea:focus {
+  outline: 2px solid rgba(129, 140, 248, 0.45);
+  outline-offset: 1px;
+  border-color: #818cf8;
+}
+
+body.dark-mode .share-tp-link-plan-url {
+  color: #e8e8e8;
+  background: #242424;
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 body.dark-mode .edit-toggle-btn {

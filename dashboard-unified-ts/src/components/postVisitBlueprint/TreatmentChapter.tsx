@@ -23,6 +23,7 @@ import {
   type ChapterComplementSandwichContext,
   type ChapterOverviewBuildOptions,
 } from "../../utils/pvbOverviewNarratives";
+import type { PvbChapterInsightVisual } from "../../utils/pvbChapterInsightVisuals";
 import { getChapterOverviewMergedConcerns } from "../../utils/pvbChapterOverviewFromAnalysis";
 import type { PvbResolvedPlanGlossaryTerm } from "../../utils/pvbPlanTermGlossary";
 import { buildChapterOverviewSpeechText } from "../../utils/pvbOverviewSpeechText";
@@ -74,6 +75,8 @@ interface TreatmentChapterViewProps {
   postCareForTreatments?: string[];
   /** Patient front photo for treatment-specific AI Mirror highlights. */
   mirrorImageUrl?: string | null;
+  /** Optional visual shown directly above the overview narrative. */
+  chapterInsightVisual?: PvbChapterInsightVisual | null;
   /**
    * When false, skincare “Products discussed” cells are not linked to boutique URLs
    * (e.g. JudgeMD post-visit plan should not send patients to The Treatment Shopify).
@@ -137,6 +140,7 @@ export function TreatmentChapterView({
   chapterComplementContext,
   postCareForTreatments,
   mirrorImageUrl,
+  chapterInsightVisual,
   skincareProductShopLinks = true,
 }: TreatmentChapterViewProps) {
   const card = chapter.caseCard;
@@ -428,7 +432,46 @@ export function TreatmentChapterView({
         </div>
       ) : null}
 
-      {mirrorImageUrl && chapterMirrorTerms.length > 0 ? (
+      {chapterInsightVisual ? (
+        <section
+          className={`tc-insight-visual tc-insight-visual--${chapterInsightVisual.lens}`}
+          aria-label={`${chapter.displayName} visual context`}
+        >
+          <div className="tc-insight-visual__media">
+            {chapterInsightVisual.mirrorImageUrl &&
+            chapterInsightVisual.highlightTerms?.length ? (
+              <AiMirrorCanvas
+                imageUrl={chapterInsightVisual.mirrorImageUrl}
+                alt={chapterInsightVisual.alt}
+                highlightTerms={chapterInsightVisual.highlightTerms}
+              />
+            ) : chapterInsightVisual.imageUrl ? (
+              <img
+                src={chapterInsightVisual.imageUrl}
+                alt={chapterInsightVisual.alt}
+                className="tc-insight-visual__img"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : null}
+          </div>
+          <div className="tc-insight-visual__copy">
+            <h3 className="tc-section-label">{chapterInsightVisual.label}</h3>
+            <p className="tc-insight-visual__caption">
+              {chapterInsightVisual.caption}
+            </p>
+            {chapterInsightVisual.highlightTerms?.length ? (
+              <div className="pvb-chips">
+                {chapterInsightVisual.highlightTerms.slice(0, 4).map((term) => (
+                  <span key={term} className="pvb-chip">
+                    {term}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : mirrorImageUrl && chapterMirrorTerms.length > 0 ? (
         <section className="tc-area-mirror" aria-label={`${chapter.displayName} treatment area`}>
           <div className="tc-area-mirror__media">
             <AiMirrorCanvas

@@ -103,6 +103,15 @@
   transition: all 0.2s;
 }
 
+.client-card--scan-active {
+  border-color: rgba(88, 161, 147, 0.38);
+  background: linear-gradient(
+    180deg,
+    rgba(88, 161, 147, 0.08),
+    var(--theme-bg-card, #fff) 56%
+  );
+}
+
 .client-card:hover {
   box-shadow: 0 4px 12px var(--theme-shadow-hover);
   transform: translateY(-2px);
@@ -160,6 +169,10 @@
   align-items: center;
   padding-top: 8px;
   border-top: 1px solid var(--theme-border);
+}
+
+.client-card .dashboard-scan-progress + .lead-card-footer {
+  margin-top: 10px;
 }
 
 .lead-date {

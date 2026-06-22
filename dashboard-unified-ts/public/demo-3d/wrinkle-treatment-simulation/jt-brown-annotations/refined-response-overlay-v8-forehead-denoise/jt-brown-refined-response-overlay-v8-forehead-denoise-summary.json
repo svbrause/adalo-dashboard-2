@@ -1,0 +1,28 @@
+{
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "selectedBands": [
+    320,
+    237,
+    266
+  ],
+  "variants": {
+    "v7-baseline-cleaned": {
+      "activePixels": 100416
+    },
+    "strong-threshold": {
+      "activePixels": 88652
+    },
+    "horizontal-continuity": {
+      "activePixels": 98094
+    },
+    "top-bands": {
+      "activePixels": 70176
+    },
+    "top-bands-soft-alpha": {
+      "activePixels": 109684
+    }
+  }
+}

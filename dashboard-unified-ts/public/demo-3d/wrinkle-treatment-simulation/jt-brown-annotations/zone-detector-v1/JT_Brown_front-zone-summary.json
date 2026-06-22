@@ -1,0 +1,246 @@
+{
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "annotationMode": "contour",
+  "totalComponents": 20,
+  "counts": {
+    "Mild": 12,
+    "Moderate": 6,
+    "High": 2
+  },
+  "perZone": {
+    "forehead": 7,
+    "crows_R": 6,
+    "crows_L": 3,
+    "naso_R": 1,
+    "glabella": 1,
+    "under_R": 1,
+    "naso_L": 1
+  },
+  "overallSeverity": "Moderate",
+  "severityIndex": 0.505,
+  "components": [
+    {
+      "zone": "forehead",
+      "score": 5.4123,
+      "pixels": 2874,
+      "bbox": [
+        523,
+        279,
+        187,
+        56
+      ]
+    },
+    {
+      "zone": "crows_R",
+      "score": 4.2778,
+      "pixels": 422,
+      "bbox": [
+        703,
+        444,
+        65,
+        31
+      ]
+    },
+    {
+      "zone": "crows_R",
+      "score": 4.2766,
+      "pixels": 243,
+      "bbox": [
+        703,
+        487,
+        49,
+        36
+      ]
+    },
+    {
+      "zone": "crows_R",
+      "score": 3.7904,
+      "pixels": 319,
+      "bbox": [
+        703,
+        472,
+        68,
+        19
+      ]
+    },
+    {
+      "zone": "forehead",
+      "score": 3.7115,
+      "pixels": 1850,
+      "bbox": [
+        352,
+        303,
+        151,
+        40
+      ]
+    },
+    {
+      "zone": "crows_R",
+      "score": 3.4443,
+      "pixels": 247,
+      "bbox": [
+        719,
+        483,
+        55,
+        36
+      ]
+    },
+    {
+      "zone": "crows_R",
+      "score": 3.2598,
+      "pixels": 135,
+      "bbox": [
+        732,
+        514,
+        27,
+        36
+      ]
+    },
+    {
+      "zone": "crows_L",
+      "score": 3.2283,
+      "pixels": 369,
+      "bbox": [
+        306,
+        463,
+        47,
+        32
+      ]
+    },
+    {
+      "zone": "forehead",
+      "score": 2.3476,
+      "pixels": 437,
+      "bbox": [
+        514,
+        272,
+        87,
+        17
+      ]
+    },
+    {
+      "zone": "forehead",
+      "score": 1.9807,
+      "pixels": 283,
+      "bbox": [
+        443,
+        274,
+        71,
+        17
+      ]
+    },
+    {
+      "zone": "forehead",
+      "score": 1.8903,
+      "pixels": 104,
+      "bbox": [
+        431,
+        286,
+        62,
+        13
+      ]
+    },
+    {
+      "zone": "naso_R",
+      "score": 1.7551,
+      "pixels": 233,
+      "bbox": [
+        634,
+        609,
+        47,
+        133
+      ]
+    },
+    {
+      "zone": "crows_L",
+      "score": 1.7019,
+      "pixels": 79,
+      "bbox": [
+        312,
+        465,
+        26,
+        10
+      ]
+    },
+    {
+      "zone": "glabella",
+      "score": 1.6867,
+      "pixels": 1896,
+      "bbox": [
+        495,
+        359,
+        48,
+        91
+      ]
+    },
+    {
+      "zone": "crows_R",
+      "score": 1.6126,
+      "pixels": 28,
+      "bbox": [
+        703,
+        502,
+        8,
+        13
+      ]
+    },
+    {
+      "zone": "crows_L",
+      "score": 1.5272,
+      "pixels": 66,
+      "bbox": [
+        338,
+        493,
+        15,
+        20
+      ]
+    },
+    {
+      "zone": "forehead",
+      "score": 1.3929,
+      "pixels": 139,
+      "bbox": [
+        565,
+        335,
+        56,
+        8
+      ]
+    },
+    {
+      "zone": "under_R",
+      "score": 1.2852,
+      "pixels": 50,
+      "bbox": [
+        584,
+        511,
+        27,
+        6
+      ]
+    },
+    {
+      "zone": "forehead",
+      "score": 1.2832,
+      "pixels": 67,
+      "bbox": [
+        539,
+        300,
+        37,
+        4
+      ]
+    },
+    {
+      "zone": "naso_L",
+      "score": 1.2094,
+      "pixels": 110,
+      "bbox": [
+        365,
+        558,
+        43,
+        54
+      ]
+    }
+  ]
+}

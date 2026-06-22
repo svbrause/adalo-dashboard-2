@@ -1,0 +1,45 @@
+{
+  "redPixels": 9010,
+  "pathCount": 21,
+  "outputs": {
+    "guided-red-magma-diagnostic": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/guided-red-source-truth/image-14-guided-red-magma-diagnostic-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/guided-red-source-truth/image-14-guided-red-magma-diagnostic-composite.png",
+      "alphaPixels": 42037,
+      "maxAlpha": 223,
+      "counts": {
+        "mild": 11,
+        "moderate": 6,
+        "high": 4
+      }
+    },
+    "guided-red-magma-strong": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/guided-red-source-truth/image-14-guided-red-magma-strong-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/guided-red-source-truth/image-14-guided-red-magma-strong-composite.png",
+      "alphaPixels": 43352,
+      "maxAlpha": 229,
+      "counts": {
+        "mild": 11,
+        "moderate": 6,
+        "high": 4
+      }
+    },
+    "guided-red-warm-diagnostic": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/guided-red-source-truth/image-14-guided-red-warm-diagnostic-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/guided-red-source-truth/image-14-guided-red-warm-diagnostic-composite.png",
+      "alphaPixels": 42037,
+      "maxAlpha": 223,
+      "counts": {
+        "mild": 11,
+        "moderate": 6,
+        "high": 4
+      }
+    }
+  },
+  "method": [
+    "Extract red manual strokes as positive wrinkle guide mask.",
+    "Dilate red strokes into guide corridors; normalize existing crease heatmap only inside those corridors.",
+    "Spline-smooth guide stroke centerlines and render soft tapered bands with heatmap-derived severity color.",
+    "Eye/brow/lip/nostril exclusions still applied."
+  ]
+}

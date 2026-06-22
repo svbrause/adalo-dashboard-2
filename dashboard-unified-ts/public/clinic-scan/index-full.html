@@ -1,0 +1,3393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Face Scan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    /* Pastel teal & gray — aligned with DASHBOARD_MINT_GRAY_STYLE_GUIDE */
+    :root {
+      --theme-accent: #367588;
+      --theme-accent-hover: #2c5f6b;
+      --theme-success: #0d9488;
+      --theme-success-tint: #ecfdf5;
+      --theme-bg-gradient: linear-gradient(180deg, #f8f9fa 0%, #f3f4f6 50%, #ffffff 100%);
+      --theme-bg-card: #ffffff;
+      --theme-border: #E5E7EB;
+      --theme-border-strong: #D1D5DB;
+      --theme-text-primary: #111827;
+      --theme-text-secondary: #6B7280;
+      --theme-nav-active-bg: #e6f3f7;
+      --teal-tint-08: rgba(54, 117, 136, 0.08);
+      --teal-tint-12: rgba(54, 117, 136, 0.12);
+      --teal-tint-30: rgba(54, 117, 136, 0.3);
+      --shadow-soft: rgba(0, 0, 0, 0.06);
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--theme-bg-gradient);
+      background-attachment: fixed;
+      color: var(--theme-text-primary);
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* ── Screens ─────────────────────────────────────────── */
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    .screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.97);
+    }
+
+    /* ── Intro ───────────────────────────────────────────── */
+    #introScreen {
+      justify-content: center;
+      gap: 28px;
+      padding: 40px 28px;
+      text-align: center;
+      background: var(--theme-bg-gradient);
+    }
+
+    .intro-badge {
+      width: 88px;
+      height: 88px;
+      border-radius: 28px;
+      background: linear-gradient(145deg, #367588, #2c5f6b);
+      border: 1px solid rgba(54, 117, 136, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      box-shadow: 0 8px 32px rgba(54, 117, 136, 0.22), 0 0 0 1px var(--theme-border);
+    }
+
+    .intro-title {
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: -0.8px;
+      color: var(--theme-text-primary);
+    }
+
+    .intro-subtitle {
+      font-size: 15px;
+      color: var(--theme-text-secondary);
+      line-height: 1.65;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+
+    .step-pills {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .step-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      background: var(--theme-bg-card);
+      border: 1px solid var(--theme-border);
+      border-radius: var(--radius-lg);
+      padding: 14px 20px;
+      min-width: 80px;
+      box-shadow: 0 1px 3px var(--shadow-soft);
+    }
+
+    .step-pill-icon {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .step-pill-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--theme-text-secondary);
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary {
+      background: var(--theme-accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 18px;
+      padding: 17px 52px;
+      font-size: 17px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: box-shadow 0.2s ease, transform 0.15s ease, background 0.2s ease;
+      box-shadow: 0 8px 24px rgba(54, 117, 136, 0.28);
+      letter-spacing: -0.2px;
+    }
+    .btn-primary:hover {
+      background: var(--theme-accent-hover);
+      box-shadow: 0 10px 32px rgba(54, 117, 136, 0.35);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    /* ── Capture Screen ──────────────────────────────────── */
+    #captureScreen {
+      justify-content: flex-start;
+      overflow-y: auto;
+    }
+
+    /* Step progress */
+    .step-bar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      width: 100%;
+      max-width: 520px;
+      padding: 20px 32px 16px;
+      flex-shrink: 0;
+    }
+
+    .step-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .step-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 2px solid var(--theme-border);
+      background: var(--theme-bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--theme-text-secondary);
+      transition: all 0.35s ease;
+      flex-shrink: 0;
+    }
+    .step-circle.active {
+      border-color: var(--theme-accent);
+      background: var(--theme-nav-active-bg);
+      color: var(--theme-accent);
+      box-shadow: 0 0 0 1px rgba(54, 117, 136, 0.15);
+    }
+    .step-circle.done {
+      border-color: var(--theme-success);
+      background: var(--theme-success-tint);
+      color: var(--theme-success);
+    }
+
+    .step-node-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--theme-text-secondary);
+      letter-spacing: 0.3px;
+      transition: color 0.3s ease;
+      white-space: nowrap;
+    }
+    .step-node-label.active { color: var(--theme-accent); }
+    .step-node-label.done { color: var(--theme-success); }
+
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: var(--theme-border);
+      margin: 18px 8px 0;
+      transition: background 0.5s ease;
+      max-width: 64px;
+    }
+    .step-line.done { background: linear-gradient(90deg, var(--theme-success), var(--theme-accent)); }
+
+    /* Camera area */
+    .stage-outer {
+      width: 100%;
+      max-width: 520px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #111827;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid var(--theme-border);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--theme-border);
+    }
+
+    video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      visibility: hidden;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Flash feedback */
+    .flash-overlay {
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      opacity: 0;
+      pointer-events: none;
+      border-radius: 20px;
+      transition: opacity 0.06s ease;
+    }
+    .flash-overlay.on { opacity: 0.85; }
+
+    /* Capture thumbnails */
+    .thumb-row {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+      z-index: 2;
+    }
+    .thumb {
+      width: 52px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid var(--theme-success);
+      opacity: 0;
+      transform: scale(0.75) translateY(8px);
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .thumb.show { opacity: 1; transform: scale(1) translateY(0); }
+
+    .mirror-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 520px;
+      padding: 8px 20px 6px;
+      gap: 12px;
+    }
+    .side-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--theme-text-secondary);
+      min-width: 64px;
+    }
+    .side-label.left-label { text-align: left; }
+    .side-label.right-label { text-align: right; }
+    .mirror-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--theme-text-secondary);
+      cursor: pointer;
+    }
+    .mirror-toggle input { cursor: pointer; }
+
+    /* Bottom panel */
+    .bottom-panel {
+      width: 100%;
+      max-width: 520px;
+      padding: 16px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .step-title-text {
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: var(--theme-text-primary);
+    }
+
+    .step-instr-text {
+      font-size: 14px;
+      color: var(--theme-text-secondary);
+      line-height: 1.55;
+      margin-top: 3px;
+    }
+
+    /* Validation checks */
+    .checks {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13.5px;
+      color: var(--theme-text-secondary);
+      transition: color 0.2s ease;
+    }
+    .check-row.hidden { display: none; }
+
+    .check-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--theme-border);
+      background: var(--theme-bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+      color: var(--theme-text-secondary);
+    }
+    .check-row.ok .check-icon {
+      border-color: var(--theme-success);
+      background: var(--theme-success-tint);
+      color: var(--theme-success);
+    }
+    .check-row.fail .check-icon {
+      border-color: #f87171;
+      background: rgba(248, 113, 113, 0.08);
+      color: #f87171;
+    }
+    .check-row.ok { color: var(--theme-text-primary); }
+    .check-row.fail { color: var(--theme-text-secondary); }
+
+    .check-hint-text {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--theme-text-secondary);
+      text-align: right;
+      max-width: 160px;
+    }
+
+    .check-row-face-clear {
+      align-items: flex-start;
+    }
+    .check-row-face-clear .check-hint-text {
+      max-width: min(100%, 240px);
+      white-space: normal;
+      line-height: 1.35;
+    }
+    .face-clear-tip {
+      margin: -2px 0 0 34px;
+      padding: 0;
+      font-size: 11.5px;
+      line-height: 1.4;
+      color: var(--theme-text-secondary);
+      opacity: 0.92;
+    }
+
+    .mesh-legend {
+      margin: 6px 0 0 34px;
+      padding: 0;
+      font-size: 11px;
+      line-height: 1.35;
+      color: var(--theme-text-secondary);
+      opacity: 0.88;
+    }
+    .mesh-legend span { white-space: nowrap; }
+
+    /* Capture button */
+    .btn-capture {
+      width: 100%;
+      padding: 17px;
+      border: none;
+      border-radius: var(--radius-lg);
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      letter-spacing: -0.2px;
+      cursor: not-allowed;
+      background: #f3f4f6;
+      color: var(--theme-text-secondary);
+      border: 1px solid var(--theme-border);
+      transition: all 0.3s ease;
+    }
+    .btn-capture.ready {
+      background: var(--theme-accent);
+      color: #ffffff;
+      border-color: transparent;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(54, 117, 136, 0.28);
+      animation: pulseCap 2.2s ease-in-out infinite;
+    }
+    .btn-capture.ready:hover { background: var(--theme-accent-hover); }
+    @keyframes pulseCap {
+      0%, 100% { box-shadow: 0 8px 24px rgba(54, 117, 136, 0.28); }
+      50%       { box-shadow: 0 8px 32px rgba(54, 117, 136, 0.4); }
+    }
+
+    /* ── Loading Screen ──────────────────────────────────── */
+    #loadingScreen {
+      justify-content: center;
+      gap: 30px;
+      padding: 40px 28px;
+      background: var(--theme-bg-gradient);
+    }
+
+    .load-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+      color: var(--theme-text-primary);
+      text-align: center;
+    }
+
+    .face-wrap {
+      width: 100%;
+      max-width: 300px;
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--theme-bg-card);
+      border: 1px solid var(--theme-border);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+    .face-wrap canvas {
+      width: 100%;
+      height: auto;
+      max-height: 360px;
+      display: block;
+    }
+
+    .load-status {
+      font-size: 15px;
+      color: var(--theme-text-secondary);
+      min-height: 22px;
+      text-align: center;
+      transition: opacity 0.25s ease;
+    }
+
+    .progress-track {
+      width: 240px;
+      height: 4px;
+      background: var(--theme-border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--theme-accent), var(--theme-success));
+      border-radius: 2px;
+      transition: width 0.52s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .face-wrap.loading-active {
+      animation: loadFacePulse 2.4s ease-in-out infinite;
+    }
+    @keyframes loadFacePulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(54, 117, 136, 0); }
+      50%      { transform: scale(1.02); box-shadow: 0 4px 24px rgba(54, 117, 136, 0.18); }
+    }
+
+    .load-status.loading-active {
+      animation: loadStatusIn 0.35s ease-out;
+    }
+    @keyframes loadStatusIn {
+      from { opacity: 0.6; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Region shape CSS transition */
+    .face-region {
+      transition: opacity 0.45s ease;
+    }
+
+    /* ── Complete Screen ─────────────────────────────────── */
+    #completeScreen {
+      justify-content: center;
+      gap: 24px;
+      padding: 40px 28px;
+      text-align: center;
+      background: var(--theme-bg-gradient);
+    }
+
+    .complete-ring {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      border: 3px solid var(--theme-success);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      background: var(--theme-success-tint);
+      box-shadow: 0 0 40px rgba(13, 148, 136, 0.2);
+      animation: ringPulse 2.5s ease-in-out infinite;
+    }
+    @keyframes ringPulse {
+      0%, 100% { box-shadow: 0 0 40px rgba(13, 148, 136, 0.2); }
+      50%       { box-shadow: 0 0 56px rgba(13, 148, 136, 0.35); }
+    }
+
+    .complete-title {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--theme-text-primary);
+    }
+
+    .complete-sub {
+      font-size: 15px;
+      color: var(--theme-text-secondary);
+      max-width: 280px;
+      line-height: 1.6;
+    }
+
+    .thumb-row-complete {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .thumb-complete-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    .thumb-complete-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--theme-text-secondary);
+    }
+    .thumb-complete {
+      width: 100%;
+      max-width: 380px;
+      height: auto;
+      max-height: 50vh;
+      object-fit: contain;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--theme-border);
+      background: var(--theme-bg-card);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-restart {
+      background: var(--theme-bg-card);
+      color: var(--theme-text-secondary);
+      border: 1px solid var(--theme-border);
+      border-radius: var(--radius-lg);
+      padding: 14px 36px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-restart:hover {
+      border-color: var(--theme-border-strong);
+      color: var(--theme-text-primary);
+      background: var(--theme-nav-active-bg);
+    }
+
+    /* ── Intake form ─────────────────────────────────────── */
+    #intakeScreen {
+      justify-content: flex-start;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 28px 20px max(28px, env(safe-area-inset-bottom));
+      background: var(--theme-bg-gradient);
+    }
+    .intake-inner {
+      width: 100%;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+    .intake-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      margin-bottom: 8px;
+      color: var(--theme-text-primary);
+    }
+    .intake-sub {
+      font-size: 14px;
+      color: var(--theme-text-secondary);
+      line-height: 1.55;
+      margin-bottom: 22px;
+    }
+    .intake-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .intake-row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 380px) {
+      .intake-row2 { grid-template-columns: 1fr; }
+    }
+    .intake-label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--theme-text-secondary);
+    }
+    .intake-input {
+      background: var(--theme-bg-card);
+      border: 1px solid var(--theme-border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      font-size: 16px;
+      font-family: inherit;
+      color: var(--theme-text-primary);
+      width: 100%;
+    }
+    .intake-input::placeholder { color: #9ca3af; }
+    .intake-input:focus {
+      outline: none;
+      border-color: var(--theme-accent);
+      box-shadow: 0 0 0 3px var(--teal-tint-12);
+    }
+    .intake-input.intake-invalid {
+      border-color: rgba(248, 113, 113, 0.75);
+    }
+    .intake-input.intake-field-valid {
+      border-color: rgba(13, 148, 136, 0.55);
+      box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.12);
+    }
+    .intake-inline-msg {
+      font-size: 12px;
+      min-height: 1.25em;
+      margin-top: 4px;
+      line-height: 1.35;
+      color: var(--theme-text-secondary);
+    }
+    .intake-inline-msg.intake-msg-ok {
+      color: var(--theme-success);
+      font-weight: 600;
+    }
+    .intake-inline-msg.intake-msg-err {
+      color: #b91c1c;
+      font-weight: 500;
+    }
+    .intake-hint {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--theme-text-secondary);
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+    .intake-fieldset {
+      border: 1px solid var(--theme-border);
+      border-radius: var(--radius-lg);
+      padding: 14px 12px 12px;
+      margin: 0;
+      background: var(--theme-bg-card);
+    }
+    .intake-fieldset legend {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--theme-text-primary);
+      padding: 0 8px;
+    }
+    .intake-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 6px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13.5px;
+      line-height: 1.45;
+      color: var(--theme-text-secondary);
+    }
+    .intake-check:hover { background: var(--teal-tint-08); }
+    .intake-check input {
+      margin-top: 3px;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--theme-accent);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .intake-error {
+      color: #f87171;
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 1.25em;
+    }
+    .intake-actions {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .intake-actions .btn-primary {
+      flex: 1 1 auto;
+      width: auto;
+    }
+    .btn-back-intake {
+      flex: 0 0 auto;
+      background: var(--theme-bg-card);
+      color: var(--theme-text-secondary);
+      border: 1px solid var(--theme-border);
+      border-radius: var(--radius-lg);
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-back-intake:hover {
+      border-color: var(--theme-border-strong);
+      color: var(--theme-text-primary);
+      background: var(--theme-nav-active-bg);
+    }
+    .intake-followup-hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════
+     INTRO SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="introScreen" class="screen">
+  <div class="intro-badge">
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+      <ellipse cx="22" cy="17" rx="9" ry="11" stroke="white" stroke-width="2"/>
+      <path d="M 16 14 Q 22 11 28 14" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="18.5" cy="17" rx="2.2" ry="2.8" fill="white" opacity="0.85"/>
+      <ellipse cx="25.5" cy="17" rx="2.2" ry="2.8" fill="white" opacity="0.85"/>
+      <path d="M 18 22 Q 22 24.5 26 22" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <path d="M 10 42 Q 10 30 22 30 Q 34 30 34 42" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <h1 class="intro-title">Face Scan</h1>
+  <p class="intro-subtitle">
+    We’ll guide you through 3 quick photos, then a short questionnaire, for a detailed skin analysis. The whole process takes under a minute.
+  </p>
+
+  <div class="step-pills">
+    <div class="step-pill">
+      <span class="step-pill-icon">😐</span>
+      <span class="step-pill-label">Front</span>
+    </div>
+    <div class="step-pill">
+      <span class="step-pill-icon">↗</span>
+      <span class="step-pill-label">45°</span>
+    </div>
+    <div class="step-pill">
+      <span class="step-pill-icon">→</span>
+      <span class="step-pill-label">Profile</span>
+    </div>
+  </div>
+
+  <button class="btn-primary" id="beginBtn">Begin Scan</button>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     INTAKE SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="intakeScreen" class="screen hidden">
+  <div class="intake-inner">
+    <h2 class="intake-title">Your details</h2>
+    <p class="intake-sub">Now that we have your photos, a few quick questions. You can select multiple answers where indicated.</p>
+
+    <form class="intake-form" id="intakeForm" novalidate>
+      <div class="intake-row2">
+        <label class="intake-label" for="intakeFirstName">First name
+          <input class="intake-input" id="intakeFirstName" name="firstName" type="text" autocomplete="given-name" required/>
+          <span class="intake-inline-msg" id="intakeFirstNameMsg" role="status" aria-live="polite"></span>
+        </label>
+        <label class="intake-label" for="intakeLastName">Last name
+          <input class="intake-input" id="intakeLastName" name="lastName" type="text" autocomplete="family-name" required/>
+          <span class="intake-inline-msg" id="intakeLastNameMsg" role="status" aria-live="polite"></span>
+        </label>
+      </div>
+      <label class="intake-label" for="intakeEmail">Email
+        <input class="intake-input" id="intakeEmail" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="name@example.com" required/>
+        <span class="intake-hint" id="intakeEmailHint">Use a valid address you can access.</span>
+        <span class="intake-inline-msg" id="intakeEmailMsg" role="status" aria-live="polite"></span>
+      </label>
+      <label class="intake-label" for="intakePhone">Phone number
+        <input class="intake-input" id="intakePhone" name="phone" type="tel" autocomplete="tel" inputmode="numeric" maxlength="14" placeholder="(555) 555-0100" required/>
+        <span class="intake-hint" id="intakePhoneHint">Valid 10-digit US number (area code + number)</span>
+        <span class="intake-inline-msg" id="intakePhoneMsg" role="status" aria-live="polite"></span>
+      </label>
+      <label class="intake-label" for="intakeDob">Date of birth
+        <input class="intake-input" id="intakeDob" name="dateOfBirth" type="date" autocomplete="bday" required/>
+        <span class="intake-hint" id="intakeDobHint">Age 18–99</span>
+        <span class="intake-inline-msg" id="intakeDobMsg" role="status" aria-live="polite"></span>
+      </label>
+
+      <fieldset class="intake-fieldset">
+        <legend>Have you had any aesthetic procedures?</legend>
+        <label class="intake-check"><input type="checkbox" name="procedures" value="injectables" data-proc-group/> Injectables (e.g. Botox or Fillers)</label>
+        <label class="intake-check"><input type="checkbox" name="procedures" value="chemical-peels" data-proc-group/> Chemical skin treatments (e.g. peels)</label>
+        <label class="intake-check"><input type="checkbox" name="procedures" value="medical-skincare" data-proc-group/> Medical grade skincare</label>
+        <label class="intake-check"><input type="checkbox" name="procedures" value="energy-laser" data-proc-group/> Energy based skin treatments (e.g. laser)</label>
+        <label class="intake-check"><input type="checkbox" name="procedures" value="other-minimal" data-proc-group/> Other minimally invasive (e.g. vampire facial, PRP, hair transplants)</label>
+        <label class="intake-check"><input type="checkbox" name="procedures" value="surgical" data-proc-group/> Surgical (e.g. liposuction, facelift)</label>
+        <label class="intake-check"><input type="checkbox" name="procedures" value="none-new" id="procNone"/> None: I’m new to medical aesthetics</label>
+      </fieldset>
+
+      <fieldset class="intake-fieldset">
+        <legend>What would you like to improve?</legend>
+        <label class="intake-check"><input type="checkbox" name="improve" value="look-good-age"/> I want to look good for my age</label>
+        <label class="intake-check"><input type="checkbox" name="improve" value="facial-balance"/> I want to improve my facial balance</label>
+        <label class="intake-check"><input type="checkbox" name="improve" value="less-tired"/> I want to look less tired</label>
+        <label class="intake-check"><input type="checkbox" name="improve" value="more-feminine"/> I want to look more feminine</label>
+        <label class="intake-check"><input type="checkbox" name="improve" value="more-masculine"/> I want to look more masculine</label>
+        <label class="intake-check"><input type="checkbox" name="improve" value="look-better"/> I just want to look better</label>
+        <label class="intake-check"><input type="checkbox" name="improve" value="focus-face" id="improveFocusFace"/> Face</label>
+        <label class="intake-check"><input type="checkbox" name="improve" value="focus-skin" id="improveFocusSkin"/> Skin</label>
+      </fieldset>
+
+      <fieldset class="intake-fieldset intake-followup-hidden" id="intakeFaceRegionsBlock" aria-hidden="true">
+        <legend>Which regions of the face are focus areas?</legend>
+        <label class="intake-check"><input type="checkbox" name="faceRegions" value="forehead-eyebrows"/> Forehead and Eyebrows</label>
+        <label class="intake-check"><input type="checkbox" name="faceRegions" value="eyes"/> Eyes</label>
+        <label class="intake-check"><input type="checkbox" name="faceRegions" value="cheeks"/> Cheeks</label>
+        <label class="intake-check"><input type="checkbox" name="faceRegions" value="lips"/> Lips</label>
+        <label class="intake-check"><input type="checkbox" name="faceRegions" value="face-neck-aging"/> Face and neck aging</label>
+        <label class="intake-check"><input type="checkbox" name="faceRegions" value="earlobes"/> Earlobes</label>
+        <label class="intake-check"><input type="checkbox" name="faceRegions" value="jawline-chin"/> Jawline/chin</label>
+      </fieldset>
+
+      <fieldset class="intake-fieldset intake-followup-hidden" id="intakeSkinComplaintsBlock" aria-hidden="true">
+        <legend>Which skin complaints?</legend>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="acne"/> Acne</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="wrinkles"/> Wrinkles</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="pigment"/> Pigment</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="texture"/> Texture</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="sun-damage"/> Sun damage</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="thin"/> Thin</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="thick"/> Thick</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="oily"/> Oily</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="dry"/> Dry</label>
+        <label class="intake-check"><input type="checkbox" name="skinComplaints" value="redness"/> Redness</label>
+      </fieldset>
+
+      <p class="intake-error" id="intakeFormError" role="alert" aria-live="polite"></p>
+      <div class="intake-actions">
+        <button type="submit" class="btn-primary" id="intakeContinueBtn">Continue to analysis</button>
+        <button type="button" class="btn-back-intake" id="intakeBackBtn">Back</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     CAPTURE SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="captureScreen" class="screen hidden">
+
+  <!-- Step bar -->
+  <div class="step-bar">
+    <div class="step-node">
+      <div class="step-circle active" id="sc0">1</div>
+      <div class="step-node-label active" id="sl0">Front</div>
+    </div>
+    <div class="step-line" id="sln0"></div>
+    <div class="step-node">
+      <div class="step-circle" id="sc1">2</div>
+      <div class="step-node-label" id="sl1">45°</div>
+    </div>
+    <div class="step-line" id="sln1"></div>
+    <div class="step-node">
+      <div class="step-circle" id="sc2">3</div>
+      <div class="step-node-label" id="sl2">Profile</div>
+    </div>
+  </div>
+
+  <!-- Mirror toggle and side labels -->
+  <div class="mirror-row">
+    <span class="side-label left-label" id="leftLabel">Your left</span>
+    <label class="mirror-toggle">
+      <input type="checkbox" id="mirrorCheckbox" checked/>
+      <span>Mirror preview</span>
+    </label>
+    <span class="side-label right-label" id="rightLabel">Your right</span>
+  </div>
+  <!-- Camera -->
+  <div class="stage-outer">
+    <div class="stage" id="stage">
+      <video id="video" playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="flash-overlay" id="flashOverlay"></div>
+      <div class="thumb-row">
+        <img class="thumb" id="thumb0" alt=""/>
+        <img class="thumb" id="thumb1" alt=""/>
+        <img class="thumb" id="thumb2" alt=""/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel -->
+  <div class="bottom-panel">
+    <div>
+      <div class="step-title-text" id="stepTitle">Front View</div>
+      <div class="step-instr-text" id="stepInstr">Look straight at the camera with a neutral expression.</div>
+    </div>
+
+    <div class="checks">
+      <div class="check-row" id="chkPos">
+        <div class="check-icon" id="chkPosIcon">·</div>
+        <span>Face centered &amp; sized</span>
+        <span class="check-hint-text" id="chkPosHint"></span>
+      </div>
+      <div class="check-row" id="chkLight">
+        <div class="check-icon" id="chkLightIcon">·</div>
+        <span>Good lighting</span>
+        <span class="check-hint-text" id="chkLightHint"></span>
+      </div>
+      <div class="check-row check-row-face-clear" id="chkFaceClear">
+        <div class="check-icon" id="chkFaceClearIcon">·</div>
+        <span>Face fully visible</span>
+        <span class="check-hint-text" id="chkFaceClearHint"></span>
+      </div>
+      <p class="face-clear-tip" id="chkFaceClearTip">
+        Tip: we need an unobstructed view of both eyes, nose, mouth, chin, and forehead. Watch the message on the right — it names which area looks blocked or unclear.
+      </p>
+      <p class="mesh-legend" id="meshLegend" aria-hidden="true">
+        <strong>Face mesh</strong> (approximate): lines = model fit; dots use the model’s confidence scores — not perfect occlusion detection, so they can drift with lighting, hair, and glasses.
+        <span style="color:#0d9488">Clear</span> ·
+        <span style="color:#f59e0b">Partial</span> ·
+        <span style="color:#ef4444">Low</span> ·
+        <span style="color:#94a3b8">No score</span>
+      </p>
+      <div class="check-row" id="chkAngle">
+        <div class="check-icon" id="chkAngleIcon">·</div>
+        <span id="chkAngleLabel">Head angle</span>
+        <span class="check-hint-text" id="chkAngleHint"></span>
+      </div>
+      <div class="check-row hidden" id="chkRoll" aria-hidden="true">
+        <div class="check-icon" id="chkRollIcon">·</div>
+        <span>Eyes level</span>
+        <span class="check-hint-text" id="chkRollHint">—</span>
+      </div>
+    </div>
+
+    <button class="btn-capture" id="captureBtn" disabled>Position your face in the guide</button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     LOADING SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="loadingScreen" class="screen hidden">
+  <div class="load-title">Analyzing Skin</div>
+
+  <div class="face-wrap">
+    <canvas id="loadFaceCanvas"></canvas>
+  </div>
+
+  <div class="load-status" id="loadStatus">Initializing scan...</div>
+
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     COMPLETE SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="completeScreen" class="screen hidden">
+  <div class="complete-ring">
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+      <path d="M 10 21 L 18 29 L 32 13" stroke="#0d9488" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <div class="complete-title">Scan Complete</div>
+  <p class="complete-sub">All three photos have been captured and analyzed successfully.</p>
+
+  <div class="thumb-row-complete">
+    <div class="thumb-complete-wrap">
+      <span class="thumb-complete-label">Front</span>
+      <img class="thumb-complete" id="cThumb0" alt="Front"/>
+    </div>
+    <div class="thumb-complete-wrap">
+      <span class="thumb-complete-label">45°</span>
+      <img class="thumb-complete" id="cThumb1" alt="45 degrees"/>
+    </div>
+    <div class="thumb-complete-wrap">
+      <span class="thumb-complete-label">Profile</span>
+      <img class="thumb-complete" id="cThumb2" alt="Profile"/>
+    </div>
+  </div>
+
+  <button class="btn-restart" id="restartBtn">Start New Scan</button>
+  <button class="btn-primary hidden" id="clinicDoneBtn" type="button" style="margin-top:12px;width:100%;max-width:320px;">Done — return to chart</button>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════════ -->
+<script type="module">
+import * as MediaPipeVision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs";
+const { FaceLandmarker, FilesetResolver, DrawingUtils } = MediaPipeVision;
+const ImageSegmenter = MediaPipeVision.ImageSegmenter;
+const HasImageSegmenter = typeof ImageSegmenter !== "undefined";
+
+// ── Config ────────────────────────────────────────────────
+const WASM_URL  = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const SEGMENTER_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite";
+// Rembg server for background removal (run: python server.py).
+const REMBG_SERVER_URL = ""; // same-origin — server.py serves both the app and /remove-bg
+const LANDMARK_SMOOTH = 0.72;
+/** Smooth visibility/presence so mesh colors & obstruction checks don’t flicker frame-to-frame. */
+const VISIBILITY_SMOOTH = 0.58;
+const LIGHT_MIN = 38;
+const LIGHT_MAX = 238;
+const ROLL_TOLERANCE  = 10; // max tilt from horizontal (eye line ~0° or ~180° both count as level); ~170°–190° OK
+let useMirror = true;  // true = selfie mirror (default, less confusing); false = unmirrored
+const PITCH_TOLERANCE = 12; // degrees — max up/down head tilt
+
+// Face-shaped positioning guide (portrait; slightly narrower toward the chin than a plain ellipse)
+const FACE_GUIDE_RX_FRAC = 0.19;
+const FACE_GUIDE_RY_FRAC = 0.42;
+const FACE_GUIDE_CHIN_NARROW = 0.14; // only pinches the lower half (sin t > 0)
+
+const STEPS = [
+  {
+    title:   "Front View",
+    instr:   "Look straight at the camera with a neutral expression.",
+    angleLabel: "Looking straight ahead",
+    yawOk:   yaw => Math.abs(yaw) <= 15,
+    yawHint: yaw => Math.abs(yaw) <= 15
+      ? "Looking straight ahead"
+      : "Face the camera directly"
+  },
+  {
+    title:   "45° Angle",
+    instr:   "Turn your head about 45° to either side.",
+    angleLabel: "Head turned 45°",
+    yawOk:   yaw => Math.abs(yaw) >= 32 && Math.abs(yaw) <= 62,
+    yawHint: yaw => {
+      const a = Math.abs(yaw);
+      if (a < 32) return "Turn your head more to the side";
+      if (a > 62) return "Turn back toward the camera slightly";
+      return "Angle looks great";
+    }
+  },
+  {
+    title:   "Side Profile",
+    instr:   "Turn your head fully to face sideways.",
+    angleLabel: "Full side profile",
+    yawOk:   yaw => Math.abs(yaw) >= 68,
+    yawHint: yaw => Math.abs(yaw) >= 68
+      ? "Profile angle correct"
+      : "Turn your head further to the side"
+  }
+];
+
+// ── State ─────────────────────────────────────────────────
+let faceLandmarker = null;
+let stream = null;
+let animId = null;
+let running = false;
+let lastVideoTime = -1;
+let smoothedLM = null;
+let smoothedYaw = null;
+let currentStep = 0;
+let capturedImages = [];
+let allChecksOk = false;
+let lockedSideMult = 1; // which direction user committed to for steps 1 & 2
+let smoothedRoll = null; // smoothed head roll (degrees) for stable eyes-level check
+/** Temporal buffer for obstruction pass/fail (raw scores are noisy — see mergeObstructionDisplay). */
+let obstructionHeat = 0;
+
+// ── DOM ───────────────────────────────────────────────────
+const video       = document.getElementById("video");
+const canvas      = document.getElementById("canvas");
+const ctx         = canvas.getContext("2d", { willReadFrequently: true });
+const flashEl     = document.getElementById("flashOverlay");
+const captureBtn  = document.getElementById("captureBtn");
+
+// ── Screen management ─────────────────────────────────────
+const SCREENS = ["introScreen","captureScreen","intakeScreen","loadingScreen","completeScreen"];
+function showScreen(id) {
+  SCREENS.forEach(s => {
+    document.getElementById(s).classList.toggle("hidden", s !== id);
+  });
+}
+
+/** Latest validated intake submission (PII — handle per your privacy policy). */
+let intakeFormData = null;
+
+function syncIntakeFocusFollowUps() {
+  const faceCb = document.getElementById("improveFocusFace");
+  const skinCb = document.getElementById("improveFocusSkin");
+  const faceBlock = document.getElementById("intakeFaceRegionsBlock");
+  const skinBlock = document.getElementById("intakeSkinComplaintsBlock");
+  if (faceBlock && faceCb) {
+    const show = faceCb.checked;
+    faceBlock.classList.toggle("intake-followup-hidden", !show);
+    faceBlock.setAttribute("aria-hidden", show ? "false" : "true");
+    if (!show) faceBlock.querySelectorAll("input[type=\"checkbox\"]").forEach((c) => { c.checked = false; });
+  }
+  if (skinBlock && skinCb) {
+    const show = skinCb.checked;
+    skinBlock.classList.toggle("intake-followup-hidden", !show);
+    skinBlock.setAttribute("aria-hidden", show ? "false" : "true");
+    if (!show) skinBlock.querySelectorAll("input[type=\"checkbox\"]").forEach((c) => { c.checked = false; });
+  }
+}
+
+function resetIntakeForm() {
+  const form = document.getElementById("intakeForm");
+  if (form) form.reset();
+  applyIntakeDobLimits();
+  clearIntakeInlineValidation();
+  const err = document.getElementById("intakeFormError");
+  if (err) err.textContent = "";
+  intakeFormData = null;
+  syncIntakeFocusFollowUps();
+}
+
+function getCheckedValues(selector) {
+  return Array.from(document.querySelectorAll(selector))
+    .filter((el) => el.checked)
+    .map((el) => el.value);
+}
+
+function normalizeEmailStr(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
+/** Front-end email check — stricter than empty; not a full RFC parser. */
+function isValidEmailAddress(s) {
+  const e = normalizeEmailStr(s);
+  if (e.length < 5 || e.length > 254) return false;
+  if (e.includes("..") || e.startsWith(".") || e.endsWith(".")) return false;
+  const at = e.lastIndexOf("@");
+  if (at < 1 || at === e.length - 1) return false;
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1);
+  if (!local || !domain || !domain.includes(".")) return false;
+  const tld = domain.slice(domain.lastIndexOf(".") + 1);
+  if (tld.length < 2) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+}
+
+function getPhoneDigitsOnly(s) {
+  return String(s || "").replace(/\D/g, "");
+}
+
+/** US NANP: NXX-NXX-XXXX with N=2–9 for area and exchange first digit. */
+function isValidNanp10(d10) {
+  if (d10.length !== 10) return false;
+  if (d10[0] < "2" || d10[0] > "9") return false;
+  if (d10[3] < "2" || d10[3] > "9") return false;
+  return true;
+}
+
+const INTAKE_MIN_AGE = 18;
+const INTAKE_MAX_AGE = 99;
+
+/** @returns {{ ok: true, e164: string } | { ok: false, message: string }} — US 10-digit NANP only */
+function validateUSPhoneOnly(raw) {
+  const d = getPhoneDigitsOnly(raw);
+  if (d.length === 0) return { ok: false, message: "Enter a 10-digit US phone number." };
+  let ten = d;
+  if (d.length === 11 && d[0] === "1") ten = d.slice(1);
+  if (ten.length !== 10) {
+    return { ok: false, message: "Enter a valid 10-digit US number." };
+  }
+  if (!isValidNanp10(ten)) {
+    return { ok: false, message: "Invalid area code or prefix (US only)." };
+  }
+  return { ok: true, e164: "+1" + ten };
+}
+
+function formatUSLocalDigits(n) {
+  const d = n.slice(0, 10);
+  if (d.length === 0) return "";
+  if (d.length <= 3) return "(" + d;
+  if (d.length <= 6) return "(" + d.slice(0, 3) + ") " + d.slice(3);
+  return "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6);
+}
+
+/** US-only: strips to digits, optional leading 1, formats (NXX) NXX-XXXX */
+function formatPhoneInputValue(raw) {
+  let d = getPhoneDigitsOnly(String(raw || ""));
+  if (d.length >= 11 && d[0] === "1") d = d.slice(1);
+  return formatUSLocalDigits(d.slice(0, 10));
+}
+
+function localYmdYearsAgo(years) {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - years);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function applyIntakeDobLimits() {
+  const dob = document.getElementById("intakeDob");
+  if (!dob) return;
+  dob.min = localYmdYearsAgo(INTAKE_MAX_AGE);
+  dob.max = localYmdYearsAgo(INTAKE_MIN_AGE);
+}
+
+function computeAgeYears(dobStr) {
+  if (!dobStr) return null;
+  const dobDate = new Date(dobStr + "T12:00:00");
+  if (Number.isNaN(dobDate.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - dobDate.getFullYear();
+  const mo = now.getMonth() - dobDate.getMonth();
+  if (mo < 0 || (mo === 0 && now.getDate() < dobDate.getDate())) age--;
+  return age;
+}
+
+/** @returns {{ ok: boolean, message: string }} */
+function validateDobValue(dobStr) {
+  if (!dobStr || !String(dobStr).trim()) {
+    return { ok: false, message: "Enter your date of birth." };
+  }
+  const dobDate = new Date(dobStr + "T12:00:00");
+  if (Number.isNaN(dobDate.getTime())) {
+    return { ok: false, message: "That’s not a valid date." };
+  }
+  const now = new Date();
+  if (dobDate > now) {
+    return { ok: false, message: "Date of birth cannot be in the future." };
+  }
+  const age = computeAgeYears(dobStr);
+  if (age === null) return { ok: false, message: "That’s not a valid date." };
+  if (age < INTAKE_MIN_AGE) {
+    return { ok: false, message: `Must be at least ${INTAKE_MIN_AGE} years old.` };
+  }
+  if (age > INTAKE_MAX_AGE) {
+    return { ok: false, message: `Age must be ${INTAKE_MAX_AGE} or younger.` };
+  }
+  return { ok: true, message: "✓" };
+}
+
+function setIntakeFieldInvalid(el, invalid) {
+  if (!el) return;
+  if (invalid) el.classList.remove("intake-field-valid");
+  el.classList.toggle("intake-invalid", !!invalid);
+}
+
+/**
+ * @param {"neutral"|"valid"|"invalid"} state
+ */
+function setIntakeFieldFeedback(input, msgEl, state, message) {
+  if (!input) return;
+  input.classList.remove("intake-field-valid");
+  setIntakeFieldInvalid(input, false);
+  if (msgEl) {
+    msgEl.textContent = "";
+    msgEl.className = "intake-inline-msg";
+    msgEl.removeAttribute("aria-invalid");
+  }
+  if (state === "neutral") return;
+  if (state === "valid") {
+    input.classList.add("intake-field-valid");
+    if (msgEl) {
+      msgEl.textContent = message ?? "✓";
+      msgEl.classList.add("intake-msg-ok");
+    }
+  } else if (state === "invalid") {
+    setIntakeFieldInvalid(input, true);
+    if (msgEl) {
+      msgEl.textContent = message ?? "";
+      msgEl.classList.add("intake-msg-err");
+      msgEl.setAttribute("aria-invalid", "true");
+    }
+  }
+}
+
+function clearIntakeInlineValidation() {
+  for (const id of ["intakeFirstName", "intakeLastName", "intakeEmail", "intakePhone", "intakeDob"]) {
+    const input = document.getElementById(id);
+    const msg = document.getElementById(id + "Msg");
+    setIntakeFieldFeedback(input, msg, "neutral");
+  }
+}
+
+function validateIntakeForm() {
+  const errEl = document.getElementById("intakeFormError");
+  const firstEl = document.getElementById("intakeFirstName");
+  const lastEl = document.getElementById("intakeLastName");
+  const emailEl = document.getElementById("intakeEmail");
+  const phoneEl = document.getElementById("intakePhone");
+  const dobEl = document.getElementById("intakeDob");
+  const firstMsg = document.getElementById("intakeFirstNameMsg");
+  const lastMsg = document.getElementById("intakeLastNameMsg");
+  const emailMsg = document.getElementById("intakeEmailMsg");
+  const phoneMsg = document.getElementById("intakePhoneMsg");
+  const dobMsg = document.getElementById("intakeDobMsg");
+
+  clearIntakeInlineValidation();
+  if (errEl) errEl.textContent = "";
+
+  const first = firstEl?.value.trim() ?? "";
+  const last = lastEl?.value.trim() ?? "";
+
+  if (!first) {
+    setIntakeFieldFeedback(firstEl, firstMsg, "invalid", "First name is required.");
+    if (errEl) errEl.textContent = "Please enter your first name.";
+    return false;
+  }
+  setIntakeFieldFeedback(firstEl, firstMsg, "valid", "✓");
+
+  if (!last) {
+    setIntakeFieldFeedback(lastEl, lastMsg, "invalid", "Last name is required.");
+    if (errEl) errEl.textContent = "Please enter your last name.";
+    return false;
+  }
+  setIntakeFieldFeedback(lastEl, lastMsg, "valid", "✓");
+
+  const emailNorm = normalizeEmailStr(emailEl?.value ?? "");
+  if (emailEl) emailEl.value = emailNorm;
+  if (!emailNorm || !isValidEmailAddress(emailNorm)) {
+    setIntakeFieldFeedback(emailEl, emailMsg, "invalid", "Enter a valid email (e.g. name@example.com).");
+    if (errEl) errEl.textContent = "Please enter a valid email address.";
+    return false;
+  }
+  setIntakeFieldFeedback(emailEl, emailMsg, "valid", "✓");
+
+  if (phoneEl) phoneEl.value = formatPhoneInputValue(phoneEl.value);
+  const phoneCheck = validateUSPhoneOnly(phoneEl?.value ?? "");
+  if (!phoneCheck.ok) {
+    setIntakeFieldFeedback(phoneEl, phoneMsg, "invalid", phoneCheck.message);
+    if (errEl) errEl.textContent = phoneCheck.message;
+    return false;
+  }
+  setIntakeFieldFeedback(phoneEl, phoneMsg, "valid", "✓");
+
+  const dob = dobEl?.value ?? "";
+  const dobRes = validateDobValue(dob);
+  if (!dobRes.ok) {
+    setIntakeFieldFeedback(dobEl, dobMsg, "invalid", dobRes.message);
+    if (errEl) errEl.textContent = dobRes.message;
+    return false;
+  }
+  setIntakeFieldFeedback(dobEl, dobMsg, "valid", dobRes.message);
+
+  const procedures = getCheckedValues("#intakeForm input[name=\"procedures\"]:checked");
+  if (procedures.length === 0) {
+    if (errEl) errEl.textContent = "Please select at least one option for aesthetic procedures (or “None”).";
+    return false;
+  }
+  const improve = getCheckedValues("#intakeForm input[name=\"improve\"]:checked");
+  if (improve.length === 0) {
+    if (errEl) errEl.textContent = "Please select at least one goal under “What would you like to improve?”.";
+    return false;
+  }
+  if (improve.includes("focus-face")) {
+    const fr = getCheckedValues("#intakeForm input[name=\"faceRegions\"]:checked");
+    if (fr.length === 0) {
+      if (errEl) errEl.textContent = "Please select at least one face region (under “Which regions of the face…”).";
+      return false;
+    }
+  }
+  if (improve.includes("focus-skin")) {
+    const sc = getCheckedValues("#intakeForm input[name=\"skinComplaints\"]:checked");
+    if (sc.length === 0) {
+      if (errEl) errEl.textContent = "Please select at least one skin complaint.";
+      return false;
+    }
+  }
+
+  if (errEl) errEl.textContent = "";
+  return true;
+}
+
+function collectIntakeData() {
+  const phoneRaw = document.getElementById("intakePhone")?.value ?? "";
+  const phoneParsed = validateUSPhoneOnly(phoneRaw);
+  return {
+    firstName: document.getElementById("intakeFirstName").value.trim(),
+    lastName: document.getElementById("intakeLastName").value.trim(),
+    email: normalizeEmailStr(document.getElementById("intakeEmail")?.value ?? ""),
+    phone: phoneParsed.ok ? phoneParsed.e164 : phoneRaw.trim(),
+    dateOfBirth: document.getElementById("intakeDob").value,
+    aestheticProcedures: getCheckedValues("#intakeForm input[name=\"procedures\"]:checked"),
+    improveGoals: getCheckedValues("#intakeForm input[name=\"improve\"]:checked"),
+    faceFocusRegions: getCheckedValues("#intakeForm input[name=\"faceRegions\"]:checked"),
+    skinComplaints: getCheckedValues("#intakeForm input[name=\"skinComplaints\"]:checked")
+  };
+}
+
+// ── MediaPipe ─────────────────────────────────────────────
+let faceLandmarkerImage = null;
+let imageSegmenter = null;
+
+async function initImageSegmenter() {
+  if (imageSegmenter) return imageSegmenter;
+  if (!HasImageSegmenter) return null;
+  try {
+    const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+    imageSegmenter = await ImageSegmenter.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: SEGMENTER_MODEL_URL },
+      outputCategoryMask: true,
+      outputConfidenceMasks: true,
+      runningMode: "IMAGE"
+    });
+    return imageSegmenter;
+  } catch (e) {
+    console.warn("ImageSegmenter init failed, background removal disabled:", e);
+    return null;
+  }
+}
+
+/** Returns a new data URL with background removed. Tries rembg server first, then client-side fallback. */
+async function removeBackgroundFromImageDataUrl(dataUrl) {
+  const base = REMBG_SERVER_URL || (typeof location !== "undefined" ? `${location.origin}` : "");
+  const rembgUrl = base ? `${base.replace(/\/$/, "")}/remove-bg` : "";
+  if (rembgUrl) {
+    try {
+      const res = await fetch(rembgUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: dataUrl })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.image) {
+          window._usedRembgForBgRemoval = true;
+          return json.image;
+        }
+      }
+    } catch (e) {
+      console.warn("Rembg server failed, trying fallback:", e);
+    }
+  }
+  const segmenter = await initImageSegmenter();
+  if (!segmenter) return dataUrl;
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  try {
+    const result = await new Promise((resolve, reject) => {
+      try {
+        if (typeof segmenter.segment === "function") {
+          segmenter.segment(img, (res) => resolve(res != null ? res : {}));
+        } else {
+          reject(new Error("segment not available"));
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+    // Try confidence masks first (smoother edges), then category mask
+    let kept = false;
+    if (result.confidenceMasks && result.confidenceMasks.length > 1) {
+      // Background is class 0; combine all non-background classes as person confidence
+      const bgMask = result.confidenceMasks[0];
+      let bgData = null;
+      if (typeof bgMask.getAsFloat32Array === "function") {
+        bgData = bgMask.getAsFloat32Array();
+      } else if (bgMask.data) {
+        bgData = bgMask.data;
+      }
+      if (bgData && bgData.length > 0) {
+        const mW = bgMask.width || w;
+        const mH = bgMask.height || h;
+        const src = ctx.getImageData(0, 0, w, h);
+        const d = src.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const px = (i / 4) % w;
+          const py = Math.floor((i / 4) / w);
+          const mx = Math.min(Math.floor((px / w) * mW), mW - 1);
+          const my = Math.min(Math.floor((py / h) * mH), mH - 1);
+          const bgConf = bgData[my * mW + mx] || 0;
+          d[i + 3] = Math.round((1 - bgConf) * 255);
+        }
+        ctx.putImageData(src, 0, 0);
+        kept = true;
+      }
+    }
+    if (!kept && result.categoryMask) {
+      const mask = result.categoryMask;
+      let maskData = null;
+      if (typeof mask.getAsImageData === "function") {
+        maskData = mask.getAsImageData();
+      } else if (typeof mask.getAsUint8Array === "function") {
+        const arr = mask.getAsUint8Array();
+        maskData = { data: arr, width: mask.width || w, height: mask.height || h };
+      } else if (mask.data) {
+        maskData = mask;
+      }
+      if (maskData && maskData.data) {
+        const src = ctx.getImageData(0, 0, w, h);
+        const d = src.data;
+        const m = maskData.data;
+        const maskW = maskData.width || w;
+        const maskH = maskData.height || h;
+        for (let i = 0; i < d.length; i += 4) {
+          const px = (i / 4) % w;
+          const py = Math.floor((i / 4) / w);
+          const mx = Math.min(Math.floor((px / w) * maskW), maskW - 1);
+          const my = Math.min(Math.floor((py / h) * maskH), maskH - 1);
+          const v = m[my * maskW + mx];
+          // Selfie multiclass: 0=bg, 1=hair, 2=body-skin, 3=face-skin, 4=clothes, 5=others
+          // DeepLab: 0=bg, 15=person. Keep any non-background.
+          const isPerson = v !== 0;
+          d[i + 3] = isPerson ? 255 : 0;
+        }
+        ctx.putImageData(src, 0, 0);
+        kept = true;
+      }
+    }
+    if (!kept) return dataUrl;
+    window._usedRembgForBgRemoval = true;
+    return canvas.toDataURL("image/png");
+  } catch (e) {
+    console.warn("Background removal failed, using original:", e);
+    return dataUrl;
+  }
+}
+
+async function initModel() {
+  const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+  faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: MODEL_URL },
+    runningMode: "VIDEO",
+    numFaces: 1,
+    minFaceDetectionConfidence: 0.45,
+    minFacePresenceConfidence: 0.45,
+    minTrackingConfidence: 0.45,
+    outputFaceBlendshapes: false,
+    outputFacialTransformationMatrixes: false
+  });
+}
+
+// Region definitions for loading screen (MediaPipe landmark indices)
+const LOAD_REGIONS = [
+  { id: "rForehead",   indices: [10,67,103,54,21,162,127,234,454,356,389,251,284,332,297,338] },
+  { id: "rLeftEye",    indices: [33,246,161,160,159,158,157,173,133,155,154,153,145,144,163,7] },
+  { id: "rRightEye",   indices: [362,398,384,385,386,387,388,466,263,249,390,373,374,380,381,382] },
+  { id: "rNose",       indices: [6,197,195,5,4,1,19,94,2,98,327,168] },
+  { id: "rLeftCheek",  indices: [50,101,205,187,147,123,116,117] },
+  { id: "rRightCheek", indices: [280,330,425,411,376,352,346,347] },
+  { id: "rLips",       indices: [61,146,91,181,84,17,314,405,321,375,291,308,324,318,402,317,14,87,178,88,95,78] },
+  { id: "rChin",       indices: [152,148,176,149,150,136,172,58,132,93,234,227,123,147] }
+];
+
+let loadFaceData = null;
+let loadAnimId = null;
+let loadStartTime = 0;
+let currentLoadRegion = null;
+let currentLoadPct = 0;
+const LOAD_DURATION_MS = 8200;
+
+function getPolygon(landmarks, indices, w, h) {
+  return indices.map(i => ({
+    x: (landmarks[i]?.x ?? 0) * w,
+    y: (landmarks[i]?.y ?? 0) * h
+  }));
+}
+
+// Landmarks in 0-1 image space → 0-1 crop space for loader canvas
+function cropTransform(lm, crop) {
+  return {
+    x: (lm.x - crop.minX) / crop.w,
+    y: (lm.y - crop.minY) / crop.h,
+    z: lm.z
+  };
+}
+
+// Build ordered face-oval polygon in canvas pixel coords for masking
+function getFaceOvalPolygon(tLM, w, h) {
+  const oval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
+  if (!oval || !tLM.length) return [];
+  const indices = [];
+  const pushIndex = (i) => {
+    if (typeof i === "number" && i >= 0 && i < tLM.length && !indices.includes(i)) indices.push(i);
+  };
+  try {
+    const entries = Array.isArray(oval) ? oval : Object.values(oval);
+    for (const item of entries) {
+      if (typeof item === "number") {
+        pushIndex(item);
+      } else if (Array.isArray(item)) {
+        item.forEach((i) => pushIndex(i));
+      } else if (item != null && typeof item === "object" && "0" in item && "1" in item) {
+        pushIndex(item[0]);
+        pushIndex(item[1]);
+      }
+    }
+  } catch (_) {
+    return [];
+  }
+  const points = indices.map((i) => {
+    const lm = tLM[i];
+    return lm ? { x: lm.x * w, y: lm.y * h } : null;
+  }).filter(Boolean);
+  if (points.length < 3) return [];
+  const cx = points.reduce((s, p) => s + p.x, 0) / points.length;
+  const cy = points.reduce((s, p) => s + p.y, 0) / points.length;
+  points.sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
+  return points;
+}
+
+function drawLoadingCanvas(highlightRegionId) {
+  if (!loadFaceData) return;
+  const { img, landmarks, canvas: cvs, ctx: cctx, crop, natW, natH } = loadFaceData;
+  const w = cvs.width;
+  const h = cvs.height;
+  cctx.clearRect(0, 0, w, h);
+
+  const tLM = crop && landmarks ? landmarks.map(lm => cropTransform(lm, crop)) : landmarks;
+
+  if (crop && natW && natH) {
+    const sx = crop.minX * natW, sy = crop.minY * natH;
+    const sw = crop.w * natW, sh = crop.h * natH;
+    cctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+    // If not from rembg, mask to face oval; rembg images already have transparent background
+    if (!loadFaceData.rembgUsed && tLM && tLM.length) {
+      const ovalPoly = getFaceOvalPolygon(tLM, w, h);
+      if (ovalPoly.length >= 3) {
+        cctx.save();
+        cctx.beginPath();
+        cctx.moveTo(ovalPoly[0].x, ovalPoly[0].y);
+        for (let i = 1; i < ovalPoly.length; i++) cctx.lineTo(ovalPoly[i].x, ovalPoly[i].y);
+        cctx.closePath();
+        cctx.globalCompositeOperation = "destination-in";
+        cctx.fillStyle = "#fff";
+        cctx.fill();
+        cctx.restore();
+      }
+    }
+  } else {
+    cctx.drawImage(img, 0, 0, w, h);
+  }
+
+  if (!tLM) return;
+
+  cctx.save();
+  cctx.globalAlpha = 0.5;
+  const du = new DrawingUtils(cctx);
+  du.drawConnectors(tLM, FaceLandmarker.FACE_LANDMARKS_TESSELATION, { color: "rgba(54,117,136,0.75)", lineWidth: 0.8 });
+  du.drawConnectors(tLM, FaceLandmarker.FACE_LANDMARKS_FACE_OVAL, { color: "#94a3b8", lineWidth: 1.2 });
+  cctx.restore();
+
+  LOAD_REGIONS.forEach(({ id, indices }) => {
+    const poly = getPolygon(tLM, indices, w, h);
+    if (!poly.length) return;
+    const isHighlight = id === highlightRegionId;
+    cctx.beginPath();
+    cctx.moveTo(poly[0].x, poly[0].y);
+    for (let i = 1; i < poly.length; i++) cctx.lineTo(poly[i].x, poly[i].y);
+    cctx.closePath();
+    cctx.fillStyle = isHighlight ? "rgba(54,117,136,0.4)" : "rgba(148,163,184,0.12)";
+    cctx.fill();
+    cctx.strokeStyle = isHighlight ? "rgba(54,117,136,0.85)" : "rgba(148,163,184,0.25)";
+    cctx.lineWidth = isHighlight ? 2.5 : 1;
+    cctx.stroke();
+  });
+
+  // Moving scan line overlay (during loading)
+  if (loadStartTime && loadFaceData) {
+    const elapsed = Date.now() - loadStartTime;
+    if (elapsed < LOAD_DURATION_MS) {
+      const cvs = loadFaceData.canvas;
+      const cw = cvs.width, ch = cvs.height;
+      const bandH = 48;
+      const scanY = (elapsed / LOAD_DURATION_MS) * (ch + bandH) - bandH;
+      const grad = cctx.createLinearGradient(0, scanY, 0, scanY + bandH);
+      grad.addColorStop(0, "rgba(54,117,136,0)");
+      grad.addColorStop(0.35, "rgba(54,117,136,0.22)");
+      grad.addColorStop(0.5, "rgba(54,117,136,0.38)");
+      grad.addColorStop(0.65, "rgba(54,117,136,0.22)");
+      grad.addColorStop(1, "rgba(54,117,136,0)");
+      cctx.fillStyle = grad;
+      cctx.fillRect(0, scanY, cw, bandH);
+    }
+  }
+}
+
+function runLoadCanvasLoop() {
+  if (!loadFaceData) return;
+  const elapsed = Date.now() - loadStartTime;
+  drawLoadingCanvas(currentLoadRegion);
+  if (elapsed < LOAD_DURATION_MS) {
+    loadAnimId = requestAnimationFrame(runLoadCanvasLoop);
+  }
+}
+
+async function initLoadingFace(imageUrl) {
+  const loadCanvas = document.getElementById("loadFaceCanvas");
+  if (!loadCanvas || !imageUrl) return;
+
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = imageUrl;
+  });
+
+  // Hot-swap: if animation is already running, just replace the image data
+  if (loadFaceData && loadFaceData.landmarks) {
+    loadFaceData.img = img;
+    loadFaceData.natW = img.naturalWidth;
+    loadFaceData.natH = img.naturalHeight;
+    loadFaceData.rembgUsed = !!(typeof window !== "undefined" && window._usedRembgForBgRemoval);
+    return;
+  }
+
+  if (!faceLandmarkerImage) {
+    const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+    faceLandmarkerImage = await FaceLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: MODEL_URL },
+      runningMode: "IMAGE",
+      numFaces: 1,
+      minFaceDetectionConfidence: 0.4,
+      outputFaceBlendshapes: false,
+      outputFacialTransformationMatrixes: false
+    });
+  }
+
+  let result;
+  try {
+    result = (typeof faceLandmarkerImage.detectForImage === "function")
+      ? faceLandmarkerImage.detectForImage(img, performance.now())
+      : faceLandmarkerImage.detect(img);
+  } catch (e) {
+    console.warn("Face detection on loading image failed:", e);
+    const ctx = loadCanvas.getContext("2d");
+    loadCanvas.width = img.naturalWidth;
+    loadCanvas.height = img.naturalHeight;
+    ctx.drawImage(img, 0, 0);
+    return;
+  }
+  const faceLandmarks = result.faceLandmarks ?? (Array.isArray(result) ? result : null);
+  if (!faceLandmarks || faceLandmarks.length === 0) {
+    const ctx = loadCanvas.getContext("2d");
+    loadCanvas.width = img.naturalWidth;
+    loadCanvas.height = img.naturalHeight;
+    ctx.drawImage(img, 0, 0);
+    return;
+  }
+
+  const landmarks = faceLandmarks[0];
+  const natW = img.naturalWidth;
+  const natH = img.naturalHeight;
+  let minX = 1, minY = 1, maxX = 0, maxY = 0;
+  for (const p of landmarks) {
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+  }
+  const pad = 0.22;
+  const cropW = Math.min(1, (maxX - minX) + pad * 2);
+  const cropH = Math.min(1, (maxY - minY) + pad * 2);
+  let cropMinX = (minX + maxX) / 2 - cropW / 2;
+  let cropMinY = (minY + maxY) / 2 - cropH / 2;
+  cropMinX = Math.max(0, Math.min(1 - cropW, cropMinX));
+  cropMinY = Math.max(0, Math.min(1 - cropH, cropMinY));
+  const crop = { minX: cropMinX, minY: cropMinY, w: cropW, h: cropH };
+
+  const maxW = 300;
+  const maxH = 360;
+  let cw = Math.round(cropW * natW);
+  let ch = Math.round(cropH * natH);
+  if (cw > maxW || ch > maxH) {
+    const scale = Math.min(maxW / cw, maxH / ch);
+    cw = Math.round(cw * scale);
+    ch = Math.round(ch * scale);
+  }
+  loadCanvas.width = cw;
+  loadCanvas.height = ch;
+  const cctx = loadCanvas.getContext("2d");
+  const sx = cropMinX * natW, sy = cropMinY * natH;
+  const sw = cropW * natW, sh = cropH * natH;
+  cctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+
+  loadFaceData = {
+    img,
+    landmarks,
+    canvas: loadCanvas,
+    ctx: cctx,
+    crop,
+    natW,
+    natH,
+    rembgUsed: !!(typeof window !== "undefined" && window._usedRembgForBgRemoval)
+  };
+  drawLoadingCanvas(null);
+}
+
+// ── Landmark smoothing ────────────────────────────────────
+function smoothLM(current) {
+  if (!smoothedLM) { smoothedLM = current.map(lm => ({ ...lm })); return smoothedLM; }
+  for (let i = 0; i < current.length; i++) {
+    smoothedLM[i].x = smoothedLM[i].x * LANDMARK_SMOOTH + current[i].x * (1 - LANDMARK_SMOOTH);
+    smoothedLM[i].y = smoothedLM[i].y * LANDMARK_SMOOTH + current[i].y * (1 - LANDMARK_SMOOTH);
+    smoothedLM[i].z = smoothedLM[i].z * LANDMARK_SMOOTH + current[i].z * (1 - LANDMARK_SMOOTH);
+    if (current[i] && typeof current[i].visibility === "number") {
+      const v = current[i].visibility;
+      const pv = smoothedLM[i].visibility;
+      smoothedLM[i].visibility =
+        typeof pv === "number" ? pv * VISIBILITY_SMOOTH + v * (1 - VISIBILITY_SMOOTH) : v;
+    }
+    if (current[i] && typeof current[i].presence === "number") {
+      const v = current[i].presence;
+      const pv = smoothedLM[i].presence;
+      smoothedLM[i].presence =
+        typeof pv === "number" ? pv * VISIBILITY_SMOOTH + v * (1 - VISIBILITY_SMOOTH) : v;
+    }
+  }
+  return smoothedLM;
+}
+
+// ── Head yaw ──────────────────────────────────────────────
+const LEFT_EYE_IDX  = [33,246,161,160,159,158,157,173,133,155,154,153,145,144,163,7];
+const RIGHT_EYE_IDX = [362,398,384,385,386,387,388,466,263,249,390,373,374,380,381,382];
+
+function getYaw(lm) {
+  const nose = lm[4] || lm[1];
+  if (!nose) return smoothedYaw != null ? Math.round(smoothedYaw) : 0;
+  let lx = 0, rx = 0;
+  for (const i of LEFT_EYE_IDX)  lx += lm[i].x;
+  for (const i of RIGHT_EYE_IDX) rx += lm[i].x;
+  lx /= LEFT_EYE_IDX.length;
+  rx /= RIGHT_EYE_IDX.length;
+  const cx  = (lx + rx) / 2;
+  const iow = Math.abs(rx - lx) || 0.15;
+  const raw = Math.max(-1, Math.min(1, (nose.x - cx) / (iow * 0.65 + 1e-6))) * 90;
+  smoothedYaw = smoothedYaw == null ? raw : smoothedYaw * 0.82 + raw * 0.18;
+  return Math.round(smoothedYaw);
+}
+
+// ── Head roll (eye tilt) ──────────────────────────────────
+// Returns degrees from atan2. ~0° or ~180° = level; use eyeLineTiltFromHorizontalDeg for “how tilted”.
+// Uses lx/rx in person-space: LEFT_EYE_IDX is person's LEFT eye → appears on screen RIGHT
+// in a non-mirrored image, so lx > rx typically.
+// We measure angle of the line from right-eye-center to left-eye-center.
+function getHeadRollDeg(lm) {
+  let lxSum = 0, lySum = 0, rxSum = 0, rySum = 0;
+  for (const i of LEFT_EYE_IDX)  { lxSum += lm[i].x; lySum += lm[i].y; }
+  for (const i of RIGHT_EYE_IDX) { rxSum += lm[i].x; rySum += lm[i].y; }
+  const lx = lxSum / LEFT_EYE_IDX.length;
+  const ly = lySum / LEFT_EYE_IDX.length;
+  const rx = rxSum / RIGHT_EYE_IDX.length;
+  const ry = rySum / RIGHT_EYE_IDX.length;
+  // angle of vector (rx→lx, ry→ly); ~0° or ~180° when eyes are horizontal (vector can point either way)
+  return Math.atan2(ly - ry, lx - rx) * (180 / Math.PI);
+}
+
+/** Degrees between the inter-eye line and horizontal (nearest of 0° / 180°). Always in [0, 90]. */
+function eyeLineTiltFromHorizontalDeg(rollDeg) {
+  let r = rollDeg;
+  while (r <= -180) r += 360;
+  while (r > 180) r -= 360;
+  const a = Math.abs(r);
+  return Math.min(a, 180 - a);
+}
+
+/** Map raw roll to [-90, 90] so tilt-left vs tilt-right hints match either branch near 0° or 180°. */
+function rollSignedForHintDeg(rollDeg) {
+  let r = rollDeg;
+  while (r <= -180) r += 360;
+  while (r > 180) r -= 360;
+  if (r > 90) r -= 180;
+  if (r < -90) r += 180;
+  return r;
+}
+
+// ── Head pitch (looking up / down) ───────────────────────
+// Returns degrees. Positive = nose too high relative to eyes (chin tucked / looking down).
+// Negative = nose too low (head tilted back / looking up).
+function getHeadPitchDeg(lm) {
+  const nose = lm[1];
+  if (!nose) return 0;
+  let lySum = 0, rySum = 0;
+  for (const i of LEFT_EYE_IDX)  lySum += lm[i].y;
+  for (const i of RIGHT_EYE_IDX) rySum += lm[i].y;
+  const eyeMidY = (lySum / LEFT_EYE_IDX.length + rySum / RIGHT_EYE_IDX.length) / 2;
+  // Inter-ocular distance as a stable scale reference
+  let lxSum = 0, rxSum = 0;
+  for (const i of LEFT_EYE_IDX)  lxSum += lm[i].x;
+  for (const i of RIGHT_EYE_IDX) rxSum += lm[i].x;
+  const iow = Math.abs(lxSum / LEFT_EYE_IDX.length - rxSum / RIGHT_EYE_IDX.length) || 0.12;
+  // Neutral ratio: nose is ~1.6× IOW below the eye midpoint in a front-facing pose
+  const NEUTRAL = iow * 1.60;
+  const actual  = nose.y - eyeMidY;
+  // Deviation expressed as approximate degrees (empirically scaled)
+  return ((actual - NEUTRAL) / (iow * 0.08)) * -1; // negative = chin up (looking down)
+}
+
+// ── Lighting check ────────────────────────────────────────
+function lightingCheck(lm) {
+  try {
+    const w = canvas.width, h = canvas.height;
+    let minX = 0, minY = 0, maxX = w - 1, maxY = h - 1;
+    if (lm) {
+      let bx0 = 1, by0 = 1, bx1 = 0, by1 = 0;
+      for (const p of lm) {
+        bx0 = Math.min(bx0, p.x); by0 = Math.min(by0, p.y);
+        bx1 = Math.max(bx1, p.x); by1 = Math.max(by1, p.y);
+      }
+      minX = Math.max(0, Math.floor(bx0 * w)); minY = Math.max(0, Math.floor(by0 * h));
+      maxX = Math.min(w-1, Math.ceil(bx1 * w)); maxY = Math.min(h-1, Math.ceil(by1 * h));
+    }
+    const { data } = ctx.getImageData(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    let sum = 0, n = 0;
+    for (let i = 0; i < data.length; i += 8) { sum += (data[i] + data[i+1] + data[i+2]) / 3; n++; }
+    const avg = n ? sum / n : 0;
+    const ok = avg >= LIGHT_MIN && avg <= LIGHT_MAX;
+    return { ok, hint: avg < LIGHT_MIN ? "Too dark — add light" : avg > LIGHT_MAX ? "Too bright" : "Good lighting" };
+  } catch { return { ok: false, hint: "—" }; }
+}
+
+// ── Alignment check (also respects face fully in frame) ─────
+function alignCheck(lm) {
+  if (!isFaceInFrame(lm)) {
+    return { ok: false, hint: "Face out of frame — center your face in the guide" };
+  }
+  let minX = 1, minY = 1, maxX = 0, maxY = 0;
+  for (const p of lm) {
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+  }
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const fh = maxY - minY;
+  // Distance validation: face height in frame (0.20–0.82 = right distance)
+  const sizeOk = fh >= 0.20 && fh <= 0.82;
+  const centered = Math.hypot(cx - 0.5, cy - 0.5) < 0.22;
+  const ok = sizeOk && centered;
+  const hint = !sizeOk
+    ? (fh < 0.20 ? "Face too far — move closer to camera" : "Face too close — move back")
+    : !centered ? "Center your face in the guide" : "Distance and position good";
+  return { ok, hint };
+}
+
+function getFaceGuideParams(w, h) {
+  return {
+    cx: w / 2,
+    cy: h / 2,
+    rx: w * FACE_GUIDE_RX_FRAC,
+    ry: h * FACE_GUIDE_RY_FRAC
+  };
+}
+
+/** One point on the face-shaped guide; t = 0 → right, π/2 → bottom (chin). */
+function faceGuidePoint(cx, cy, rx, ry, t) {
+  const narrow = 1 - FACE_GUIDE_CHIN_NARROW * Math.max(0, Math.sin(t));
+  return {
+    x: cx + rx * Math.cos(t) * narrow,
+    y: cy + ry * Math.sin(t)
+  };
+}
+
+function traceFaceGuidePath(ctx, cx, cy, rx, ry) {
+  const n = 72;
+  for (let i = 0; i <= n; i++) {
+    const t = (i / n) * Math.PI * 2;
+    const p = faceGuidePoint(cx, cy, rx, ry, t);
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+}
+
+// ── Draw face-shaped positioning guide ────────────────────
+function drawOval(allOk, partialOk) {
+  const w = canvas.width, h = canvas.height;
+  const { cx, cy, rx, ry } = getFaceGuideParams(w, h);
+
+  const color = allOk
+    ? "rgba(13,148,136,0.92)"
+    : partialOk
+      ? "rgba(245,158,11,0.88)"
+      : "rgba(248,113,113,0.78)";
+
+  const glow = allOk
+    ? "rgba(13,148,136,0.4)"
+    : partialOk
+      ? "rgba(245,158,11,0.32)"
+      : "rgba(248,113,113,0.22)";
+
+  ctx.save();
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 22;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  traceFaceGuidePath(ctx, cx, cy, rx, ry);
+  ctx.stroke();
+  ctx.restore();
+
+  // Corner ticks at cardinal points of the guide
+  const ticks = [
+    { ax: cx,      ay: cy - ry, tangentX: 1,  tangentY: 0   },  // top
+    { ax: cx,      ay: cy + ry, tangentX: 1,  tangentY: 0   },  // bottom
+    { ax: cx - rx, ay: cy,      tangentX: 0,  tangentY: 1   },  // left
+    { ax: cx + rx, ay: cy,      tangentX: 0,  tangentY: 1   },  // right
+  ];
+  const tl = Math.min(w, h) * 0.05;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  for (const { ax, ay, tangentX, tangentY } of ticks) {
+    ctx.beginPath();
+    ctx.moveTo(ax - tangentX * tl, ay - tangentY * tl);
+    ctx.lineTo(ax + tangentX * tl, ay + tangentY * tl);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── Face-in-frame reliability check ──────────────────────
+// Returns false if key landmarks are near or outside the frame edges (face cut off or partially obscured)
+function isFaceInFrame(lm) {
+  if (!lm || lm.length < 300) return false;
+  const key = [1, 33, 263, 152, 10]; // nose, left/right eye, chin, forehead
+  const margin = 0.06;
+  return key.every(i => lm[i] &&
+    lm[i].x >= margin && lm[i].x <= 1 - margin &&
+    lm[i].y >= margin && lm[i].y <= 1 - margin);
+}
+
+/** Prefer visibility, then presence (MediaPipe may provide either). */
+function landmarkConfidence(p) {
+  if (!p) return null;
+  if (typeof p.visibility === "number" && !Number.isNaN(p.visibility)) return p.visibility;
+  if (typeof p.presence === "number" && !Number.isNaN(p.presence)) return p.presence;
+  return null;
+}
+
+function avgLandmarkConfidence(lm, indices) {
+  const vals = [];
+  for (const i of indices) {
+    const v = landmarkConfidence(lm[i]);
+    if (v != null) vals.push(v);
+  }
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+function minLandmarkConfidence(lm, indices) {
+  let m = null;
+  for (const i of indices) {
+    const v = landmarkConfidence(lm[i]);
+    if (v != null) m = m == null ? v : Math.min(m, v);
+  }
+  return m;
+}
+
+const MOUTH_OBSTRUCTION_IDX = [61, 291, 17, 13, 14, 12, 15, 16, 78, 88];
+const NOSE_OBSTRUCTION_IDX = [1, 2, 4, 6, 168];
+
+/** User-facing names for each scored region (used in dynamic hints). */
+const OB_REGION_LABEL = {
+  leftEye: "left eye",
+  rightEye: "right eye",
+  nose: "nose",
+  mouth: "mouth",
+  chin: "chin or jawline",
+  forehead: "forehead"
+};
+
+function getRegionScores(lm) {
+  return {
+    leftEye: avgLandmarkConfidence(lm, LEFT_EYE_IDX),
+    rightEye: avgLandmarkConfidence(lm, RIGHT_EYE_IDX),
+    nose: minLandmarkConfidence(lm, NOSE_OBSTRUCTION_IDX),
+    mouth: minLandmarkConfidence(lm, MOUTH_OBSTRUCTION_IDX),
+    chin: landmarkConfidence(lm[152]),
+    forehead: landmarkConfidence(lm[10])
+  };
+}
+
+function formatRegionHint(regionKeys) {
+  const labels = regionKeys.map((k) => OB_REGION_LABEL[k]).filter(Boolean);
+  if (labels.length === 0) return "your face";
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return labels.slice(0, -1).join(", ") + ", and " + labels[labels.length - 1];
+}
+
+/**
+ * Uses per-landmark visibility when available; falls back to simple geometry so we still
+ * block obvious hand/object coverage when the model omits scores.
+ */
+function geometryObstructionFallback(lm, step) {
+  try {
+    let lx = 0, rx = 0, lz = 0, rz = 0;
+    for (const i of LEFT_EYE_IDX) { lx += lm[i].x; lz += (lm[i].z ?? 0); }
+    for (const i of RIGHT_EYE_IDX) { rx += lm[i].x; rz += (lm[i].z ?? 0); }
+    lx /= LEFT_EYE_IDX.length;
+    rx /= RIGHT_EYE_IDX.length;
+    lz /= LEFT_EYE_IDX.length;
+    rz /= RIGHT_EYE_IDX.length;
+    const iow = Math.abs(rx - lx) || 0.12;
+    if (lm[61] && lm[291]) {
+      const mouthW = Math.abs(lm[61].x - lm[291].x);
+      if (mouthW < iow * 0.38) {
+        return {
+          ok: false,
+          hint: "Mouth area looks blocked — move hands, sleeves, hair, or objects away from your mouth and chin."
+        };
+      }
+    }
+    if (step === 0) {
+      const zAsym = Math.abs(lz - rz);
+      if (zAsym > 0.11) {
+        return {
+          ok: false,
+          hint: "One side of your face looks more hidden — move hair, a hand, or objects off your cheek or jaw (both sides should look equally visible)."
+        };
+      }
+    }
+    return { ok: true, hint: "—" };
+  } catch {
+    return { ok: true, hint: "—" };
+  }
+}
+
+/**
+ * @returns {{ ok: boolean, hint: string }}
+ */
+function faceObstructionCheck(lm, step) {
+  if (!lm || lm.length < 400) return { ok: true, hint: "—" };
+
+  const scores = getRegionScores(lm);
+  const leftAvg = scores.leftEye;
+  const rightAvg = scores.rightEye;
+  const noseMin = scores.nose;
+  const mouthMin = scores.mouth;
+  const chinV = scores.chin;
+  const foreheadV = scores.forehead;
+
+  const aggregate = [leftAvg, rightAvg, noseMin, mouthMin, chinV, foreheadV];
+  const parts = aggregate.filter((v) => v != null);
+  if (parts.length < 4) return geometryObstructionFallback(lm, step);
+
+  if (step === 0) {
+    const TH = { leftEye: 0.34, rightEye: 0.34, nose: 0.34, mouth: 0.34, chin: 0.30, forehead: 0.30 };
+    const keys = /** @type {(keyof typeof TH)[]} */ (Object.keys(TH));
+    const mean = parts.reduce((a, b) => a + b, 0) / parts.length;
+
+    const belowTh = keys
+      .filter((k) => scores[k] != null && scores[k] < TH[k])
+      .sort((a, b) => (scores[a] ?? 1) - (scores[b] ?? 1));
+
+    const failMean = mean < 0.49;
+    const failFloor = belowTh.length > 0;
+
+    if (!failMean && !failFloor) return { ok: true, hint: "Full face visible" };
+
+    let nameKeys = belowTh.slice(0, 3);
+    if (nameKeys.length === 0 && failMean) {
+      nameKeys = keys
+        .map((k) => ({ k, v: scores[k] }))
+        .filter((x) => x.v != null)
+        .sort((a, b) => a.v - b.v)
+        .slice(0, 3)
+        .map((x) => x.k);
+    }
+
+    const area = formatRegionHint(nameKeys);
+    return {
+      ok: false,
+      hint: `Low visibility around your ${area} — move hair, hands, glasses, or clothing out of the way.`
+    };
+  }
+
+  if (step === 1) {
+    const TH = { leftEye: 0.26, rightEye: 0.26, nose: 0.28, mouth: 0.28, chin: 0.26, forehead: 0.26 };
+    const keys = /** @type {(keyof typeof TH)[]} */ (Object.keys(TH));
+    const p45 = [leftAvg, rightAvg, noseMin, mouthMin, chinV, foreheadV].filter((v) => v != null);
+    if (p45.length < 3) return geometryObstructionFallback(lm, step);
+    const mean = p45.reduce((a, b) => a + b, 0) / p45.length;
+
+    const belowTh = keys
+      .filter((k) => scores[k] != null && scores[k] < TH[k])
+      .sort((a, b) => (scores[a] ?? 1) - (scores[b] ?? 1));
+
+    const failMean = mean < 0.43;
+    const failFloor = belowTh.length > 0;
+
+    if (!failMean && !failFloor) return { ok: true, hint: "Full face visible" };
+
+    let nameKeys = belowTh.slice(0, 3);
+    if (nameKeys.length === 0 && failMean) {
+      nameKeys = keys
+        .map((k) => ({ k, v: scores[k] }))
+        .filter((x) => x.v != null)
+        .sort((a, b) => a.v - b.v)
+        .slice(0, 3)
+        .map((x) => x.k);
+    }
+
+    const area = formatRegionHint(nameKeys);
+    return {
+      ok: false,
+      hint: `Unclear around your ${area} (45°) — adjust hair, hands, or collar so those areas stay visible.`
+    };
+  }
+
+  if (leftAvg == null && rightAvg == null) return geometryObstructionFallback(lm, step);
+
+  const le = leftAvg ?? 0;
+  const re = rightAvg ?? 0;
+  const eyeBest = Math.max(le, re);
+  const coreVals = [noseMin, mouthMin, chinV].filter((v) => v != null);
+  const coreMin = coreVals.length ? Math.min(...coreVals) : 1;
+
+  if (eyeBest >= 0.33 && coreMin >= 0.27) return { ok: true, hint: "Face visible" };
+
+  const partsOut = [];
+  if (noseMin != null && noseMin < 0.27) partsOut.push("nose");
+  if (mouthMin != null && mouthMin < 0.27) partsOut.push("mouth");
+  if (chinV != null && chinV < 0.27) partsOut.push("chin or jawline");
+
+  if (eyeBest < 0.33) {
+    if (le < 0.33 && re < 0.33 && Math.abs(le - re) < 0.06) {
+      partsOut.unshift("eyes (along your profile)");
+    } else if (le <= re && le < 0.33) {
+      partsOut.unshift("left eye");
+    } else if (re < 0.33) {
+      partsOut.unshift("right eye");
+    }
+  }
+
+  const joined = partsOut.length
+    ? partsOut.slice(0, 4).join(", ")
+    : "nose, mouth, or side of face";
+  return {
+    ok: false,
+    hint: `Profile: unclear around your ${joined} — move hair, hands, or clothing off your face.`
+  };
+}
+
+/** Raw landmark visibility is jittery; require a few bad frames before failing, good frames before clearing. */
+const OBSTRUCTION_HEAT_MAX = 4;
+
+function obstructionTemporalPass(rawOk) {
+  if (rawOk) obstructionHeat = Math.max(0, obstructionHeat - 1);
+  else obstructionHeat = Math.min(12, obstructionHeat + 2);
+  return obstructionHeat < OBSTRUCTION_HEAT_MAX;
+}
+
+function mergeObstructionDisplay(rawClear) {
+  const ok = obstructionTemporalPass(rawClear.ok);
+  let hint = rawClear.hint;
+  if (!ok && rawClear.ok) hint = "Visibility is stabilizing — hold still briefly.";
+  else if (ok && !rawClear.ok) hint = "Checking visibility…";
+  return { ok, hint };
+}
+
+/** Normalized landmarks with X flipped when the preview is mirrored (matches drawGuidance). */
+function landmarksForCanvasDisplay(lm) {
+  if (!lm || !lm.length) return [];
+  const flip = useMirror;
+  return lm.map((p) =>
+    p
+      ? {
+          ...p,
+          x: flip ? 1 - p.x : p.x,
+          y: p.y,
+          z: p.z,
+          visibility: p.visibility,
+          presence: p.presence
+        }
+      : p
+  );
+}
+
+/** Per-landmark dot color from visibility / presence (aligned with obstruction thresholds). */
+function meshDotColorFromConfidence(conf) {
+  if (conf == null) return "rgba(148, 163, 184, 0.72)";
+  if (conf >= 0.55) return "rgba(13, 148, 136, 0.92)";
+  if (conf >= 0.38) return "rgba(245, 158, 11, 0.92)";
+  return "rgba(239, 68, 68, 0.96)";
+}
+
+/**
+ * MediaPipe face mesh on the live preview: tessellation + face oval, plus small dots per landmark
+ * colored by confidence so you can see which parts of the mesh look “blocked” to the model.
+ */
+function drawFaceMeshOverlay(lm) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const tLM = landmarksForCanvasDisplay(lm);
+  if (!tLM.length) return;
+
+  ctx.save();
+  const du = new DrawingUtils(ctx);
+  try {
+    du.drawConnectors(tLM, FaceLandmarker.FACE_LANDMARKS_TESSELATION, {
+      color: "rgba(255, 255, 255, 0.11)",
+      lineWidth: 0.55
+    });
+    du.drawConnectors(tLM, FaceLandmarker.FACE_LANDMARKS_FACE_OVAL, {
+      color: "rgba(54, 117, 136, 0.45)",
+      lineWidth: 1.15
+    });
+  } catch (_) {
+    /* ignore draw connector issues */
+  }
+
+  const r = Math.max(1.05, Math.min(w, h) * 0.00135);
+  for (let i = 0; i < tLM.length; i++) {
+    const p = tLM[i];
+    if (!p) continue;
+    const conf = landmarkConfidence(lm[i]);
+    ctx.fillStyle = meshDotColorFromConfidence(conf);
+    ctx.beginPath();
+    ctx.arc(p.x * w, p.y * h, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Face stencil (ghost guides inside the face outline) ───
+// Draws dashed eye/nose/lip shapes so the user knows where to align
+function drawFaceStencil(step) {
+  const w = canvas.width, h = canvas.height;
+  const { cx, cy, rx, ry } = getFaceGuideParams(w, h);
+  const eyeY  = cy - ry * 0.22;
+  const noseY = cy + ry * 0.08;
+  const lipY  = cy + ry * 0.34;
+  // Direction for 45° / profile: match turn direction (unmirrored: sDir = lockedSideMult; mirrored: opposite)
+  const sDir = useMirror ? -lockedSideMult : lockedSideMult;
+
+  ctx.save();
+  ctx.lineWidth = 1.6;
+  ctx.setLineDash([5, 5]);
+
+  if (step === 0) {
+    // ── Front: symmetric eyes, eyebrows, nose lines, lip arc (where to place your eyes, nose, lips) ──
+    ctx.strokeStyle = "rgba(255,255,255,0.42)";
+    ctx.lineWidth = 2;
+    // Eyes (oval stencils — align your eyes here)
+    for (const ex of [cx - rx * 0.32, cx + rx * 0.32]) {
+      ctx.beginPath();
+      ctx.ellipse(ex, eyeY, rx * 0.18, ry * 0.085, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1.6;
+    // Eyebrows
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.lineWidth = 1.4;
+    for (const [sx, px, ex] of [
+      [cx - rx * 0.48, cx - rx * 0.32, cx - rx * 0.15],
+      [cx + rx * 0.15, cx + rx * 0.32, cx + rx * 0.48]
+    ]) {
+      ctx.beginPath();
+      ctx.moveTo(sx, eyeY - ry * 0.10);
+      ctx.quadraticCurveTo(px, eyeY - ry * 0.15, ex, eyeY - ry * 0.10);
+      ctx.stroke();
+    }
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.lineWidth = 1.6;
+    // Nose side lines
+    ctx.beginPath();
+    ctx.moveTo(cx - rx * 0.07, noseY);
+    ctx.lineTo(cx - rx * 0.07, noseY - ry * 0.13);
+    ctx.moveTo(cx + rx * 0.07, noseY);
+    ctx.lineTo(cx + rx * 0.07, noseY - ry * 0.13);
+    ctx.stroke();
+    // Lip arc
+    ctx.setLineDash([4, 5]);
+    ctx.beginPath();
+    ctx.moveTo(cx - rx * 0.21, lipY);
+    ctx.quadraticCurveTo(cx, lipY + ry * 0.055, cx + rx * 0.21, lipY);
+    ctx.stroke();
+
+  } else if (step === 1) {
+    // ── 45°: near eye full, far eye smaller; features shifted ──
+    const nearEyeX = cx + sDir * rx * 0.14;
+    const farEyeX  = cx - sDir * rx * 0.30;
+    ctx.strokeStyle = "rgba(255,255,255,0.30)";
+    // Near eye
+    ctx.beginPath();
+    ctx.ellipse(nearEyeX, eyeY, rx * 0.16, ry * 0.085, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Far eye (dimmer, smaller — foreshortened)
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.beginPath();
+    ctx.ellipse(farEyeX, eyeY, rx * 0.09, ry * 0.075, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Nose hint (a small horizontal tick)
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    const nh = cx + sDir * rx * 0.13;
+    ctx.beginPath();
+    ctx.moveTo(nh - rx * 0.05, noseY);
+    ctx.lineTo(nh + rx * 0.05, noseY);
+    ctx.stroke();
+    // Lip hint
+    ctx.setLineDash([4, 5]);
+    ctx.strokeStyle = "rgba(255,255,255,0.16)";
+    const lh = cx + sDir * rx * 0.08;
+    ctx.beginPath();
+    ctx.moveTo(lh - rx * 0.14, lipY);
+    ctx.quadraticCurveTo(lh, lipY + ry * 0.04, lh + rx * 0.14, lipY);
+    ctx.stroke();
+
+  } else if (step === 2) {
+    // ── Profile: one eye, a nose ridge curve ──
+    const visx = cx + sDir * rx * 0.04;
+    ctx.strokeStyle = "rgba(255,255,255,0.28)";
+    ctx.beginPath();
+    ctx.ellipse(visx, eyeY, rx * 0.13, ry * 0.078, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Nose profile ridge
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(255,255,255,0.16)";
+    ctx.lineWidth = 1.4;
+    const nx = cx + sDir * rx * 0.38;
+    ctx.beginPath();
+    ctx.moveTo(cx + sDir * rx * 0.08, cy - ry * 0.18);
+    ctx.quadraticCurveTo(nx + sDir * rx * 0.06, cy, nx - sDir * rx * 0.04, noseY);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ── Nose-based visual guidance ────────────────────────────
+// Shows: current nose dot, target ring, directional arrow, turn pill
+function drawGuidance(lm, yaw, posOk, rollOk = true, roll = 0) {
+  const w = canvas.width, h = canvas.height;
+  const xToCanvas = (lmX) => (useMirror ? (1 - lmX) : lmX) * w;
+  const fg = getFaceGuideParams(w, h);
+  const fgRy = fg.ry;
+
+  // Nose tip (landmark 1 is the most stable nose tip)
+  const noseLM = lm[1];
+  if (!noseLM) return;
+  const noseX = xToCanvas(noseLM.x);
+  const noseY = noseLM.y * h;
+
+  // Inter-ocular midpoint & width (computed in normalized space, mirrored for display)
+  let lxSum = 0, rxSum = 0;
+  for (const i of LEFT_EYE_IDX)  lxSum += lm[i].x;
+  for (const i of RIGHT_EYE_IDX) rxSum += lm[i].x;
+  const lxAvg  = lxSum / LEFT_EYE_IDX.length;
+  const rxAvg  = rxSum / RIGHT_EYE_IDX.length;
+  const eyeMidX = (lxAvg + rxAvg) / 2; // normalized 0-1 (original space)
+  const iow     = Math.abs(rxAvg - lxAvg); // normalized inter-ocular width
+
+  // Target nose X in display space (mirrored or not per useMirror).
+  if (currentStep > 0 && Math.abs(yaw) > 10) {
+    lockedSideMult = yaw > 0 ? 1 : -1;
+  }
+  const sideMult    = currentStep === 0 ? 0 : lockedSideMult;
+  const targetYaw   = currentStep === 0 ? 0 : currentStep === 1 ? 45 : 85;
+  const targetNormX = eyeMidX + sideMult * (targetYaw / 90) * iow * 0.65;
+  const targetNoseX = xToCanvas(targetNormX);
+  const targetNoseY = noseY; // horizontal movement only
+
+  const angOk  = STEPS[currentStep].yawOk(yaw);
+  const dotR   = Math.max(8,  Math.min(w, h) * 0.014);
+  const ringR  = Math.max(18, Math.min(w, h) * 0.032);
+  const dx     = targetNoseX - noseX;
+
+  // ── Target ring (dashed, white when pending, green when reached) ──
+  ctx.save();
+    ctx.strokeStyle = angOk ? "rgba(54,117,136,0.9)" : "rgba(255,255,255,0.62)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.arc(targetNoseX, targetNoseY, ringR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Faint fill inside ring
+  ctx.fillStyle = angOk ? "rgba(54,117,136,0.14)" : "rgba(255,255,255,0.06)";
+  ctx.beginPath();
+  ctx.arc(targetNoseX, targetNoseY, ringR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // ── Arrow from nose to target (only when not aligned and gap is meaningful) ──
+  const gapX = Math.abs(dx);
+  if (!angOk && gapX > ringR + dotR + 10) {
+    const dir    = Math.sign(dx);
+    const startX = noseX + dir * (dotR + 5);
+    const endX   = targetNoseX - dir * (ringR + 5);
+    const headL  = Math.min(16, gapX * 0.22);
+    const headA  = 0.5; // half-angle of arrowhead in radians
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(251,191,36,0.88)";
+    ctx.fillStyle   = "rgba(251,191,36,0.88)";
+    ctx.lineWidth   = 2.4;
+    ctx.lineCap     = "round";
+    // Shaft
+    ctx.beginPath();
+    ctx.moveTo(startX, noseY);
+    ctx.lineTo(endX,   noseY);
+    ctx.stroke();
+    // Filled arrowhead
+    ctx.beginPath();
+    ctx.moveTo(endX, noseY);
+    ctx.lineTo(endX - dir * headL * Math.cos(headA), noseY - headL * Math.sin(headA));
+    ctx.lineTo(endX - dir * headL * Math.cos(headA), noseY + headL * Math.sin(headA));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Current nose dot (on top of arrow) ───────────────────
+  const dotColor = angOk ? "#367588" : "#f59e0b";
+  ctx.save();
+  ctx.shadowColor = dotColor;
+  ctx.shadowBlur  = 12;
+  ctx.fillStyle   = dotColor;
+  ctx.beginPath();
+  ctx.arc(noseX, noseY, dotR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "rgba(0,0,0,0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // Small "nose" label above dot
+  const fSz = Math.max(11, Math.round(h * 0.018));
+  ctx.save();
+  ctx.font = `600 ${fSz}px Montserrat, -apple-system, system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle = angOk ? "rgba(54,117,136,0.95)" : "rgba(245,158,11,0.95)";
+  ctx.fillText("nose", noseX, noseY - dotR - 3);
+  ctx.restore();
+
+  // ── Turn-direction pill inside guide (below face) ───────
+  if (!angOk) {
+    const pillLabel = dx > 0 ? "Turn right →" : "← Turn left";
+    const pillY = h / 2 + fgRy * 0.70; // 70% down from center
+    const pillX = w / 2;
+    const pFSz  = Math.max(12, Math.round(h * 0.022));
+    ctx.save();
+    ctx.font = `600 ${pFSz}px Montserrat, -apple-system, system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const tw = ctx.measureText(pillLabel).width;
+    const pw = tw + 26, ph = pFSz + 16;
+    // Pill background
+    ctx.fillStyle   = "rgba(255,255,255,0.92)";
+    ctx.strokeStyle = "rgba(54,117,136,0.35)";
+    ctx.lineWidth   = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(pillX - pw / 2, pillY - ph / 2, pw, ph, ph / 2);
+    ctx.fill();
+    ctx.stroke();
+    // Pill text
+    ctx.fillStyle = "rgba(17,24,39,0.92)";
+    ctx.fillText(pillLabel, pillX, pillY);
+    ctx.restore();
+  }
+
+  // ── Position offset arrow (if face off-center, draw crosshair + nudge hint) ──
+  if (!posOk) {
+    // Compute face centroid on canvas (same coord system as video)
+    let bx0 = 1, by0 = 1, bx1 = 0, by1 = 0;
+    for (const p of lm) {
+      bx0 = Math.min(bx0, p.x); by0 = Math.min(by0, p.y);
+      bx1 = Math.max(bx1, p.x); by1 = Math.max(by1, p.y);
+    }
+    const faceH = by1 - by0;
+    const faceCX = xToCanvas((bx0 + bx1) / 2);
+    const faceCY = ((by0 + by1) / 2) * h;
+    const ovalCX = w / 2, ovalCY = h / 2;
+    const chSz = Math.min(w, h) * 0.024;
+
+    // Dashed crosshair at oval center (where face should be)
+    ctx.save();
+    ctx.strokeStyle = "rgba(148,163,184,0.45)";
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(ovalCX - chSz, ovalCY); ctx.lineTo(ovalCX + chSz, ovalCY);
+    ctx.moveTo(ovalCX, ovalCY - chSz); ctx.lineTo(ovalCX, ovalCY + chSz);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Show size hint if off (move closer / back) in top of guide
+    if (faceH < 0.20 || faceH > 0.82) {
+      const sizeLabel = faceH < 0.20 ? "Move closer ↑" : "Move back ↓";
+      const pillY2 = h / 2 - fgRy * 0.65;
+      const pFSz2  = Math.max(11, Math.round(h * 0.020));
+      ctx.save();
+      ctx.font = `600 ${pFSz2}px Montserrat, -apple-system, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const tw2 = ctx.measureText(sizeLabel).width;
+      const pw2 = tw2 + 22, ph2 = pFSz2 + 14;
+      ctx.fillStyle   = "rgba(255,255,255,0.94)";
+      ctx.strokeStyle = "rgba(54,117,136,0.3)";
+      ctx.lineWidth   = 1;
+      ctx.beginPath();
+      ctx.roundRect(w / 2 - pw2 / 2, pillY2 - ph2 / 2, pw2, ph2, ph2 / 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(17,24,39,0.88)";
+      ctx.fillText(sizeLabel, w / 2, pillY2);
+      ctx.restore();
+    }
+  }
+
+  // ── Eye level line ─────────────────────────────────────
+  // Skip when yaw > 60° (profile: only one eye visible, measurement unreliable)
+  if (!(currentStep === 2 && Math.abs(yaw) > 60)) {
+    let lxSum = 0, lySum = 0, rxSum = 0, rySum = 0;
+    for (const i of LEFT_EYE_IDX)  { lxSum += lm[i].x; lySum += lm[i].y; }
+    for (const i of RIGHT_EYE_IDX) { rxSum += lm[i].x; rySum += lm[i].y; }
+    const lxAvg = lxSum / LEFT_EYE_IDX.length, lyAvg = lySum / LEFT_EYE_IDX.length;
+    const rxAvg = rxSum / RIGHT_EYE_IDX.length, ryAvg = rySum / RIGHT_EYE_IDX.length;
+    const lex = xToCanvas(lxAvg);
+    const ley = lyAvg * h;
+    const rex = xToCanvas(rxAvg);
+    const rey = ryAvg * h;
+    const eyeMidX2 = (lex + rex) / 2;
+    const eyeMidY2 = (ley + rey) / 2;
+    const eyeR = Math.max(6, Math.min(w, h) * 0.010);
+
+    const eyeLineColor = rollOk ? "rgba(54,117,136,0.88)" : "rgba(245,158,11,0.88)";
+
+    // Prominent horizontal reference at target eye height — "Level eyes here"
+    const { cy, ry } = fg;
+    const targetEyeY = cy - ry * 0.22;
+    const refLen = w * 0.42;
+    ctx.save();
+    ctx.strokeStyle = rollOk ? "rgba(54,117,136,0.55)" : "rgba(245,158,11,0.65)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(eyeMidX2 - refLen, targetEyeY);
+    ctx.lineTo(eyeMidX2 + refLen, targetEyeY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+    ctx.save();
+    ctx.font = "600 " + Math.max(11, Math.round(h * 0.016)) + "px Montserrat, -apple-system, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillStyle = rollOk ? "rgba(54,117,136,0.95)" : "rgba(245,158,11,0.95)";
+    ctx.fillText("Level eyes here", eyeMidX2, targetEyeY - 6);
+    ctx.restore();
+
+    // Actual eye line (tilted by roll) — align this to the horizontal above
+    ctx.save();
+    ctx.strokeStyle = eyeLineColor;
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(rex, rey);
+    ctx.lineTo(lex, ley);
+    ctx.stroke();
+    ctx.restore();
+
+    // Eye center dots (small, subtle)
+    for (const [ex, ey] of [[lex, ley], [rex, rey]]) {
+      ctx.save();
+      ctx.fillStyle = eyeLineColor;
+      ctx.shadowColor = eyeLineColor;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(ex, ey, eyeR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Tilt correction pill: shows degrees so user can see progress
+    if (!rollOk) {
+      const deg = eyeLineTiltFromHorizontalDeg(roll).toFixed(0);
+      const rh = rollSignedForHintDeg(roll);
+      const tiltLabel = (rh > 0 ? "Tilt right ↷ " : "Tilt left ↶ ") + deg + "°";
+      const pillY3 = h / 2 - fgRy * 0.72; // above guide center
+      const pFSz3  = Math.max(12, Math.round(h * 0.022));
+      ctx.save();
+      ctx.font = `600 ${pFSz3}px Montserrat, -apple-system, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const tw3 = ctx.measureText(tiltLabel).width;
+      const pw3 = tw3 + 26, ph3 = pFSz3 + 16;
+      ctx.fillStyle   = "rgba(255,255,255,0.94)";
+      ctx.strokeStyle = "rgba(245,158,11,0.45)";
+      ctx.lineWidth   = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(w / 2 - pw3 / 2, pillY3 - ph3 / 2, pw3, ph3, ph3 / 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(146,64,14,0.95)";
+      ctx.fillText(tiltLabel, w / 2, pillY3);
+      ctx.restore();
+    }
+  }
+}
+
+// ── Update check-row UI ───────────────────────────────────
+function setCheck(rowId, iconId, hintId, ok, hint) {
+  const row  = document.getElementById(rowId);
+  const icon = document.getElementById(iconId);
+  row.classList.toggle("ok",   ok);
+  row.classList.toggle("fail", !ok);
+  icon.textContent = ok ? "✓" : "✗";
+  document.getElementById(hintId).textContent = hint;
+}
+
+// ── Step bar UI ───────────────────────────────────────────
+function refreshStepBar() {
+  for (let i = 0; i < 3; i++) {
+    const circle = document.getElementById(`sc${i}`);
+    const label  = document.getElementById(`sl${i}`);
+    if (i < currentStep) {
+      circle.className = "step-circle done"; circle.textContent = "✓";
+      label.className  = "step-node-label done";
+    } else if (i === currentStep) {
+      circle.className = "step-circle active"; circle.textContent = i + 1;
+      label.className  = "step-node-label active";
+    } else {
+      circle.className = "step-circle"; circle.textContent = i + 1;
+      label.className  = "step-node-label";
+    }
+    if (i < 2) {
+      document.getElementById(`sln${i}`).className =
+        "step-line" + (i < currentStep ? " done" : "");
+    }
+  }
+  const s = STEPS[currentStep];
+  document.getElementById("stepTitle").textContent = s.title;
+  document.getElementById("stepInstr").textContent = s.instr;
+  document.getElementById("chkAngleLabel").textContent = s.angleLabel;
+  const chkRollRow = document.getElementById("chkRoll");
+  if (chkRollRow) {
+    chkRollRow.classList.toggle("hidden", currentStep !== 0);
+    chkRollRow.setAttribute("aria-hidden", currentStep !== 0 ? "true" : "false");
+  }
+}
+
+// ── Capture photo (raw video frame, no annotations) ────────
+function doCapture() {
+  if (!allChecksOk) return;
+  // Flash
+  flashEl.classList.add("on");
+  setTimeout(() => flashEl.classList.remove("on"), 180);
+
+  const w = video.videoWidth || canvas.width;
+  const h = video.videoHeight || canvas.height;
+  const tmp = document.createElement("canvas");
+  tmp.width = w;
+  tmp.height = h;
+  const tctx = tmp.getContext("2d");
+  if (useMirror) {
+    tctx.translate(w, 0);
+    tctx.scale(-1, 1);
+  }
+  tctx.drawImage(video, 0, 0, w, h);
+  const dataUrl = tmp.toDataURL("image/jpeg", 0.88);
+  capturedImages.push(dataUrl);
+
+  const thumb = document.getElementById(`thumb${currentStep}`);
+  thumb.src = dataUrl;
+  setTimeout(() => thumb.classList.add("show"), 50);
+
+  currentStep++;
+  lockedSideMult = 1; // reset direction lock for next step
+  if (currentStep >= 3) {
+    setTimeout(() => {
+      stopCamera();
+      showScreen("intakeScreen");
+    }, 200);
+  } else {
+    refreshStepBar();
+    captureBtn.disabled = true;
+    captureBtn.classList.remove("ready");
+    captureBtn.textContent = "Position your face in the guide";
+    allChecksOk = false;
+  }
+}
+
+// ── Render loop ───────────────────────────────────────────
+function renderLoop() {
+  if (!running) return;
+
+  const w = video.videoWidth || 1280;
+  const h = video.videoHeight || 720;
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+
+  ctx.clearRect(0, 0, w, h);
+  if (useMirror) {
+    ctx.save();
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, w, h);
+    ctx.restore();
+  } else {
+    ctx.drawImage(video, 0, 0, w, h);
+  }
+
+  let lm = null;
+  if (video.currentTime !== lastVideoTime && faceLandmarker) {
+    lastVideoTime = video.currentTime;
+    const res = faceLandmarker.detectForVideo(video, performance.now());
+    if (res.faceLandmarks?.length > 0) lm = smoothLM(res.faceLandmarks[0]);
+  } else if (smoothedLM) {
+    lm = smoothedLM; // reuse last smoothed
+  }
+
+  if (lm) {
+    const yaw    = getYaw(lm);
+    const roll   = getHeadRollDeg(lm);
+    const pitch  = getHeadPitchDeg(lm);
+    const step   = STEPS[currentStep];
+    if (!step) return; // currentStep can be 3 briefly before camera stops
+
+    // Smooth roll so "eyes level" doesn't flicker and is easier to pass
+    smoothedRoll = smoothedRoll == null ? roll : smoothedRoll * 0.80 + roll * 0.20;
+    const rollVal = smoothedRoll;
+
+    const posRes = alignCheck(lm);
+    const litRes = lightingCheck(lm);
+    const clearRes = mergeObstructionDisplay(faceObstructionCheck(lm, currentStep));
+
+    // Yaw (left-right turn)
+    const angOk  = step.yawOk(yaw);
+    const angRes = { ok: angOk, hint: step.yawHint(yaw) };
+
+    // Roll (eyes level): front view only — at 45°/profile, 2D eye line is not a stable roll cue
+    const tiltFromHorizontal = eyeLineTiltFromHorizontalDeg(rollVal);
+    const eyesLevelOk = currentStep !== 0 || tiltFromHorizontal <= ROLL_TOLERANCE;
+    const rh = rollSignedForHintDeg(rollVal);
+    const rollHint = !eyesLevelOk
+      ? (rh > 0 ? "Tilt your head slightly to the right — level your eyes" : "Tilt your head slightly to the left — level your eyes")
+      : "Eyes level";
+
+    // Pitch: skip for 45° and profile steps (natural camera angle varies)
+    const skipPitch = currentStep > 0;
+    const pitchOk   = skipPitch || Math.abs(pitch) <= PITCH_TOLERANCE;
+
+    setCheck("chkPos",   "chkPosIcon",   "chkPosHint",   posRes.ok, posRes.hint);
+    setCheck("chkLight", "chkLightIcon", "chkLightHint", litRes.ok, litRes.hint);
+    setCheck("chkFaceClear", "chkFaceClearIcon", "chkFaceClearHint", clearRes.ok, clearRes.hint);
+    setCheck("chkAngle", "chkAngleIcon", "chkAngleHint", angRes.ok, angRes.hint);
+    if (currentStep === 0) {
+      setCheck("chkRoll", "chkRollIcon", "chkRollHint", eyesLevelOk, rollHint);
+    }
+
+    const all     = posRes.ok && litRes.ok && clearRes.ok && angOk && pitchOk && eyesLevelOk;
+    const partial = posRes.ok || litRes.ok || clearRes.ok;
+    allChecksOk = all;
+
+    drawFaceMeshOverlay(lm);
+    drawOval(all, partial);
+    drawFaceStencil(currentStep);
+    drawGuidance(lm, yaw, posRes.ok, eyesLevelOk, rollVal);
+
+    captureBtn.disabled = !all;
+    captureBtn.classList.toggle("ready", all);
+    captureBtn.textContent = all ? "Capture Photo" : "Position your face in the guide";
+  } else {
+    smoothedRoll = null;
+    setCheck("chkPos",   "chkPosIcon",   "chkPosHint",   false, "No face detected — center in frame");
+    setCheck("chkLight", "chkLightIcon", "chkLightHint", false, "—");
+    setCheck("chkFaceClear", "chkFaceClearIcon", "chkFaceClearHint", false, "—");
+    setCheck("chkAngle", "chkAngleIcon", "chkAngleHint", false, "—");
+    if (currentStep === 0) {
+      setCheck("chkRoll", "chkRollIcon", "chkRollHint", false, "—");
+    }
+    drawOval(false, false);
+    captureBtn.disabled = true;
+    captureBtn.classList.remove("ready");
+    captureBtn.textContent = "Position your face in the guide";
+    allChecksOk = false;
+  }
+
+  animId = requestAnimationFrame(renderLoop);
+}
+
+// ── Camera ────────────────────────────────────────────────
+async function startCamera() {
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+    audio: false
+  });
+  video.srcObject = stream;
+  await video.play();
+  running = true;
+  lastVideoTime = -1;
+  renderLoop();
+}
+
+function stopCamera() {
+  running = false;
+  cancelAnimationFrame(animId);
+  stream?.getTracks().forEach(t => t.stop());
+  stream = null;
+}
+
+async function openCaptureScreenAndCamera() {
+  showScreen("captureScreen");
+  refreshStepBar();
+  try {
+    if (!faceLandmarker) await initModel();
+    await startCamera();
+  } catch (err) {
+    console.error(err);
+    alert("Could not access camera.\nPlease allow camera access and use HTTPS or localhost.");
+    showScreen("introScreen");
+  }
+}
+
+/** From intake “Back”: clear captures and reopen the camera for another try. */
+function restartCaptureSession() {
+  stopCamera();
+  currentStep = 0;
+  capturedImages = [];
+  smoothedLM = null;
+  smoothedYaw = null;
+  smoothedRoll = null;
+  allChecksOk = false;
+  lockedSideMult = 1;
+  obstructionHeat = 0;
+  for (let i = 0; i < 3; i++) {
+    const t = document.getElementById(`thumb${i}`);
+    if (t) { t.src = ""; t.classList.remove("show"); }
+  }
+  openCaptureScreenAndCamera();
+}
+
+// ── Loading animation ──────────────────────────────────────
+const LOAD_EVENTS = [
+  { ms:    0, status: "Initializing scan...",          pct:  2 },
+  { ms:  700, status: "Analyzing forehead...",         pct: 12, region: "rForehead"   },
+  { ms: 1700, status: "Mapping left eye area...",      pct: 24, region: "rLeftEye"    },
+  { ms: 2500, status: "Mapping right eye area...",     pct: 35, region: "rRightEye"   },
+  { ms: 3200, status: "Detecting nasal structure...",  pct: 47, region: "rNose"       },
+  { ms: 3900, status: "Examining left cheek...",       pct: 57, region: "rLeftCheek"  },
+  { ms: 4700, status: "Examining right cheek...",      pct: 67, region: "rRightCheek" },
+  { ms: 5400, status: "Analyzing lip region...",       pct: 78, region: "rLips"       },
+  { ms: 6100, status: "Mapping chin area...",          pct: 86, region: "rChin"       },
+  { ms: 6800, status: "Computing skin metrics...",     pct: 93 },
+  { ms: 7500, status: "Generating report...",          pct: 97 },
+  { ms: 8200, status: "Analysis complete",             pct: 100 },
+];
+
+function startLoadingAnimation() {
+  const statusEl = document.getElementById("loadStatus");
+  const fillEl   = document.getElementById("progressFill");
+  const faceWrap = document.querySelector("#loadingScreen .face-wrap");
+
+  if (faceWrap) faceWrap.classList.add("loading-active");
+  loadStartTime = Date.now();
+  currentLoadRegion = null;
+  currentLoadPct = 0;
+  if (loadAnimId) cancelAnimationFrame(loadAnimId);
+  runLoadCanvasLoop();
+
+  LOAD_EVENTS.forEach(({ ms, status, pct, region }) => {
+    setTimeout(() => {
+      currentLoadRegion = region ?? currentLoadRegion;
+      currentLoadPct = pct;
+      statusEl.textContent = status;
+      statusEl.classList.remove("loading-active");
+      void statusEl.offsetHeight;
+      statusEl.classList.add("loading-active");
+      fillEl.style.width = `${pct}%`;
+
+      if (pct === 100) {
+        if (loadAnimId) cancelAnimationFrame(loadAnimId);
+        loadAnimId = null;
+        loadStartTime = 0;
+        if (faceWrap) faceWrap.classList.remove("loading-active");
+        setTimeout(() => showComplete(), 900);
+      }
+    }, ms);
+  });
+}
+
+// ── Complete screen ───────────────────────────────────────
+function showComplete() {
+  capturedImages.forEach((url, i) => {
+    const el = document.getElementById(`cThumb${i}`);
+    if (el) el.src = url;
+  });
+  showScreen("completeScreen");
+}
+
+function resetAll() {
+  currentStep     = 0;
+  capturedImages  = [];
+  smoothedLM      = null;
+  smoothedYaw     = null;
+  smoothedRoll    = null;
+  allChecksOk     = false;
+  lockedSideMult  = 1;
+  obstructionHeat = 0;
+  loadFaceData    = null;
+  if (loadAnimId) cancelAnimationFrame(loadAnimId);
+  loadAnimId = null;
+  loadStartTime   = 0;
+  currentLoadRegion = null;
+
+  const faceWrap = document.querySelector("#loadingScreen .face-wrap");
+  if (faceWrap) faceWrap.classList.remove("loading-active");
+
+  for (let i = 0; i < 3; i++) {
+    const t = document.getElementById(`thumb${i}`);
+    t.src = ""; t.classList.remove("show");
+  }
+
+  const loadCanvas = document.getElementById("loadFaceCanvas");
+  if (loadCanvas) {
+    const ctx = loadCanvas.getContext("2d");
+    if (ctx) ctx.clearRect(0, 0, loadCanvas.width, loadCanvas.height);
+  }
+
+  const progressFill = document.getElementById("progressFill");
+  const loadStatus = document.getElementById("loadStatus");
+  if (progressFill) progressFill.style.width = "0%";
+  if (loadStatus) loadStatus.textContent = "Initializing scan...";
+  resetIntakeForm();
+}
+
+// ── Intake: “None” vs other procedures (mutually exclusive) ─
+(function setupIntakeProcedureExclusivity() {
+  const form = document.getElementById("intakeForm");
+  if (!form) return;
+  applyIntakeDobLimits();
+  const noneCb = document.getElementById("procNone");
+  const group = form.querySelectorAll("[data-proc-group]");
+  noneCb?.addEventListener("change", () => {
+    if (noneCb.checked) group.forEach((cb) => { cb.checked = false; });
+  });
+  group.forEach((cb) => {
+    cb.addEventListener("change", () => {
+      if (cb.checked && noneCb) noneCb.checked = false;
+    });
+  });
+  document.getElementById("improveFocusFace")?.addEventListener("change", syncIntakeFocusFollowUps);
+  document.getElementById("improveFocusSkin")?.addEventListener("change", syncIntakeFocusFollowUps);
+  syncIntakeFocusFollowUps();
+
+  const firstIn = document.getElementById("intakeFirstName");
+  const lastIn = document.getElementById("intakeLastName");
+  const emailIn = document.getElementById("intakeEmail");
+  const phoneIn = document.getElementById("intakePhone");
+  const dobIn = document.getElementById("intakeDob");
+  const firstMsg = document.getElementById("intakeFirstNameMsg");
+  const lastMsg = document.getElementById("intakeLastNameMsg");
+  const emailMsg = document.getElementById("intakeEmailMsg");
+  const phoneMsg = document.getElementById("intakePhoneMsg");
+  const dobMsg = document.getElementById("intakeDobMsg");
+
+  firstIn?.addEventListener("input", () => {
+    setIntakeFieldFeedback(firstIn, firstMsg, "neutral");
+  });
+  firstIn?.addEventListener("blur", () => {
+    const v = firstIn.value.trim();
+    if (!v) setIntakeFieldFeedback(firstIn, firstMsg, "invalid", "First name is required.");
+    else setIntakeFieldFeedback(firstIn, firstMsg, "valid", "✓");
+  });
+
+  lastIn?.addEventListener("input", () => {
+    setIntakeFieldFeedback(lastIn, lastMsg, "neutral");
+  });
+  lastIn?.addEventListener("blur", () => {
+    const v = lastIn.value.trim();
+    if (!v) setIntakeFieldFeedback(lastIn, lastMsg, "invalid", "Last name is required.");
+    else setIntakeFieldFeedback(lastIn, lastMsg, "valid", "✓");
+  });
+
+  emailIn?.addEventListener("input", () => {
+    setIntakeFieldFeedback(emailIn, emailMsg, "neutral");
+  });
+  emailIn?.addEventListener("blur", () => {
+    emailIn.value = normalizeEmailStr(emailIn.value);
+    const e = emailIn.value;
+    if (!e) setIntakeFieldFeedback(emailIn, emailMsg, "invalid", "Email is required.");
+    else if (!isValidEmailAddress(e)) {
+      setIntakeFieldFeedback(emailIn, emailMsg, "invalid", "Enter a valid email (e.g. name@example.com).");
+    } else setIntakeFieldFeedback(emailIn, emailMsg, "valid", "✓");
+  });
+
+  phoneIn?.addEventListener("input", (e) => {
+    const t = e.target;
+    const next = formatPhoneInputValue(t.value);
+    if (next !== t.value) t.value = next;
+    setIntakeFieldFeedback(phoneIn, phoneMsg, "neutral");
+  });
+  phoneIn?.addEventListener("blur", () => {
+    phoneIn.value = formatPhoneInputValue(phoneIn.value);
+    const p = validateUSPhoneOnly(phoneIn.value);
+    if (!p.ok) setIntakeFieldFeedback(phoneIn, phoneMsg, "invalid", p.message);
+    else setIntakeFieldFeedback(phoneIn, phoneMsg, "valid", "✓");
+  });
+
+  dobIn?.addEventListener("input", () => {
+    setIntakeFieldFeedback(dobIn, dobMsg, "neutral");
+  });
+  dobIn?.addEventListener("change", () => {
+    const r = validateDobValue(dobIn.value);
+    if (!r.ok) setIntakeFieldFeedback(dobIn, dobMsg, "invalid", r.message);
+    else setIntakeFieldFeedback(dobIn, dobMsg, "valid", r.message);
+  });
+  dobIn?.addEventListener("blur", () => {
+    const r = validateDobValue(dobIn.value);
+    if (!r.ok) setIntakeFieldFeedback(dobIn, dobMsg, "invalid", r.message);
+    else setIntakeFieldFeedback(dobIn, dobMsg, "valid", r.message);
+  });
+})();
+
+// ── Event listeners ───────────────────────────────────────
+document.getElementById("beginBtn").addEventListener("click", () => {
+  resetAll();
+  openCaptureScreenAndCamera();
+});
+
+document.getElementById("intakeBackBtn")?.addEventListener("click", () => {
+  restartCaptureSession();
+});
+
+document.getElementById("intakeForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!validateIntakeForm()) return;
+  if (capturedImages.length < 3) {
+    alert("Your photos are incomplete. Please capture all three views first.");
+    showScreen("captureScreen");
+    openCaptureScreenAndCamera();
+    return;
+  }
+  intakeFormData = collectIntakeData();
+  showScreen("loadingScreen");
+
+  await initLoadingFace(capturedImages[0]);
+  startLoadingAnimation();
+
+  if (typeof window !== "undefined") window._usedRembgForBgRemoval = false;
+  try {
+    const noBg = await Promise.all(capturedImages.map((url) => removeBackgroundFromImageDataUrl(url)));
+    capturedImages.length = 0;
+    capturedImages.push(...noBg);
+    await initLoadingFace(capturedImages[0]);
+  } catch (err) {
+    console.warn("Background removal failed:", err);
+  }
+});
+
+captureBtn.addEventListener("click", () => {
+  if (!captureBtn.disabled) doCapture();
+});
+
+function updateMirrorLabels() {
+  const leftEl = document.getElementById("leftLabel");
+  const rightEl = document.getElementById("rightLabel");
+  if (!leftEl || !rightEl) return;
+  if (useMirror) {
+    leftEl.textContent = "Your right";
+    rightEl.textContent = "Your left";
+  } else {
+    leftEl.textContent = "Your left";
+    rightEl.textContent = "Your right";
+  }
+}
+const mirrorCheckbox = document.getElementById("mirrorCheckbox");
+if (mirrorCheckbox) {
+  mirrorCheckbox.addEventListener("change", () => {
+    useMirror = mirrorCheckbox.checked;
+    updateMirrorLabels();
+  });
+  updateMirrorLabels();
+}
+
+document.getElementById("restartBtn").addEventListener("click", () => {
+  resetAll();
+  showScreen("introScreen");
+});
+
+window.addEventListener("beforeunload", stopCamera);
+
+// ── Dashboard prefill (opened from Scan In Clinic) ─────────
+(function applyDashboardClinicPrefill() {
+  const qs = new URLSearchParams(location.search);
+  const recordId = qs.get("r") || "";
+  const tableName = qs.get("t") || "";
+  const firstName = qs.get("firstName") || "";
+  const lastName = qs.get("lastName") || "";
+  const email = qs.get("email") || "";
+  const phone = qs.get("phone") || "";
+  const dob = qs.get("dob") || "";
+  const whatAreas = (qs.get("whatAreas") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const faceRegions = (qs.get("faceRegions") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const skinComplaints = (qs.get("skinComplaints") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (!recordId && !firstName && !email) return;
+
+  window.__clinicScanContext = { recordId, tableName };
+
+  const introTitle = document.querySelector(".intro-title");
+  const introSub = document.querySelector(".intro-subtitle");
+  if (introTitle && (firstName || lastName)) {
+    introTitle.textContent = `Scan for ${[firstName, lastName].filter(Boolean).join(" ")}`.trim();
+  }
+  if (introSub && recordId) {
+    introSub.textContent =
+      "Capture three guided photos, confirm a few details, and finish the in-clinic scan. You can close this tab when done.";
+  }
+
+  const regionMap = {
+    Eyebrows: "forehead-eyebrows",
+    Eyes: "eyes",
+    Cheeks: "cheeks",
+    Nose: "nose",
+    Lips: "lips",
+    "Face and neck aging": "face-neck-aging",
+    Ears: "earlobes",
+    "Jawline/chin": "jawline-chin",
+  };
+  const skinMap = {
+    Acne: "acne",
+    Wrinkles: "wrinkles",
+    Pigment: "pigment",
+    Texture: "texture",
+    "Sun damage": "sun-damage",
+    Thin: "thin",
+    Thick: "thick",
+    Oily: "oily",
+    Dry: "dry",
+    Redness: "redness",
+  };
+
+  function setInput(id, value) {
+    const el = document.getElementById(id);
+    if (el && value) el.value = value;
+  }
+
+  function checkByValue(name, value) {
+    const el = document.querySelector(
+      `#intakeForm input[name="${name}"][value="${value}"]`,
+    );
+    if (el) el.checked = true;
+  }
+
+  function applyIntakePrefill() {
+    setInput("intakeFirstName", firstName);
+    setInput("intakeLastName", lastName);
+    setInput("intakeEmail", email);
+    if (phone) {
+      setInput("intakePhone", typeof formatPhoneInputValue === "function" ? formatPhoneInputValue(phone) : phone);
+    }
+    setInput("intakeDob", dob);
+
+    if (whatAreas.includes("Face")) checkByValue("improve", "focus-face");
+    if (whatAreas.includes("Skin")) checkByValue("improve", "focus-skin");
+
+    faceRegions.forEach((label) => {
+      const v = regionMap[label];
+      if (v) checkByValue("faceRegions", v);
+    });
+    skinComplaints.forEach((label) => {
+      const v = skinMap[label];
+      if (v) checkByValue("skinComplaints", v);
+    });
+
+    if (typeof syncIntakeFocusFollowUps === "function") syncIntakeFocusFollowUps();
+  }
+
+  applyIntakePrefill();
+
+  const doneBtn = document.getElementById("clinicDoneBtn");
+  function notifyDashboardScanComplete() {
+    const payload = { type: "clinic-scan-complete", recordId, tableName };
+    if (window.parent && window.parent !== window) {
+      try {
+        window.parent.postMessage(payload, window.location.origin);
+      } catch (_) { /* ignore */ }
+      return;
+    }
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage(payload, window.location.origin);
+      } catch (_) { /* ignore */ }
+    }
+  }
+
+  if (doneBtn && recordId) {
+    doneBtn.classList.remove("hidden");
+    doneBtn.addEventListener("click", () => {
+      notifyDashboardScanComplete();
+      if (window.parent === window) window.close();
+    });
+  }
+
+  const origShowComplete = typeof showComplete === "function" ? showComplete : null;
+  if (origShowComplete) {
+    showComplete = function (...args) {
+      origShowComplete.apply(this, args);
+      if (doneBtn && recordId) doneBtn.classList.remove("hidden");
+    };
+  }
+})();
+</script>
+</body>
+</html>

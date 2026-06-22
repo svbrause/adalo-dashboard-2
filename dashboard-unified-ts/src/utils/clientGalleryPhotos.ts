@@ -5,8 +5,38 @@ import {
   getClientFrontPhotoDisplayUrl,
   sanitizePhotoDisplayUrl,
 } from "./photoLoading";
+import {
+  resolvePatientAuraManifest,
+  type PatientAuraAssetManifest,
+} from "./patientAuraAssets";
 
 const TABLES_WITH_PHOTOS = ["Patients", "Web Popup Leads"] as const;
+
+const PATIENT_PHOTO_FIELDS = [
+  "Preferred Front Photo",
+  "Preferred Side Photo",
+  "Front Photo (from Patient Photos)",
+  "Right Side Photo (from Patient Photos)",
+  "Left Side Photo (from Patient Photos)",
+  "Right 45º Photo (from Patient Photos)",
+  "Left 45º Photo (from Patient Photos)",
+] as const;
+
+const PATIENT_BASE_PHOTO_FIELDS = [
+  "Front Photo",
+  "Front Photo (from Form Submissions)",
+  "Side Photo",
+  "Side Photo (from Form Submissions)",
+  "Left Side Photo (from Form Submissions)",
+] as const;
+
+const AURA_ANGLE_SLOT_META = [
+  { angle: "front", id: "front", label: "Front" },
+  { angle: "three-quarter-left", id: "left45", label: "Left 45°" },
+  { angle: "three-quarter-right", id: "right45", label: "Right 45°" },
+  { angle: "profile-left", id: "left90", label: "Left profile" },
+  { angle: "profile-right", id: "right90", label: "Right profile" },
+] as const;
 
 function getAttachmentUrl(attachment: {
   thumbnails?: { full?: { url: string }; large?: { url: string } };
@@ -26,6 +56,58 @@ function getFirstAttachmentUrl(fields: Record<string, unknown>, key: string): st
   return getAttachmentUrl(val[0] as Parameters<typeof getAttachmentUrl>[0]);
 }
 
+function getFirstAvailableAttachmentUrl(
+  fields: Record<string, unknown>,
+  keys: readonly string[],
+): string | null {
+  for (const key of keys) {
+    const url = getFirstAttachmentUrl(fields, key);
+    if (url) return url;
+  }
+  return null;
+}
+
+function manifestProcessedUrl(
+  manifest: PatientAuraAssetManifest,
+  angle: keyof PatientAuraAssetManifest["angles"],
+): string | null {
+  const asset = manifest.angles?.[angle];
+  if (!asset) return null;
+  return asset.srcCutout || (asset.src && asset.src !== asset.srcOriginal ? asset.src : null);
+}
+
+async function loadAuraProcessedPhotoSlots(
+  client: Client,
+): Promise<ClientPhotoSlot[]> {
+  if (
+    client.tableSource !== "Patients" ||
+    (!client.auraManifestUrl?.trim() && !client.auraGcsPrefix?.trim())
+  ) {
+    return [];
+  }
+
+  const manifest = await resolvePatientAuraManifest({
+    clientName: client.name,
+    turntableVideoUrl: client.turntableVideoUrl,
+    auraManifestUrl: client.auraManifestUrl,
+    auraGcsPrefix: client.auraGcsPrefix,
+    probeWhenNoTurntable: true,
+  });
+  if (!manifest?.angles) return [];
+
+  const out: ClientPhotoSlot[] = [];
+  for (const meta of AURA_ANGLE_SLOT_META) {
+    const url = manifestProcessedUrl(manifest, meta.angle);
+    if (!url) continue;
+    out.push({ id: meta.id, label: meta.label, url });
+  }
+  return out;
+}
+
+function escapeAirtableStringLiteral(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 function pushUnique(
   out: ClientPhotoSlot[],
   seen: Set<string>,
@@ -36,6 +118,41 @@ function pushUnique(
   if (!u || seen.has(u)) return;
   seen.add(u);
   out.push({ ...slot, url: u });
+}
+
+async function loadAnalysisPhotoSlots(client: Client): Promise<ClientPhotoSlot[]> {
+  if (client.tableSource !== "Patients") return [];
+
+  try {
+    const records = await fetchTableRecords("Analyses", {
+      filterFormula: `FIND("${escapeAirtableStringLiteral(client.id)}", ARRAYJOIN({RECORD ID (from Patients)})) > 0`,
+      fields: ["Front Image", "Side Image"],
+    });
+
+    const sorted = [...records].sort((a, b) => {
+      const aTime = a.createdTime ? Date.parse(a.createdTime) : 0;
+      const bTime = b.createdTime ? Date.parse(b.createdTime) : 0;
+      return bTime - aTime;
+    });
+
+    const out: ClientPhotoSlot[] = [];
+    const seen = new Set<string>();
+    const freshCdn = { allowExpiringAirtableCdn: true as const };
+
+    for (const record of sorted) {
+      const fields = record.fields as Record<string, unknown>;
+      const front = getFirstAttachmentUrl(fields, "Front Image");
+      const side = getFirstAttachmentUrl(fields, "Side Image");
+      if (front) pushUnique(out, seen, { id: "front", label: "Front", url: front }, freshCdn);
+      if (side) pushUnique(out, seen, { id: "side", label: "Side", url: side }, freshCdn);
+      if (out.length > 0) break;
+    }
+
+    return out;
+  } catch (e) {
+    console.warn("loadClientGalleryPhotoSlots: analysis images unavailable", e);
+    return [];
+  }
 }
 
 /**
@@ -68,25 +185,76 @@ export async function loadClientGalleryPhotoSlots(client: Client): Promise<Clien
   }
 
   try {
+    const requestedFields =
+      client.tableSource === "Patients"
+        ? [...PATIENT_BASE_PHOTO_FIELDS, ...PATIENT_PHOTO_FIELDS]
+        : [...PATIENT_BASE_PHOTO_FIELDS];
     const records = await fetchTableRecords(client.tableSource, {
       filterFormula: `RECORD_ID() = "${client.id}"`,
-      fields: [
-        "Front Photo",
-        "Front Photo (from Form Submissions)",
-        "Side Photo",
-        "Side Photo (from Form Submissions)",
-        "Left Side Photo (from Form Submissions)",
-      ],
+      fields: requestedFields,
     });
 
     const out: ClientPhotoSlot[] = [];
     const seen = new Set<string>();
+    const freshCdn = { allowExpiringAirtableCdn: true as const };
+
+    for (const slot of await loadAuraProcessedPhotoSlots(client)) {
+      pushUnique(out, seen, slot);
+    }
+
+    for (const slot of await loadAnalysisPhotoSlots(client)) {
+      pushUnique(out, seen, slot, freshCdn);
+    }
 
     if (records.length === 0) {
+      if (out.length > 0) return out;
       return fallbackFront ? [{ id: "front", label: "Front", url: fallbackFront }] : [];
     }
 
     const fields = records[0].fields as Record<string, unknown>;
+
+    const patientPhotosFront = getFirstAvailableAttachmentUrl(fields, [
+      "Preferred Front Photo",
+      "Front Photo (from Patient Photos)",
+    ]);
+    const patientPhotosPreferredSide = getFirstAvailableAttachmentUrl(fields, [
+      "Preferred Side Photo",
+    ]);
+    const patientPhotosRightSide = getFirstAttachmentUrl(
+      fields,
+      "Right Side Photo (from Patient Photos)",
+    );
+    const patientPhotosLeftSide = getFirstAttachmentUrl(
+      fields,
+      "Left Side Photo (from Patient Photos)",
+    );
+    const patientPhotosRight45 = getFirstAttachmentUrl(
+      fields,
+      "Right 45º Photo (from Patient Photos)",
+    );
+    const patientPhotosLeft45 = getFirstAttachmentUrl(
+      fields,
+      "Left 45º Photo (from Patient Photos)",
+    );
+
+    if (patientPhotosFront) {
+      pushUnique(out, seen, { id: "front", label: "Front", url: patientPhotosFront }, freshCdn);
+    }
+    if (patientPhotosLeft45) {
+      pushUnique(out, seen, { id: "left45", label: "Left 45°", url: patientPhotosLeft45 }, freshCdn);
+    }
+    if (patientPhotosRight45) {
+      pushUnique(out, seen, { id: "right45", label: "Right 45°", url: patientPhotosRight45 }, freshCdn);
+    }
+    if (patientPhotosLeftSide) {
+      pushUnique(out, seen, { id: "left90", label: "Left profile", url: patientPhotosLeftSide }, freshCdn);
+    }
+    if (patientPhotosRightSide) {
+      pushUnique(out, seen, { id: "right90", label: "Right profile", url: patientPhotosRightSide }, freshCdn);
+    }
+    if (patientPhotosPreferredSide) {
+      pushUnique(out, seen, { id: "side", label: "Side", url: patientPhotosPreferredSide }, freshCdn);
+    }
 
     const front = fields["Front Photo"] || fields["Front photo"] || fields["frontPhoto"];
     let frontProcessed: string | null = null;
@@ -103,7 +271,6 @@ export async function loadClientGalleryPhotoSlots(client: Client): Promise<Clien
     const sideFormRight = getFirstAttachmentUrl(fields, "Side Photo (from Form Submissions)");
     const sideFormLeft = getFirstAttachmentUrl(fields, "Left Side Photo (from Form Submissions)");
 
-    const freshCdn = { allowExpiringAirtableCdn: true as const };
     const primaryFront = frontProcessed ?? frontForm ?? fallbackFront;
     if (primaryFront) {
       pushUnique(out, seen, { id: "front", label: "Front", url: primaryFront }, freshCdn);

@@ -1,0 +1,263 @@
+{
+  "source": "/Users/sambrause/Downloads/botox-forehead-lines-before-after-nyc.webp",
+  "strength": 1.0,
+  "beforeRegion": {
+    "sourceRegion": "left-panel",
+    "autoPanelDetected": true,
+    "panelSplitX": 470,
+    "inputSize": [
+      940,
+      788
+    ],
+    "cropSize": [
+      466,
+      737
+    ]
+  },
+  "afterRegion": {
+    "sourceRegion": "right-panel",
+    "autoPanelDetected": true,
+    "panelSplitX": 470,
+    "inputSize": [
+      940,
+      788
+    ],
+    "cropSize": [
+      466,
+      737
+    ]
+  },
+  "alignment": {
+    "alignment": "ecc-affine",
+    "ecc": 0.7747645746078471,
+    "warp": [
+      [
+        0.9649354815483093,
+        -0.03908146172761917,
+        17.89051055908203
+      ],
+      [
+        0.03300875425338745,
+        0.9730050563812256,
+        -2.771611213684082
+      ]
+    ]
+  },
+  "detection": {
+    "wrinklePathSource": "detected-creases-periocular-v3",
+    "roiSource": "eye-cascade",
+    "pathCount": 15,
+    "eyeBox": [
+      78,
+      332,
+      113,
+      113
+    ],
+    "outerCanthus": [
+      191,
+      380
+    ]
+  },
+  "pathCount": 15,
+  "lateralFoldMask": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/botox-example-03-lateral-fold-mask.jpg",
+  "metrics": {
+    "before": {
+      "creaseMean": 24.762662887573242,
+      "creaseP90": 65.0,
+      "horizontalP90": 59.0,
+      "textureStd": 44.95695495605469
+    },
+    "groundTruthAfter": {
+      "creaseMean": 23.23716926574707,
+      "creaseP90": 60.0,
+      "horizontalP90": 66.0,
+      "textureStd": 61.07815933227539
+    },
+    "simulation": {
+      "creaseMean": 18.064285278320312,
+      "creaseP90": 49.0,
+      "horizontalP90": 43.0,
+      "textureStd": 33.94329833984375
+    },
+    "groundTruthReduction": {
+      "creaseMean": 0.0616045870652997,
+      "creaseP90": 0.07692307692307687,
+      "horizontalP90": -0.11864406779661008,
+      "textureStd": -0.3585919996578759
+    },
+    "simulationReduction": {
+      "creaseMean": 0.27050312156106626,
+      "creaseP90": 0.24615384615384617,
+      "horizontalP90": 0.27118644067796616,
+      "textureStd": 0.24498226418975133
+    },
+    "remainingGap": {
+      "creaseMean": -0.20889853449576656,
+      "creaseP90": -0.1692307692307693,
+      "horizontalP90": -0.38983050847457623,
+      "textureStd": -0.6035742638476272
+    },
+    "zones": {
+      "allTreatment": {
+        "before": {
+          "creaseMean": 24.762662887573242,
+          "creaseP90": 65.0,
+          "horizontalP90": 59.0,
+          "textureStd": 44.95695495605469
+        },
+        "groundTruthAfter": {
+          "creaseMean": 23.23716926574707,
+          "creaseP90": 60.0,
+          "horizontalP90": 66.0,
+          "textureStd": 61.07815933227539
+        },
+        "simulation": {
+          "creaseMean": 18.064285278320312,
+          "creaseP90": 49.0,
+          "horizontalP90": 43.0,
+          "textureStd": 33.94329833984375
+        },
+        "groundTruthReduction": {
+          "creaseMean": 0.0616045870652997,
+          "creaseP90": 0.07692307692307687,
+          "horizontalP90": -0.11864406779661008,
+          "textureStd": -0.3585919996578759
+        },
+        "simulationReduction": {
+          "creaseMean": 0.27050312156106626,
+          "creaseP90": 0.24615384615384617,
+          "horizontalP90": 0.27118644067796616,
+          "textureStd": 0.24498226418975133
+        }
+      },
+      "forehead": {
+        "before": {
+          "creaseMean": 29.90250587463379,
+          "creaseP90": 72.0,
+          "horizontalP90": 62.0,
+          "textureStd": 49.61642837524414
+        },
+        "groundTruthAfter": {
+          "creaseMean": 26.367963790893555,
+          "creaseP90": 69.0,
+          "horizontalP90": 73.0,
+          "textureStd": 69.8215560913086
+        },
+        "simulation": {
+          "creaseMean": 22.79850196838379,
+          "creaseP90": 57.0,
+          "horizontalP90": 47.0,
+          "textureStd": 38.47857666015625
+        },
+        "groundTruthReduction": {
+          "creaseMean": 0.11820220347280586,
+          "creaseP90": 0.04166666666666663,
+          "horizontalP90": -0.17741935483870974,
+          "textureStd": -0.4072265654281899
+        },
+        "simulationReduction": {
+          "creaseMean": 0.2375721933149525,
+          "creaseP90": 0.20833333333333337,
+          "horizontalP90": 0.24193548387096775,
+          "textureStd": 0.22447911064563975
+        }
+      },
+      "crowsFeet": {
+        "before": {
+          "creaseMean": 14.507952690124512,
+          "creaseP90": 39.0,
+          "horizontalP90": 53.0,
+          "textureStd": 35.55882263183594
+        },
+        "groundTruthAfter": {
+          "creaseMean": 18.884126663208008,
+          "creaseP90": 52.0,
+          "horizontalP90": 62.0,
+          "textureStd": 41.56100845336914
+        },
+        "simulation": {
+          "creaseMean": 7.973665237426758,
+          "creaseP90": 21.0,
+          "horizontalP90": 30.0,
+          "textureStd": 22.844032287597656
+        },
+        "groundTruthReduction": {
+          "creaseMean": -0.301639663883267,
+          "creaseP90": -0.33333333333333326,
+          "horizontalP90": -0.16981132075471694,
+          "textureStd": -0.16879596615663606
+        },
+        "simulationReduction": {
+          "creaseMean": 0.4503934905402338,
+          "creaseP90": 0.46153846153846156,
+          "horizontalP90": 0.4339622641509434,
+          "textureStd": 0.3575706225114069
+        }
+      },
+      "underEye": {
+        "before": {
+          "creaseMean": 7.021853923797607,
+          "creaseP90": 15.0,
+          "horizontalP90": 17.0,
+          "textureStd": 19.83924674987793
+        },
+        "groundTruthAfter": {
+          "creaseMean": 8.299924850463867,
+          "creaseP90": 21.0,
+          "horizontalP90": 25.0,
+          "textureStd": 12.489128112792969
+        },
+        "simulation": {
+          "creaseMean": 3.699321746826172,
+          "creaseP90": 9.0,
+          "horizontalP90": 10.0,
+          "textureStd": 12.818317413330078
+        },
+        "groundTruthReduction": {
+          "creaseMean": -0.1820133173569416,
+          "creaseP90": -0.3999999999999999,
+          "horizontalP90": -0.47058823529411775,
+          "textureStd": 0.37048375524288424
+        },
+        "simulationReduction": {
+          "creaseMean": 0.4731702215722712,
+          "creaseP90": 0.4,
+          "horizontalP90": 0.4117647058823529,
+          "textureStd": 0.3538909226274456
+        }
+      },
+      "lateralCanthusFold": {
+        "before": {
+          "creaseMean": 21.620849609375,
+          "creaseP90": 51.0,
+          "horizontalP90": 74.0,
+          "textureStd": 53.189571380615234
+        },
+        "groundTruthAfter": {
+          "creaseMean": 22.355674743652344,
+          "creaseP90": 49.0,
+          "horizontalP90": 71.0,
+          "textureStd": 45.60194396972656
+        },
+        "simulation": {
+          "creaseMean": 7.971737384796143,
+          "creaseP90": 22.0,
+          "horizontalP90": 29.0,
+          "textureStd": 21.364723205566406
+        },
+        "groundTruthReduction": {
+          "creaseMean": -0.03398687598098449,
+          "creaseP90": 0.039215686274509776,
+          "horizontalP90": 0.04054054054054057,
+          "textureStd": 0.14265253909630038
+        },
+        "simulationReduction": {
+          "creaseMean": 0.631293981095936,
+          "creaseP90": 0.5686274509803921,
+          "horizontalP90": 0.6081081081081081,
+          "textureStd": 0.5983287202544988
+        }
+      }
+    }
+  }
+}

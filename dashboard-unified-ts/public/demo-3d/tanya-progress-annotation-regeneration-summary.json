@@ -1,0 +1,42 @@
+{
+  "before": {
+    "front": {
+      "pigment_px": 11746,
+      "redness_px": 31883,
+      "pore_px": 37635,
+      "wrinkle_paths": 8
+    },
+    "profile-left": {
+      "pigment_px": 5540,
+      "redness_px": 20737,
+      "pore_px": 7367,
+      "wrinkle_paths": 4
+    },
+    "profile-right": {
+      "pigment_px": 5529,
+      "redness_px": 17798,
+      "pore_px": 5989,
+      "wrinkle_paths": 2
+    }
+  },
+  "after": {
+    "front": {
+      "pigment_px": 9418,
+      "redness_px": 31488,
+      "pore_px": 44235,
+      "wrinkle_paths": 6
+    },
+    "profile-left": {
+      "pigment_px": 1941,
+      "redness_px": 15086,
+      "pore_px": 3185,
+      "wrinkle_paths": 4
+    },
+    "profile-right": {
+      "pigment_px": 2656,
+      "redness_px": 18073,
+      "pore_px": 2835,
+      "wrinkle_paths": 5
+    }
+  }
+}

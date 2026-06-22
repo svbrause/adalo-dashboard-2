@@ -521,6 +521,7 @@ export default function ViewControls() {
         <div className="mobile-primary-view-switch" aria-label="Primary list">
           <button
             type="button"
+            aria-pressed={currentView !== "leads"}
             className={`mobile-primary-view-switch__btn${
               currentView !== "leads" ? " mobile-primary-view-switch__btn--active" : ""
             }`}
@@ -533,6 +534,7 @@ export default function ViewControls() {
           </button>
           <button
             type="button"
+            aria-pressed={currentView === "leads"}
             className={`mobile-primary-view-switch__btn${
               currentView === "leads" ? " mobile-primary-view-switch__btn--active" : ""
             }`}

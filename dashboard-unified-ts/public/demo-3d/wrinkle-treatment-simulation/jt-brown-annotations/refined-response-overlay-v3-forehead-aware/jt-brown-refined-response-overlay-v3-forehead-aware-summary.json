@@ -1,0 +1,23 @@
+{
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "foreheadBox": [
+    125,
+    255,
+    901,
+    349
+  ],
+  "variants": {
+    "balanced": {
+      "activePixels": 59914
+    },
+    "forehead-readable": {
+      "activePixels": 65283
+    },
+    "diagnostic": {
+      "activePixels": 72711
+    }
+  }
+}

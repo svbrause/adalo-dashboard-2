@@ -7,6 +7,7 @@ import {
   AI_MIRROR_REGIONS,
   cheekRegionPolygon,
   foreheadRegionPolygon,
+  noseRegionPolygon,
   polygonFromLandmarkIndices,
 } from "../components/postVisitBlueprint/aiMirrorRegions";
 import type { AuraZonePolygon } from "./regionalFaceZonePolygons";
@@ -182,6 +183,9 @@ export function mirrorRegionPolygonPixels(
   }
   if (regionId === "rForehead") {
     return foreheadRegionPolygon(landmarks, width, height);
+  }
+  if (regionId === "rNose") {
+    return noseRegionPolygon(landmarks, width, height);
   }
   if (regionId === "rLeftCheek") {
     return cheekRegionPolygon(landmarks, width, height, "left");

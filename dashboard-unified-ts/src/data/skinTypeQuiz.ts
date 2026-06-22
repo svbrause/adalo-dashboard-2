@@ -6,6 +6,46 @@
  * Section totals map to a 3-letter code (e.g. OSP) and then to one of 8 gemstone types.
  */
 
+import {
+  isSlimStudioProvider,
+  type SlimStudioProviderContext,
+} from "./slimStudioOfferings";
+import {
+  isGravitasProvider,
+  type GravitasProviderContext,
+} from "./gravitasOfferings";
+import {
+  isPrettyPleaseProvider,
+  type PrettyPleaseProviderContext,
+} from "./prettyPleaseOfferings";
+import {
+  SLIM_STUDIO_RECOMMENDED_PRODUCT_REASONS,
+  SLIM_STUDIO_ROUTINE_NOTES_BY_SKIN_TYPE,
+  SLIM_STUDIO_SKIN_TYPE_TO_PRODUCTS,
+  SLIM_STUDIO_TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE,
+} from "./slimStudioSkincare";
+import {
+  GRAVITAS_RECOMMENDED_PRODUCT_REASONS,
+  GRAVITAS_ROUTINE_NOTES_BY_SKIN_TYPE,
+  GRAVITAS_SKIN_TYPE_TO_PRODUCTS,
+  GRAVITAS_TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE,
+} from "./gravitasSkincare";
+import {
+  PRETTY_PLEASE_RECOMMENDED_PRODUCT_REASONS,
+  PRETTY_PLEASE_ROUTINE_NOTES_BY_SKIN_TYPE,
+  PRETTY_PLEASE_SKIN_TYPE_TO_PRODUCTS,
+  PRETTY_PLEASE_TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE,
+} from "./prettyPleaseSkincare";
+
+/** Optional provider identity for clinic-specific skincare catalogs. */
+export type SkincareQuizProviderContext =
+  | SlimStudioProviderContext
+  | GravitasProviderContext
+  | PrettyPleaseProviderContext
+  | string
+  | null
+  | undefined;
+
 /** The 8 gemstone skin types (result of the quiz). */
 export type GemstoneId =
   | "opal"
@@ -1312,14 +1352,16 @@ function quizRoutinePreviewItem(
   name: string,
   getCarouselRow: (name: string) => { imageUrl?: string } | undefined,
   blurbFallback: string,
+  provider?: SkincareQuizProviderContext | null,
 ): QuizRoutineProductPreview {
   const row = getCarouselRow(name);
   const displayName = name.split("|")[0]?.trim() ?? name;
+  const reasons = getRecommendedProductReasons(provider);
   return {
     name,
     displayName,
     imageUrl: row?.imageUrl,
-    blurb: RECOMMENDED_PRODUCT_REASONS[name] ?? blurbFallback,
+    blurb: reasons[name] ?? blurbFallback,
   };
 }
 
@@ -1331,12 +1373,13 @@ export function buildQuizSkincareRoutineSections(
   recommendedProductNames: string[] | undefined,
   result: string | undefined,
   getCarouselRow: (name: string) => { imageUrl?: string } | undefined,
+  provider?: SkincareQuizProviderContext | null,
 ): QuizSkincareRoutineSection[] {
   const recommendedFlat = recommendedProductNames ?? [];
   const gemstone = result as GemstoneId | undefined;
   const routine =
     gemstone && gemstone in ROUTINE_NOTES_BY_SKIN_TYPE
-      ? ROUTINE_NOTES_BY_SKIN_TYPE[gemstone]
+      ? getRoutineNotesBySkinType(gemstone, provider)
       : undefined;
 
   const sections: QuizSkincareRoutineSection[] = [];
@@ -1348,7 +1391,7 @@ export function buildQuizSkincareRoutineSections(
         id: "am",
         title: "Morning (AM) routine",
         items: amNames.map((name) =>
-          quizRoutinePreviewItem(name, getCarouselRow, "From your AM routine"),
+          quizRoutinePreviewItem(name, getCarouselRow, "From your AM routine", provider),
         ),
       });
     }
@@ -1358,7 +1401,7 @@ export function buildQuizSkincareRoutineSections(
         id: "pm",
         title: "Evening (PM) routine",
         items: pmNames.map((name) =>
-          quizRoutinePreviewItem(name, getCarouselRow, "From your PM routine"),
+          quizRoutinePreviewItem(name, getCarouselRow, "From your PM routine", provider),
         ),
       });
     }
@@ -1372,6 +1415,7 @@ export function buildQuizSkincareRoutineSections(
             name,
             getCarouselRow,
             "Optional for your routine",
+            provider,
           ),
         ),
       });
@@ -1393,6 +1437,7 @@ export function buildQuizSkincareRoutineSections(
           name,
           getCarouselRow,
           "Recommended from your quiz",
+          provider,
         ),
       ),
     });
@@ -1408,6 +1453,7 @@ export function buildQuizSkincareRoutineSections(
             name,
             getCarouselRow,
             "Recommended from your quiz",
+            provider,
           ),
         ),
       },
@@ -1421,8 +1467,76 @@ export function buildQuizSkincareRoutineSections(
  * Return recommended product names for a skin type (from our boutique list).
  * Use with getSkincareCarouselItems() or TREATMENT_BOUTIQUE_SKINCARE to resolve to full product objects.
  */
-export function getRecommendedProductsForSkinType(skinType: GemstoneId): string[] {
+export function getRecommendedProductsForSkinType(
+  skinType: GemstoneId,
+  provider?: SkincareQuizProviderContext | null,
+): string[] {
+  if (isSlimStudioProvider(provider ?? null)) {
+    return [...(SLIM_STUDIO_SKIN_TYPE_TO_PRODUCTS[skinType] ?? [])];
+  }
+  if (isGravitasProvider(provider ?? null)) {
+    return [...(GRAVITAS_SKIN_TYPE_TO_PRODUCTS[skinType] ?? [])];
+  }
+  if (isPrettyPleaseProvider(provider ?? null)) {
+    return [...(PRETTY_PLEASE_SKIN_TYPE_TO_PRODUCTS[skinType] ?? [])];
+  }
   return [...(SKIN_TYPE_TO_PRODUCTS[skinType] ?? [])];
+}
+
+export function getRoutineNotesBySkinType(
+  skinType: GemstoneId,
+  provider?: SkincareQuizProviderContext | null,
+): (typeof ROUTINE_NOTES_BY_SKIN_TYPE)[GemstoneId] {
+  if (isSlimStudioProvider(provider ?? null)) {
+    return SLIM_STUDIO_ROUTINE_NOTES_BY_SKIN_TYPE[skinType];
+  }
+  if (isGravitasProvider(provider ?? null)) {
+    return GRAVITAS_ROUTINE_NOTES_BY_SKIN_TYPE[skinType];
+  }
+  if (isPrettyPleaseProvider(provider ?? null)) {
+    return PRETTY_PLEASE_ROUTINE_NOTES_BY_SKIN_TYPE[skinType];
+  }
+  return ROUTINE_NOTES_BY_SKIN_TYPE[skinType];
+}
+
+export function getTreatmentRecommendationsBySkinType(
+  skinType: GemstoneId,
+  provider?: SkincareQuizProviderContext | null,
+): { heading: string; items: string[] } {
+  if (isSlimStudioProvider(provider ?? null)) {
+    return SLIM_STUDIO_TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE[skinType];
+  }
+  if (isGravitasProvider(provider ?? null)) {
+    return GRAVITAS_TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE[skinType];
+  }
+  if (isPrettyPleaseProvider(provider ?? null)) {
+    return PRETTY_PLEASE_TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE[skinType];
+  }
+  return TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE[skinType];
+}
+
+export function getRecommendedProductReasons(
+  provider?: SkincareQuizProviderContext | null,
+): Record<string, string> {
+  if (isSlimStudioProvider(provider ?? null)) {
+    return {
+      ...RECOMMENDED_PRODUCT_REASONS,
+      ...SLIM_STUDIO_RECOMMENDED_PRODUCT_REASONS,
+    };
+  }
+  if (isGravitasProvider(provider ?? null)) {
+    return {
+      ...RECOMMENDED_PRODUCT_REASONS,
+      ...GRAVITAS_RECOMMENDED_PRODUCT_REASONS,
+    };
+  }
+  if (isPrettyPleaseProvider(provider ?? null)) {
+    return {
+      ...RECOMMENDED_PRODUCT_REASONS,
+      ...PRETTY_PLEASE_RECOMMENDED_PRODUCT_REASONS,
+    };
+  }
+  return RECOMMENDED_PRODUCT_REASONS;
 }
 
 // ---------------------------------------------------------------------------
@@ -1436,7 +1550,10 @@ export const SKINCARE_QUIZ_FIELD_NAME = "Skincare Quiz";
  * Build the object to store in Airtable "Skincare Quiz" (long text) as JSON.
  * Use with updateLeadRecord(recordId, tableName, { [SKINCARE_QUIZ_FIELD_NAME]: JSON.stringify(payload) }).
  */
-export function buildSkincareQuizPayload(answersByQuestionId: Record<string, number>): {
+export function buildSkincareQuizPayload(
+  answersByQuestionId: Record<string, number>,
+  provider?: SkincareQuizProviderContext | null,
+): {
   version: 1;
   completedAt: string;
   answers: Record<string, number>;
@@ -1453,7 +1570,10 @@ export function buildSkincareQuizPayload(answersByQuestionId: Record<string, num
     completedAt: new Date().toISOString(),
     answers: { ...answersByQuestionId },
     result: profile.primary,
-    recommendedProductNames: getRecommendedProductsForSkinType(profile.primary),
+    recommendedProductNames: getRecommendedProductsForSkinType(
+      profile.primary,
+      provider,
+    ),
     resultLabel,
     resultDescription,
   };

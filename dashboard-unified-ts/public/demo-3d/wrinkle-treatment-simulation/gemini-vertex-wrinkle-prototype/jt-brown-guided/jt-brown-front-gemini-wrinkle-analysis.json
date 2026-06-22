@@ -1,0 +1,351 @@
+{
+  "wrinkle_paths": [
+    {
+      "category": "forehead_lines",
+      "severity": 3,
+      "confidence": 0.95,
+      "points": [
+        {
+          "x": 254,
+          "y": 244
+        },
+        {
+          "x": 399,
+          "y": 234
+        },
+        {
+          "x": 541,
+          "y": 230
+        },
+        {
+          "x": 754,
+          "y": 240
+        }
+      ]
+    },
+    {
+      "category": "forehead_lines",
+      "severity": 4,
+      "confidence": 0.95,
+      "points": [
+        {
+          "x": 240,
+          "y": 280
+        },
+        {
+          "x": 477,
+          "y": 264
+        },
+        {
+          "x": 779,
+          "y": 284
+        }
+      ]
+    },
+    {
+      "category": "forehead_lines",
+      "severity": 4,
+      "confidence": 0.95,
+      "points": [
+        {
+          "x": 245,
+          "y": 311
+        },
+        {
+          "x": 483,
+          "y": 295
+        },
+        {
+          "x": 754,
+          "y": 306
+        }
+      ]
+    },
+    {
+      "category": "forehead_lines",
+      "severity": 3,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 250,
+          "y": 341
+        },
+        {
+          "x": 421,
+          "y": 330
+        }
+      ]
+    },
+    {
+      "category": "forehead_lines",
+      "severity": 3,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 580,
+          "y": 330
+        },
+        {
+          "x": 754,
+          "y": 336
+        }
+      ]
+    },
+    {
+      "category": "glabellar_creases",
+      "severity": 3,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 462,
+          "y": 345
+        },
+        {
+          "x": 466,
+          "y": 382
+        }
+      ]
+    },
+    {
+      "category": "glabellar_creases",
+      "severity": 3,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 514,
+          "y": 345
+        },
+        {
+          "x": 509,
+          "y": 382
+        }
+      ]
+    },
+    {
+      "category": "glabellar_creases",
+      "severity": 2,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 470,
+          "y": 391
+        },
+        {
+          "x": 515,
+          "y": 396
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 3,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 781,
+          "y": 425
+        },
+        {
+          "x": 821,
+          "y": 419
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 3,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 771,
+          "y": 445
+        },
+        {
+          "x": 826,
+          "y": 444
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 2,
+      "confidence": 0.85,
+      "points": [
+        {
+          "x": 761,
+          "y": 465
+        },
+        {
+          "x": 810,
+          "y": 470
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 3,
+      "confidence": 0.85,
+      "points": [
+        {
+          "x": 591,
+          "y": 495
+        },
+        {
+          "x": 651,
+          "y": 490
+        },
+        {
+          "x": 731,
+          "y": 500
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 2,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 211,
+          "y": 436
+        },
+        {
+          "x": 250,
+          "y": 440
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 3,
+      "confidence": 0.85,
+      "points": [
+        {
+          "x": 206,
+          "y": 455
+        },
+        {
+          "x": 245,
+          "y": 460
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 2,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 216,
+          "y": 475
+        },
+        {
+          "x": 250,
+          "y": 475
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 2,
+      "confidence": 0.7,
+      "points": [
+        {
+          "x": 270,
+          "y": 495
+        },
+        {
+          "x": 350,
+          "y": 490
+        },
+        {
+          "x": 410,
+          "y": 500
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 2,
+      "confidence": 0.7,
+      "points": [
+        {
+          "x": 280,
+          "y": 515
+        },
+        {
+          "x": 380,
+          "y": 520
+        }
+      ]
+    },
+    {
+      "category": "nasolabial_folds",
+      "severity": 4,
+      "confidence": 0.95,
+      "points": [
+        {
+          "x": 370,
+          "y": 560
+        },
+        {
+          "x": 399,
+          "y": 620
+        },
+        {
+          "x": 419,
+          "y": 660
+        }
+      ]
+    },
+    {
+      "category": "nasolabial_folds",
+      "severity": 4,
+      "confidence": 0.95,
+      "points": [
+        {
+          "x": 630,
+          "y": 560
+        },
+        {
+          "x": 596,
+          "y": 625
+        },
+        {
+          "x": 571,
+          "y": 665
+        }
+      ]
+    },
+    {
+      "category": "marionette_lines",
+      "severity": 3,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 425,
+          "y": 690
+        },
+        {
+          "x": 435,
+          "y": 740
+        }
+      ]
+    },
+    {
+      "category": "marionette_lines",
+      "severity": 3,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 570,
+          "y": 695
+        },
+        {
+          "x": 560,
+          "y": 745
+        }
+      ]
+    }
+  ]
+}

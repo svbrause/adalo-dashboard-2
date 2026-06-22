@@ -12,6 +12,10 @@ export const SLIM_STUDIO_PROVIDER_CODE = "SlimStudio56";
 /** Airtable Providers record id (Web Popup Leads / merged dashboard). */
 export const SLIM_STUDIO_PROVIDER_RECORD_ID = "rec60E89lWbT9GyFT";
 
+/** Patient-facing financing page — Allē/Cherry + CareCredit. */
+export const SLIM_STUDIO_FINANCING_URL =
+  "https://slimstudioatlanta.com/patient-resources/financing/";
+
 /** Dashboard / Airtable display names that identify Slim Studio. */
 export const SLIM_STUDIO_DISPLAY_NAMES = [
   "Slim Studio",
@@ -47,7 +51,16 @@ export const SLIM_STUDIO_PLAN_BUILDER_TREATMENTS: readonly string[] = [
   "Gut Health",
 ] as const;
 
+import { SLIM_STUDIO_SKINCARE_PLAN_PRODUCTS } from "./slimStudioSkincare";
+
 const SLIM_STUDIO_PLAN_SET = new Set<string>(SLIM_STUDIO_PLAN_BUILDER_TREATMENTS);
+
+/** Demo / test provider identity for Slim Studio skincare quiz payloads. */
+export const SLIM_STUDIO_DEMO_PROVIDER: SlimStudioProviderContext = {
+  code: "SlimStudio56",
+  id: "rec60E89lWbT9GyFT",
+  name: "Slim Studio Face & Body",
+};
 
 /** Product / type line items for the second dropdown per plan category. */
 export const SLIM_STUDIO_PRODUCT_OPTIONS: Record<string, readonly string[]> = {
@@ -91,7 +104,7 @@ export const SLIM_STUDIO_PRODUCT_OPTIONS: Record<string, readonly string[]> = {
   "Ariessence Pure PDGF+": ["Ariessence Pure PDGF+", OTHER_PRODUCT_LABEL],
   Glacial: ["Glacial (Cryomodulation)", OTHER_PRODUCT_LABEL],
   Facials: ["Facials", OTHER_PRODUCT_LABEL],
-  Skincare: ["Medical Grade Skincare", OTHER_PRODUCT_LABEL],
+  Skincare: [...SLIM_STUDIO_SKINCARE_PLAN_PRODUCTS, OTHER_PRODUCT_LABEL],
   "Peptide Therapy": ["Peptide Therapy", OTHER_PRODUCT_LABEL],
   "Medical Weight Loss": ["Medical Weight Loss", OTHER_PRODUCT_LABEL],
   "Functional Wellness": ["Functional Wellness", OTHER_PRODUCT_LABEL],
@@ -338,7 +351,11 @@ function slimStudioPriceListSkuName(category: string, product: string): string {
 function slimStudioReferencePrice(category: string, product: string): number {
   const table = SLIM_STUDIO_REFERENCE_PRICES[category];
   if (!table) return 0;
-  return table[product] ?? table[slimStudioPriceListSkuName(category, product)] ?? 0;
+  const direct =
+    table[product] ?? table[slimStudioPriceListSkuName(category, product)] ?? 0;
+  if (direct > 0) return direct;
+  if (category === "Skincare") return 125;
+  return 0;
 }
 
 /** Embedded price list for Settings → Treatment Pricing (reference rows per service line). */

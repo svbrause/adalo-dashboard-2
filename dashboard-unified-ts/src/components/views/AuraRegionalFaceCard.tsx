@@ -173,7 +173,7 @@ export default function AuraRegionalFaceCard({
             <p className="aura-regional-card__no-data">
               {hasSeverity
                 ? "No regional findings in this category."
-                : "No detected issues mapped to regions."}
+                : "No findings mapped to regions."}
             </p>
           )}
         </div>

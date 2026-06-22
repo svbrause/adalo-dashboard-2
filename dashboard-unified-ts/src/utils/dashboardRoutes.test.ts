@@ -11,6 +11,10 @@ describe("parseDashboardRoute", () => {
   it("parses list paths", () => {
     expect(parseDashboardRoute("/", "")).toEqual({ view: "list" });
     expect(parseDashboardRoute("/patients", "")).toEqual({ view: "list" });
+    expect(parseDashboardRoute("/patients", "?page=3")).toEqual({
+      view: "list",
+      page: 3,
+    });
   });
 
   it("parses other views", () => {
@@ -59,6 +63,8 @@ describe("buildDashboardUrl", () => {
 
   it("builds view paths", () => {
     expect(buildDashboardUrl({ view: "kanban" })).toBe("/kanban");
+    expect(buildDashboardUrl({ view: "list", page: 2 })).toBe("/patients?page=2");
+    expect(buildDashboardUrl({ view: "list", page: 1 })).toBe("/patients");
   });
 });
 

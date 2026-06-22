@@ -14,13 +14,25 @@ import {
   getResultSummary,
   SKIN_TYPE_SCORE_ORDER,
   SKIN_TYPE_DISPLAY_LABELS,
-  RECOMMENDED_PRODUCT_REASONS,
+  getRecommendedProductReasons,
+  getRoutineNotesBySkinType,
+  getTreatmentRecommendationsBySkinType,
   SKINCARE_QUIZ_FIELD_NAME,
   GEMSTONE_BY_SKIN_TYPE,
-  ROUTINE_NOTES_BY_SKIN_TYPE,
-  TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE,
+  type SkincareQuizProviderContext,
 } from "../../data/skinTypeQuiz";
-import { getSkincareCarouselItems, TIMELINE_SKINCARE } from "./DiscussedTreatmentsModal/constants";
+import {
+  getSkincareCarouselItems,
+  TIMELINE_SKINCARE,
+  type ProviderTreatmentContext,
+} from "./DiscussedTreatmentsModal/constants";
+import { isGravitasProvider } from "../../data/gravitasOfferings";
+import { isPrettyPleaseProvider } from "../../data/prettyPleaseOfferings";
+import { PRETTY_PLEASE_CORE_REGIMEN_NOTE } from "../../data/prettyPleaseSkincare";
+import {
+  GRAVITAS_PROTOCOL_NOTES,
+  GRAVITAS_ROUTINE_NOTES_BY_SKIN_TYPE,
+} from "../../data/gravitasSkincare";
 import SkinQuizProductModal, { type SkinQuizProduct } from "./SkinQuizProductModal";
 import type { TreatmentPlanPrefill } from "./DiscussedTreatmentsModal/TreatmentPhotos";
 import "./SkinTypeQuizModal.css";
@@ -43,6 +55,8 @@ interface SkinTypeQuizModalProps {
   filterBrand?: string;
   /** Match client-detail dark mode (routine chips, notes panel). */
   darkTheme?: boolean;
+  /** Provider identity for clinic-specific product catalog (e.g. Slim Studio ISDIN/Hydrinity). */
+  providerCatalogContext?: ProviderTreatmentContext | SkincareQuizProviderContext | null;
 }
 
 const DEFAULT_PROVIDER_NAME = "your practice";
@@ -56,6 +70,7 @@ export default function SkinTypeQuizModal({
   providerName,
   filterBrand,
   darkTheme = false,
+  providerCatalogContext,
 }: SkinTypeQuizModalProps) {
   const practiceName = (providerName && providerName.trim()) || DEFAULT_PROVIDER_NAME;
   const [answers, setAnswers] = useState<Record<string, number>>(
@@ -120,7 +135,7 @@ export default function SkinTypeQuizModal({
         .then((ok) => {
           setLoading(false);
           if (ok) {
-            const payload = buildSkincareQuizPayload(nextAnswers);
+            const payload = buildSkincareQuizPayload(nextAnswers, providerCatalogContext);
             const resultLabel =
               SKIN_TYPE_QUIZ.resultDescriptions?.[payload.result]?.label ?? payload.result;
             showToast(`Skincare quiz saved: ${resultLabel}`);
@@ -151,7 +166,7 @@ export default function SkinTypeQuizModal({
     );
     if (answered.length < TOTAL_QUESTIONS) return false;
     try {
-      const payload = buildSkincareQuizPayload(answersToSave);
+      const payload = buildSkincareQuizPayload(answersToSave, providerCatalogContext);
       const quizJson = JSON.stringify(payload);
       await updateLeadRecord(client.id, client.tableSource, {
         [SKINCARE_QUIZ_FIELD_NAME]: quizJson,
@@ -174,7 +189,7 @@ export default function SkinTypeQuizModal({
     const ok = await performSave(answers);
     setLoading(false);
     if (ok) {
-      const payload = buildSkincareQuizPayload(answers);
+      const payload = buildSkincareQuizPayload(answers, providerCatalogContext);
       const resultLabel =
         SKIN_TYPE_QUIZ.resultDescriptions?.[payload.result]?.label ?? payload.result;
       showToast(`Skincare quiz saved: ${resultLabel}`);
@@ -187,12 +202,29 @@ export default function SkinTypeQuizModal({
   const profile = showResults ? computeQuizProfile(answers) : null;
   const scores = profile?.scores ?? null;
   const resultSummary = profile ? getResultSummary(profile) : null;
-  const payload = showResults ? buildSkincareQuizPayload(answers) : null;
+  const payload = showResults
+    ? buildSkincareQuizPayload(answers, providerCatalogContext)
+    : null;
+  const productReasons = getRecommendedProductReasons(providerCatalogContext);
+  const routineNotes =
+    payload?.result != null
+      ? getRoutineNotesBySkinType(payload.result, providerCatalogContext)
+      : undefined;
+  const treatmentRecommendations =
+    payload?.result != null
+      ? getTreatmentRecommendationsBySkinType(payload.result, providerCatalogContext)
+      : undefined;
+  const gravitasProtocolLabel =
+    payload?.result != null &&
+    isGravitasProvider(providerCatalogContext ?? null)
+      ? GRAVITAS_ROUTINE_NOTES_BY_SKIN_TYPE[payload.result]?.protocolLabel
+      : undefined;
+
   const maxScore = scores
     ? Math.max(...Object.values(scores), 1)
     : 1;
 
-  const allCarouselItems = getSkincareCarouselItems();
+  const allCarouselItems = getSkincareCarouselItems(providerCatalogContext);
   const carouselItems = filterBrand
     ? allCarouselItems.filter((p) =>
         p.name.toLowerCase().startsWith(filterBrand.toLowerCase()),
@@ -211,7 +243,7 @@ export default function SkinTypeQuizModal({
           name,
           imageUrl: item?.imageUrl,
           productUrl: item?.productUrl,
-          recommendedFor: RECOMMENDED_PRODUCT_REASONS[name] ?? "Recommended for your skin type",
+          recommendedFor: productReasons[name] ?? "Recommended for your skin type",
           description: item?.description,
           price: item?.price,
           imageUrls: item?.imageUrls,
@@ -292,14 +324,17 @@ export default function SkinTypeQuizModal({
                 </div>
               </div>
 
-              {ROUTINE_NOTES_BY_SKIN_TYPE[payload.result] && (
+              {routineNotes && (
                 <div className="skin-type-quiz-routine-notes">
-                  <h3 className="skin-type-quiz-routine-title">Routine Notes</h3>
+                  <h3 className="skin-type-quiz-routine-title">
+                    Routine Notes
+                    {gravitasProtocolLabel ? ` — ${gravitasProtocolLabel}` : ""}
+                  </h3>
                   <div className="skin-type-quiz-routine-grid">
                     <div className="skin-type-quiz-routine-block">
                       <h4 className="skin-type-quiz-routine-period">AM</h4>
                       <ul className="skin-type-quiz-routine-list">
-                        {ROUTINE_NOTES_BY_SKIN_TYPE[payload.result]!.am.map((step, i) => {
+                        {routineNotes.am.map((step, i) => {
                           const stepProducts = step.productNames
                             .map((name) => {
                               const item = carouselItems.find((p) => p.name === name);
@@ -308,7 +343,7 @@ export default function SkinTypeQuizModal({
                                     name,
                                     imageUrl: item.imageUrl,
                                     productUrl: item.productUrl,
-                                    recommendedFor: RECOMMENDED_PRODUCT_REASONS[name],
+                                    recommendedFor: productReasons[name],
                                     description: item.description,
                                     price: item.price,
                                     imageUrls: item.imageUrls,
@@ -344,7 +379,7 @@ export default function SkinTypeQuizModal({
                     <div className="skin-type-quiz-routine-block">
                       <h4 className="skin-type-quiz-routine-period">PM</h4>
                       <ul className="skin-type-quiz-routine-list">
-                        {ROUTINE_NOTES_BY_SKIN_TYPE[payload.result]!.pm.map((step, i) => {
+                        {routineNotes.pm.map((step, i) => {
                           const stepProducts = step.productNames
                             .map((name) => {
                               const item = carouselItems.find((p) => p.name === name);
@@ -353,7 +388,7 @@ export default function SkinTypeQuizModal({
                                     name,
                                     imageUrl: item.imageUrl,
                                     productUrl: item.productUrl,
-                                    recommendedFor: RECOMMENDED_PRODUCT_REASONS[name],
+                                    recommendedFor: productReasons[name],
                                     description: item.description,
                                     price: item.price,
                                     imageUrls: item.imageUrls,
@@ -387,20 +422,20 @@ export default function SkinTypeQuizModal({
                       </ul>
                     </div>
                   </div>
-                  {ROUTINE_NOTES_BY_SKIN_TYPE[payload.result]!.optional && (
+                  {routineNotes.optional && (
                     <div className="skin-type-quiz-routine-optional">
                       <span className="skin-type-quiz-routine-optional-label">
-                        Optional: {ROUTINE_NOTES_BY_SKIN_TYPE[payload.result]!.optional!.label}
+                        Optional: {routineNotes.optional.label}
                       </span>
                       <div className="skin-type-quiz-routine-step-products">
-                        {ROUTINE_NOTES_BY_SKIN_TYPE[payload.result]!.optional!.productNames.map((name) => {
+                        {routineNotes.optional.productNames.map((name) => {
                           const item = carouselItems.find((p) => p.name === name);
                           if (!item) return null;
                           const product: SkinQuizProduct = {
                             name: item.name,
                             imageUrl: item.imageUrl,
                             productUrl: item.productUrl,
-                            recommendedFor: RECOMMENDED_PRODUCT_REASONS[name],
+                            recommendedFor: productReasons[name],
                             description: item.description,
                             price: item.price,
                             imageUrls: item.imageUrls,
@@ -424,6 +459,32 @@ export default function SkinTypeQuizModal({
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {isPrettyPleaseProvider(providerCatalogContext ?? null) && (
+                <div className="skin-type-quiz-protocol-notes">
+                  <h3 className="skin-type-quiz-routine-title">Core regimen</h3>
+                  <p className="skin-type-quiz-protocol-intro">
+                    From the Pretty Please shop — {PRETTY_PLEASE_CORE_REGIMEN_NOTE}
+                  </p>
+                </div>
+              )}
+
+              {isGravitasProvider(providerCatalogContext ?? null) && (
+                <div className="skin-type-quiz-protocol-notes">
+                  <h3 className="skin-type-quiz-routine-title">Protocol reminders</h3>
+                  <p className="skin-type-quiz-protocol-intro">
+                    From your in-practice Clear Skin Guide / Acne Erase sheets — post-peel and recovery notes:
+                  </p>
+                  <ul className="skin-type-quiz-protocol-list">
+                    {GRAVITAS_PROTOCOL_NOTES.postPeel.map((note, i) => (
+                      <li key={i}>{note}</li>
+                    ))}
+                  </ul>
+                  <p className="skin-type-quiz-protocol-recovery">
+                    {GRAVITAS_PROTOCOL_NOTES.irritatedRecovery}
+                  </p>
                 </div>
               )}
 
@@ -500,16 +561,16 @@ export default function SkinTypeQuizModal({
                 </div>
               )}
 
-              {TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE[payload.result] && (
+              {treatmentRecommendations && (
                 <div className="skin-type-quiz-treatments-section">
                   <h3 className="skin-type-quiz-treatments-title">
                     Your personalized treatment recommendations
                   </h3>
                   <p className="skin-type-quiz-treatments-heading">
-                    {TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE[payload.result]!.heading}
+                    {treatmentRecommendations.heading}
                   </p>
                   <ul className="skin-type-quiz-treatments-list">
-                    {TREATMENT_RECOMMENDATIONS_BY_SKIN_TYPE[payload.result]!.items.map((item, i) => (
+                    {treatmentRecommendations.items.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>

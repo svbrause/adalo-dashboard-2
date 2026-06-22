@@ -3,6 +3,7 @@ import type { TreatmentChapter } from "./blueprintTreatmentChapters";
 import { chapterTreatmentNormKey } from "./pvbChapterSchedule";
 import { patientFacingSkincareShortName } from "./pvbSkincareDisplay";
 import { getWellnestOfferingByTreatmentName } from "../data/wellnestOfferings";
+import { resolvePvbTreatmentNarrativeProfile } from "./pvbTreatmentNarrativeProfiles";
 import type {
   BlueprintAnalysisOverviewSnapshot,
   PlanTreatmentRow,
@@ -220,6 +221,8 @@ function treatmentInsightClosing(chapter: TreatmentChapter): string {
   if (t === "microneedling") {
     return "Microneedling works by stimulating your skin’s natural repair process—it’s often chosen for texture, scarring, or fine lines.";
   }
+  const profile = resolvePvbTreatmentNarrativeProfile(chapter);
+  if (profile) return profile.expect;
   if (t === "skincare") {
     return "Medical-grade home care builds on what you do in the office and keeps results more consistent between visits.";
   }
@@ -236,7 +239,18 @@ function treatmentInsightClosing(chapter: TreatmentChapter): string {
       ? `Most people start to notice a difference within ${timeline}—consistency with the schedule your provider set is the most important factor.`
       : `Your provider will review your response and adjust the plan as you progress.`;
   }
-  return `That’s the role ${chapter.displayName} plays in your plan.`;
+  if (chapter.meta.downtime?.trim() || chapter.meta.longevity?.trim()) {
+    const facts = [
+      chapter.meta.downtime?.trim()
+        ? `downtime is usually ${chapter.meta.downtime.trim()}`
+        : null,
+      chapter.meta.longevity?.trim()
+        ? `results or maintenance timing are typically ${chapter.meta.longevity.trim()}`
+        : null,
+    ].filter((fact): fact is string => Boolean(fact));
+    return `Your provider will guide the exact timing, but ${formatEnglishList(facts)} for this part of the plan.`;
+  }
+  return `Your provider will guide timing, aftercare, and follow-up so ${chapter.displayName} fits the goals reviewed during your visit.`;
 }
 
 /** Delivery method strings stored in DiscussedItem.product for Wellnest — not product names. */

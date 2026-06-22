@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  CHART_AXIS_MAX,
-  CHART_AXIS_MIN,
-  healthScoreToSeverityAxis,
-  SCORE_VALUE_MAX,
-  SCORE_VALUE_MIN,
-} from "../../utils/auraAnalysisBridge";
-import {
   auraSkinLensFromLabel,
   type AuraSkinLens,
 } from "../../utils/auraAnalysisBridge";
@@ -17,7 +10,9 @@ function datumLens(d: RadarChartDatum): AuraSkinLens | undefined {
   return auraSkinLensFromLabel(d.name);
 }
 
-const SCALE_RING_LEVELS = [1, 2];
+const HEALTH_SCORE_MIN = 0;
+const HEALTH_SCORE_MAX = 100;
+const SCALE_RING_LEVELS = [50, 75];
 
 function polarPoint(cx: number, cy: number, radius: number, angleRad: number) {
   return {
@@ -45,30 +40,25 @@ function sectorPath(
   ].join(" ");
 }
 
-/** Score 1.2 = green → 2.8 = warmer/red on petal. */
-function roseFillFromScore(score: number): string {
-  const t = Math.max(
-    0,
-    Math.min(1, (score - SCORE_VALUE_MIN) / (SCORE_VALUE_MAX - SCORE_VALUE_MIN)),
-  );
-  const r = Math.round(52 + (214 - 52) * t);
-  const g = Math.round(168 + (76 - 168) * t);
-  const b = Math.round(108 + (68 - 108) * t);
-  return `rgb(${r}, ${g}, ${b})`;
+function fallbackFillFromHealthScore(score: number): string {
+  if (score >= 90) return "#43a047";
+  if (score >= 70) return "#66bb6a";
+  if (score >= 50) return "#f9a825";
+  return "#ef6c00";
 }
 
-/** Map score (1.2–2.8) onto chart axis 0–3 for petal radius. */
-function axisRadius(score: number, maxR: number): number {
-  const clamped = Math.max(SCORE_VALUE_MIN, Math.min(SCORE_VALUE_MAX, score));
-  return (clamped / CHART_AXIS_MAX) * maxR;
+/** Map the displayed health score (0-100) onto petal radius. */
+function scoreRadius(score: number, maxR: number): number {
+  const clamped = Math.max(HEALTH_SCORE_MIN, Math.min(HEALTH_SCORE_MAX, score));
+  return (clamped / HEALTH_SCORE_MAX) * maxR;
 }
 
 function ringRadius(level: number, maxR: number): number {
-  return (level / CHART_AXIS_MAX) * maxR;
+  return (level / HEALTH_SCORE_MAX) * maxR;
 }
 
 /**
- * Coxcomb chart: scores 1.2–2.8 on a 0–3 axis (rings unlabeled).
+ * Coxcomb chart: displayed health scores (0-100) also control petal radius.
  */
 export function PolarAreaChart({
   data,
@@ -76,6 +66,8 @@ export function PolarAreaChart({
   animate,
   className,
   activeLens,
+  activePetalName,
+  ariaLabel = "Health scores from 0 to 100; higher scores draw larger petals",
 }: {
   data: RadarChartDatum[];
   size?: number;
@@ -83,18 +75,29 @@ export function PolarAreaChart({
   className?: string;
   /** Highlights the petal matching the left-panel skin tab. */
   activeLens?: AuraSkinLens;
+  /** Highlights the petal whose datum name matches (Volume / Structure area tabs). */
+  activePetalName?: string;
+  ariaLabel?: string;
 }) {
-  const axisForDatum = (d: RadarChartDatum) =>
-    d.severityAxis ?? healthScoreToSeverityAxis(d.score);
+  const isPetalActive = (d: RadarChartDatum) => {
+    if (activePetalName) {
+      return d.name === activePetalName;
+    }
+    if (activeLens === undefined) return true;
+    const lensKey = datumLens(d);
+    return lensKey === undefined || lensKey === activeLens;
+  };
+  const scoreForDatum = (d: RadarChartDatum) =>
+    Math.max(HEALTH_SCORE_MIN, Math.min(HEALTH_SCORE_MAX, d.score));
 
-  const [displaySeverity, setDisplaySeverity] = useState(() =>
-    data.map(axisForDatum),
+  const [displayScores, setDisplayScores] = useState(() =>
+    data.map(scoreForDatum),
   );
 
   useEffect(() => {
-    const targets = data.map(axisForDatum);
+    const targets = data.map(scoreForDatum);
     if (!animate) {
-      setDisplaySeverity(targets.map(() => CHART_AXIS_MIN));
+      setDisplayScores(targets.map(() => HEALTH_SCORE_MIN));
       return undefined;
     }
     const start = performance.now();
@@ -103,11 +106,12 @@ export function PolarAreaChart({
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / durationMs);
       const eased = 1 - (1 - t) ** 3;
-      setDisplaySeverity(
+      setDisplayScores(
         targets.map(
           (target) =>
-            Math.round((CHART_AXIS_MIN + (target - CHART_AXIS_MIN) * eased) * 10) /
-              10,
+            Math.round(
+              (HEALTH_SCORE_MIN + (target - HEALTH_SCORE_MIN) * eased) * 10,
+            ) / 10,
         ),
       );
       if (t < 1) frame = requestAnimationFrame(tick);
@@ -116,7 +120,7 @@ export function PolarAreaChart({
     return () => cancelAnimationFrame(frame);
   }, [animate, data]);
 
-  const labelPad = 32;
+  const labelPad = 44;
   const svgSize = size + labelPad * 2;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
@@ -139,7 +143,7 @@ export function PolarAreaChart({
         height={svgSize}
         viewBox={`0 0 ${svgSize} ${svgSize}`}
         overflow="visible"
-        aria-label="Skin severity scores 1.2 to 2.8 on a 0 to 3 axis"
+        aria-label={ariaLabel}
         role="img"
       >
         <circle
@@ -161,29 +165,42 @@ export function PolarAreaChart({
             strokeWidth="1"
           />
         ))}
+        {[...SCALE_RING_LEVELS, HEALTH_SCORE_MAX].map((level) => {
+          const p = polarPoint(cx, cy, ringRadius(level, maxR), -Math.PI / 2);
+          return (
+            <text
+              key={`ring-label-${level}`}
+              x={p.x - 7}
+              y={p.y}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="ao-polar-area__tick"
+            >
+              {level}
+            </text>
+          );
+        })}
 
         {data.map((d, i) => {
           const startAngle = startOffset + i * angleStep;
           const endAngle = startOffset + (i + 1) * angleStep;
-          const score = displaySeverity[i] ?? CHART_AXIS_MIN;
-          const outerR = axisRadius(score, maxR);
+          const score = displayScores[i] ?? HEALTH_SCORE_MIN;
+          const outerR = scoreRadius(score, maxR);
           const path = sectorPath(cx, cy, outerR, startAngle, endAngle);
           if (!path) return null;
-          const lensKey = datumLens(d);
-          const isActive =
-            activeLens === undefined || lensKey === undefined || lensKey === activeLens;
+          const isActive = isPetalActive(d);
           return (
             <path
               key={`petal-${d.name}`}
               d={path}
-              fill={roseFillFromScore(score)}
+              fill={d.scoreColor ?? fallbackFillFromHealthScore(d.score)}
               fillOpacity={isActive ? 0.92 : 0.28}
               stroke={
-                isActive && activeLens
+                isActive && (activePetalName || activeLens)
                   ? d.color ?? "var(--ao-polar-active-stroke, #6aab7a)"
                   : "none"
               }
-              strokeWidth={isActive && activeLens ? 1.5 : 0}
+              strokeWidth={isActive && (activePetalName || activeLens) ? 1.5 : 0}
               className={isActive ? "ao-polar-area__petal--active" : "ao-polar-area__petal--inactive"}
             />
           );
@@ -206,15 +223,13 @@ export function PolarAreaChart({
         })}
 
         {data.map((d, i) => {
-          const score = displaySeverity[i] ?? CHART_AXIS_MIN;
+          const score = displayScores[i] ?? HEALTH_SCORE_MIN;
           const startAngle = startOffset + i * angleStep;
           const endAngle = startOffset + (i + 1) * angleStep;
           const midAngle = (startAngle + endAngle) / 2;
-          const outerR = axisRadius(score, maxR);
+          const outerR = scoreRadius(score, maxR);
           if (outerR < 10) return null;
-          const lensKey = datumLens(d);
-          const isActive =
-            activeLens === undefined || lensKey === undefined || lensKey === activeLens;
+          const isActive = isPetalActive(d);
           const vp = polarPoint(cx, cy, outerR * 0.52, midAngle);
           return (
             <text
@@ -236,9 +251,7 @@ export function PolarAreaChart({
           const endAngle = startOffset + (i + 1) * angleStep;
           const midAngle = (startAngle + endAngle) / 2;
           const lp = polarPoint(cx, cy, maxR + labelPad * 0.62, midAngle);
-          const lensKey = datumLens(d);
-          const isActive =
-            activeLens === undefined || lensKey === undefined || lensKey === activeLens;
+          const isActive = isPetalActive(d);
           return (
             <text
               key={`label-${d.name}`}

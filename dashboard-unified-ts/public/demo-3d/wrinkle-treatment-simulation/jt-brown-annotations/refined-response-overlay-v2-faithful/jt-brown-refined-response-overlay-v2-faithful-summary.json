@@ -1,0 +1,17 @@
+{
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "variants": {
+    "faithful-soft": {
+      "activePixels": 54566
+    },
+    "faithful-balanced": {
+      "activePixels": 56658
+    },
+    "faithful-diagnostic": {
+      "activePixels": 67980
+    }
+  }
+}

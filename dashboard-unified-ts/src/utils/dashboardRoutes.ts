@@ -12,6 +12,8 @@ export type DashboardRoute = {
   view: ViewType;
   clientId?: string;
   section?: ClientDetailSection;
+  /** 1-based list page (list / leads / archived / facial-analysis). Omitted when 1. */
+  page?: number;
 };
 
 const VIEW_PATHS: Record<ViewType, string> = {
@@ -85,6 +87,7 @@ export function parseDashboardRoute(
   return {
     view,
     section: parseSection(params.get("section")),
+    page: parsePageFromQuery(params.get("page")),
   };
 }
 
@@ -92,6 +95,20 @@ function parseViewFromQuery(raw: string | null): ViewType | undefined {
   if (!raw) return undefined;
   const key = raw.trim() as ViewType;
   return Object.prototype.hasOwnProperty.call(VIEW_PATHS, key) ? key : undefined;
+}
+
+function parsePageFromQuery(raw: string | null): number | undefined {
+  if (!raw) return undefined;
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(n) || n < 1) return undefined;
+  return n;
+}
+
+function appendListQueryParams(params: URLSearchParams, route: DashboardRoute): void {
+  if (route.section) params.set("section", route.section);
+  if (route.page != null && route.page > 1) {
+    params.set("page", String(route.page));
+  }
 }
 
 /** Build a path + search string for history.pushState (no origin). */
@@ -102,13 +119,13 @@ export function buildDashboardUrl(route: DashboardRoute): string {
     if (route.view && route.view !== "list") {
       params.set("view", route.view);
     }
-    if (route.section) params.set("section", route.section);
+    appendListQueryParams(params, route);
     const q = params.toString();
     return `/client-details/${encodeURIComponent(route.clientId)}${q ? `?${q}` : ""}`;
   }
 
   const base = VIEW_PATHS[route.view] ?? "/patients";
-  if (route.section) params.set("section", route.section);
+  appendListQueryParams(params, route);
   const q = params.toString();
   return q ? `${base}?${q}` : base;
 }

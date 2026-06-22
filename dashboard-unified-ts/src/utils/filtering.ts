@@ -12,7 +12,8 @@ function hasSkinAnalysis(client: Client): boolean {
   const hasIssueSignals = Boolean(
     String(client.allIssues ?? "").trim() ||
       String(client.interestedIssues ?? "").trim() ||
-      String(client.processedAreasOfInterest ?? "").trim(),
+      String(client.processedAreasOfInterest ?? "").trim() ||
+      client.severityScoresFromAnalyses,
   );
   return hasFrontPhoto || hasIssueSignals;
 }

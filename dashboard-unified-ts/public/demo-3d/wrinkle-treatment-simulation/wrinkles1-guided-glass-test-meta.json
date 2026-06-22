@@ -1,0 +1,23 @@
+{
+  "source": "/Users/sambrause/Downloads/wrinkles1 copy.png",
+  "guideMask": "/Users/sambrause/Downloads/wrinkles1.png",
+  "guidedHealMode": "glass",
+  "pathCount": 7,
+  "mode": "combined",
+  "strength": 0.9,
+  "detection": {
+    "wrinklePathSource": "detected-creases-periocular-v3",
+    "roiSource": "eye-cascade",
+    "pathCount": 7,
+    "eyeBox": [
+      217,
+      120,
+      360,
+      336
+    ],
+    "outerCanthus": [
+      577,
+      242
+    ]
+  }
+}

@@ -8,14 +8,23 @@ import Pagination from "../common/Pagination";
 import { formatRelativeDate } from "../../utils/dateFormatting";
 import { applyFilters, applySorting } from "../../utils/filtering";
 import { isWebsiteMarketingWebLead } from "../../utils/leadSource";
+import { isSessionDemoPlanClient } from "../../utils/wellnestDemoPlanPersistence";
 import { isTheTreatmentProvider } from "../../utils/providerHelpers";
 import {
   DashboardAnalysisIcon,
   DashboardPlanIcon,
   DashboardQuizIcon,
 } from "../common/DashboardSectionIcons";
+import DashboardScanProgress, {
+  isDashboardScanPinned,
+  shouldShowDashboardScanProgress,
+} from "../common/DashboardScanProgress";
 import { warmClientFrontPhoto, clearStaleClientPhotos } from "../../utils/photoLoading";
 import { useRouteSyncedClientSelection } from "../../hooks/useRouteSyncedClientSelection";
+import {
+  subscribeAllBackgroundScanJobs,
+  type BackgroundScanSnapshot,
+} from "../../utils/scanJobBackground";
 import "./ListView.css";
 
 export default function ListView() {
@@ -40,20 +49,51 @@ export default function ListView() {
     useRouteSyncedClientSelection(selectedClient, setSelectedClient);
   const [showLeadAutoReplySettings, setShowLeadAutoReplySettings] =
     useState(false);
+  const [scanSnapshots, setScanSnapshots] = useState<BackgroundScanSnapshot[]>(
+    [],
+  );
+
+  useEffect(() => subscribeAllBackgroundScanJobs(setScanSnapshots), []);
+
+  const scanSnapshotByClientId = useMemo(() => {
+    const map = new Map<string, BackgroundScanSnapshot>();
+    scanSnapshots.forEach((snapshot) => {
+      map.set(snapshot.recordId, snapshot);
+    });
+    return map;
+  }, [scanSnapshots]);
 
   // Sidebar: Clients vs Leads are two filters over the same records.
   const processedClients = useMemo(() => {
     let filtered = clients.filter((client) => !client.archived);
     filtered = filtered.filter((client) =>
       currentView === "leads"
-        ? isWebsiteMarketingWebLead(client)
+        ? isWebsiteMarketingWebLead(client) &&
+          !isSessionDemoPlanClient(client)
         : !isWebsiteMarketingWebLead(client),
     );
     filtered = applyFilters(filtered, filters, searchQuery, provider?.code);
     filtered = applySorting(filtered, sort);
+    filtered = [...filtered].sort((a, b) => {
+      const aScan = scanSnapshotByClientId.get(a.id);
+      const bScan = scanSnapshotByClientId.get(b.id);
+      const aPinned = isDashboardScanPinned(aScan);
+      const bPinned = isDashboardScanPinned(bScan);
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+      if (aPinned && bPinned) return bScan.startedAt - aScan.startedAt;
+      return 0;
+    });
 
     return filtered;
-  }, [clients, currentView, filters, searchQuery, sort, provider?.code]);
+  }, [
+    clients,
+    currentView,
+    filters,
+    searchQuery,
+    sort,
+    provider?.code,
+    scanSnapshotByClientId,
+  ]);
 
   // Paginate
   const paginatedClients = useMemo(() => {
@@ -207,59 +247,70 @@ export default function ListView() {
                   </td>
                 </tr>
               ) : (
-                paginatedClients.map((client) => (
-                  <tr
-                    key={client.id}
-                    onClick={() => handleRowClick(client)}
-                    onMouseEnter={() => warmClientFrontPhoto(client, "high")}
-                    onFocus={() => warmClientFrontPhoto(client, "high")}
-                    className="cursor-pointer"
-                  >
-                    <td>
-                      <div className="table-lead-name">
-                        {client.name || "N/A"}
-                      </div>
-                      <div className="table-lead-email">
-                        {client.email || ""}
-                      </div>
-                      {client.offerClaimed && (
-                        <div className="list-view-offer-claimed">
-                          <span className="list-view-offer-claimed-text">
-                            ✓ Offer claimed
-                          </span>
+                paginatedClients.map((client) => {
+                  const scanSnapshot = scanSnapshotByClientId.get(client.id);
+                  const showScanProgress =
+                    shouldShowDashboardScanProgress(scanSnapshot);
+
+                  return (
+                    <tr
+                      key={client.id}
+                      onClick={() => handleRowClick(client)}
+                      onMouseEnter={() => warmClientFrontPhoto(client, "high")}
+                      onFocus={() => warmClientFrontPhoto(client, "high")}
+                      className={`cursor-pointer${
+                        showScanProgress ? " list-view-row--scan-active" : ""
+                      }`}
+                    >
+                      <td>
+                        <div className="table-lead-name">
+                          {client.name || "N/A"}
                         </div>
-                      )}
-                    </td>
-                    <td className="table-cell-icon-col">
-                      <DashboardPlanIcon client={client} />
-                    </td>
-                    <td className="table-cell-icon-col">
-                      <DashboardAnalysisIcon
-                        client={client}
-                        providerCode={provider?.code}
-                      />
-                    </td>
-                    <td className="table-cell-icon-col">
-                      <DashboardQuizIcon client={client} />
-                    </td>
-                    <td className="text-sm text-muted">
-                      {formatRelativeDate(
-                        client.lastContact || client.createdAt,
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="btn-secondary btn-view"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRowClick(client);
-                        }}
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                        <div className="table-lead-email">
+                          {client.email || ""}
+                        </div>
+                        {showScanProgress && (
+                          <DashboardScanProgress snapshot={scanSnapshot} />
+                        )}
+                        {client.offerClaimed && (
+                          <div className="list-view-offer-claimed">
+                            <span className="list-view-offer-claimed-text">
+                              ✓ Offer claimed
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="table-cell-icon-col">
+                        <DashboardPlanIcon client={client} />
+                      </td>
+                      <td className="table-cell-icon-col">
+                        <DashboardAnalysisIcon
+                          client={client}
+                          providerCode={provider?.code}
+                        />
+                      </td>
+                      <td className="table-cell-icon-col">
+                        <DashboardQuizIcon client={client} />
+                      </td>
+                      <td className="text-sm text-muted">
+                        {formatRelativeDate(
+                          client.lastContact || client.createdAt,
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          className="btn-secondary btn-view"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(client);
+                          }}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -54,9 +54,9 @@
 /* Client | Plan | Analysis | Quiz | Last activity | Actions */
 .leads-table th:nth-child(1),
 .leads-table td:nth-child(1) {
-  min-width: 148px;
-  max-width: 200px;
-  width: 18%;
+  min-width: 190px;
+  max-width: 280px;
+  width: 24%;
 }
 .leads-table th:nth-child(2),
 .leads-table td:nth-child(2),
@@ -119,6 +119,14 @@
 
 .leads-table tbody tr:hover {
   background: var(--theme-nav-hover-bg, rgba(0, 0, 0, 0.02));
+}
+
+.leads-table tbody tr.list-view-row--scan-active {
+  background: rgba(88, 161, 147, 0.05);
+}
+
+.leads-table tbody tr.list-view-row--scan-active:hover {
+  background: rgba(88, 161, 147, 0.09);
 }
 
 .leads-table tbody tr:last-child td {
@@ -283,6 +291,16 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     margin-top: 1px;
+  }
+
+  .table-lead-email:empty {
+    display: none;
+  }
+
+  .dashboard-scan-progress {
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px 9px;
   }
 
   /* Hide plan / analysis / quiz / actions; show name + last activity */

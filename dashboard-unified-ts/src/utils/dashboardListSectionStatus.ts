@@ -19,6 +19,7 @@ export function getAnalysisSectionIconKindFromDisplayLabel(
   const lower = displayLabel.toLowerCase();
   if (lower.includes("reviewed")) return "reviewed";
   if (lower.includes("ready")) return "ready";
+  if (lower.includes("complete")) return "ready";
   if (lower === "pending" || lower.includes("pending")) return "pending";
   if (lower.includes("not started")) return "not_started";
   return "pending";

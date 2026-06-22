@@ -35,6 +35,9 @@ type UseDashboardNavigationArgs = {
   setRouteClientId: (id: string | null) => void;
   routeSection: ClientDetailSection | null;
   setRouteSection: (section: ClientDetailSection | null) => void;
+  /** Current paginated list page (Clients / Leads / etc.). */
+  listPage?: number;
+  onRouteApplied?: (route: DashboardRoute) => void;
   enabled: boolean;
 };
 
@@ -43,10 +46,12 @@ function applyRoute(
   setCurrentView: (view: ViewType) => void,
   setRouteClientId: (id: string | null) => void,
   setRouteSection: (section: ClientDetailSection | null) => void,
+  onRouteApplied?: (route: DashboardRoute) => void,
 ) {
   setCurrentView(route.view);
   setRouteClientId(route.clientId ?? null);
   setRouteSection(route.section ?? null);
+  onRouteApplied?.(route);
 }
 
 export function useDashboardNavigation({
@@ -56,15 +61,18 @@ export function useDashboardNavigation({
   setRouteClientId,
   routeSection,
   setRouteSection,
+  onRouteApplied,
+  listPage = 1,
   enabled,
 }: UseDashboardNavigationArgs): DashboardNavigationState {
   const suppressUrlSyncRef = useRef(false);
   const viewBeforeClientRef = useRef<ViewType>("list");
+  const pageBeforeClientRef = useRef(1);
 
   const navigateDashboard = useCallback(
     (route: DashboardRoute, options?: { replace?: boolean }) => {
       suppressUrlSyncRef.current = true;
-      applyRoute(route, setCurrentView, setRouteClientId, setRouteSection);
+      applyRoute(route, setCurrentView, setRouteClientId, setRouteSection, onRouteApplied);
       const url = buildDashboardUrl(route);
       if (options?.replace) {
         window.history.replaceState({ dashboardRoute: route }, "", url);
@@ -75,7 +83,7 @@ export function useDashboardNavigation({
         suppressUrlSyncRef.current = false;
       });
     },
-    [setCurrentView, setRouteClientId, setRouteSection],
+    [setCurrentView, setRouteClientId, setRouteSection, onRouteApplied],
   );
 
   const openClient = useCallback(
@@ -89,6 +97,7 @@ export function useDashboardNavigation({
     ) => {
       if (PATIENT_LIST_VIEWS.has(currentView)) {
         viewBeforeClientRef.current = currentView;
+        pageBeforeClientRef.current = listPage;
       }
       navigateDashboard(
         {
@@ -99,7 +108,7 @@ export function useDashboardNavigation({
         { replace: options?.replace },
       );
     },
-    [currentView, navigateDashboard],
+    [currentView, listPage, navigateDashboard],
   );
 
   const closeClient = useCallback(
@@ -108,7 +117,11 @@ export function useDashboardNavigation({
       if (!PATIENT_LIST_VIEWS.has(view)) {
         view = PATIENT_LIST_VIEWS.has(currentView) ? currentView : "list";
       }
-      navigateDashboard({ view });
+      const page = pageBeforeClientRef.current;
+      navigateDashboard({
+        view,
+        page: page > 1 ? page : undefined,
+      });
     },
     [currentView, navigateDashboard],
   );
@@ -120,7 +133,7 @@ export function useDashboardNavigation({
       if (suppressUrlSyncRef.current) return;
       const parsed = parseDashboardRoute();
       if (!parsed) return;
-      applyRoute(parsed, setCurrentView, setRouteClientId, setRouteSection);
+      applyRoute(parsed, setCurrentView, setRouteClientId, setRouteSection, onRouteApplied);
     };
 
     syncFromLocation();
@@ -128,7 +141,7 @@ export function useDashboardNavigation({
     const onPopState = () => syncFromLocation();
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [enabled, setCurrentView, setRouteClientId, setRouteSection]);
+  }, [enabled, setCurrentView, setRouteClientId, setRouteSection, onRouteApplied]);
 
   return {
     routeClientId,

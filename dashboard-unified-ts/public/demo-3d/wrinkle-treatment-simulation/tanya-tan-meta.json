@@ -1,0 +1,11 @@
+{
+  "source": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/tanya-tan-45-left-crease-heatmap.png",
+  "pathCount": 0,
+  "mode": "combined",
+  "strength": 0.78,
+  "detection": {
+    "wrinklePathSource": "detected-creases-periocular-v3",
+    "roiSource": "heuristic-crop",
+    "pathCount": 0
+  }
+}

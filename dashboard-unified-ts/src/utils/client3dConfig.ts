@@ -1,4 +1,5 @@
 import { getAuraScanVideoUrl } from "./auraScanConfig";
+import { demo3dAssetUrl } from "./demoAssetUrls";
 
 /**
  * Maps client display names to their 3D turntable video URLs.
@@ -8,9 +9,9 @@ import { getAuraScanVideoUrl } from "./auraScanConfig";
  * Video files live under `/public/demo-3d/` and are served at `/demo-3d/<file>.mp4`.
  */
 const CLIENT_3D_VIDEO_MAP: Record<string, string> = {
-  "Emily Dunhill": "/demo-3d/emily-dunhill-turntable-v2.mp4",
-  "Allison Baum": "/demo-3d/allison-baum-turntable-v2.mp4",
-  "Sam Test538": "/demo-3d/sam-test538-turntable-seek-hq.mp4",
+  "Emily Dunhill": demo3dAssetUrl("emily-dunhill-turntable-v2.mp4"),
+  "Allison Baum": demo3dAssetUrl("allison-baum-turntable-v2.mp4"),
+  "Sam Test538": demo3dAssetUrl("sam-test538-turntable-seek-hq.mp4"),
 };
 
 const DYNAMIC_3D_KEY = "face3d-generated-models";

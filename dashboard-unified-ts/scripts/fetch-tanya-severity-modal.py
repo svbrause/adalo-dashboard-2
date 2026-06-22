@@ -23,9 +23,15 @@ from pathlib import Path
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
-MODAL_PREDICT_URL = os.getenv(
-    "MODAL_PREDICT_URL",
-    "https://ponce--enhanced-facial-analysis-api-predict-web.modal.run",
+SEVERITY_PREDICT_URL = os.getenv(
+    "SEVERITY_PREDICT_URL",
+    os.getenv(
+        "GCP_SEVERITY_PREDICT_URL",
+        os.getenv(
+            "MODAL_PREDICT_URL",
+            "https://patient-analysis-service-rm2sqmm74q-uc.a.run.app/predict",
+        ),
+    ),
 )
 SCHEMA_VERSION = int(os.getenv("TANYA_SCHEMA_VERSION", "4"))
 FRONT = ROOT / "src/assets/images/tan_front.JPG"
@@ -100,8 +106,8 @@ def main() -> int:
         "age": AGE,
         "include_severity": True,
     }
-    print(f"POST {MODAL_PREDICT_URL}")
-    resp = requests.post(MODAL_PREDICT_URL, json=payload, timeout=180)
+    print(f"POST {SEVERITY_PREDICT_URL}")
+    resp = requests.post(SEVERITY_PREDICT_URL, json=payload, timeout=180)
     resp.raise_for_status()
     api = resp.json()
     if not api.get("success"):

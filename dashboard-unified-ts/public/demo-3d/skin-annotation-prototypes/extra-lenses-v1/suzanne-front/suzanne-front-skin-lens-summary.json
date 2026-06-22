@@ -1,0 +1,18 @@
+{
+  "source": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/training_data_v3/images/front/Suzanne_front.jpg",
+  "outputs": {
+    "blemishes": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/suzanne-front/suzanne-front-blemishes-composite.png",
+    "dark-circles": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/suzanne-front/suzanne-front-dark-circles-composite.png",
+    "shine-oiliness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/suzanne-front/suzanne-front-shine-oiliness-composite.png",
+    "dullness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/suzanne-front/suzanne-front-dullness-composite.png",
+    "fold-laxity": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/suzanne-front/suzanne-front-fold-laxity-composite.png"
+  },
+  "scores": {
+    "blemishes": 0.027929984033107758,
+    "dark-circles": 0.057303313574471826,
+    "shine-oiliness": 0.021663723068487434,
+    "dullness": 0.21395052763080724,
+    "fold-laxity": 0.08105056655470713
+  },
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/suzanne-front/suzanne-front-skin-lens-comparison.jpg"
+}

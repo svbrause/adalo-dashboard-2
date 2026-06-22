@@ -3,7 +3,7 @@
 .share-treatment-plan-link-overlay {
   position: fixed;
   inset: 0;
-  z-index: 10050;
+  z-index: 13000;
   background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
@@ -648,6 +648,35 @@
 
 .share-tp-link-compose-message-section {
   margin-top: 4px;
+}
+
+.share-tp-link-plan-link-block {
+  margin-top: 14px;
+}
+
+.share-tp-link-sms-fixed-intro {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--theme-text-primary, #0f172a);
+}
+
+.share-tp-link-plan-link-label {
+  margin-top: 0;
+}
+
+.share-tp-link-plan-url {
+  max-height: 4.5rem;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--theme-border, #cbd5e1);
+  border-radius: 10px;
+  background: var(--theme-bg-subtle, #f8fafc);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  word-break: break-all;
+  color: var(--theme-text-primary, #0f172a);
 }
 
 .share-tp-link-compose-section-lede {

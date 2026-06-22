@@ -9,6 +9,7 @@ import {
   partitionInterestedIssuesForFacialVsWellness,
 } from "../../utils/partitionInterestedIssuesWellnessFacial";
 import {
+  getDetectedIssueDisplayStrings,
   getRegionGrade60to100,
   getSeverityPayloadForIssueLabel,
   inferSeverityBadness01,
@@ -74,6 +75,9 @@ export default function AnalysisResultsSection({
       list = client.allIssues.filter((i) => i && String(i).trim());
     } else if (typeof client.allIssues === "string") {
       list = client.allIssues.split(",").map((i) => i.trim()).filter(Boolean);
+    }
+    if (list.length === 0 && hasSeverityJson) {
+      list = getDetectedIssueDisplayStrings(client);
     }
     const keys = new Set(list.map((i) => normalizeIssue(i)));
 
@@ -264,9 +268,9 @@ export default function AnalysisResultsSection({
 
   return (
     <div className="analysis-results-section">
-      <div className="analysis-summary-section">
-        <div className="analysis-section-title">Interested Treatments</div>
-        {facialInterests.length > 0 ? (
+      {facialInterests.length > 0 ? (
+        <div className="analysis-summary-section">
+          <div className="analysis-section-title">Interested Treatments</div>
           <div className="analysis-tags-container">
             {facialInterests.map((issue, i) => (
               <button
@@ -280,8 +284,8 @@ export default function AnalysisResultsSection({
               </button>
             ))}
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {processedAreas.length > 0 && (
         <div className="analysis-summary-section">
@@ -314,10 +318,10 @@ export default function AnalysisResultsSection({
       {expanded && (
         <div className="analysis-expanded-content">
           <p className="analysis-region-grade-legend">
-            Region scores (60–100) use every facial issue mapped to that area. Issues
-            at baseline count as best; only issues above baseline are listed. Each
-            issue gauge matches the Analysis Overview style: thick ring, tier color,
-            and a 0–100 health score inside (from severity_normalized_0_1 when present).
+            Region scores summarize each area on a 60-100 health scale, where higher
+            is better. Baseline findings are included in the score but stay out of
+            the list, so the details focus on concerns that may need attention. Gauge
+            colors match the tiers used in Analysis Overview.
           </p>
           <div className="analysis-results-grid">
             {sortedAreas.length === 0 ? (

@@ -62,6 +62,23 @@ export interface BlueprintAnalysisOverviewSnapshot {
 }
 
 /**
+ * Fills missing category descriptions from shared config (allows stripping them from compact links).
+ */
+export function enrichOverviewSnapshotCategories(
+  snapshot: BlueprintAnalysisOverviewSnapshot,
+): BlueprintAnalysisOverviewSnapshot {
+  if (!snapshot.categories.length) return snapshot;
+  return {
+    ...snapshot,
+    categories: snapshot.categories.map((c) => ({
+      ...c,
+      description:
+        c.description?.trim() || CATEGORY_DESCRIPTIONS[c.key] || c.description,
+    })),
+  };
+}
+
+/**
  * Re-derives per-area strengths vs improvements from `detectedIssueLabels` (same rules as
  * Analysis Overview). Fixes older stored snapshots that omitted `strengths` or had empty arrays.
  */
@@ -587,7 +604,9 @@ export function getBlueprintAnalysisDisplay(
   const goals = a?.goals?.length ? a.goals.map((g) => normalizeBlueprintAnalysisText(g)) : [];
 
   const overviewSnapshot = a?.overviewSnapshot
-    ? enrichOverviewSnapshotAreas(a.overviewSnapshot)
+    ? enrichOverviewSnapshotAreas(
+        enrichOverviewSnapshotCategories(a.overviewSnapshot),
+      )
     : null;
 
   const clinicalSnapshotLines = buildConsolidatedClinicalSnapshotLines(a);

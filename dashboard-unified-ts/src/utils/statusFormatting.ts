@@ -32,6 +32,12 @@ export function formatFacialStatus(
   if (normalized.toLowerCase() === "pending") {
     return wellnest ? "Not started" : "Pending";
   }
+  if (
+    normalized.toLowerCase() === "complete" ||
+    normalized.toLowerCase() === "completed"
+  ) {
+    return "Ready for Review";
+  }
   if (normalized.toLowerCase() === "ready") return "Ready for Review";
   if (
     normalized.toLowerCase().includes("patient reviewed") ||
@@ -142,6 +148,8 @@ export function getFacialStatusColor(
     normalized === "ready" ||
     normalized === "ready for review" ||
     normalized === "opened" ||
+    normalized === "complete" ||
+    normalized === "completed" ||
     formattedNormalized === "ready for review" ||
     formattedNormalized.includes("ready")
   ) {
@@ -183,6 +191,8 @@ export function getFacialStatusBorderColor(
     normalized === "ready" ||
     normalized === "ready for review" ||
     normalized === "opened" ||
+    normalized === "complete" ||
+    normalized === "completed" ||
     formattedNormalized === "ready for review" ||
     formattedNormalized.includes("ready")
   ) {

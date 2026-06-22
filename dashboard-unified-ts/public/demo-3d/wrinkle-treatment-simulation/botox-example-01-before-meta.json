@@ -1,0 +1,29 @@
+{
+  "source": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/botox-example-01-before.jpg",
+  "guideMask": null,
+  "guidedHealMode": null,
+  "pathCount": 14,
+  "mode": "combined",
+  "strength": 0.88,
+  "preset": "calibrated",
+  "region": {
+    "sourceRegion": "full"
+  },
+  "lateralFoldMask": "/private/tmp/botox-sim-v4/botox-example-01-before-lateral-fold-mask.jpg",
+  "glabellaMask": "/private/tmp/botox-sim-v4/botox-example-01-before-glabella-mask.jpg",
+  "detection": {
+    "wrinklePathSource": "detected-creases-periocular-v3",
+    "roiSource": "eye-cascade",
+    "pathCount": 14,
+    "eyeBox": [
+      198,
+      95,
+      78,
+      78
+    ],
+    "outerCanthus": [
+      198,
+      121
+    ]
+  }
+}

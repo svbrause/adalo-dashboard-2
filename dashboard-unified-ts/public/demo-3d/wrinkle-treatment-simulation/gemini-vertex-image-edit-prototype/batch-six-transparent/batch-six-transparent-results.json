@@ -1,0 +1,38 @@
+{
+  "kacie-holder": {
+    "source": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/kacie-holder/kacie-holder-front-source.png",
+    "edited": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/kacie-holder/kacie-holder-front-gemini-image-edit-transparent.png",
+    "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/kacie-holder/kacie-holder-front-gemini-image-edit-transparent-comparison.jpg",
+    "meta": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/kacie-holder/kacie-holder-front-gemini-image-edit-transparent-meta.json"
+  },
+  "mary-matthews": {
+    "source": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/mary-matthews/mary-matthews-front-source.png",
+    "edited": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/mary-matthews/mary-matthews-front-gemini-image-edit-transparent.png",
+    "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/mary-matthews/mary-matthews-front-gemini-image-edit-transparent-comparison.jpg",
+    "meta": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/mary-matthews/mary-matthews-front-gemini-image-edit-transparent-meta.json"
+  },
+  "suzanne": {
+    "source": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/suzanne/suzanne-front-source.png",
+    "edited": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/suzanne/suzanne-front-gemini-image-edit-transparent.png",
+    "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/suzanne/suzanne-front-gemini-image-edit-transparent-comparison.jpg",
+    "meta": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/suzanne/suzanne-front-gemini-image-edit-transparent-meta.json"
+  },
+  "teresa": {
+    "source": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/teresa/teresa-front-source.png",
+    "edited": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/teresa/teresa-front-gemini-image-edit-transparent.png",
+    "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/teresa/teresa-front-gemini-image-edit-transparent-comparison.jpg",
+    "meta": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/teresa/teresa-front-gemini-image-edit-transparent-meta.json"
+  },
+  "terry-letts": {
+    "source": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/terry-letts/terry-letts-front-source.png",
+    "edited": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/terry-letts/terry-letts-front-gemini-image-edit-transparent.png",
+    "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/terry-letts/terry-letts-front-gemini-image-edit-transparent-comparison.jpg",
+    "meta": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/terry-letts/terry-letts-front-gemini-image-edit-transparent-meta.json"
+  },
+  "tonya-arnold": {
+    "source": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/tonya-arnold/tonya-arnold-front-source.png",
+    "edited": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/tonya-arnold/tonya-arnold-front-gemini-image-edit-transparent.png",
+    "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/tonya-arnold/tonya-arnold-front-gemini-image-edit-transparent-comparison.jpg",
+    "meta": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/gemini-vertex-image-edit-prototype/batch-six-transparent/tonya-arnold/tonya-arnold-front-gemini-image-edit-transparent-meta.json"
+  }
+}

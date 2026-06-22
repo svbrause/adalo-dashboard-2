@@ -8,11 +8,16 @@
   margin-bottom: 16px;
 }
 
-.detail-section-header-flex > .detail-actions-inline,
+.detail-section-header-flex > .detail-actions-inline:not(.detail-section-facial-analysis-header__actions):not(.detail-section-treatment-plan-header__actions),
 .detail-section-header-flex > .detail-section-header-actions,
-.detail-section-header-flex > .skin-analysis-quiz-actions {
+.detail-section-header-flex
+  > .skin-analysis-quiz-actions:not(.detail-section-skin-analysis-header__actions) {
   margin-left: auto;
   flex-shrink: 0;
+}
+
+.detail-section-header-flex.detail-section-treatment-plan-header > .detail-section-treatment-plan-header__actions {
+  margin-left: auto;
 }
 
 .detail-section-header-title-group {
@@ -20,31 +25,16 @@
   min-width: 0;
 }
 
-/* Facial analysis header: title+date on one flex line, pill wraps below when space is tight */
-.detail-section-facial-analysis-header__primary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  min-width: 0;
-  flex: 1 1 auto;
+.detail-section-header-flex.detail-section-facial-analysis-header > .detail-actions-inline.detail-section-facial-analysis-header__actions,
+.detail-section-header-flex.detail-section-skin-analysis-header > .detail-section-skin-analysis-header__actions {
+  margin-left: auto;
 }
 
-.detail-section-facial-analysis-header__heading {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-shrink: 1;
-  min-width: 0;
-}
-
-/* On narrow panels the actions row should sit below primary, not push it */
-.detail-section-facial-analysis-header {
-  align-items: flex-start;
-}
-
-.detail-section-facial-analysis-header .detail-section-facial-analysis-header__actions {
-  flex-shrink: 0;
+@container (max-width: 520px) {
+  .detail-section-header-flex.detail-section-facial-analysis-header > .detail-actions-inline.detail-section-facial-analysis-header__actions,
+  .detail-section-header-flex.detail-section-skin-analysis-header > .detail-section-skin-analysis-header__actions {
+    margin-left: 0;
+  }
 }
 
 .detail-section-status-pill {
@@ -117,9 +107,12 @@
 }
 
 .skin-analysis-heading-block.detail-section-header-title-group {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 /* Wellness quiz section: stack title / status / actions on narrow screens */

@@ -1,0 +1,22 @@
+{
+  "name": "Terry_Letts_front",
+  "slug": "terry-letts",
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "browTop": 339,
+  "noForeheadY": 336,
+  "activePixels": {
+    "shadow": 25108,
+    "rose": 25089,
+    "blue": 24982
+  },
+  "files": {
+    "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-shadow-severity-composite.png",
+    "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-rose-severity-composite.png",
+    "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-blue-severity-composite.png"
+  },
+  "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-response-map-no-forehead.png",
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-comparison.jpg"
+}

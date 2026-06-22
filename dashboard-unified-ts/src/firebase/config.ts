@@ -74,17 +74,13 @@ export const FIREBASE_STAFF_EMAIL_PASSWORD_LOGIN_UI_ENABLED = true;
 /**
  * When true, show email/password UI on the provider login page (Firebase runs in parallel).
  * Requires {@link FIREBASE_STAFF_EMAIL_PASSWORD_LOGIN_UI_ENABLED} and Firebase env config.
- * - Production: set `VITE_FIREBASE_SHOW_STAFF_AUTH` to `"true"` to show, or `"false"` to hide.
- * - Local dev: if the env var is omitted, the UI still shows when `import.meta.env.DEV` is true.
+ * Default: on when Firebase is configured. Set `VITE_FIREBASE_SHOW_STAFF_AUTH=false` to hide.
  */
 export function showStaffFirebaseAuthUi(): boolean {
   if (!FIREBASE_STAFF_EMAIL_PASSWORD_LOGIN_UI_ENABLED || !isFirebaseConfigured()) {
     return false;
   }
-  const v = import.meta.env.VITE_FIREBASE_SHOW_STAFF_AUTH;
-  if (v === "false") return false;
-  if (v === "true") return true;
-  return import.meta.env.DEV;
+  return import.meta.env.VITE_FIREBASE_SHOW_STAFF_AUTH !== "false";
 }
 
 /** When true, show “Create account” on the staff panel (leave off until you have admin-only provisioning or rules). */
@@ -95,11 +91,9 @@ export function allowFirebaseSelfSignUp(): boolean {
 /**
  * When true, after staff sign-in on the login page, if the Firebase user has custom claim
  * `practiceIds`, load that Airtable provider and open the main dashboard (no provider code).
- * Set to `true` when you are ready to roll out email/password dashboard access.
+ * Default: on when Firebase is configured. Set `VITE_FIREBASE_STAFF_LOGIN_TO_DASHBOARD=false` to disable.
  */
 export function firebaseStaffLoginOpensDashboard(): boolean {
-  return (
-    isFirebaseConfigured() &&
-    import.meta.env.VITE_FIREBASE_STAFF_LOGIN_TO_DASHBOARD === "true"
-  );
+  if (!isFirebaseConfigured()) return false;
+  return import.meta.env.VITE_FIREBASE_STAFF_LOGIN_TO_DASHBOARD !== "false";
 }

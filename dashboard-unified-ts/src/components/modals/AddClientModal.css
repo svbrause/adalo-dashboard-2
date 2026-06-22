@@ -4,6 +4,16 @@
   max-width: 600px;
 }
 
+.add-lead-modal-content .modal-header-info {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.add-lead-modal-content .modal-subtitle {
+  margin-top: 0;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

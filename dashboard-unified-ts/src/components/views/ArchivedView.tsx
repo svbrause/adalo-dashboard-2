@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useDashboard } from "../../context/DashboardContext";
-import ClientDetailModal from "../modals/ClientDetailModal";
+import ClientDetailPanel from "./ClientDetailPanel";
 import Pagination from "../common/Pagination";
 import { formatRelativeDate } from "../../utils/dateFormatting";
 import { formatPhoneDisplay } from "../../utils/validation";
@@ -25,7 +25,7 @@ export default function ArchivedView() {
   const [selectedClient, setSelectedClient] = useState<
     (typeof clients)[0] | null
   >(null);
-  const { selectClient, clearClient } = useRouteSyncedClientSelection(
+  const { selectClient, clearClient, routeSection } = useRouteSyncedClientSelection(
     selectedClient,
     setSelectedClient,
   );
@@ -129,11 +129,12 @@ export default function ArchivedView() {
       </div>
 
       {selectedClient && (
-        <ClientDetailModal
+        <ClientDetailPanel
           client={
             clients.find((c) => c.id === selectedClient.id) ?? selectedClient
           }
           onClose={clearClient}
+          initialSection={routeSection ?? undefined}
           onUpdate={() => refreshClients(true)}
         />
       )}

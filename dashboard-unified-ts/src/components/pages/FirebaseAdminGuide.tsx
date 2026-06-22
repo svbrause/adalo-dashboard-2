@@ -145,12 +145,11 @@ function FirebaseAdminGuideSections() {
       <section>
         <h3 className="firebase-admin-guide__h">Production: main login page</h3>
         <p className="firebase-admin-guide__p">
-          Set <code>VITE_FIREBASE_SHOW_STAFF_AUTH</code> to <code>true</code> to show
-          staff email/password on the main login in production builds; use{" "}
-          <code>false</code> or omit it to show <strong>only</strong> the provider code
-          there. Local <code>npm run dev</code> may show the staff block when Firebase
-          is configured and this variable is omitted. From the signed-in dashboard, use{" "}
-          <strong>Settings</strong> → <strong>Open Users and Roles</strong>. The URL{" "}
+          When Firebase is configured, the main login page shows both{" "}
+          <strong>Provider code</strong> and <strong>Email &amp; password</strong> tabs by
+          default. Set <code>VITE_FIREBASE_SHOW_STAFF_AUTH=false</code> to hide staff
+          sign-in and show only the provider code field. From the signed-in dashboard,
+          use <strong>Settings</strong> → <strong>Open Users and Roles</strong>. The URL{" "}
           <code>/admin/firebase</code> still works when opened directly.
         </p>
       </section>

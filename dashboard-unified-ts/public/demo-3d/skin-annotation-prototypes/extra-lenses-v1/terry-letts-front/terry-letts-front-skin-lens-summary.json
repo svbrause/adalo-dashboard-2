@@ -1,0 +1,18 @@
+{
+  "source": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/training_data_v3/images/front/Terry_Letts_front.jpg",
+  "outputs": {
+    "blemishes": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/terry-letts-front/terry-letts-front-blemishes-composite.png",
+    "dark-circles": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/terry-letts-front/terry-letts-front-dark-circles-composite.png",
+    "shine-oiliness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/terry-letts-front/terry-letts-front-shine-oiliness-composite.png",
+    "dullness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/terry-letts-front/terry-letts-front-dullness-composite.png",
+    "fold-laxity": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/terry-letts-front/terry-letts-front-fold-laxity-composite.png"
+  },
+  "scores": {
+    "blemishes": 0.03765204921364784,
+    "dark-circles": 0.058109385922793376,
+    "shine-oiliness": 0.036429367128208406,
+    "dullness": 0.22287889717843481,
+    "fold-laxity": 0.07726243247902392
+  },
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/terry-letts-front/terry-letts-front-skin-lens-comparison.jpg"
+}

@@ -1,0 +1,89 @@
+{
+  "outputs": [
+    {
+      "slug": "kacie-holder",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "files": {
+        "shadow-relief": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/kacie-holder/kacie-holder-shadow-relief-composite.png",
+        "rose-balanced": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/kacie-holder/kacie-holder-rose-balanced-composite.png",
+        "rose-diagnostic": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/kacie-holder/kacie-holder-rose-diagnostic-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/kacie-holder/kacie-holder-v4-response-map.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/kacie-holder/kacie-holder-v4-comparison.jpg"
+    },
+    {
+      "slug": "mary-matthews",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "files": {
+        "shadow-relief": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/mary-matthews/mary-matthews-shadow-relief-composite.png",
+        "rose-balanced": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/mary-matthews/mary-matthews-rose-balanced-composite.png",
+        "rose-diagnostic": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/mary-matthews/mary-matthews-rose-diagnostic-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/mary-matthews/mary-matthews-v4-response-map.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/mary-matthews/mary-matthews-v4-comparison.jpg"
+    },
+    {
+      "slug": "suzanne",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "files": {
+        "shadow-relief": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/suzanne/suzanne-shadow-relief-composite.png",
+        "rose-balanced": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/suzanne/suzanne-rose-balanced-composite.png",
+        "rose-diagnostic": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/suzanne/suzanne-rose-diagnostic-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/suzanne/suzanne-v4-response-map.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/suzanne/suzanne-v4-comparison.jpg"
+    },
+    {
+      "slug": "teresa",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "files": {
+        "shadow-relief": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-shadow-relief-composite.png",
+        "rose-balanced": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-rose-balanced-composite.png",
+        "rose-diagnostic": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-rose-diagnostic-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-v4-response-map.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-v4-comparison.jpg"
+    },
+    {
+      "slug": "terry-letts",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "files": {
+        "shadow-relief": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/terry-letts/terry-letts-shadow-relief-composite.png",
+        "rose-balanced": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/terry-letts/terry-letts-rose-balanced-composite.png",
+        "rose-diagnostic": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/terry-letts/terry-letts-rose-diagnostic-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/terry-letts/terry-letts-v4-response-map.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/terry-letts/terry-letts-v4-comparison.jpg"
+    },
+    {
+      "slug": "tonya-arnold",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "files": {
+        "shadow-relief": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/tonya-arnold/tonya-arnold-shadow-relief-composite.png",
+        "rose-balanced": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/tonya-arnold/tonya-arnold-rose-balanced-composite.png",
+        "rose-diagnostic": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/tonya-arnold/tonya-arnold-rose-diagnostic-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/tonya-arnold/tonya-arnold-v4-response-map.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/tonya-arnold/tonya-arnold-v4-comparison.jpg"
+    }
+  ],
+  "contactSheet": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/batch-v4-shadow-relief-contact-sheet.jpg"
+}

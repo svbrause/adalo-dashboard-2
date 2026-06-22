@@ -14,7 +14,7 @@ export type AnnotateContentRect = {
   h: number;
 };
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -186,4 +186,75 @@ export function sanitizeDownloadFilename(label: string): string {
     .replace(/\s+/g, "-")
     .slice(0, 80);
   return base || "face-annotation";
+}
+
+/**
+ * Composite both compare panes (drawn at their current rendered positions)
+ * plus the spanning annotation SVG into a single JPEG data-URL.
+ */
+export async function compositeCompareAnnotation(
+  viewersEl: HTMLElement,
+  strokes: AnnotateStroke[],
+): Promise<string | null> {
+  const viewersRect = viewersEl.getBoundingClientRect();
+  const W = Math.round(viewersEl.offsetWidth);
+  const H = Math.round(viewersEl.offsetHeight);
+  if (W <= 0 || H <= 0) return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, W, H);
+
+  const panes = viewersEl.querySelectorAll<HTMLElement>(".fmp-scan-compare__pane");
+  for (const pane of Array.from(panes)) {
+    const imgEl =
+      pane.querySelector<HTMLImageElement>(".avf-static-photo__img") ??
+      pane.querySelector<HTMLImageElement>(".ai-mirror-fallback-img") ??
+      pane.querySelector<HTMLImageElement>("img");
+    if (!imgEl?.src) continue;
+
+    const imgRect = imgEl.getBoundingClientRect();
+    const dx = Math.round(imgRect.left - viewersRect.left);
+    const dy = Math.round(imgRect.top - viewersRect.top);
+    const dw = Math.round(imgRect.width);
+    const dh = Math.round(imgRect.height);
+
+    const paneRect = pane.getBoundingClientRect();
+    const clipX = Math.round(paneRect.left - viewersRect.left);
+    const clipY = Math.round(paneRect.top - viewersRect.top);
+    const clipW = Math.round(paneRect.width);
+    const clipH = Math.round(paneRect.height);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(clipX, clipY, clipW, clipH);
+    ctx.clip();
+    try {
+      const img = await loadImage(imgEl.src);
+      ctx.drawImage(img, dx, dy, dw, dh);
+    } catch {
+      // cross-origin or load failure — skip pane
+    }
+    ctx.restore();
+  }
+
+  const visible = strokes.filter((s) => s.tool !== "eraser");
+  if (visible.length > 0) {
+    const svgMarkup = strokesToSvgMarkup(strokes);
+    const sized = svgMarkup.replace("<svg ", `<svg width="${W}" height="${H}" `);
+    const svgUrl = `data:image/svg+xml,${encodeURIComponent(sized)}`;
+    try {
+      const svgImg = await loadImage(svgUrl);
+      ctx.drawImage(svgImg, 0, 0, W, H);
+    } catch {
+      // skip overlay
+    }
+  }
+
+  return canvas.toDataURL("image/jpeg", 0.92);
 }

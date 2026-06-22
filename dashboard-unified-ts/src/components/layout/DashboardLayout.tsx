@@ -1,7 +1,7 @@
 // Main Dashboard Layout Component
 
 // import React from 'react';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import { useCompactDashboardChrome } from "../../hooks/useCompactDashboardChrome";
 import { providerHasSmsAndSettingsAccess } from "../../utils/providerPrivileges";
@@ -22,6 +22,7 @@ import ReleaseNotesModal, {
   shouldShowReleaseNotes,
   dismissReleaseNotes,
 } from "../modals/ReleaseNotesModal";
+import ClinicScanHost from "../modals/ClinicScanHost";
 import DashboardEmbedView from "../views/DashboardEmbedView";
 import { isDashboardEmbedMode } from "../../utils/dashboardRoutes";
 import "./DashboardLayout.css";
@@ -77,6 +78,9 @@ function DashboardClientDetailRoute() {
   const client = routeClientId
     ? clients.find((candidate) => candidate.id === routeClientId)
     : null;
+  const handleClientDetailUpdate = useCallback(() => {
+    void refreshClients(true);
+  }, [refreshClients]);
 
   if (!routeClientId) return <DashboardViews />;
 
@@ -111,7 +115,7 @@ function DashboardClientDetailRoute() {
     <ClientDetailPanel
       client={client}
       onClose={closeClient}
-      onUpdate={() => refreshClients(true)}
+      onUpdate={handleClientDetailUpdate}
       initialSection={routeSection ?? undefined}
     />
   );
@@ -199,17 +203,19 @@ export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
         onMobileClose={() => setNavDrawerOpen(false)}
       />
       <main className="main-content">
-        <Header
-          onLogout={onLogout}
-          showNavMenu={compactChrome}
-          navMenuOpen={navDrawerOpen}
-          onToggleNav={toggleNavDrawer}
-        />
-        {showViewControls && (
-          <div className={routeClientId ? "view-controls-hidden" : undefined}>
-            <ViewControls />
-          </div>
-        )}
+        <div className="dashboard-top-chrome">
+          <Header
+            onLogout={onLogout}
+            showNavMenu={compactChrome}
+            navMenuOpen={navDrawerOpen}
+            onToggleNav={toggleNavDrawer}
+          />
+          {showViewControls && (
+            <div className={routeClientId ? "view-controls-hidden" : undefined}>
+              <ViewControls />
+            </div>
+          )}
+        </div>
         <div className="dashboard-views-wrap">
           {routeClientId ? <DashboardClientDetailRoute /> : <DashboardViews />}
         </div>
@@ -217,6 +223,7 @@ export default function DashboardLayout({ onLogout }: DashboardLayoutProps) {
       {showReleaseNotes && (
         <ReleaseNotesModal onClose={handleCloseReleaseNotes} />
       )}
+      <ClinicScanHost />
     </div>
   );
 }

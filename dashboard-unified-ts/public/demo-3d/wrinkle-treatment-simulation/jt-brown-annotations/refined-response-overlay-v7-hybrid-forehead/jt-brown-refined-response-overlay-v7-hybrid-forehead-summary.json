@@ -1,0 +1,26 @@
+{
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "customForeheadBox": [
+    157,
+    153,
+    869,
+    347
+  ],
+  "variants": {
+    "shadow-balanced": {
+      "activePixels": 100445
+    },
+    "shadow-readable": {
+      "activePixels": 100445
+    },
+    "rose-balanced": {
+      "activePixels": 100445
+    },
+    "blueprint-balanced": {
+      "activePixels": 100445
+    }
+  }
+}

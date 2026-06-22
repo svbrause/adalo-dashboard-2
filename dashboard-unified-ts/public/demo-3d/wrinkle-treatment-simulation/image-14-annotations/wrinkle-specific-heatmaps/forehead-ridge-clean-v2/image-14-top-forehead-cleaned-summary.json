@@ -1,0 +1,228 @@
+{
+  "components": [
+    {
+      "bbox": [
+        339,
+        236,
+        144,
+        33
+      ],
+      "area": 1778,
+      "aspect": 4.36,
+      "score": 0.516
+    },
+    {
+      "bbox": [
+        622,
+        237,
+        48,
+        12
+      ],
+      "area": 315,
+      "aspect": 4.0,
+      "score": 0.548
+    },
+    {
+      "bbox": [
+        503,
+        255,
+        15,
+        3
+      ],
+      "area": 45,
+      "aspect": 5.0,
+      "score": 0.645
+    },
+    {
+      "bbox": [
+        614,
+        255,
+        90,
+        22
+      ],
+      "area": 620,
+      "aspect": 4.09,
+      "score": 1.0
+    },
+    {
+      "bbox": [
+        287,
+        268,
+        97,
+        25
+      ],
+      "area": 828,
+      "aspect": 3.88,
+      "score": 0.95
+    },
+    {
+      "bbox": [
+        391,
+        275,
+        53,
+        10
+      ],
+      "area": 176,
+      "aspect": 5.3,
+      "score": 0.495
+    },
+    {
+      "bbox": [
+        484,
+        278,
+        15,
+        2
+      ],
+      "area": 30,
+      "aspect": 7.5,
+      "score": 0.923
+    },
+    {
+      "bbox": [
+        451,
+        280,
+        45,
+        9
+      ],
+      "area": 145,
+      "aspect": 5.0,
+      "score": 0.806
+    },
+    {
+      "bbox": [
+        453,
+        293,
+        16,
+        3
+      ],
+      "area": 46,
+      "aspect": 5.33,
+      "score": 0.641
+    },
+    {
+      "bbox": [
+        272,
+        357,
+        17,
+        35
+      ],
+      "area": 245,
+      "aspect": 2.06,
+      "score": 0.95
+    },
+    {
+      "bbox": [
+        364,
+        357,
+        17,
+        3
+      ],
+      "area": 50,
+      "aspect": 5.67,
+      "score": 0.3
+    },
+    {
+      "bbox": [
+        314,
+        371,
+        18,
+        3
+      ],
+      "area": 54,
+      "aspect": 6.0,
+      "score": 0.95
+    },
+    {
+      "bbox": [
+        654,
+        370,
+        17,
+        3
+      ],
+      "area": 51,
+      "aspect": 5.67,
+      "score": 0.95
+    },
+    {
+      "bbox": [
+        574,
+        419,
+        21,
+        21
+      ],
+      "area": 145,
+      "aspect": 1.0,
+      "score": 0.95
+    },
+    {
+      "bbox": [
+        384,
+        469,
+        60,
+        44
+      ],
+      "area": 780,
+      "aspect": 1.36,
+      "score": 0.95
+    },
+    {
+      "bbox": [
+        578,
+        526,
+        30,
+        59
+      ],
+      "area": 532,
+      "aspect": 1.97,
+      "score": 0.845
+    },
+    {
+      "bbox": [
+        363,
+        532,
+        99,
+        190
+      ],
+      "area": 2623,
+      "aspect": 1.92,
+      "score": 1.0
+    },
+    {
+      "bbox": [
+        503,
+        614,
+        29,
+        50
+      ],
+      "area": 649,
+      "aspect": 1.72,
+      "score": 1.0
+    }
+  ],
+  "outputs": {
+    "top-forehead-restored-line-cleaned": {
+      "heatmap": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-line-cleaned-heatmap.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-line-cleaned-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-line-cleaned-composite.png",
+      "strongOverlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-line-cleaned-strong-overlay.png",
+      "strongComposite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-line-cleaned-strong-composite.png",
+      "alphaPixels": 42965,
+      "maxAlpha": 193
+    },
+    "top-forehead-restored-smooth-bands": {
+      "heatmap": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-smooth-bands-heatmap.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-smooth-bands-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-smooth-bands-composite.png",
+      "strongOverlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-smooth-bands-strong-overlay.png",
+      "strongComposite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/forehead-ridge-clean-v2/image-14-top-forehead-restored-smooth-bands-strong-composite.png",
+      "alphaPixels": 18511,
+      "maxAlpha": 164
+    }
+  },
+  "method": [
+    "Expanded top-forehead ROI while keeping hair/background excluded with skin and polygon masks.",
+    "Zone-specific normalization lowers the threshold only for top forehead wrinkles.",
+    "Line support removes isolated splotches by requiring elongated wrinkle-like structure.",
+    "Two outputs: line-cleaned heatmap retains more texture; smooth-bands is less noisy."
+  ]
+}

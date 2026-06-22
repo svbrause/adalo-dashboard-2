@@ -174,3 +174,52 @@
 .firebase-admin-guide__table code {
   font-size: 0.75rem;
 }
+
+body.dark-mode .firebase-admin-guide {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #c0c0c0;
+}
+
+body.dark-mode .firebase-admin-guide--sidebar-panel {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+}
+
+body.dark-mode .firebase-admin-guide__sidebar-head {
+  background: linear-gradient(180deg, rgba(54, 117, 136, 0.14) 0%, #1a1a1a 100%);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .firebase-admin-guide__sidebar-title,
+body.dark-mode .firebase-admin-guide__h {
+  color: #7fc0cf;
+}
+
+body.dark-mode .firebase-admin-guide__sidebar-lead,
+body.dark-mode .firebase-admin-guide__p,
+body.dark-mode .firebase-admin-guide__list {
+  color: #b8b8b8;
+}
+
+body.dark-mode .firebase-admin-guide__summary {
+  background: #1f1f1f;
+  color: #efefef;
+}
+
+body.dark-mode .firebase-admin-guide[open] .firebase-admin-guide__summary {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .firebase-admin-guide__summary:hover {
+  background: #252525;
+}
+
+body.dark-mode .firebase-admin-guide__table th,
+body.dark-mode .firebase-admin-guide__table td {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .firebase-admin-guide__table th {
+  background: #202020;
+  color: #efefef;
+}

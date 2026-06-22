@@ -1,0 +1,80 @@
+{
+  "kacie-holder-front": {
+    "grid": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/visia-style-v3-six/kacie-holder-front/kacie-holder-front-visia-style-grid.jpg",
+    "scores": {
+      "Spots": 0.07557012626689896,
+      "Wrinkles": 0.06369626350038833,
+      "Texture": 0.11562712810919246,
+      "Pores": 0.06440724235548691,
+      "UV Spots": 0.09915692605435547,
+      "Brown Spots": 0.08240586533194942,
+      "Red Areas": 0.11715109151619972,
+      "Porphyrins": 0.08111743886893612
+    }
+  },
+  "mary-matthews-front": {
+    "grid": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/visia-style-v3-six/mary-matthews-front/mary-matthews-front-visia-style-grid.jpg",
+    "scores": {
+      "Spots": 0.10240071558615334,
+      "Wrinkles": 0.060724735561511554,
+      "Texture": 0.10939226512955294,
+      "Pores": 0.0725417108659484,
+      "UV Spots": 0.11454816578574462,
+      "Brown Spots": 0.1120285197340164,
+      "Red Areas": 0.14612683427712206,
+      "Porphyrins": 0.08983609172371411
+    }
+  },
+  "suzanne-front": {
+    "grid": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/visia-style-v3-six/suzanne-front/suzanne-front-visia-style-grid.jpg",
+    "scores": {
+      "Spots": 0.08900144366465051,
+      "Wrinkles": 0.09811480499021571,
+      "Texture": 0.11254913379977753,
+      "Pores": 0.07461940462850811,
+      "UV Spots": 0.10904009757503148,
+      "Brown Spots": 0.09928645520310735,
+      "Red Areas": 0.17858403453049618,
+      "Porphyrins": 0.09156776116224931
+    }
+  },
+  "teresa-front": {
+    "grid": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/visia-style-v3-six/teresa-front/teresa-front-visia-style-grid.jpg",
+    "scores": {
+      "Spots": 0.07088225729509093,
+      "Wrinkles": 0.04693346907017163,
+      "Texture": 0.08931078651709665,
+      "Pores": 0.05635569365193112,
+      "UV Spots": 0.09059400718180571,
+      "Brown Spots": 0.07870655124962744,
+      "Red Areas": 0.1483787638347966,
+      "Porphyrins": 0.0864135208176702
+    }
+  },
+  "terry-letts-front": {
+    "grid": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/visia-style-v3-six/terry-letts-front/terry-letts-front-visia-style-grid.jpg",
+    "scores": {
+      "Spots": 0.09668342054842514,
+      "Wrinkles": 0.08128876888648018,
+      "Texture": 0.11587336941088433,
+      "Pores": 0.07456073795840101,
+      "UV Spots": 0.1170706808919512,
+      "Brown Spots": 0.10789786160408181,
+      "Red Areas": 0.14848191355154355,
+      "Porphyrins": 0.09103659581181521
+    }
+  },
+  "tonya-arnold-front": {
+    "grid": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/visia-style-v3-six/tonya-arnold-front/tonya-arnold-front-visia-style-grid.jpg",
+    "scores": {
+      "Spots": 0.09139705096951331,
+      "Wrinkles": 0.07133044343704056,
+      "Texture": 0.11341808933706272,
+      "Pores": 0.08450825488954936,
+      "UV Spots": 0.10497237230514887,
+      "Brown Spots": 0.10151311863082373,
+      "Red Areas": 0.15094641684101373,
+      "Porphyrins": 0.10037842660342933
+    }
+  }
+}

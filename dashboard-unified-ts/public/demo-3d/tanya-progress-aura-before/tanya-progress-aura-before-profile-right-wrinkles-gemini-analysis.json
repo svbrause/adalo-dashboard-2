@@ -1,0 +1,38 @@
+{
+  "wrinkle_paths": [
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 1,
+      "confidence": 0.6,
+      "points": [
+        {
+          "x": 284,
+          "y": 363
+        },
+        {
+          "x": 309,
+          "y": 358
+        }
+      ]
+    },
+    {
+      "category": "nasolabial_folds",
+      "severity": 1,
+      "confidence": 0.4,
+      "points": [
+        {
+          "x": 215,
+          "y": 495
+        },
+        {
+          "x": 235,
+          "y": 530
+        },
+        {
+          "x": 255,
+          "y": 562
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,14 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/clinic-scan",
+      "destination": "/clinic-scan/index.html"
+    },
+    {
+      "source": "/clinic-scan/",
+      "destination": "/clinic-scan/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

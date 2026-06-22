@@ -1485,15 +1485,26 @@ export interface TreatmentChapterOverviewPayload {
 }
 
 const LLM_BACKEND_TIMEOUT_MS = 28_000;
+const ASSESSMENT_BACKEND_COOLDOWN_MS = 15 * 60 * 1000;
 const chapterOverviewCache = new Map<string, string | null>();
 const chapterOverviewInFlight = new Map<string, Promise<string | null>>();
+const assessmentOverviewCache = new Map<string, string | null>();
+const assessmentOverviewInFlight = new Map<string, Promise<string | null>>();
+let assessmentBackendUnavailableUntil = 0;
 
 function chapterOverviewCacheKey(payload: TreatmentChapterOverviewPayload): string {
   return JSON.stringify(payload);
 }
 
+function assessmentOverviewCacheKey(payload: AIAssessmentPayload): string {
+  return JSON.stringify(payload);
+}
+
 function canUseLocalDevChapterFallback(): boolean {
   if (!import.meta.env.DEV) return false;
+  if (typeof window !== "undefined") {
+    return /localhost|127\.0\.0\.1/i.test(window.location.hostname);
+  }
   return /localhost|127\.0\.0\.1/i.test(API_BASE_URL);
 }
 
@@ -1564,27 +1575,70 @@ export async function fetchTreatmentChapterOverview(
 export async function fetchAIAssessment(
   payload: AIAssessmentPayload
 ): Promise<string | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
-    const res = await fetch(`${API_BASE_URL}/api/assessment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = (await res.json()) as { assessment?: string };
-      const t = data.assessment?.trim();
-      if (t && t.length > 0) return t;
-    }
-  } catch {
-    /* dev fallback below */
+  const cacheKey = assessmentOverviewCacheKey(payload);
+  if (assessmentOverviewCache.has(cacheKey)) {
+    return assessmentOverviewCache.get(cacheKey) ?? null;
   }
+  const existing = assessmentOverviewInFlight.get(cacheKey);
+  if (existing) return existing;
 
-  const devGemini = await fetchAIAssessmentViaDevGemini(payload);
-  return devGemini ?? null;
+  const pending = (async (): Promise<string | null> => {
+    const tryDevFallback = canUseLocalDevChapterFallback();
+    if (
+      Date.now() < assessmentBackendUnavailableUntil &&
+      !tryDevFallback
+    ) {
+      assessmentOverviewCache.set(cacheKey, null);
+      return null;
+    }
+
+    if (Date.now() >= assessmentBackendUnavailableUntil) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
+        const res = await fetch(`${API_BASE_URL}/api/assessment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const data = (await res.json()) as { assessment?: string };
+          const t = data.assessment?.trim();
+          const result = t && t.length > 0 ? t : null;
+          assessmentOverviewCache.set(cacheKey, result);
+          return result;
+        }
+
+        if (res.status >= 500) {
+          assessmentBackendUnavailableUntil =
+            Date.now() + ASSESSMENT_BACKEND_COOLDOWN_MS;
+        } else {
+          assessmentOverviewCache.set(cacheKey, null);
+          return null;
+        }
+      } catch {
+        /* try local dev fallback below when available */
+      }
+    }
+
+    if (tryDevFallback) {
+      const devGemini = await fetchAIAssessmentViaDevGemini(payload);
+      assessmentOverviewCache.set(cacheKey, devGemini);
+      return devGemini;
+    }
+
+    assessmentOverviewCache.set(cacheKey, null);
+    return null;
+  })();
+
+  assessmentOverviewInFlight.set(cacheKey, pending);
+  try {
+    return await pending;
+  } finally {
+    assessmentOverviewInFlight.delete(cacheKey);
+  }
 }
 
 /**
@@ -1594,25 +1648,42 @@ export async function fetchAIAssessment(
 export async function fetchCategoryAssessment(
   payload: CategoryAssessmentPayload
 ): Promise<string | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
-    const res = await fetch(`${API_BASE_URL}/api/category-assessment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = (await res.json()) as { assessment?: string };
-      const t = data.assessment?.trim();
-      if (t && t.length > 0) return t;
-    }
-  } catch {
-    /* dev fallback below */
+  const tryDevFallback = canUseLocalDevChapterFallback();
+  if (
+    Date.now() < assessmentBackendUnavailableUntil &&
+    !tryDevFallback
+  ) {
+    return null;
   }
 
+  if (Date.now() >= assessmentBackendUnavailableUntil) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), LLM_BACKEND_TIMEOUT_MS);
+      const res = await fetch(`${API_BASE_URL}/api/category-assessment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = (await res.json()) as { assessment?: string };
+        const t = data.assessment?.trim();
+        if (t && t.length > 0) return t;
+      }
+      if (res.status >= 500) {
+        assessmentBackendUnavailableUntil =
+          Date.now() + ASSESSMENT_BACKEND_COOLDOWN_MS;
+      } else {
+        return null;
+      }
+    } catch {
+      /* try local dev fallback below when available */
+    }
+  }
+
+  if (!tryDevFallback) return null;
   const devGemini = await fetchCategoryAssessmentViaDevGemini(payload);
   return devGemini ?? null;
 }

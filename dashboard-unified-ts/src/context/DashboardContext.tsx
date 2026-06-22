@@ -1,14 +1,12 @@
 // Context for managing dashboard state
 
 import {
-  createContext,
-  useContext,
   useState,
   useCallback,
   useEffect,
   useRef,
-  ReactNode,
-  MutableRefObject,
+  type MutableRefObject,
+  type ReactNode,
 } from "react";
 import {
   Client,
@@ -31,6 +29,14 @@ import {
   getSlimStudioSampleClientsIfEnabled,
   filterOutSlimStudioSamplesDuplicatedByName,
 } from "../debug/slimStudioSampleClients";
+import {
+  getGravitasSampleClientsIfEnabled,
+  filterOutGravitasSamplesDuplicatedByName,
+} from "../debug/gravitasSampleClients";
+import {
+  getPrettyPleaseSampleClientsIfEnabled,
+  filterOutPrettyPleaseSamplesDuplicatedByName,
+} from "../debug/prettyPleaseSampleClients";
 import { withSessionDemoDiscussedItemsOverlay } from "../utils/wellnestDemoPlanPersistence";
 import {
   parseDashboardRoute,
@@ -39,9 +45,14 @@ import {
 } from "../utils/dashboardRoutes";
 import {
   useDashboardNavigation,
-  type DashboardNavigationState,
 } from "../hooks/useDashboardNavigation";
 import { getAdminDemoClientsIfEnabled } from "../debug/adminDemoClients";
+import { createOptimisticClinicScanClient } from "../utils/clinicScanOptimisticClient";
+import { getAllBackgroundScanSnapshots } from "../utils/scanJobBackground";
+import { DashboardContext } from "./dashboardContextRef";
+
+export { useDashboard } from "./dashboardContextRef";
+export type { ClientDetailSection, DashboardRoute } from "./dashboardContextRef";
 
 /**
  * Minimal set of Airtable field names the dashboard list/grid/kanban views actually read.
@@ -57,6 +68,8 @@ const PATIENTS_LIST_FIELDS: string[] = [
   "Pending/Opened",
   "Front Photo",
   "Front photo",
+  "Front Photo (from Form Submissions)",
+  "Side Photo (from Form Submissions)",
   "Source",
   "source",
   "Name (from Interest Items)",
@@ -192,67 +205,31 @@ function applyPendingTimelineOverrides(
   return changed ? { ...client, discussedItems } : client;
 }
 
-interface DashboardContextType {
-  darkMode: boolean;
-  setDarkMode: (v: boolean) => void;
-  provider: Provider | null;
-  setProvider: (provider: Provider | null) => void;
-  /** Resolved provider ID(s) used for fetching (e.g. [250, 447] when either code logs in). Use for photo preload. */
-  effectiveProviderIds: string[];
-  clients: Client[];
-  setClients: (clients: Client[]) => void;
-  currentView: ViewType;
-  setCurrentView: (view: ViewType) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  filters: FilterState;
-  setFilters: (
-    filters: FilterState | ((prev: FilterState) => FilterState),
-  ) => void;
-  sort: SortState;
-  setSort: (sort: SortState | ((prev: SortState) => SortState)) => void;
-  pagination: { currentPage: number; itemsPerPage: number };
-  setPagination: (pagination: {
-    currentPage: number;
-    itemsPerPage: number;
-  }) => void;
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
-  error: string | null;
-  setError: (error: string | null) => void;
-  /** Refetch clients. Pass true to skip global loading (e.g. after modal save) to avoid white flash. */
-  refreshClients: (skipLoading?: boolean) => Promise<void>;
-  cacheClientDiscussedItemTimeline: (
-    clientId: string,
-    itemId: string,
-    timeline: string,
-  ) => void;
-  clearClientDiscussedItemTimelineCache: (
-    clientId: string,
-    itemId?: string,
-    expectedTimeline?: string,
-  ) => void;
-  /** Patient id from URL (`/client-details/:id`). */
-  routeClientId: string | null;
-  /** Optional deep-link section (`?section=mirror`, etc.). */
-  routeSection: ClientDetailSection | null;
-  navigateDashboard: DashboardNavigationState["navigateDashboard"];
-  openClient: DashboardNavigationState["openClient"];
-  closeClient: DashboardNavigationState["closeClient"];
-}
+function preserveBackgroundScanClients(
+  fetchedClients: Client[],
+  previousClients: Client[],
+): Client[] {
+  const scanSnapshots = getAllBackgroundScanSnapshots();
+  if (scanSnapshots.length === 0) return fetchedClients;
 
-export type { ClientDetailSection, DashboardRoute };
+  const previousById = new Map(
+    previousClients.map((client) => [client.id, client]),
+  );
+  const fetchedIds = new Set(fetchedClients.map((client) => client.id));
+  const preservedClients = scanSnapshots
+    .filter((snapshot) => !fetchedIds.has(snapshot.recordId))
+    .map((snapshot) =>
+      previousById.get(snapshot.recordId) ??
+      createOptimisticClinicScanClient({
+        recordId: snapshot.recordId,
+        tableName: snapshot.tableName,
+        clientName: snapshot.clientName,
+      }),
+    );
 
-const DashboardContext = createContext<DashboardContextType | undefined>(
-  undefined,
-);
-
-export function useDashboard() {
-  const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error("useDashboard must be used within DashboardProvider");
-  }
-  return context;
+  return preservedClients.length > 0
+    ? [...preservedClients, ...fetchedClients]
+    : fetchedClients;
 }
 
 interface DashboardProviderProps {
@@ -261,7 +238,7 @@ interface DashboardProviderProps {
 
 export function DashboardProvider({ children }: DashboardProviderProps) {
   const [darkMode, setDarkModeState] = useState<boolean>(
-    () => localStorage.getItem("dashboardDarkMode") === "true",
+    () => localStorage.getItem("dashboardDarkMode") !== "false",
   );
 
   const setDarkMode = useCallback((v: boolean) => {
@@ -309,12 +286,20 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     field: "lastContact",
     order: "desc",
   });
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
+  const [pagination, setPaginationState] = useState({
+    currentPage: initialRoute?.page ?? 1,
     itemsPerPage: 25,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const onRouteApplied = useCallback((route: DashboardRoute) => {
+    if (route.clientId) return;
+    const page = route.page ?? 1;
+    setPaginationState((prev) =>
+      prev.currentPage === page ? prev : { ...prev, currentPage: page },
+    );
+  }, []);
 
   const { navigateDashboard, openClient, closeClient } = useDashboardNavigation({
     currentView,
@@ -323,8 +308,29 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     setRouteClientId,
     routeSection,
     setRouteSection,
+    listPage: pagination.currentPage,
+    onRouteApplied,
     enabled: Boolean(provider),
   });
+
+  const setPagination = useCallback(
+    (next: { currentPage: number; itemsPerPage: number }) => {
+      setPaginationState(next);
+      const parsed = parseDashboardRoute();
+      if (!parsed || parsed.clientId) return;
+      const urlPage = parsed.page ?? 1;
+      if (urlPage === next.currentPage) return;
+      navigateDashboard(
+        {
+          view: parsed.view,
+          section: parsed.section,
+          page: next.currentPage > 1 ? next.currentPage : undefined,
+        },
+        { replace: true },
+      );
+    },
+    [navigateDashboard],
+  );
 
   // Cache merged IDs for TheTreatment250/TheTreatment447 so we only fetch the other provider once per session
   const merged250447IdsRef = useRef<[string, string] | null>(null);
@@ -395,6 +401,22 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         setLoading(true);
       }
       setError(null);
+
+      const fallbackAdminDemos = getAdminDemoClientsIfEnabled(provider, []).map(
+        withSessionDemoDiscussedItemsOverlay,
+      );
+      if (fallbackAdminDemos.length > 0) {
+        setClients((prevClients) => {
+          const existingIds = new Set(prevClients.map((client) => client.id));
+          const missingDemos = fallbackAdminDemos.filter(
+            (client) => !existingIds.has(client.id),
+          );
+          if (missingDemos.length === 0) return prevClients;
+          return prevClients.length > 0
+            ? [...prevClients, ...missingDemos]
+            : fallbackAdminDemos;
+        });
+      }
 
       try {
         let providerIds: string[];
@@ -515,6 +537,32 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           allClients = [...allClients, ...extras];
         }
 
+        const gravitasSamples = getGravitasSampleClientsIfEnabled(provider);
+        if (gravitasSamples.length > 0) {
+          const noNameDupes = filterOutGravitasSamplesDuplicatedByName(
+            allClients,
+            gravitasSamples,
+          );
+          const liveIds = new Set(allClients.map((c) => c.id));
+          const extras = noNameDupes
+            .filter((c) => !liveIds.has(c.id))
+            .map(withSessionDemoDiscussedItemsOverlay);
+          allClients = [...allClients, ...extras];
+        }
+
+        const prettyPleaseSamples = getPrettyPleaseSampleClientsIfEnabled(provider);
+        if (prettyPleaseSamples.length > 0) {
+          const noNameDupes = filterOutPrettyPleaseSamplesDuplicatedByName(
+            allClients,
+            prettyPleaseSamples,
+          );
+          const liveIds = new Set(allClients.map((c) => c.id));
+          const extras = noNameDupes
+            .filter((c) => !liveIds.has(c.id))
+            .map(withSessionDemoDiscussedItemsOverlay);
+          allClients = [...allClients, ...extras];
+        }
+
         const adminDemos = getAdminDemoClientsIfEnabled(provider, allClients);
         if (adminDemos.length > 0) {
           allClients = [
@@ -530,11 +578,25 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
           ),
         );
 
-        setClients(allClients);
+        setClients((prevClients) =>
+          preserveBackgroundScanClients(allClients, prevClients),
+        );
       } catch (err: any) {
         console.error("Failed to fetch clients:", err);
         setError(err.message || "Failed to load clients");
-        setClients([]);
+        setClients((prevClients) => {
+          if (fallbackAdminDemos.length === 0) {
+            return preserveBackgroundScanClients([], prevClients);
+          }
+          const existingIds = new Set(prevClients.map((client) => client.id));
+          const missingDemos = fallbackAdminDemos.filter(
+            (client) => !existingIds.has(client.id),
+          );
+          const nextClients = missingDemos.length > 0
+            ? [...prevClients, ...missingDemos]
+            : prevClients;
+          return preserveBackgroundScanClients(nextClients, prevClients);
+        });
       } finally {
         setLoading(false);
       }

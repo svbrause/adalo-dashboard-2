@@ -1,0 +1,22 @@
+{
+  "name": "Tonya_Arnold_front",
+  "slug": "tonya-arnold",
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "browTop": 323,
+  "noForeheadY": 320,
+  "activePixels": {
+    "shadow": 32621,
+    "rose": 32618,
+    "blue": 32600
+  },
+  "files": {
+    "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-shadow-severity-composite.png",
+    "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-rose-severity-composite.png",
+    "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-blue-severity-composite.png"
+  },
+  "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-response-map-no-forehead.png",
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-comparison.jpg"
+}

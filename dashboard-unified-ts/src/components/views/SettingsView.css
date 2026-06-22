@@ -1292,8 +1292,33 @@ body.dark-mode .settings-hub-card-shell:has(.settings-hub-card-cta:hover) {
 }
 
 body.dark-mode .settings-hub-card-shell--firebase-admin {
-  border-color: rgba(99, 102, 241, 0.35);
-  background: linear-gradient(180deg, #1a1a1a 0%, #1c1c1c 40%);
+  border-color: rgba(74, 138, 154, 0.42);
+  background:
+    linear-gradient(180deg, rgba(54, 117, 136, 0.16) 0%, rgba(28, 28, 28, 0.96) 42%),
+    #1a1a1a;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 10px 26px rgba(0, 0, 0, 0.24);
+}
+
+body.dark-mode .settings-hub-card-shell--firebase-admin .settings-hub-card-title {
+  color: #f2f2f2;
+}
+
+body.dark-mode .settings-hub-card-shell--firebase-admin .settings-hub-card-desc {
+  color: #b8c3c7;
+}
+
+body.dark-mode .settings-hub-card-shell--firebase-admin .settings-hub-card-cta {
+  background: #367588;
+  border-color: #4a8a9a;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+body.dark-mode .settings-hub-card-shell--firebase-admin .settings-hub-card-cta:hover {
+  background: #4a8a9a;
+  border-color: #5ca0af;
 }
 
 body.dark-mode .settings-page-section-chip {

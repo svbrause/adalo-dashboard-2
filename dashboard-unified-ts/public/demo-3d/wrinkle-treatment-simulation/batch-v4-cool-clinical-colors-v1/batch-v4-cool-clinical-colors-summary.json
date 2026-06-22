@@ -1,0 +1,65 @@
+{
+  "outputs": [
+    {
+      "slug": "kacie-holder",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/kacie-holder/kacie-holder-cool-color-comparison.jpg",
+      "files": {
+        "clinical-teal": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/kacie-holder/kacie-holder-clinical-teal-composite.png",
+        "cool-cobalt": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/kacie-holder/kacie-holder-cool-cobalt-composite.png",
+        "graphite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/kacie-holder/kacie-holder-graphite-composite.png",
+        "aqua-outline": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/kacie-holder/kacie-holder-aqua-outline-composite.png"
+      }
+    },
+    {
+      "slug": "mary-matthews",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/mary-matthews/mary-matthews-cool-color-comparison.jpg",
+      "files": {
+        "clinical-teal": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/mary-matthews/mary-matthews-clinical-teal-composite.png",
+        "cool-cobalt": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/mary-matthews/mary-matthews-cool-cobalt-composite.png",
+        "graphite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/mary-matthews/mary-matthews-graphite-composite.png",
+        "aqua-outline": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/mary-matthews/mary-matthews-aqua-outline-composite.png"
+      }
+    },
+    {
+      "slug": "suzanne",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/suzanne/suzanne-cool-color-comparison.jpg",
+      "files": {
+        "clinical-teal": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/suzanne/suzanne-clinical-teal-composite.png",
+        "cool-cobalt": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/suzanne/suzanne-cool-cobalt-composite.png",
+        "graphite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/suzanne/suzanne-graphite-composite.png",
+        "aqua-outline": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/suzanne/suzanne-aqua-outline-composite.png"
+      }
+    },
+    {
+      "slug": "teresa",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/teresa/teresa-cool-color-comparison.jpg",
+      "files": {
+        "clinical-teal": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/teresa/teresa-clinical-teal-composite.png",
+        "cool-cobalt": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/teresa/teresa-cool-cobalt-composite.png",
+        "graphite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/teresa/teresa-graphite-composite.png",
+        "aqua-outline": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/teresa/teresa-aqua-outline-composite.png"
+      }
+    },
+    {
+      "slug": "terry-letts",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/terry-letts/terry-letts-cool-color-comparison.jpg",
+      "files": {
+        "clinical-teal": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/terry-letts/terry-letts-clinical-teal-composite.png",
+        "cool-cobalt": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/terry-letts/terry-letts-cool-cobalt-composite.png",
+        "graphite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/terry-letts/terry-letts-graphite-composite.png",
+        "aqua-outline": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/terry-letts/terry-letts-aqua-outline-composite.png"
+      }
+    },
+    {
+      "slug": "tonya-arnold",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/tonya-arnold/tonya-arnold-cool-color-comparison.jpg",
+      "files": {
+        "clinical-teal": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/tonya-arnold/tonya-arnold-clinical-teal-composite.png",
+        "cool-cobalt": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/tonya-arnold/tonya-arnold-cool-cobalt-composite.png",
+        "graphite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/tonya-arnold/tonya-arnold-graphite-composite.png",
+        "aqua-outline": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/tonya-arnold/tonya-arnold-aqua-outline-composite.png"
+      }
+    }
+  ],
+  "contactSheet": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-cool-clinical-colors-v1/batch-v4-cool-clinical-colors-contact-sheet.jpg"
+}

@@ -1,0 +1,18 @@
+{
+  "source": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/training_data_v3/images/front/Mary_Matthews_front.jpg",
+  "outputs": {
+    "blemishes": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/mary-matthews-front/mary-matthews-front-blemishes-composite.png",
+    "dark-circles": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/mary-matthews-front/mary-matthews-front-dark-circles-composite.png",
+    "shine-oiliness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/mary-matthews-front/mary-matthews-front-shine-oiliness-composite.png",
+    "dullness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/mary-matthews-front/mary-matthews-front-dullness-composite.png",
+    "fold-laxity": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/mary-matthews-front/mary-matthews-front-fold-laxity-composite.png"
+  },
+  "scores": {
+    "blemishes": 0.031239081174135208,
+    "dark-circles": 0.062418824338278264,
+    "shine-oiliness": 0.02364953157309884,
+    "dullness": 0.2051233142304713,
+    "fold-laxity": 0.07249901993696148
+  },
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/mary-matthews-front/mary-matthews-front-skin-lens-comparison.jpg"
+}

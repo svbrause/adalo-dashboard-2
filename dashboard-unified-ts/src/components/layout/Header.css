@@ -45,6 +45,31 @@
   align-items: center;
 }
 
+.header-primary-actions,
+.header-utility-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.main-header .dark-mode-toggle {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--theme-border);
+  border-radius: 12px;
+  background: var(--theme-bg-card);
+  color: var(--theme-text-primary);
+  box-shadow: none;
+}
+
+.main-header .dark-mode-toggle:hover {
+  border-color: var(--theme-accent);
+  background: var(--theme-bg-hover);
+  color: var(--theme-text-primary);
+  transform: translateY(-2px);
+}
+
 /* Header-specific scan dropdown styles - scoped to main-header to avoid conflicts */
 .main-header .scan-client-dropdown {
   position: relative;
@@ -179,30 +204,34 @@
 
 @media (max-width: 768px) {
   .main-header {
-    padding: 10px 12px 10px;
-    gap: 8px;
+    padding: 8px max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left));
+    gap: 6px;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     height: auto;
-    min-height: auto;
+    min-height: 60px;
     max-height: none;
     border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
     background: #fff;
     position: relative;
+    overflow: hidden;
   }
 
   .header-left {
-    flex: 1 1 0;
+    order: 1;
+    flex: 0 0 auto;
     min-width: 0;
+    min-height: 44px;
+    height: auto;
     display: flex;
     align-items: center;
     gap: 0;
   }
 
   .header-mobile-logo {
-    display: block;
+    display: none;
     height: 34px;
     width: auto;
     max-width: 100%;
@@ -219,26 +248,37 @@
     display: none;
   }
 
-  .header-right {
+  .header-utility-actions {
+    order: 3;
     flex: 0 0 auto;
-    flex-shrink: 0;
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
-    width: auto;
-    flex-wrap: nowrap;
+    justify-content: flex-end;
   }
 
-  .header-right .btn-secondary,
-  .header-right .scan-client-btn {
+  .header-primary-actions {
+    order: 2;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+  }
+
+  .header-primary-actions .btn-secondary,
+  .header-primary-actions .scan-client-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 14px;
-    font-size: 14px;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 10px;
+    font-size: 13px;
     font-weight: 600;
     min-height: 44px;
-    height: auto;
+    height: 44px;
     border: 1px solid var(--theme-border);
     background: #fff;
     color: var(--theme-text-primary);
@@ -246,10 +286,11 @@
     border-radius: 10px;
     white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
+    width: auto;
   }
 
-  .header-right .btn-secondary:active,
-  .header-right .scan-client-btn:active {
+  .header-primary-actions .btn-secondary:active,
+  .header-primary-actions .scan-client-btn:active {
     opacity: 0.6;
     background: #f2f2f7;
     transform: none;
@@ -257,6 +298,27 @@
 
   .main-header .scan-client-btn {
     min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  .main-header .dark-mode-toggle,
+  .main-header .header-nav-menu-btn,
+  .main-header .header-logout-mobile {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+
+  .main-header .header-nav-menu-btn {
+    margin-right: 0;
+  }
+
+  .main-header .dark-mode-toggle {
+    border-radius: 10px;
+    border-width: 1px;
+    background: #fff;
   }
 
   /* Logout: compact icon-only so it fits with Scan + Add Client */
@@ -265,9 +327,6 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0 10px;
     border: 1px solid var(--theme-border);
     border-radius: 10px;
     background: #fff;
@@ -310,5 +369,127 @@
     padding: 16px 20px;
     font-size: 16px;
     min-height: 50px;
+  }
+}
+
+@media (max-width: 380px) {
+  .main-header {
+    padding-left: max(6px, env(safe-area-inset-left));
+    padding-right: max(6px, env(safe-area-inset-right));
+    gap: 5px;
+  }
+
+  .header-primary-actions {
+    gap: 5px;
+  }
+
+  .header-primary-actions .btn-secondary,
+  .header-primary-actions .scan-client-btn {
+    padding: 0 8px;
+    font-size: 12.5px;
+  }
+
+  .main-header .dark-mode-toggle,
+  .main-header .header-nav-menu-btn,
+  .main-header .header-logout-mobile {
+    width: 40px;
+    min-width: 40px;
+    height: 42px;
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-header {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    min-height: 54px;
+    padding: 6px max(6px, env(safe-area-inset-right)) 6px max(6px, env(safe-area-inset-left));
+    overflow: visible;
+  }
+
+  .header-left,
+  .header-primary-actions,
+  .header-utility-actions {
+    min-height: 40px;
+  }
+
+  .header-left {
+    flex: 0 0 auto;
+    order: 1;
+  }
+
+  .header-primary-actions {
+    flex: 1 1 auto;
+    order: 2;
+    display: flex;
+    min-width: 0;
+    width: auto;
+    gap: 5px;
+  }
+
+  .header-utility-actions {
+    flex: 0 0 auto;
+    order: 3;
+    gap: 5px;
+  }
+
+  .header-primary-actions .btn-secondary,
+  .header-primary-actions .scan-client-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 7px;
+    border-radius: 9px;
+    font-size: clamp(11px, 3vw, 12.5px);
+    line-height: 1;
+  }
+
+  .main-header .scan-client-btn {
+    flex: 0.85 1 0;
+  }
+
+  .main-header .dark-mode-toggle,
+  .main-header .header-nav-menu-btn,
+  .main-header .header-logout-mobile {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    border-radius: 9px;
+  }
+}
+
+@media (max-width: 360px) {
+  .main-header {
+    gap: 4px;
+  }
+
+  .header-primary-actions {
+    gap: 4px;
+  }
+
+  .header-utility-actions {
+    gap: 4px;
+  }
+
+  .header-primary-actions .btn-secondary,
+  .header-primary-actions .scan-client-btn {
+    padding: 0 5px;
+    font-size: 10.5px;
+  }
+
+  .main-header .dark-mode-toggle,
+  .main-header .header-nav-menu-btn,
+  .main-header .header-logout-mobile {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
   }
 }

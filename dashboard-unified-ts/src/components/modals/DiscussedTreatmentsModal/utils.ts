@@ -8,6 +8,15 @@ import {
   formatPlanScheduledDateShortNoYear,
   isValidPlanScheduledDateIso,
 } from "../../../utils/planScheduledDate";
+import { isSlimStudioProvider, mapSuggestedTreatmentForSlimStudio } from "../../../data/slimStudioOfferings";
+import { isGravitasProvider, mapSuggestedTreatmentForGravitas } from "../../../data/gravitasOfferings";
+import {
+  isPrettyPleaseProvider,
+  mapSuggestedTreatmentForPrettyPlease,
+} from "../../../data/prettyPleaseOfferings";
+import { SLIM_STUDIO_RECOMMENDED_PRODUCTS_BY_CONTEXT } from "../../../data/slimStudioSkincare";
+import { GRAVITAS_RECOMMENDED_PRODUCTS_BY_CONTEXT } from "../../../data/gravitasSkincare";
+import { PRETTY_PLEASE_RECOMMENDED_PRODUCTS_BY_CONTEXT } from "../../../data/prettyPleaseSkincare";
 import {
   getJudgemdSurgeryPlanAssessmentFilter,
   isJudgeMdProviderCode,
@@ -28,6 +37,8 @@ import {
   OTHER_PRODUCT_LABEL,
   getTreatmentOptionsForProvider,
   getTreatmentProductOptionsForProvider,
+  normalizeProviderTreatmentContextForCatalog,
+  type ProviderTreatmentContext,
   isEnergyTreatmentCategory,
   QUANTITY_QUICK_OPTIONS_DEFAULT,
   QUANTITY_OPTIONS_FILLER,
@@ -47,14 +58,6 @@ import {
   isWellnestWellnessProviderCode,
   WELLNEST_OFFERINGS,
 } from "../../../data/wellnestOfferings";
-import {
-  isSlimStudioProvider,
-  mapSuggestedTreatmentForSlimStudio,
-} from "../../../data/slimStudioOfferings";
-import {
-  type ProviderTreatmentContext,
-  normalizeProviderTreatmentContextForCatalog,
-} from "./constants";
 import { patientFacingSkincareShortName } from "../../../utils/pvbSkincareDisplay";
 import {} from "../../../data/treatmentPricing2025";
 
@@ -169,6 +172,7 @@ export function canonicalNeurotoxinProductLabel(value: string): string {
 export function getRecommendedProducts(
   treatment: string,
   contextString: string,
+  provider?: ProviderTreatmentContext,
 ): string[] {
   if (!contextString.trim()) return [];
   const lower = contextString.toLowerCase();
@@ -176,7 +180,16 @@ export function getRecommendedProducts(
   if (!allOptions) return [];
   const baseList = allOptions.filter((p) => p !== OTHER_PRODUCT_LABEL);
   const recommended = new Set<string>();
-  for (const row of RECOMMENDED_PRODUCTS_BY_CONTEXT) {
+  const contextRows = isSlimStudioProvider(
+    normalizeProviderTreatmentContextForCatalog(provider),
+  )
+    ? SLIM_STUDIO_RECOMMENDED_PRODUCTS_BY_CONTEXT
+    : isGravitasProvider(normalizeProviderTreatmentContextForCatalog(provider))
+      ? GRAVITAS_RECOMMENDED_PRODUCTS_BY_CONTEXT
+      : isPrettyPleaseProvider(normalizeProviderTreatmentContextForCatalog(provider))
+        ? PRETTY_PLEASE_RECOMMENDED_PRODUCTS_BY_CONTEXT
+        : RECOMMENDED_PRODUCTS_BY_CONTEXT;
+  for (const row of contextRows) {
     if (row.treatment !== treatment) continue;
     if (row.keywords.some((k) => lower.includes(k))) {
       row.products
@@ -345,17 +358,25 @@ export function getTreatmentsForInterest(
   }
   const base = matched.size > 0 ? Array.from(matched) : [...allowed];
   const filtered = base
-    .map((t) =>
-      isSlimStudioProvider(normalizeProviderTreatmentContextForCatalog(provider))
-        ? mapSuggestedTreatmentForSlimStudio(t)
-        : t,
-    )
+    .map((t) => {
+      const ctx = normalizeProviderTreatmentContextForCatalog(provider);
+      if (isSlimStudioProvider(ctx)) return mapSuggestedTreatmentForSlimStudio(t);
+      if (isGravitasProvider(ctx)) return mapSuggestedTreatmentForGravitas(t);
+      if (isPrettyPleaseProvider(ctx)) return mapSuggestedTreatmentForPrettyPlease(t);
+      return t;
+    })
     .filter((t): t is string => Boolean(t))
     .filter((t) => allowed.includes(t));
   if (isWellnestWellnessProviderCode(providerCodeFromInterestContext(provider)) && filtered.length === 0) {
     return [...allowed];
   }
   if (isSlimStudioProvider(normalizeProviderTreatmentContextForCatalog(provider)) && filtered.length === 0) {
+    return [...allowed];
+  }
+  if (isGravitasProvider(normalizeProviderTreatmentContextForCatalog(provider)) && filtered.length === 0) {
+    return [...allowed];
+  }
+  if (isPrettyPleaseProvider(normalizeProviderTreatmentContextForCatalog(provider)) && filtered.length === 0) {
     return [...allowed];
   }
   return filtered;

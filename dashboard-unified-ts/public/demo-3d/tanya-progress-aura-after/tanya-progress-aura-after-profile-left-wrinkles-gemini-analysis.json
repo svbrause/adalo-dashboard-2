@@ -1,0 +1,64 @@
+{
+  "wrinkle_paths": [
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 1,
+      "confidence": 0.6,
+      "points": [
+        {
+          "x": 412,
+          "y": 383
+        },
+        {
+          "x": 435,
+          "y": 379
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 1,
+      "confidence": 0.5,
+      "points": [
+        {
+          "x": 417,
+          "y": 394
+        },
+        {
+          "x": 441,
+          "y": 398
+        }
+      ]
+    },
+    {
+      "category": "neck_lines",
+      "severity": 2,
+      "confidence": 0.7,
+      "points": [
+        {
+          "x": 494,
+          "y": 796
+        },
+        {
+          "x": 564,
+          "y": 801
+        }
+      ]
+    },
+    {
+      "category": "neck_lines",
+      "severity": 1,
+      "confidence": 0.6,
+      "points": [
+        {
+          "x": 504,
+          "y": 831
+        },
+        {
+          "x": 584,
+          "y": 836
+        }
+      ]
+    }
+  ]
+}

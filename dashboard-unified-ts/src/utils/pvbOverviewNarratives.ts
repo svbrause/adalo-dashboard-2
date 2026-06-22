@@ -16,7 +16,8 @@ import {
 import { patientFacingSkincareShortName } from "./pvbSkincareDisplay";
 import {
   getRecommendedProductsForSkinType,
-  RECOMMENDED_PRODUCT_REASONS,
+  getRecommendedProductReasons,
+  type SkincareQuizProviderContext,
 } from "../data/skinTypeQuiz";
 import {
   buildChapterAnalysisParagraph,
@@ -24,6 +25,11 @@ import {
   maybeAppendIntroScanBridge,
   type ChapterOverviewAnalysisInput,
 } from "./pvbChapterOverviewFromAnalysis";
+import {
+  buildPvbProfileFitSentence,
+  buildPvbProfileReasonSentence,
+  resolvePvbTreatmentNarrativeProfile,
+} from "./pvbTreatmentNarrativeProfiles";
 import {
   ENERGY_TREATMENT_CATEGORY,
   LEGACY_ENERGY_DEVICE_CATEGORY,
@@ -438,12 +444,17 @@ const OTHER_PROCEDURE_UNKNOWN_INTRO =
  * Resolves the first "How it works" sentence. Sub-chapters under **Other procedures** used to
  * fall through to "focused on {displayName}" because `chapter.treatment` stays the category name.
  */
-function resolveHowItWorksIntro(chapter: TreatmentChapter): string {
+function resolveHowItWorksIntro(
+  chapter: TreatmentChapter,
+  provider?: SkincareQuizProviderContext | null,
+): string {
   const canon = canonicalPlanTreatmentName(chapter.treatment);
   const dn = chapter.displayName.trim();
   const dnLower = dn.toLowerCase();
-  const skincareNarrative = skincareProductNarrative(chapter);
+  const skincareNarrative = skincareProductNarrative(chapter, provider);
   if (skincareNarrative) return skincareNarrative.how;
+  const treatmentNarrative = resolvePvbTreatmentNarrativeProfile(chapter);
+  if (treatmentNarrative) return treatmentNarrative.how;
 
   if (canon === OTHER_PLAN_CATEGORY) {
     const baseKey = chapterTreatmentNormKey(OTHER_PLAN_CATEGORY);
@@ -468,7 +479,11 @@ function resolveHowItWorksIntro(chapter: TreatmentChapter): string {
     TREATMENT_CATEGORY_INTRO[canon];
   if (fromCategory) return fromCategory;
 
-  return `It's the part of your plan focused on ${dn}.`;
+  const area = chapter.displayArea?.trim();
+  if (area) {
+    return `It's a focused in-office step your provider selected for ${area.toLowerCase()}, with the details tailored to the treatment area and goals from your visit.`;
+  }
+  return `It's a focused part of your care plan, selected for the specific role your provider wanted it to play alongside the rest of your recommendations.`;
 }
 
 /**
@@ -771,6 +786,8 @@ export type ChapterOverviewBuildOptions = {
   planRow: PlanTreatmentRow | null;
   skincareQuiz?: SkincareQuizData | null;
   relatedSkincareAddOns?: DiscussedItem[];
+  /** Provider identity for clinic-specific skincare catalog (e.g. Slim Studio). */
+  provider?: SkincareQuizProviderContext | null;
 };
 
 /** Per-chapter context to generate complement-sandwich bookends (top + bottom around the core overview). */
@@ -811,13 +828,17 @@ function formatQuizResultLabel(quiz: SkincareQuizData): string {
     .join(" ");
 }
 
-function findRecommendedProductReason(productName: string): string | null {
+function findRecommendedProductReason(
+  productName: string,
+  provider?: SkincareQuizProviderContext | null,
+): string | null {
+  const reasons = getRecommendedProductReasons(provider);
   const key = productName.trim();
   if (!key) return null;
-  const exact = RECOMMENDED_PRODUCT_REASONS[key];
+  const exact = reasons[key];
   if (exact) return exact;
   const lower = key.toLowerCase();
-  const entry = Object.entries(RECOMMENDED_PRODUCT_REASONS).find(
+  const entry = Object.entries(reasons).find(
     ([name]) => {
       const n = name.trim().toLowerCase();
       return n.includes(lower) || lower.includes(n);
@@ -844,7 +865,10 @@ function skincareProductName(chapter: TreatmentChapter): string {
   return patientFacingSkincareShortName(raw);
 }
 
-function skincareProductNarrative(chapter: TreatmentChapter): SkincareProductNarrative | null {
+function skincareProductNarrative(
+  chapter: TreatmentChapter,
+  provider?: SkincareQuizProviderContext | null,
+): SkincareProductNarrative | null {
   if (!isSkincareChapter(chapter)) return null;
   const product = skincareProductName(chapter);
   if (!product) return null;
@@ -858,6 +882,7 @@ function skincareProductNarrative(chapter: TreatmentChapter): SkincareProductNar
   const reason = findRecommendedProductReason(
     chapter.planItems.find((item) => item.product?.trim())?.product?.trim() ??
       chapter.displayName,
+    provider,
   );
   const reasonTail = reason ? `: ${reason.toLowerCase()}` : "";
 
@@ -953,6 +978,7 @@ function skincareProductNarrative(chapter: TreatmentChapter): SkincareProductNar
 function buildSkincareQuizFitParagraph(
   chapter: TreatmentChapter,
   quiz: SkincareQuizData | null | undefined,
+  provider?: SkincareQuizProviderContext | null,
 ): string | null {
   if (chapter.treatment.trim().toLowerCase() !== "skincare" || !quiz?.result) {
     return null;
@@ -965,7 +991,7 @@ function buildSkincareQuizFitParagraph(
   const recommended = new Set(
     (quiz.recommendedProductNames?.length
       ? quiz.recommendedProductNames
-      : getRecommendedProductsForSkinType(quiz.result)
+      : getRecommendedProductsForSkinType(quiz.result, provider)
     ).map((name) => name.trim().toLowerCase()),
   );
   const matches = selectedProducts
@@ -974,7 +1000,7 @@ function buildSkincareQuizFitParagraph(
       const isQuizRecommended = Array.from(recommended).some(
         (rec) => rec.includes(lower) || lower.includes(rec),
       );
-      const reason = findRecommendedProductReason(product);
+      const reason = findRecommendedProductReason(product, provider);
       if (!isQuizRecommended && !reason) return null;
       const shortName = patientFacingSkincareShortName(product);
       return reason ? `${shortName} (${reason})` : shortName;
@@ -1109,10 +1135,11 @@ function buildChapterClientApplicationTop(
   mergedConcerns: string[],
   analysisInput: ChapterOverviewAnalysisInput | undefined,
   complementCtx: ChapterComplementSandwichContext | null | undefined,
+  provider?: SkincareQuizProviderContext | null,
 ): string | undefined {
   const self = chapter.displayName.trim();
   const area = chapter.displayArea?.trim() || "";
-  const skincareNarrative = skincareProductNarrative(chapter);
+  const skincareNarrative = skincareProductNarrative(chapter, provider);
   if (skincareNarrative) return skincareNarrative.reason;
   if (mergedConcerns.length > 0) {
     return `${self} is in your plan to address ${formatEnglishList(
@@ -1124,6 +1151,8 @@ function buildChapterClientApplicationTop(
   if (wellnestOffering) {
     return wellnestWhySentence(self, interest);
   }
+  const profileReason = buildPvbProfileReasonSentence(chapter);
+  if (profileReason) return profileReason;
   if (interest) {
     return `This was included based on what you discussed with your provider—${interest}.`;
   }
@@ -1147,10 +1176,11 @@ function buildChapterClientApplicationTop(
 function buildChapterComplementBottom(
   chapter: TreatmentChapter,
   ctx: ChapterComplementSandwichContext,
+  provider?: SkincareQuizProviderContext | null,
 ): string {
   const self = chapter.displayName.trim();
   const priorityTail = "";
-  const skincareNarrative = skincareProductNarrative(chapter);
+  const skincareNarrative = skincareProductNarrative(chapter, provider);
   if (skincareNarrative) return skincareNarrative.fit;
 
   const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
@@ -1160,6 +1190,8 @@ function buildChapterComplementBottom(
     );
     return wellnestFullPlanSentence(self, others, priorityTail);
   }
+  const profileFit = buildPvbProfileFitSentence(chapter);
+  if (profileFit) return `${profileFit}${priorityTail}`;
 
   const pillars = planPillarPhraseForComplement(ctx.planShape);
   if (ctx.totalChapters <= 1) {
@@ -1190,7 +1222,8 @@ export function buildChapterOverviewContent(
   options?: ChapterOverviewBuildOptions | null,
   complementContext?: ChapterComplementSandwichContext | null,
 ): ChapterOverviewParts {
-  const introBase = resolveHowItWorksIntro(chapter);
+  const provider = options?.provider ?? null;
+  const introBase = resolveHowItWorksIntro(chapter, provider);
 
   const ctx: ChapterOverviewAnalysisInput | undefined =
     options != null
@@ -1207,6 +1240,7 @@ export function buildChapterOverviewContent(
     mergedConcerns,
     ctx,
     complementContext ?? null,
+    provider,
   );
 
   const hadExplicitAddressingSentence =
@@ -1232,7 +1266,7 @@ export function buildChapterOverviewContent(
   );
 
   const wellnestOffering = getWellnestOfferingByTreatmentName(chapter.treatment);
-  const skincareNarrative = skincareProductNarrative(chapter);
+  const skincareNarrative = skincareProductNarrative(chapter, provider);
   const baseAnalysis = skincareNarrative
     ? skincareNarrative.expect
     : wellnestOffering
@@ -1245,6 +1279,7 @@ export function buildChapterOverviewContent(
   const skincareQuizFit = buildSkincareQuizFitParagraph(
     chapter,
     options?.skincareQuiz,
+    provider,
   );
   const relatedSkincareFit = buildRelatedSkincareAddOnParagraph(
     options?.relatedSkincareAddOns,
@@ -1255,7 +1290,7 @@ export function buildChapterOverviewContent(
 
   let complementBottom: string | undefined;
   if (complementContext && complementContext.totalChapters > 0) {
-    complementBottom = buildChapterComplementBottom(chapter, complementContext);
+    complementBottom = buildChapterComplementBottom(chapter, complementContext, provider);
   }
 
   return {

@@ -1,0 +1,18 @@
+{
+  "source": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/training_data_v3/images/front/Teresa_front.jpg",
+  "outputs": {
+    "blemishes": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/teresa-front/teresa-front-blemishes-composite.png",
+    "dark-circles": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/teresa-front/teresa-front-dark-circles-composite.png",
+    "shine-oiliness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/teresa-front/teresa-front-shine-oiliness-composite.png",
+    "dullness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/teresa-front/teresa-front-dullness-composite.png",
+    "fold-laxity": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/teresa-front/teresa-front-fold-laxity-composite.png"
+  },
+  "scores": {
+    "blemishes": 0.039219725877046585,
+    "dark-circles": 0.055632257282899805,
+    "shine-oiliness": 0.0027766071174202957,
+    "dullness": 0.19819124564497878,
+    "fold-laxity": 0.05641625357241767
+  },
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/teresa-front/teresa-front-skin-lens-comparison.jpg"
+}

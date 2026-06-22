@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -28,12 +29,153 @@ def _load_module(name: str, path: Path) -> Any:
 
 _mp_wr = _load_module("mediapipe_wrinkle_paths", SCRIPT_DIR / "mediapipe_wrinkle_paths.py")
 _cutout = _load_module("wrinkle_cutout_render", SCRIPT_DIR / "wrinkle_cutout_render.py")
+_crease = _load_module("wrinkle_crease_detect", SCRIPT_DIR / "wrinkle_crease_detect.py")
 _patient = _load_module("patient_aura", SCRIPT_DIR / "generate_patient_aura_assets.py")
 
 mediapipe_wrinkle_paths = _mp_wr.mediapipe_wrinkle_paths
 render_wrinkle_cutout_rgba = _cutout.render_wrinkle_cutout_rgba
-composite_wrinkle_view_rgb = _cutout.composite_wrinkle_view_rgb
 redness_face_bbox = _patient.redness_face_bbox
+_smoothstep = _patient._smoothstep
+_gaussian_2d = _patient._gaussian_2d
+
+
+def _wrinkle_face_surface(rgb: np.ndarray, alpha: np.ndarray | None, angle: str) -> np.ndarray:
+    """Soft facial-skin field used to keep wrinkle heat off hair/beard/background."""
+    h, w = rgb.shape[:2]
+    matte = alpha if alpha is not None else np.full((h, w), 255, np.uint8)
+    x0, y0, x1, y1 = redness_face_bbox(rgb, matte, angle)
+    fw, fh = max(1, x1 - x0), max(1, y1 - y0)
+    yy, xx = np.mgrid[0:h, 0:w]
+    nx = (xx - x0) / fw
+    ny = (yy - y0) / fh
+    if angle == "front":
+        surface = 1 - _smoothstep(0.86, 1.07, ((nx - 0.50) / 0.45) ** 2 + ((ny - 0.55) / 0.56) ** 2)
+        surface *= _smoothstep(0.15, 0.23, nx) * (1 - _smoothstep(0.78, 0.86, nx))
+        surface *= _smoothstep(0.17, 0.25, ny) * (1 - _smoothstep(0.84, 0.94, ny))
+        eyes = _gaussian_2d(nx, ny, 0.35, 0.40, 0.13, 0.055) + _gaussian_2d(nx, ny, 0.65, 0.40, 0.13, 0.055)
+        lips = _gaussian_2d(nx, ny, 0.50, 0.70, 0.20, 0.050)
+        brows = _gaussian_2d(nx, ny, 0.35, 0.32, 0.14, 0.038) + _gaussian_2d(nx, ny, 0.65, 0.32, 0.14, 0.038)
+        surface *= 1 - np.clip(0.95 * eyes + 0.86 * lips + 0.70 * brows, 0, 0.96)
+    else:
+        surface = 1 - _smoothstep(0.82, 1.04, ((nx - 0.67) / 0.36) ** 2 + ((ny - 0.56) / 0.54) ** 2)
+        surface *= _smoothstep(0.24, 0.42, nx) * (1 - _smoothstep(0.86, 0.96, nx))
+        surface *= _smoothstep(0.18, 0.28, ny) * (1 - _smoothstep(0.83, 0.94, ny))
+        eyes = _gaussian_2d(nx, ny, 0.73, 0.40, 0.12, 0.055)
+        lips = _gaussian_2d(nx, ny, 0.80, 0.68, 0.15, 0.050)
+        surface *= 1 - np.clip(0.95 * eyes + 0.82 * lips, 0, 0.96)
+    return np.clip(surface, 0.0, 1.0).astype(np.float32)
+
+
+def _clean_wrinkle_skin_mask(
+    rgb: np.ndarray,
+    alpha: np.ndarray | None,
+    *,
+    angle: str,
+) -> np.ndarray:
+    """Face-skin mask for wrinkle heatmaps: excludes hair, beard, background, eyes, lips."""
+    h, w = rgb.shape[:2]
+    person = alpha if alpha is not None else _cutout.studio_backdrop_mask(rgb)
+    skin = _crease._build_skin_mask(rgb, person)
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    hue, sat, val = cv2.split(hsv)
+    seed = (skin > 0) & (val > 45) & (sat > 8) & ((hue < 32) | (hue > 164))
+    skin_val_floor = 58
+    if int(seed.sum()) > 200:
+        skin_val_floor = max(45, int(np.percentile(val[seed], 45)) - 55)
+
+    # Hair/beards/brows/eye makeup often have strong blackhat response. Suppress dark
+    # or very saturated regions before computing the overlay alpha.
+    plausible_skin = (
+        (val > skin_val_floor)
+        & (val < 246)
+        & (sat > 10)
+        & (sat < 108)
+        & ((hue < 30) | (hue > 166))
+        & (gray > skin_val_floor)
+    ).astype(np.uint8) * 255
+    face_surface = _wrinkle_face_surface(rgb, alpha, angle)
+    mask = cv2.bitwise_and(skin, plausible_skin)
+
+    # Keep the largest connected skin component; this removes isolated warm hair/background islands.
+    n, labels, stats, _ = cv2.connectedComponentsWithStats((mask > 0).astype(np.uint8), 8)
+    if n > 1:
+        min_area = max(220, int(h * w * 0.006))
+        keep = np.zeros((h, w), np.uint8)
+        for idx in np.argsort(stats[1:, cv2.CC_STAT_AREA])[::-1] + 1:
+            if int(stats[idx, cv2.CC_STAT_AREA]) < min_area:
+                continue
+            keep[labels == idx] = 255
+            if int(keep.sum() / 255) > h * w * 0.10:
+                break
+        if int(keep.sum()) > 0:
+            mask = keep
+
+    mask = cv2.morphologyEx(
+        mask,
+        cv2.MORPH_CLOSE,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13)),
+        iterations=1,
+    )
+    mask = cv2.morphologyEx(
+        mask,
+        cv2.MORPH_OPEN,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)),
+        iterations=1,
+    )
+    return cv2.GaussianBlur(mask.astype(np.float32) / 255.0, (0, 0), 2.2) * face_surface
+
+
+def composite_wrinkle_heatmap_view_rgb(
+    rgb: np.ndarray,
+    alpha: np.ndarray | None,
+    *,
+    angle: str,
+    paths: list[list[list[float]]],
+) -> np.ndarray:
+    """Overlay masked crease-response heatmap on the real photo."""
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    response = _crease._crease_response(gray, "any").astype(np.float32)
+    skin = _clean_wrinkle_skin_mask(rgb, alpha, angle=angle)
+    h, w = gray.shape
+    path_gate = np.zeros((h, w), np.float32)
+    stroke = max(12, int(min(h, w) * 0.026))
+    for path in paths:
+        pts = np.array(
+            [[round(x / 100.0 * w), round(y / 100.0 * h)] for x, y in path],
+            dtype=np.int32,
+        )
+        if len(pts) >= 2:
+            cv2.polylines(path_gate, [pts], False, 1.0, stroke, cv2.LINE_AA)
+    if path_gate.max() > 0:
+        path_gate = cv2.dilate(
+            (path_gate > 0.02).astype(np.uint8),
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (stroke, stroke)),
+            iterations=1,
+        ).astype(np.float32)
+        path_gate = cv2.GaussianBlur(path_gate, (0, 0), max(2.0, stroke * 0.45))
+        path_gate = np.clip(path_gate, 0.0, 1.0)
+    else:
+        path_gate = np.ones((h, w), np.float32)
+
+    boost = path_gate
+    valid = skin > 0.12
+    if int(valid.sum()) < 400:
+        return rgb.copy()
+
+    lo = float(np.percentile(response[valid], 32))
+    hi = float(np.percentile(response[valid], 98.2))
+    heat = np.clip((response - lo) / max(hi - lo, 1.0), 0.0, 1.0)
+    heat = np.clip(heat * (0.85 + boost * 0.55), 0.0, 1.0) * skin
+    heat = cv2.GaussianBlur(heat, (0, 0), 0.65)
+    heat = np.clip(heat * 1.55, 0.0, 1.0)
+
+    magma = cv2.applyColorMap(np.clip(heat * 255, 0, 255).astype(np.uint8), cv2.COLORMAP_MAGMA)
+    heat_rgb = cv2.cvtColor(magma, cv2.COLOR_BGR2RGB).astype(np.float32)
+    base = rgb.astype(np.float32)
+    alpha_map = np.clip((heat ** 0.78) * 0.78, 0.0, 0.72)[..., None]
+    out = base * (1.0 - alpha_map) + heat_rgb * alpha_map
+    return np.clip(out, 0, 255).astype(np.uint8)
 
 
 
@@ -62,7 +204,12 @@ def process_angle(angle: str, color_path: Path, rembg_path: Path, out_dir: Path,
 
     view_name = f"{slug}-{angle}-wrinkles-view.webp"
     view_path = out_dir / view_name
-    view_rgb = composite_wrinkle_view_rgb(rgb, alpha, wrinkle_rgba)
+    view_rgb = composite_wrinkle_heatmap_view_rgb(
+        rgb,
+        alpha,
+        angle=angle,
+        paths=paths,
+    )
     Image.fromarray(view_rgb, "RGB").save(view_path, "WEBP", quality=92, method=6)
 
     return {

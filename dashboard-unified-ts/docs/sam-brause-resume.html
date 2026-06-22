@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sam Brause — Resume</title>
+  <style>
+    @page { size: letter; margin: 0.5in 0.6in; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 9.75pt;
+      line-height: 1.32;
+      color: #1a1a1a;
+      max-width: 7.35in;
+      margin: 0 auto;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 7px;
+      padding-bottom: 6px;
+      border-bottom: 1.5px solid #222;
+    }
+    h1 {
+      font-size: 18pt;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 3px;
+    }
+    .contact {
+      font-size: 9pt;
+      color: #333;
+    }
+    .contact a { color: #1a4b8c; text-decoration: none; }
+    .headline {
+      text-align: center;
+      font-size: 9.5pt;
+      font-weight: 600;
+      color: #444;
+      margin: 6px 0 8px;
+    }
+    section { margin-bottom: 7px; }
+    h2 {
+      font-size: 9.25pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      border-bottom: 1px solid #bbb;
+      padding-bottom: 1px;
+      margin-bottom: 4px;
+    }
+    .summary p { font-size: 9.5pt; line-height: 1.35; }
+    .skills p { font-size: 9.25pt; line-height: 1.38; margin-bottom: 1px; }
+    .skills strong { font-weight: 600; }
+    .job { margin-bottom: 6px; }
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .job-title { font-weight: 700; font-size: 9.75pt; }
+    .job-date { font-size: 9pt; white-space: nowrap; color: #333; }
+    .job-location {
+      font-size: 9pt;
+      color: #555;
+      font-style: italic;
+      margin-bottom: 2px;
+    }
+    ul { margin-left: 1em; padding-left: 0.15em; }
+    li { margin-bottom: 1px; font-size: 9.25pt; line-height: 1.34; }
+    .edu-school { font-weight: 700; font-size: 9.75pt; }
+    .edu-detail { font-size: 9.25pt; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SAM BRAUSE</h1>
+    <div class="contact">
+      914-450-1678 &nbsp;|&nbsp; svbrause@gmail.com &nbsp;|&nbsp;
+      <a href="https://www.linkedin.com/in/sam-brause">linkedin.com/in/sam-brause</a>
+    </div>
+  </header>
+
+  <p class="headline">Software Engineer · Customer Deployment &amp; Full-Stack Development</p>
+
+  <section class="summary">
+    <h2>Summary</h2>
+    <p>
+      Full-stack engineer who takes B2B products from demo to production in customer environments — integrations,
+      workflow configuration, and go-live. Built clinic-facing AI workflows, REST API integrations, and SQL-backed
+      customer onboarding at early-stage and high-growth B2B companies. Strong communicator: writes integration code, runs
+      customer workshops, and translates operational pain into product requirements.
+    </p>
+  </section>
+
+  <section class="skills">
+    <h2>Technical Skills</h2>
+    <p><strong>Core:</strong> Python, SQL, TypeScript, JavaScript, C/C++ · React, Flask, REST APIs, webhooks</p>
+    <p><strong>Integrations:</strong> Airtable, Salesforce, Firebase, GCP (Cloud Run), GCS, Vercel, PostgreSQL, SQLite</p>
+  </section>
+
+  <section>
+    <h2>Experience</h2>
+
+    <div class="job">
+      <div class="job-header">
+        <span class="job-title">PONCE AI — Founding Engineer</span>
+        <span class="job-date">Dec 2023 – Present</span>
+      </div>
+      <div class="job-location">San Francisco, CA</div>
+      <ul>
+        <li>Owned end-to-end clinic deployment: technical discovery, workflow mapping, Airtable data config, API integrations, and go-live — bridge between operations teams and engineering</li>
+        <li>Built tailored demos/POCs for enterprise partners (Revance, Merz); configured white-label blueprints, product catalogs, and scan-backed patient journeys per account</li>
+        <li>Shipped full-stack architecture: React/TypeScript dashboard, Python scan/AI backend, REST APIs (Airtable, SMS, Firebase), and GCS-backed asset storage — AI workflows from prototype to production</li>
+        <li>Scoped pilot rollouts with success metrics; embedded in customer workflows via clinic training, SMS config, and live integration troubleshooting</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-header">
+        <span class="job-title">DRIPPI — Co-Founder / Project Lead</span>
+        <span class="job-date">Jan – Nov 2023</span>
+      </div>
+      <div class="job-location">San Francisco, CA</div>
+      <ul>
+        <li>Built a React Native mobile app from scratch with a team of 3 (Expo, AWS) — AI-powered outfit generation from market research through launch</li>
+        <li>Company was subsequently acquired</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-header">
+        <span class="job-title">UNCOUNTABLE — Full-Stack Software Engineer</span>
+        <span class="job-date">Aug 2022 – Jan 2023</span>
+      </div>
+      <div class="job-location">San Francisco, CA</div>
+      <ul>
+        <li>Built automated customer onboarding tooling to import Excel spreadsheets into SQL databases — reduced manual implementation and shortened time-to-value</li>
+        <li>Led team of 3 to ship mobile R&amp;D platform in React, TypeScript, and Flask</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-header">
+        <span class="job-title">NVIDIA — Systems Software Intern</span>
+        <span class="job-date">May – Sep 2021</span>
+      </div>
+      <div class="job-location">Remote</div>
+      <ul>
+        <li>Revamped GeForce error-handling pipeline in C; traced execution paths via SQLite to internal diagnostics dashboard</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-header">
+        <span class="job-title">ZYYO — Software Engineer</span>
+        <span class="job-date">May – Dec 2020</span>
+      </div>
+      <div class="job-location">New York, NY</div>
+      <ul>
+        <li>Built B2B data platform (React, Express, PostgreSQL, Salesforce API); integrated Census Bureau CSV data into ranked deal dashboards</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-header">
+        <span class="job-title">PEAKON — Revenue Operations</span>
+        <span class="job-date">May – Aug 2019</span>
+      </div>
+      <div class="job-location">New York, NY</div>
+      <ul>
+        <li>Led exec initiative to ingest 95K prospect firms into Salesforce; analyzed customer data to prioritize sales pipeline</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Education</h2>
+    <div class="edu-school">UNIVERSITY OF PENNSYLVANIA — B.S.E. Computer Science, Minor: Engineering Entrepreneurship</div>
+    <div class="edu-detail">GPA 3.94/4.00, summa cum laude · Coursework: AI, Data Analytics, Statistics, Economics</div>
+  </section>
+</body>
+</html>

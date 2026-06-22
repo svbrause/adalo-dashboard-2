@@ -1,0 +1,134 @@
+{
+  "kacie-holder": {
+    "teal_ink": {
+      "active_pixels": 30691,
+      "mean_alpha_active": 28.428920530448664
+    },
+    "navy_ink": {
+      "active_pixels": 29403,
+      "mean_alpha_active": 26.931707648879367
+    },
+    "graphite": {
+      "active_pixels": 28039,
+      "mean_alpha_active": 26.225293341417313
+    },
+    "white_relief": {
+      "active_pixels": 27186,
+      "mean_alpha_active": 25.109431324946662
+    },
+    "mint_line": {
+      "active_pixels": 29403,
+      "mean_alpha_active": 26.931707648879367
+    }
+  },
+  "mary-matthews": {
+    "teal_ink": {
+      "active_pixels": 35895,
+      "mean_alpha_active": 28.806184705390724
+    },
+    "navy_ink": {
+      "active_pixels": 34449,
+      "mean_alpha_active": 27.258904467473656
+    },
+    "graphite": {
+      "active_pixels": 32775,
+      "mean_alpha_active": 26.602654462242562
+    },
+    "white_relief": {
+      "active_pixels": 31710,
+      "mean_alpha_active": 25.50596026490066
+    },
+    "mint_line": {
+      "active_pixels": 34449,
+      "mean_alpha_active": 27.258904467473656
+    }
+  },
+  "suzanne": {
+    "teal_ink": {
+      "active_pixels": 41126,
+      "mean_alpha_active": 31.475854690463454
+    },
+    "navy_ink": {
+      "active_pixels": 39734,
+      "mean_alpha_active": 29.680550661901645
+    },
+    "graphite": {
+      "active_pixels": 38285,
+      "mean_alpha_active": 28.720308214705497
+    },
+    "white_relief": {
+      "active_pixels": 37340,
+      "mean_alpha_active": 27.425549009105517
+    },
+    "mint_line": {
+      "active_pixels": 39734,
+      "mean_alpha_active": 29.680550661901645
+    }
+  },
+  "teresa": {
+    "teal_ink": {
+      "active_pixels": 28251,
+      "mean_alpha_active": 29.79041449860182
+    },
+    "navy_ink": {
+      "active_pixels": 27182,
+      "mean_alpha_active": 28.151055845780295
+    },
+    "graphite": {
+      "active_pixels": 26070,
+      "mean_alpha_active": 27.319370924434217
+    },
+    "white_relief": {
+      "active_pixels": 25384,
+      "mean_alpha_active": 26.101875196974472
+    },
+    "mint_line": {
+      "active_pixels": 27182,
+      "mean_alpha_active": 28.151055845780295
+    }
+  },
+  "terry-letts": {
+    "teal_ink": {
+      "active_pixels": 41119,
+      "mean_alpha_active": 30.195408448649044
+    },
+    "navy_ink": {
+      "active_pixels": 39648,
+      "mean_alpha_active": 28.4993694511703
+    },
+    "graphite": {
+      "active_pixels": 38076,
+      "mean_alpha_active": 27.625958609097594
+    },
+    "white_relief": {
+      "active_pixels": 37087,
+      "mean_alpha_active": 26.39712028473589
+    },
+    "mint_line": {
+      "active_pixels": 39648,
+      "mean_alpha_active": 28.4993694511703
+    }
+  },
+  "tonya-arnold": {
+    "teal_ink": {
+      "active_pixels": 39245,
+      "mean_alpha_active": 29.772480570773347
+    },
+    "navy_ink": {
+      "active_pixels": 37718,
+      "mean_alpha_active": 28.15997666896442
+    },
+    "graphite": {
+      "active_pixels": 36097,
+      "mean_alpha_active": 27.377067346316867
+    },
+    "white_relief": {
+      "active_pixels": 35103,
+      "mean_alpha_active": 26.171124975073354
+    },
+    "mint_line": {
+      "active_pixels": 37718,
+      "mean_alpha_active": 28.15997666896442
+    }
+  }
+}

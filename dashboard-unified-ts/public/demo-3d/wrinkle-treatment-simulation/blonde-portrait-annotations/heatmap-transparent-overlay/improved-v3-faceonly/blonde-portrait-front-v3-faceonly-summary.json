@@ -1,0 +1,27 @@
+{
+  "outputs": {
+    "v3-faceonly-diagnostic": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v3-faceonly/blonde-portrait-front-v3-faceonly-diagnostic-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v3-faceonly/blonde-portrait-front-v3-faceonly-diagnostic-composite.png",
+      "alphaPixels": 90730,
+      "maxAlpha": 193
+    },
+    "v3-faceonly-strong": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v3-faceonly/blonde-portrait-front-v3-faceonly-strong-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v3-faceonly/blonde-portrait-front-v3-faceonly-strong-composite.png",
+      "alphaPixels": 93135,
+      "maxAlpha": 224
+    },
+    "v3-faceonly-forehead-readable": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v3-faceonly/blonde-portrait-front-v3-faceonly-forehead-readable-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v3-faceonly/blonde-portrait-front-v3-faceonly-forehead-readable-composite.png",
+      "alphaPixels": 89778,
+      "maxAlpha": 214
+    }
+  },
+  "changes": [
+    "Stricter face polygon removes hair leak.",
+    "Forehead zone remains permissive to retain both horizontal lines above subject right eyebrow.",
+    "Eyes, eyebrows, lips, nostrils excluded."
+  ]
+}

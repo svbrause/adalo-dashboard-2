@@ -4232,7 +4232,8 @@ export default function DiscussedTreatmentsModal({
                                         const recommended =
                                           getRecommendedProducts(
                                             treatment,
-                                            productContextString
+                                            productContextString,
+                                            providerCatalogContext,
                                           );
                                         const selected =
                                           form.treatmentProducts[treatment] ??
@@ -5071,7 +5072,8 @@ export default function DiscussedTreatmentsModal({
                                       const recommended =
                                         getRecommendedProducts(
                                           treatment,
-                                          productContextString
+                                          productContextString,
+                                          providerCatalogContext,
                                         );
                                       const selected =
                                         form.treatmentProducts[treatment] ??
@@ -6911,7 +6913,16 @@ export default function DiscussedTreatmentsModal({
           client={client}
           onClose={() => setShowSkincareQuizInPlan(false)}
           onSuccess={() => setShowSkincareQuizInPlan(false)}
-          filterBrand="SkinCeuticals"
+          providerCatalogContext={providerCatalogContext}
+          filterBrand={
+            isJudgeMdProviderCode(
+              typeof providerCatalogContext === "string"
+                ? providerCatalogContext
+                : providerCatalogContext?.code ?? provider?.code,
+            )
+              ? "SkinCeuticals"
+              : undefined
+          }
           onAddToPlan={(prefill) => {
             setShowSkincareQuizInPlan(false);
             handleAddToPlanWithPrefill({

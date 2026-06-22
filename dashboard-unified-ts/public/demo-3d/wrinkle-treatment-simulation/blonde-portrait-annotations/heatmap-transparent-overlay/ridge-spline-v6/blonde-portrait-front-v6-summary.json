@@ -1,0 +1,33 @@
+{
+  "pathCount": 40,
+  "severityCounts": {
+    "mild": 25,
+    "moderate": 9,
+    "high": 6
+  },
+  "outputs": {
+    "v6-ridge-spline-subtle": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-spline-v6/blonde-portrait-front-v6-ridge-spline-subtle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-spline-v6/blonde-portrait-front-v6-ridge-spline-subtle-composite.png",
+      "alphaPixels": 15979,
+      "maxAlpha": 159
+    },
+    "v6-ridge-spline-diagnostic": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-spline-v6/blonde-portrait-front-v6-ridge-spline-diagnostic-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-spline-v6/blonde-portrait-front-v6-ridge-spline-diagnostic-composite.png",
+      "alphaPixels": 17814,
+      "maxAlpha": 204
+    },
+    "v6-ridge-spline-strong": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-spline-v6/blonde-portrait-front-v6-ridge-spline-strong-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/ridge-spline-v6/blonde-portrait-front-v6-ridge-spline-strong-composite.png",
+      "alphaPixels": 17814,
+      "maxAlpha": 248
+    }
+  },
+  "method": [
+    "Heatmap signal is converted into elongated bands, skeletonized, traced as graph paths, spline-smoothed, and rendered as tapered soft wrinkle bands.",
+    "Isolated blobs and branch crack rendering are suppressed.",
+    "Explicit mask excludes eyes, brows, lips, nostrils, and hair."
+  ]
+}

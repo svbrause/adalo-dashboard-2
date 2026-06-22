@@ -1,0 +1,22 @@
+{
+  "name": "Kacie_Holder_front",
+  "slug": "kacie-holder",
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "browTop": 343,
+  "noForeheadY": 340,
+  "activePixels": {
+    "shadow": 16225,
+    "rose": 16211,
+    "blue": 16140
+  },
+  "files": {
+    "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-shadow-severity-composite.png",
+    "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-rose-severity-composite.png",
+    "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-blue-severity-composite.png"
+  },
+  "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-response-map-no-forehead.png",
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-comparison.jpg"
+}

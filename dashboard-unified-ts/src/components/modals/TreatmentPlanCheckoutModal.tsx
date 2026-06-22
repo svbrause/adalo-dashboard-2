@@ -9,6 +9,8 @@ import type { CheckoutLineItemDetail } from "../../data/treatmentPricing2025";
 import { formatPrice } from "../../data/treatmentPricing2025";
 import { useDashboard } from "../../context/DashboardContext";
 import { isTheTreatmentProviderCode } from "../../utils/providerHelpers";
+import { resolveProviderFinancingUrl } from "../../utils/checkoutFinancingCopy";
+import { CheckoutFinancingSection } from "./DiscussedTreatmentsModal/CheckoutFinancingSection";
 import "./TreatmentPlanCheckoutModal.css";
 import "../treatmentRecommender/TreatmentRecommenderByTreatment.css";
 
@@ -190,6 +192,11 @@ export default function TreatmentPlanCheckoutModal({
     providerCode ?? provider?.code,
   );
   const effectiveMintMember = allowMintMembership ? isMintMember : false;
+  const financingUrl = resolveProviderFinancingUrl(provider ?? providerCode);
+  const quoteSheetTotal =
+    allowMintMembership && effectiveMintMember && quoteData && quoteData.total > 0
+      ? quoteData.total - quoteData.total * 0.1
+      : quoteData?.total ?? 0;
 
   return (
     <div
@@ -338,6 +345,14 @@ export default function TreatmentPlanCheckoutModal({
                       )}
                 </span>
               </div>
+              <CheckoutFinancingSection
+                totalAmount={quoteSheetTotal}
+                hasUnknownPrices={quoteData.hasUnknownPrices}
+                financingUrl={financingUrl}
+                provider={provider ?? providerCode}
+                variant="integrated"
+                integratedSurface="quote-footer"
+              />
             </div>
           </div>
         </div>

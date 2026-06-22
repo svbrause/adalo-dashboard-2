@@ -51,6 +51,8 @@ export default function ProviderLoginScreen() {
   >([]);
   const [staffNoPracticeIds, setStaffNoPracticeIds] = useState(false);
   const [staffFirebaseGateDone, setStaffFirebaseGateDone] = useState(false);
+  const dualLoginEnabled = showStaffFirebaseAuthUi();
+  const [loginMethod, setLoginMethod] = useState<"code" | "staff">("code");
 
   const finalizeStaffProviderLogin = useCallback(
     async (providerRecordId: string) => {
@@ -166,6 +168,12 @@ export default function ProviderLoginScreen() {
     };
   }, [firebaseUser?.uid, firebaseAuthLoading, finalizeStaffProviderLogin]);
 
+  useEffect(() => {
+    if (dualLoginEnabled && firebaseUser) {
+      setLoginMethod("staff");
+    }
+  }, [dualLoginEnabled, firebaseUser?.uid]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -237,15 +245,9 @@ export default function ProviderLoginScreen() {
                   />
                 </div>
                 <p className="welcome-subtitle">
-                  Please enter your provider code to access your dashboard
-                  {firebaseStaffLoginOpensDashboard() &&
-                    showStaffFirebaseAuthUi() && (
-                      <span className="login-subtitle-extra">
-                        {" "}
-                        Or sign in below with your staff email and password if your
-                        account has been assigned to a practice.
-                      </span>
-                    )}
+                  {dualLoginEnabled
+                    ? "Sign in with your provider code or staff email and password."
+                    : "Please enter your provider code to access your dashboard."}
                 </p>
               </div>
               {(staffDashResolving || practicePickOpen) && (
@@ -255,7 +257,34 @@ export default function ProviderLoginScreen() {
                     : "Opening your dashboard…"}
                 </p>
               )}
-              <form onSubmit={handleSubmit}>
+              {dualLoginEnabled && (
+                <div className="login-method-tabs" role="tablist" aria-label="Sign-in method">
+                  <button
+                    type="button"
+                    role="tab"
+                    id="login-tab-code"
+                    aria-selected={loginMethod === "code"}
+                    aria-controls="login-panel-code"
+                    className={`login-method-tab${loginMethod === "code" ? " login-method-tab--active" : ""}`}
+                    onClick={() => setLoginMethod("code")}
+                  >
+                    Provider code
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    id="login-tab-staff"
+                    aria-selected={loginMethod === "staff"}
+                    aria-controls="login-panel-staff"
+                    className={`login-method-tab${loginMethod === "staff" ? " login-method-tab--active" : ""}`}
+                    onClick={() => setLoginMethod("staff")}
+                  >
+                    Email &amp; password
+                  </button>
+                </div>
+              )}
+              {(loginMethod === "code" || !dualLoginEnabled) && (
+              <form id="login-panel-code" role={dualLoginEnabled ? "tabpanel" : undefined} aria-labelledby={dualLoginEnabled ? "login-tab-code" : undefined} onSubmit={handleSubmit}>
                 <div className="form-group">
                   <label htmlFor="provider-code">Provider Code</label>
                   <div className="password-input-wrapper">
@@ -328,17 +357,25 @@ export default function ProviderLoginScreen() {
                   )}
                 </button>
               </form>
-              {showStaffFirebaseAuthUi() && (
-                <StaffFirebaseAuthPanel
-                  openingDashboard={staffDashResolving}
-                  awaitingPracticeChoice={practicePickOpen}
-                  noPracticeAssignment={staffNoPracticeIds}
-                  dashboardClaimCheckDone={
-                    !firebaseStaffLoginOpensDashboard() ||
-                    !firebaseUser ||
-                    staffFirebaseGateDone
-                  }
-                />
+              )}
+              {dualLoginEnabled && loginMethod === "staff" && (
+                <div
+                  id="login-panel-staff"
+                  role="tabpanel"
+                  aria-labelledby="login-tab-staff"
+                >
+                  <StaffFirebaseAuthPanel
+                    embedded
+                    openingDashboard={staffDashResolving}
+                    awaitingPracticeChoice={practicePickOpen}
+                    noPracticeAssignment={staffNoPracticeIds}
+                    dashboardClaimCheckDone={
+                      !firebaseStaffLoginOpensDashboard() ||
+                      !firebaseUser ||
+                      staffFirebaseGateDone
+                    }
+                  />
+                </div>
               )}
             </div>
           </div>

@@ -1,0 +1,22 @@
+{
+  "name": "Suzanne_front",
+  "slug": "suzanne",
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "browTop": 381,
+  "noForeheadY": 378,
+  "activePixels": {
+    "shadow": 29688,
+    "rose": 29668,
+    "blue": 29546
+  },
+  "files": {
+    "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-shadow-severity-composite.png",
+    "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-rose-severity-composite.png",
+    "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-blue-severity-composite.png"
+  },
+  "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-response-map-no-forehead.png",
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-comparison.jpg"
+}

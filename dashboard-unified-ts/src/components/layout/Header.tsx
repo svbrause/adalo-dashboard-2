@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useDashboard } from "../../context/DashboardContext";
 import AddClientModal from "../modals/AddClientModal";
 import {
-  getJotformUrl,
   formatProviderDisplayName,
 } from "../../utils/providerHelpers";
+import { openClinicScanForProvider } from "../../utils/clinicScanLink";
 import { isWellnestWellnessProviderCode } from "../../data/wellnestOfferings";
 import { showToast } from "../../utils/toast";
 import "./Header.css";
@@ -86,9 +86,8 @@ export default function Header({
       return;
     }
 
-    const formUrl = getJotformUrl(provider);
-    window.open(formUrl, "_blank");
-    showToast("Opening scan form for in-clinic scan");
+    openClinicScanForProvider(provider);
+    showToast("Opening in-clinic face scan");
   };
 
   const mobileLogoUrl = getMobileLogoUrl(provider);
@@ -132,9 +131,9 @@ export default function Header({
                   strokeLinejoin="round"
                   aria-hidden
                 >
-                  <rect x="4" y="5" width="16" height="14" rx="2" />
-                  <line x1="8" y1="9" x2="16" y2="9" />
-                  <line x1="8" y1="13" x2="13" y2="13" />
+                  <line x1="4" y1="7" x2="20" y2="7" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <line x1="4" y1="17" x2="20" y2="17" />
                 </svg>
               )}
             </button>
@@ -149,23 +148,23 @@ export default function Header({
           )}
           <h2 className="page-title">{pageTitle}</h2>
         </div>
-        <div className="header-right">
-          {currentView !== "user-admin" && (
-            <>
-              <button
-                className="btn-secondary scan-client-btn"
-                onClick={handleScanInClinic}
-              >
-                Scan In-Clinic
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => setShowAddClient(true)}
-              >
-                Add Client
-              </button>
-            </>
-          )}
+        {currentView !== "user-admin" && (
+          <div className="header-primary-actions">
+            <button
+              className="btn-secondary scan-client-btn"
+              onClick={handleScanInClinic}
+            >
+              Scan
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => setShowAddClient(true)}
+            >
+              Add Client
+            </button>
+          </div>
+        )}
+        <div className="header-utility-actions">
           <button
             type="button"
             className="dark-mode-toggle"

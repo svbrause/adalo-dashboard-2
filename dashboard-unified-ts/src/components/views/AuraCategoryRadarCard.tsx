@@ -1,19 +1,25 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import type { CategoryResult } from "../../config/analysisOverviewConfig";
-import type { AuraSkinLens } from "../../utils/auraAnalysisBridge";
+import {
+  tierColor,
+  type CategoryResult,
+} from "../../config/analysisOverviewConfig";
+import {
+  isAuraAnalysisAreaFiltered,
+  type AuraSkinLens,
+} from "../../utils/auraAnalysisBridge";
 import { PolarAreaChart } from "../postVisitBlueprint/PolarAreaChart";
-import { RadarChart, type RadarChartDatum } from "../postVisitBlueprint/RadarChart";
+import type { RadarChartDatum } from "../postVisitBlueprint/RadarChart";
 
 interface AuraCategoryRadarCardProps {
   activeCat: CategoryResult;
   categoryAccent: string;
-  /** When set (e.g. skin Pigmentation / Texture / Redness / Pores), replaces category sub-scores on the chart. */
+  /** When set (e.g. skin lenses), replaces category sub-scores on the chart. */
   radarDataOverride?: RadarChartDatum[];
   chartAriaLabel?: string;
-  /** Skin lens Nightingale / polar area chart. */
-  skinLensPolarArea?: boolean;
   /** Matches left-panel Pigmentation / Texture / Redness / Pores / Wrinkles tab. */
   activeSkinLens?: AuraSkinLens;
+  /** Matches left-panel Volume / Structure area tab (Eye Area, Cheek Area, …). */
+  activeAnalysisArea?: string;
 }
 
 function SubScoreBars({
@@ -52,27 +58,34 @@ function SubScoreBars({
   );
 }
 
-/** Spider chart for the active Skin / Volume / Structure category (sub-score dimensions). */
+function categoryPolarRadarData(activeCat: CategoryResult): RadarChartDatum[] {
+  return activeCat.subScores.map((s) => ({
+    name: s.name,
+    score: s.score,
+    color: tierColor(s.tier),
+    scoreColor: tierColor(s.tier),
+  }));
+}
+
+/** Coxcomb chart for Skin / Volume / Structure (matches skin lens chart in analysis view). */
 export default function AuraCategoryRadarCard({
   activeCat,
   categoryAccent,
   radarDataOverride,
   chartAriaLabel,
-  skinLensPolarArea = false,
   activeSkinLens,
+  activeAnalysisArea,
 }: AuraCategoryRadarCardProps) {
   const [animate, setAnimate] = useState(false);
 
   const radarData = useMemo(
-    () =>
-      radarDataOverride ??
-      activeCat.subScores.map((s) => ({ name: s.name, score: s.score })),
+    () => radarDataOverride ?? categoryPolarRadarData(activeCat),
     [activeCat, radarDataOverride],
   );
 
-  const radarKey = radarDataOverride
-    ? radarData.map((d) => d.name).join("|")
-    : activeCat.key;
+  const radarKey = radarData
+    .map((d) => `${d.name}:${Math.round(d.score)}`)
+    .join("|");
 
   useEffect(() => {
     setAnimate(false);
@@ -82,6 +95,9 @@ export default function AuraCategoryRadarCard({
 
   const accentStyle = {
     "--aura-radar-accent": categoryAccent,
+    "--aura-chart-key-high": tierColor("attention"),
+    "--aura-chart-key-mid": tierColor("moderate"),
+    "--aura-chart-key-low": tierColor("excellent"),
   } as CSSProperties;
 
   return (
@@ -90,24 +106,39 @@ export default function AuraCategoryRadarCard({
       style={accentStyle}
       aria-label={chartAriaLabel ?? `${activeCat.scoreLabel} sub-score chart`}
     >
-      {skinLensPolarArea && radarData.length >= 2 ? (
-        <PolarAreaChart
-          data={radarData}
-          size={200}
-          animate={animate}
-          className="aura-embedded-panel__polar-area"
-          activeLens={activeSkinLens}
-        />
-      ) : radarData.length >= 3 ? (
-        <RadarChart
-          data={radarData}
-          size={200}
-          animate={animate}
-          showLabels
-          showScoreValues
-          className="aura-embedded-panel__radar"
-          labelClassName="aura-embedded-panel__radar-label"
-        />
+      {radarData.length >= 2 ? (
+        <>
+          <PolarAreaChart
+            data={radarData}
+            size={320}
+            animate={animate}
+            className="aura-embedded-panel__polar-area"
+            activeLens={activeSkinLens}
+            activePetalName={
+              isAuraAnalysisAreaFiltered(activeAnalysisArea) && !activeSkinLens
+                ? activeAnalysisArea
+                : undefined
+            }
+            ariaLabel={
+              chartAriaLabel ??
+              `${activeCat.name} health scores from 0 to 100; higher scores draw larger petals`
+            }
+          />
+          <div className="aura-embedded-panel__chart-key" aria-label="Severity key">
+            <span className="aura-embedded-panel__chart-key-gradient" aria-hidden />
+            <div className="aura-embedded-panel__chart-key-copy">
+              <span className="aura-embedded-panel__chart-key-title">Severity</span>
+              <span className="aura-embedded-panel__chart-key-scale">
+                <span className="aura-embedded-panel__chart-key-end aura-embedded-panel__chart-key-end--high">
+                  High
+                </span>
+                <span className="aura-embedded-panel__chart-key-end aura-embedded-panel__chart-key-end--low">
+                  Low
+                </span>
+              </span>
+            </div>
+          </div>
+        </>
       ) : (
         <SubScoreBars
           activeCat={activeCat}

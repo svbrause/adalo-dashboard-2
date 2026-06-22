@@ -1,0 +1,39 @@
+{
+  "outputs": {
+    "zone-blackhat-wrinkle-heatmap": {
+      "heatmap": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-zone-blackhat-wrinkle-heatmap.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-zone-blackhat-wrinkle-heatmap-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-zone-blackhat-wrinkle-heatmap-composite.png",
+      "alphaPixels": 118057,
+      "maxAlpha": 178
+    },
+    "hessian-sato-wrinkle-heatmap": {
+      "heatmap": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-hessian-sato-wrinkle-heatmap.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-hessian-sato-wrinkle-heatmap-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-hessian-sato-wrinkle-heatmap-composite.png",
+      "alphaPixels": 93963,
+      "maxAlpha": 178
+    },
+    "masked-gabor-wrinkle-heatmap": {
+      "heatmap": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-masked-gabor-wrinkle-heatmap.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-masked-gabor-wrinkle-heatmap-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-masked-gabor-wrinkle-heatmap-composite.png",
+      "alphaPixels": 90923,
+      "maxAlpha": 178
+    },
+    "fused-wrinkle-specific-heatmap": {
+      "heatmap": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-fused-wrinkle-specific-heatmap.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-fused-wrinkle-specific-heatmap-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/image-14-annotations/wrinkle-specific-heatmaps/image-14-fused-wrinkle-specific-heatmap-composite.png",
+      "alphaPixels": 129481,
+      "maxAlpha": 178
+    }
+  },
+  "method": [
+    "Face-only skin ROI with explicit eye/brow/lip/nostril exclusion.",
+    "Zone blackhat uses horizontal/diagonal/vertical priors per facial region.",
+    "Hessian/Sato ridge map captures fine dark line ridges.",
+    "Masked Gabor keeps oriented wrinkle texture but suppresses hair/background.",
+    "Fused map combines depth, ridge, and orientation support, then suppresses isolated dots."
+  ]
+}

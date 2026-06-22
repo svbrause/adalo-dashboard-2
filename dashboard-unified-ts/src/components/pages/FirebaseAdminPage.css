@@ -2543,3 +2543,245 @@
     white-space: normal;
   }
 }
+
+/* ── Dark mode ───────────────────────────────────────────────────────────── */
+
+body.dark-mode .firebase-admin-page {
+  background: transparent;
+  color: #efefef;
+}
+
+body.dark-mode .firebase-admin-page__header--embedded,
+body.dark-mode .firebase-admin-page__guide-below {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .firebase-admin-page__title,
+body.dark-mode .firebase-admin-page__section h2,
+body.dark-mode .firebase-admin-page__modal-title,
+body.dark-mode .firebase-admin-page__popover-header h3,
+body.dark-mode .firebase-admin-page__add-title,
+body.dark-mode .firebase-admin-page__user-panel-display,
+body.dark-mode .firebase-admin-page__detail-section-title,
+body.dark-mode .firebase-admin-page__detail-tool-title,
+body.dark-mode .firebase-admin-page__manage-section-title,
+body.dark-mode .firebase-admin-page__manage-callout-title {
+  color: #f2f2f2;
+}
+
+body.dark-mode .firebase-admin-page__lead,
+body.dark-mode .firebase-admin-page__hint,
+body.dark-mode .firebase-admin-page__section-kicker,
+body.dark-mode .firebase-admin-page__meta,
+body.dark-mode .firebase-admin-page__embedded-kicker,
+body.dark-mode .firebase-admin-page__toolbar-meta,
+body.dark-mode .firebase-admin-page__popover-header p,
+body.dark-mode .firebase-admin-page__invite-lead,
+body.dark-mode .firebase-admin-page__overview-kicker,
+body.dark-mode .firebase-admin-page__user-panel-email,
+body.dark-mode .firebase-admin-page__profile-muted,
+body.dark-mode .firebase-admin-page__detail-tools-intro,
+body.dark-mode .firebase-admin-page__detail-tool-desc,
+body.dark-mode .firebase-admin-page__manage-email-gated-hint,
+body.dark-mode .firebase-admin-page__signin-help-caption,
+body.dark-mode .firebase-admin-page__signin-help-footnote,
+body.dark-mode .firebase-admin-page__verify-email-panel-body,
+body.dark-mode .firebase-admin-page__manage-callout-body,
+body.dark-mode .firebase-admin-page__access-practices-hint,
+body.dark-mode .firebase-admin-page__practice-picker-lede,
+body.dark-mode .firebase-admin-page__detail-onboarding-note,
+body.dark-mode .firebase-admin-page__muted {
+  color: #a8a8a8;
+}
+
+body.dark-mode .firebase-admin-page__card,
+body.dark-mode .firebase-admin-page__table-wrap,
+body.dark-mode .firebase-admin-page__toolbar,
+body.dark-mode .firebase-admin-page__modal,
+body.dark-mode .firebase-admin-page__add-card,
+body.dark-mode .firebase-admin-page__detail-tool,
+body.dark-mode .firebase-admin-page__verify-email-panel,
+body.dark-mode .firebase-admin-page__manage-callout,
+body.dark-mode .firebase-admin-page__practice-picker {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
+}
+
+body.dark-mode .firebase-admin-page__table th {
+  background: #202020;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  color: #9ca3af;
+}
+
+body.dark-mode .firebase-admin-page__table td {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+  color: #d8d8d8;
+}
+
+body.dark-mode .firebase-admin-page__table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body.dark-mode .firebase-admin-page__display-name-cell,
+body.dark-mode .firebase-admin-page__mono,
+body.dark-mode .firebase-admin-page__cell-nowrap,
+body.dark-mode .firebase-admin-page__td-email-verified,
+body.dark-mode .firebase-admin-page__overview-meta dd,
+body.dark-mode .firebase-admin-page__profile-list dd,
+body.dark-mode .firebase-admin-page__detail-dl dd,
+body.dark-mode .firebase-admin-page__user-detail-email,
+body.dark-mode .firebase-admin-page__practice-picker-row {
+  color: #efefef;
+}
+
+body.dark-mode .firebase-admin-page__th-title,
+body.dark-mode .firebase-admin-page__th-email-verified,
+body.dark-mode .firebase-admin-page__overview-meta dt,
+body.dark-mode .firebase-admin-page__profile-list dt,
+body.dark-mode .firebase-admin-page__detail-dl dt,
+body.dark-mode .firebase-admin-page__sub,
+body.dark-mode .firebase-admin-page__manage-grid label,
+body.dark-mode .firebase-admin-page__password-row label,
+body.dark-mode .firebase-admin-page__signin-help-block,
+body.dark-mode .firebase-admin-page__signin-help-actions-title,
+body.dark-mode .firebase-admin-page__verify-email-panel-title,
+body.dark-mode .firebase-admin-page__access-practices-label,
+body.dark-mode .firebase-admin-page__manage-access-bundle-heading {
+  color: #8a8a8a;
+}
+
+body.dark-mode .firebase-admin-page__toolbar-search,
+body.dark-mode .firebase-admin-page__toolbar-inline select,
+body.dark-mode .firebase-admin-page__form input,
+body.dark-mode .firebase-admin-page__add-grid input,
+body.dark-mode .firebase-admin-page__add-grid select,
+body.dark-mode .firebase-admin-page__invite-note,
+body.dark-mode .firebase-admin-page__link-textarea,
+body.dark-mode .firebase-admin-page__manage-grid input,
+body.dark-mode .firebase-admin-page__password-row input,
+body.dark-mode .firebase-admin-page__signin-readonly,
+body.dark-mode .firebase-admin-page__manage-email-readonly,
+body.dark-mode .firebase-admin-page__practice-search {
+  background: #111111;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #efefef;
+}
+
+body.dark-mode .firebase-admin-page__toolbar-search::placeholder,
+body.dark-mode .firebase-admin-page__practice-search::placeholder {
+  color: #777;
+}
+
+body.dark-mode .firebase-admin-page__toolbar-search:focus,
+body.dark-mode .firebase-admin-page__manage-grid input:focus,
+body.dark-mode .firebase-admin-page__password-row input:focus,
+body.dark-mode .firebase-admin-page__signin-readonly:focus,
+body.dark-mode .firebase-admin-page__practice-search:focus {
+  border-color: rgba(74, 138, 154, 0.72);
+  box-shadow: 0 0 0 3px rgba(74, 138, 154, 0.18);
+}
+
+body.dark-mode .firebase-admin-page__control-btn,
+body.dark-mode .firebase-admin-page__search-clear,
+body.dark-mode .firebase-admin-page__detail-tool .btn-primary {
+  background: #202020;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #c8c8c8;
+}
+
+body.dark-mode .firebase-admin-page__control-btn:hover,
+body.dark-mode .firebase-admin-page__control-btn--open,
+body.dark-mode .firebase-admin-page__search-clear:hover,
+body.dark-mode .firebase-admin-page__detail-tool .btn-primary:hover {
+  background: rgba(74, 138, 154, 0.16);
+  border-color: rgba(74, 138, 154, 0.42);
+  color: #efefef;
+}
+
+body.dark-mode .firebase-admin-page__control-btn--active,
+body.dark-mode .firebase-admin-page__filters-btn--active,
+body.dark-mode .firebase-admin-page__control-btn--active:hover,
+body.dark-mode .firebase-admin-page__filters-btn--active:hover {
+  background: #367588;
+  border-color: #4a8a9a;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(74, 138, 154, 0.32);
+}
+
+body.dark-mode .firebase-admin-page__popover {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.55);
+}
+
+body.dark-mode .firebase-admin-page__popover-close {
+  color: #a8a8a8;
+}
+
+body.dark-mode .firebase-admin-page__popover-close:hover,
+body.dark-mode .firebase-admin-page__modal-close:hover:not(:disabled),
+body.dark-mode .firebase-admin-page__modal-back-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: #efefef;
+}
+
+body.dark-mode .firebase-admin-page__popover-actions,
+body.dark-mode .firebase-admin-page__user-panel-hero,
+body.dark-mode .firebase-admin-page__detail-summary,
+body.dark-mode .firebase-admin-page__detail-dl,
+body.dark-mode .firebase-admin-page__manage-section,
+body.dark-mode .firebase-admin-page__signin-help,
+body.dark-mode .firebase-admin-page__profile-list dt,
+body.dark-mode .firebase-admin-page__profile-list dd,
+body.dark-mode .firebase-admin-page__practice-picker-row,
+body.dark-mode .firebase-admin-page__manage-details,
+body.dark-mode .firebase-admin-page__manage-details-body {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .firebase-admin-page__practice-picker-row:hover,
+body.dark-mode .firebase-admin-page__table-section-label {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .firebase-admin-page__table-section-label {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  color: #a8a8a8;
+}
+
+body.dark-mode .firebase-admin-page__filter-clear,
+body.dark-mode .firebase-admin-page__back-link-btn,
+body.dark-mode .firebase-admin-page__back a,
+body.dark-mode .firebase-admin-page__modal-back-btn {
+  color: #7fc0cf;
+}
+
+body.dark-mode .firebase-admin-page__warn {
+  color: #fbbf24;
+}
+
+body.dark-mode .firebase-admin-page__error {
+  color: #fca5a5;
+}
+
+body.dark-mode .firebase-admin-page__pill--pending,
+body.dark-mode .firebase-admin-page__hint-pill {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+}
+
+body.dark-mode .firebase-admin-page__pill--ok {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+}
+
+body.dark-mode .firebase-admin-page__pill-muted {
+  color: #666;
+}
+
+body.dark-mode .firebase-admin-page__detail-tool-danger {
+  background: rgba(176, 0, 32, 0.12) !important;
+  border-color: rgba(252, 165, 165, 0.28) !important;
+  color: #fca5a5 !important;
+}

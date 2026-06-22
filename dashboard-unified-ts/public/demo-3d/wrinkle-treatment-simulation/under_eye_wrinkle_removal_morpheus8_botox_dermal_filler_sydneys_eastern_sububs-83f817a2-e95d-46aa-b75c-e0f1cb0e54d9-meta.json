@@ -1,0 +1,21 @@
+{
+  "source": "/Users/sambrause/Downloads/under_eye_wrinkle_removal_morpheus8_botox_dermal_filler_sydneys_eastern_sububs.webp",
+  "pathCount": 15,
+  "mode": "combined",
+  "strength": 0.78,
+  "detection": {
+    "wrinklePathSource": "detected-creases-periocular-v3",
+    "roiSource": "eye-cascade",
+    "pathCount": 15,
+    "eyeBox": [
+      118,
+      141,
+      221,
+      282
+    ],
+    "outerCanthus": [
+      339,
+      269
+    ]
+  }
+}

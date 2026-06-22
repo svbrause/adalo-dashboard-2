@@ -15,6 +15,8 @@ export type StaffFirebaseAuthPanelProps = {
   noPracticeAssignment?: boolean;
   /** Parent finished reading claims (avoids flashing wrong hints while checking). */
   dashboardClaimCheckDone?: boolean;
+  /** Hide section title when rendered inside login method tabs. */
+  embedded?: boolean;
 };
 
 /**
@@ -26,6 +28,7 @@ export default function StaffFirebaseAuthPanel({
   awaitingPracticeChoice = false,
   noPracticeAssignment = false,
   dashboardClaimCheckDone = false,
+  embedded = false,
 }: StaffFirebaseAuthPanelProps) {
   const {
     user,
@@ -100,7 +103,9 @@ export default function StaffFirebaseAuthPanel({
 
   if (loading) {
     return (
-      <div className="staff-firebase-auth staff-firebase-auth--loading">
+      <div
+        className={`staff-firebase-auth staff-firebase-auth--loading${embedded ? " staff-firebase-auth--embedded" : ""}`}
+      >
         <p className="staff-firebase-auth__note">Loading account session…</p>
       </div>
     );
@@ -108,8 +113,8 @@ export default function StaffFirebaseAuthPanel({
 
   if (user) {
     return (
-      <div className="staff-firebase-auth">
-        <h3 className="staff-firebase-auth__title">Staff account</h3>
+      <div className={`staff-firebase-auth${embedded ? " staff-firebase-auth--embedded" : ""}`}>
+        {!embedded && <h3 className="staff-firebase-auth__title">Email &amp; password</h3>}
         <p className="staff-firebase-auth__signed-in">
           Signed in as <strong>{user.email ?? user.uid}</strong>
         </p>
@@ -165,19 +170,19 @@ export default function StaffFirebaseAuthPanel({
   }
 
   return (
-    <div className="staff-firebase-auth">
-      <h3 className="staff-firebase-auth__title">Staff account</h3>
+    <div className={`staff-firebase-auth${embedded ? " staff-firebase-auth--embedded" : ""}`}>
+      {!embedded && <h3 className="staff-firebase-auth__title">Email &amp; password</h3>}
       <p className="staff-firebase-auth__note">
         {staffDashFromFirebase ? (
           <>
             Sign in with the email and password tied to your staff account. If your profile
             has practice assignments, you&apos;ll go straight to that provider&apos;s
-            dashboard (same as entering the provider code and clicking Access Dashboard).
+            dashboard.
           </>
         ) : (
           <>
-            Optional email/password for staff. Dashboard access uses the provider code above
-            unless staff-to-dashboard is enabled in environment settings.
+            Sign in with your staff email and password. Dashboard access still requires a
+            linked practice on your account.
           </>
         )}
       </p>

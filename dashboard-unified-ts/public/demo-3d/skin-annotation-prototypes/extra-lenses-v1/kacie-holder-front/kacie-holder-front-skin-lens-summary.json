@@ -1,0 +1,18 @@
+{
+  "source": "/Users/sambrause/Documents/test-modal-larger-dataset-august/my_project_cursor/training_data_v3/images/front/Kacie_Holder_front.jpg",
+  "outputs": {
+    "blemishes": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/kacie-holder-front/kacie-holder-front-blemishes-composite.png",
+    "dark-circles": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/kacie-holder-front/kacie-holder-front-dark-circles-composite.png",
+    "shine-oiliness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/kacie-holder-front/kacie-holder-front-shine-oiliness-composite.png",
+    "dullness": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/kacie-holder-front/kacie-holder-front-dullness-composite.png",
+    "fold-laxity": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/kacie-holder-front/kacie-holder-front-fold-laxity-composite.png"
+  },
+  "scores": {
+    "blemishes": 0.033019404858350754,
+    "dark-circles": 0.05378992422653373,
+    "shine-oiliness": 0.017732263561385863,
+    "dullness": 0.24508772891902936,
+    "fold-laxity": 0.062371965018461754
+  },
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/skin-annotation-prototypes/extra-lenses-v1/kacie-holder-front/kacie-holder-front-skin-lens-comparison.jpg"
+}

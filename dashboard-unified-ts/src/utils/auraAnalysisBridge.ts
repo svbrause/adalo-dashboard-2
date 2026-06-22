@@ -16,6 +16,15 @@ import { issueSeverityVisual } from "./auraSeverityDisplay";
 /** Overview category keys aligned with Aura-style tabs in expanded client detail. */
 export type AuraOverviewCategoryKey = "skinHealth" | "volumeLoss" | "proportions";
 
+/** Left-rail Volume / Structure sub-tab: show all areas (no petal or findings filter). */
+export const AURA_ANALYSIS_AREA_ALL = "All";
+
+export function isAuraAnalysisAreaFiltered(
+  area?: string | null,
+): area is string {
+  return Boolean(area && area !== AURA_ANALYSIS_AREA_ALL);
+}
+
 export const AURA_OVERVIEW_TABS: {
   key: AuraOverviewCategoryKey;
   label: string;
@@ -118,6 +127,12 @@ export function issueToMirrorHighlightTerm(issueName: string): string {
   if (n === "under eye hollow" || n === "upper eye hollow") return "under eye";
   if (n === "under eye dark circles") return "under eye";
   if (n === "under eye wrinkles") return "under eye";
+  if (n === "fine lines") return "fine lines";
+  if (n === "mid cheek flattening") return "cheek";
+  if (n === "nasolabial folds") return "nasolabial";
+  if (n === "marionette lines") return "marionette";
+  if (n === "temporal hollow") return "temple";
+  if (n === "ill defined jawline" || n === "asymmetric jawline") return "jawline";
   return issueName.trim();
 }
 
@@ -131,10 +146,17 @@ export type AuraSkinLens =
 
 export const SKIN_LENS_ORDER: AuraSkinLens[] = [
   "pigmentation",
-  "texture",
   "redness",
   "pores",
   "wrinkles",
+];
+
+/** Clockwise petal order on the skin coxcomb (first sector starts at top). Shorter labels on the right. */
+export const SKIN_LENS_CHART_ORDER: AuraSkinLens[] = [
+  "pores",
+  "redness",
+  "wrinkles",
+  "pigmentation",
 ];
 
 export const AURA_SKIN_LENS_LABELS: Record<AuraSkinLens, string> = {
@@ -227,9 +249,16 @@ const SKIN_LENS_SUB_SCORES: Record<AuraSkinLens, string[]> = {
 export const SKIN_LENS_ISSUES: Record<AuraSkinLens, string[]> = {
   pigmentation: ["Dark Spots", "Under Eye Dark Circles"],
   texture: ["Scars", "Dry Skin", "Crepey Skin"],
-  redness: ["Red Spots", "Rosacea"],
-  pores: ["Whiteheads", "Blackheads"],
+  redness: ["Facial Redness", "Red Spots", "Rosacea"],
+  pores: [
+    "Enlarged Pores",
+    "Acne / Breakouts",
+    "Uneven Skin Texture",
+    "Whiteheads",
+    "Blackheads",
+  ],
   wrinkles: [
+    "Fine Lines",
     "Forehead Wrinkles",
     "Crow's Feet Wrinkles",
     "Glabella Wrinkles",
@@ -254,7 +283,7 @@ export function primarySkinLensForIssue(issue: string): AuraSkinLens {
       return lens;
     }
   }
-  return "texture";
+  return "pigmentation";
 }
 
 /**
@@ -371,14 +400,20 @@ function computeLensHealthScore(
         continue;
       }
     }
-    if (detected?.has(normalizeIssue(issue)) && vis.healthScore != null) {
-      sum += vis.healthScore;
+    if (detected?.has(normalizeIssue(issue))) {
+      sum += vis.healthScore ?? 45;
       count += 1;
     }
   }
 
   if (count > 0) {
     return Math.max(0, Math.min(100, Math.round(sum / count)));
+  }
+  if (
+    (severityIssues && Object.keys(severityIssues).length > 0) ||
+    (detected && detected.size > 0)
+  ) {
+    return 100;
   }
   return fallbackLensScore(activeCat, lens);
 }
@@ -394,6 +429,7 @@ export function buildSkinLensRadarData(
   const detected = options?.detected;
   const severityIssues = options?.severityIssues;
 
+  const rawScores = {} as Record<AuraSkinLens, number>;
   const rawAxes = {} as Record<AuraSkinLens, number>;
   for (const lens of SKIN_LENS_ORDER) {
     const health = computeLensHealthScore(
@@ -402,14 +438,13 @@ export function buildSkinLensRadarData(
       severityIssues,
       detected,
     );
+    rawScores[lens] = health;
     rawAxes[lens] = healthScoreToSeverityAxis(health);
   }
 
-  const spreadAxes = spreadSkinLensAxisValues(rawAxes);
-
-  return SKIN_LENS_ORDER.map((lens) => {
-    const severityAxis = spreadAxes[lens];
-    const score = severityAxisToHealthScore(severityAxis);
+  return SKIN_LENS_CHART_ORDER.map((lens) => {
+    const score = rawScores[lens];
+    const severityAxis = rawAxes[lens];
     return {
       name: AURA_SKIN_LENS_LABELS[lens],
       score,

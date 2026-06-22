@@ -3,7 +3,7 @@ import type { AuraSkinLens } from "../../utils/auraAnalysisBridge";
 export type RadarChartDatum = {
   name: string;
   score: number;
-  /** Plotted petal score on 1.2–2.8 axis when set (skin lens coxcomb). */
+  /** Legacy plotted severity axis; rose charts now size by the displayed 0-100 score. */
   severityAxis?: number;
   /** Per-axis color (skin lens radar). */
   color?: string;

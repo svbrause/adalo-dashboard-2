@@ -55,6 +55,10 @@ interface ImportMetaEnv {
   readonly VITE_WELLNEST_DEMO_HEADSHOT_TAYLOR?: string;
   /** Slim Studio demo patients: `false`/`0` off, `true`/`1` force on; default on for Slim Studio logins. */
   readonly VITE_SLIM_STUDIO_SAMPLE_CLIENTS?: string;
+  /** Gravitas demo patients: `false`/`0` off, `true`/`1` force on; default on for Gravitas272 logins. */
+  readonly VITE_GRAVITAS_SAMPLE_CLIENTS?: string;
+  /** Pretty Please demo patients: `false`/`0` off, `true`/`1` force on; default on for PrettyPlease5357 logins. */
+  readonly VITE_PRETTY_PLEASE_SAMPLE_CLIENTS?: string;
 
   /** Firebase Web SDK (public client config). Copy from Firebase Console → Project settings. */
   readonly VITE_FIREBASE_API_KEY?: string;
@@ -84,7 +88,9 @@ interface ImportMetaEnv {
    */
   readonly VITE_PASSWORD_RESET_VIA_BACKEND?: string;
   /**
-   * Base origin for `/api/scan/*` (no trailing slash). Unset in dev → Vercel backend.
+   * Base origin for `/api/scan/*` (no trailing slash).
+   * Unset → uses `VITE_BACKEND_API_URL` or ponce-patient-backend, which proxies GCP.
+   * Set explicitly for local `server.py` on port 8787.
    * @see getScanApiBaseUrl in `src/utils/scanApi.ts`
    */
   readonly VITE_SCAN_API_URL?: string;

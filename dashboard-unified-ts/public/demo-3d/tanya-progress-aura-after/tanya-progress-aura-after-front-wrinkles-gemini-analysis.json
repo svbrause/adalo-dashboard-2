@@ -1,0 +1,102 @@
+{
+  "wrinkle_paths": [
+    {
+      "category": "glabellar_creases",
+      "severity": 1,
+      "confidence": 0.5,
+      "points": [
+        {
+          "x": 470,
+          "y": 447
+        },
+        {
+          "x": 473,
+          "y": 468
+        }
+      ]
+    },
+    {
+      "category": "glabellar_creases",
+      "severity": 1,
+      "confidence": 0.5,
+      "points": [
+        {
+          "x": 529,
+          "y": 447
+        },
+        {
+          "x": 526,
+          "y": 468
+        }
+      ]
+    },
+    {
+      "category": "nasolabial_folds",
+      "severity": 2,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 428,
+          "y": 626
+        },
+        {
+          "x": 438,
+          "y": 673
+        },
+        {
+          "x": 451,
+          "y": 708
+        }
+      ]
+    },
+    {
+      "category": "nasolabial_folds",
+      "severity": 2,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 576,
+          "y": 626
+        },
+        {
+          "x": 565,
+          "y": 673
+        },
+        {
+          "x": 552,
+          "y": 708
+        }
+      ]
+    },
+    {
+      "category": "marionette_lines",
+      "severity": 1,
+      "confidence": 0.7,
+      "points": [
+        {
+          "x": 460,
+          "y": 745
+        },
+        {
+          "x": 465,
+          "y": 785
+        }
+      ]
+    },
+    {
+      "category": "marionette_lines",
+      "severity": 1,
+      "confidence": 0.7,
+      "points": [
+        {
+          "x": 545,
+          "y": 745
+        },
+        {
+          "x": 540,
+          "y": 785
+        }
+      ]
+    }
+  ]
+}

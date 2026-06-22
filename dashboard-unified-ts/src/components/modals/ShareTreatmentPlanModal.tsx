@@ -200,7 +200,10 @@ export default function ShareTreatmentPlanModal({
   const characterCount = formData.message.length;
 
   return (
-    <div className="modal-overlay active" onClick={onClose}>
+    <div
+      className="modal-overlay modal-overlay--above-plan-builder active"
+      onClick={onClose}
+    >
       <div
         className="modal-content add-lead-modal-content modal-content-narrow share-treatment-plan-modal-content"
         onClick={(e) => e.stopPropagation()}

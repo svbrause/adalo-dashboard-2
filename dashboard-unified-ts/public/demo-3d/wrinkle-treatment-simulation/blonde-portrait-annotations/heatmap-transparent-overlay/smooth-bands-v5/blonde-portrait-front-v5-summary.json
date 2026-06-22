@@ -1,0 +1,28 @@
+{
+  "componentCount": 18,
+  "outputs": {
+    "v5-smooth-bands-subtle": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/smooth-bands-v5/blonde-portrait-front-v5-smooth-bands-subtle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/smooth-bands-v5/blonde-portrait-front-v5-smooth-bands-subtle-composite.png",
+      "alphaPixels": 30803,
+      "maxAlpha": 145
+    },
+    "v5-smooth-bands-diagnostic": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/smooth-bands-v5/blonde-portrait-front-v5-smooth-bands-diagnostic-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/smooth-bands-v5/blonde-portrait-front-v5-smooth-bands-diagnostic-composite.png",
+      "alphaPixels": 31746,
+      "maxAlpha": 202
+    },
+    "v5-smooth-bands-strong": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/smooth-bands-v5/blonde-portrait-front-v5-smooth-bands-strong-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/smooth-bands-v5/blonde-portrait-front-v5-smooth-bands-strong-composite.png",
+      "alphaPixels": 32282,
+      "maxAlpha": 214
+    }
+  },
+  "method": [
+    "Uses heatmap signal, but keeps only elongated oriented bands.",
+    "No skeleton branch rendering; bands are softly blurred and modulated by heatmap intensity.",
+    "Explicit face mask plus eye/brow/lip/nostril exclusions."
+  ]
+}

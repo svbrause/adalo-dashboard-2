@@ -41,6 +41,7 @@ import { getQuoteLineDiscussedItemIndexOrder } from "../../../utils/pvbQuotePart
 import { isWishlistTimelineDiscussedItem } from "../../../utils/postVisitBlueprint";
 import { isTheTreatmentProviderCode } from "../../../utils/providerHelpers";
 import { MintMembershipInfoTrigger } from "../../shared/MintMembershipInfoTrigger";
+import { CheckoutFinancingSection } from "./CheckoutFinancingSection";
 
 export interface TreatmentPlanCheckoutProps {
   items: DiscussedItem[];
@@ -432,6 +433,14 @@ export default function TreatmentPlanCheckout({
   const subtotal = quoteData.total;
   const mintDiscount = effectiveMintMember && subtotal > 0 ? subtotal * 0.1 : 0;
   const totalAfterMint = subtotal - mintDiscount;
+  const financingScope =
+    skincareSubtotal > 0 && treatmentsSubtotal > 0 ? "treatments_only" : "default";
+  const financingTotal =
+    financingScope === "treatments_only"
+      ? effectiveMintMember && subtotal > 0
+        ? treatmentsSubtotal * (totalAfterMint / subtotal)
+        : treatmentsSubtotal
+      : totalAfterMint;
 
   const orderSummaryBlock = (
     <div className="treatment-plan-checkout-summary treatment-plan-checkout-order-summary">
@@ -488,6 +497,14 @@ export default function TreatmentPlanCheckout({
             : formatPrice(totalAfterMint)}
         </span>
       </div>
+      <CheckoutFinancingSection
+        totalAmount={financingTotal}
+        hasUnknownPrices={quoteData.hasUnknownPrices}
+        provider={providerCode}
+        variant="integrated"
+        integratedSurface="order-summary"
+        financingScope={financingScope}
+      />
     </div>
   );
 

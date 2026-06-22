@@ -1,0 +1,38 @@
+{
+  "source": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/blonde-portrait-front-source.png",
+  "inputs": {
+    "diagnostic": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/blonde-portrait-front-crease-response-diagnostic.png",
+    "ourOutput": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/our-output/blonde-portrait-front-source-crease-heatmap.png"
+  },
+  "outputs": {
+    "v2-diagnostic": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v2/blonde-portrait-front-v2-diagnostic-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v2/blonde-portrait-front-v2-diagnostic-composite.png",
+      "alphaPixels": 114736,
+      "maxAlpha": 186
+    },
+    "v2-strong": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v2/blonde-portrait-front-v2-strong-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v2/blonde-portrait-front-v2-strong-composite.png",
+      "alphaPixels": 117648,
+      "maxAlpha": 219
+    },
+    "v2-forehead-boost": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v2/blonde-portrait-front-v2-forehead-boost-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v2/blonde-portrait-front-v2-forehead-boost-composite.png",
+      "alphaPixels": 115792,
+      "maxAlpha": 211
+    },
+    "v2-direct-heatmap": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v2/blonde-portrait-front-v2-direct-heatmap-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved-v2/blonde-portrait-front-v2-direct-heatmap-composite.png",
+      "alphaPixels": 100139,
+      "maxAlpha": 183
+    }
+  },
+  "changes": [
+    "Zone-specific thresholds: lower forehead threshold to recover faint lines above subject right eyebrow.",
+    "Explicit exclusion masks for eyes, eyebrows, lips, nostrils/dark openings.",
+    "Stronger alpha than v1 while preserving two-layer texture/crease separation."
+  ]
+}

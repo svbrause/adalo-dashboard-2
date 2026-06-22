@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, type ReactNode } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
   ADDITIONAL_AI_MIRROR_REGIONS,
   AI_MIRROR_REGIONS,
   cheekRegionPolygon,
   foreheadRegionPolygon,
+  noseRegionPolygon,
   polygonFromLandmarkIndices,
 } from "../postVisitBlueprint/aiMirrorRegions";
 import {
@@ -27,11 +28,24 @@ import {
   mirrorViewportOverlaySafeBottom,
 } from "../../constants/mirrorAnnotationTheme";
 import {
+  clampMirrorCalloutBoxToCanvas,
+  fitMirrorCalloutLabel,
   mirrorRegionLabelFont,
   mirrorRegionLabelFontSize,
   prepareMirrorAnnotationCanvas,
+  layoutMirrorRegionCallouts,
   snapMirrorLabelTextPosition,
+  type MirrorRegionCalloutInput,
 } from "../../utils/mirrorAnnotationCanvas";
+import { resolveMirrorCalloutLabel } from "../../utils/mirrorCalloutLabels";
+import { mirrorRegionVisibleAtHeadPose } from "../../utils/mirrorRegionProfileVisibility";
+import {
+  clampViewportZoom,
+  VIEWPORT_MAX_ZOOM,
+  VIEWPORT_MIN_ZOOM,
+  wheelZoomFactor,
+  zoomViewportAboutPoint,
+} from "../../utils/mirrorViewportZoomMath";
 import "./Face3DViewer.css";
 
 const DEFAULT_VIDEO_W = 1024;
@@ -43,15 +57,15 @@ const DEG_PER_PX = (2 * MAX_YAW_DEG) / 380;
 /** Throttle live video seeks while scrubbing — avoids decoder stutter. */
 const SCRUB_VIDEO_SEEK_MS = 28;
 const AUTO_SPEED = 22;
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 4;
+const MIN_ZOOM = VIEWPORT_MIN_ZOOM;
+const MAX_ZOOM = VIEWPORT_MAX_ZOOM;
 const ANNOTATION_DETECT_MAX_DIM = 512;
 /**
  * Shared timeline for decoded turntable frames + MediaPipe landmarks.
  * Using one bucket rate prevents overlay drift when scrubbing (was 60fps video vs 30fps landmarks).
  */
 /** Prefetch ±N buckets around interactive requests (scrub / playback). */
-const LANDMARK_DETECT_NEIGHBOR_SPAN = 1;
+const LANDMARK_DETECT_NEIGHBOR_SPAN = 4;
 /** Max pending landmark keys (prevents memory / seek storms). */
 const LANDMARK_QUEUE_MAX = 32;
 /** MediaPipe jobs per idle slice — yields to the main thread between batches. */
@@ -74,6 +88,8 @@ interface Face3DViewerProps {
   showAnnotations?: boolean;
   highlightTerms?: string[];
   highlightedAnnotationRegionIds?: string[];
+  /** Analysis issue names per mirror region (overrides generic region titles). */
+  calloutLabelsByRegionId?: Record<string, string>;
   showHint?: boolean;
   /** Start zoomed in (default 1). Applied once when the video first loads. */
   initialZoom?: number;
@@ -93,6 +109,11 @@ interface Face3DViewerProps {
 
 function clampYaw(yawDeg: number): number {
   return Math.max(-MAX_YAW_DEG, Math.min(MAX_YAW_DEG, yawDeg));
+}
+
+/** Timeline position for nose-front (yaw 0°). */
+function frontVideoTime(duration: number, pingPong = false): number {
+  return yawToVideoTime(0, duration, pingPong);
 }
 
 /** For ping-pong video: map backward-half time (T/2…T) to its equivalent forward-half time (0…T/2). */
@@ -204,16 +225,6 @@ function faceScalePixels(landmarks: NormalizedLandmark[], width: number, height:
   return Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
 }
 
-function profileYawAmount(landmarks: NormalizedLandmark[], width: number, height: number): number {
-  const left = landmarkPoint(landmarks, 234, width, height);
-  const right = landmarkPoint(landmarks, 454, width, height);
-  const nose = landmarkPoint(landmarks, 1, width, height);
-  if (!left || !right || !nose) return 0;
-  const faceWidth = Math.max(1, Math.abs(right.x - left.x));
-  const centerX = (left.x + right.x) / 2;
-  return Math.abs(nose.x - centerX) / faceWidth;
-}
-
 function landmarkPoint(
   landmarks: NormalizedLandmark[],
   index: number,
@@ -307,8 +318,6 @@ function lowerFaceRegion(
   width: number,
   height: number,
 ): { x: number; y: number }[] {
-  // Central lower face: lower mouth + chin/jaw. This avoids the broad cheek-to-cheek
-  // shape that becomes misleading on generated turntable side views.
   return polygonFromLandmarkIndices(
     landmarks,
     [61, 91, 84, 17, 314, 321, 291, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172],
@@ -324,7 +333,7 @@ function annotationRegionPolygon(
   width: number,
   height: number,
 ): { x: number; y: number }[] {
-  if ((regionId === "rForehead" || regionId === "rLowerFace") && profileYawAmount(landmarks, width, height) > 0.22) {
+  if (!mirrorRegionVisibleAtHeadPose(regionId, landmarks, width, height)) {
     return [];
   }
   if (regionId === "rLeftUnderEye") return underEyeRegion(landmarks, width, height, "left");
@@ -336,6 +345,9 @@ function annotationRegionPolygon(
   if (regionId === "rLowerFace") return lowerFaceRegion(landmarks, width, height);
   if (regionId === "rForehead") {
     return foreheadRegionPolygon(landmarks, width, height);
+  }
+  if (regionId === "rNose") {
+    return noseRegionPolygon(landmarks, width, height);
   }
   if (regionId === "rLeftCheek") {
     return cheekRegionPolygon(landmarks, width, height, "left");
@@ -358,6 +370,7 @@ function renderAnnotationOverlay(
   manualHighlightedRegionIds: string[],
   zoomLevel = 1,
   panXPx = 0,
+  calloutLabelsByRegionId?: Record<string, string>,
 ): void {
   const ctx = prepareMirrorAnnotationCanvas(overlayCanvas, logicalW, logicalH, zoomLevel);
   if (!ctx) return;
@@ -392,15 +405,6 @@ function renderAnnotationOverlay(
   }
 
   {
-    const DISPLAY: Record<string, string> = {
-      rForehead: "Forehead", rLeftEye: "Eyes", rRightEye: "Eyes",
-      rNose: "Nose", rLeftCheek: "Cheeks", rRightCheek: "Cheeks",
-      rLips: "Lips", rChin: "Chin/Jawline",
-      rLeftUnderEye: "Under Eyes", rRightUnderEye: "Under Eyes",
-      rLeftNasolabialFold: "Nasolabial Folds", rRightNasolabialFold: "Nasolabial Folds",
-      rLeftMarionetteLine: "Marionette Lines", rRightMarionetteLine: "Marionette Lines",
-      rLowerFace: "Lower Face",
-    };
     ctx.save();
     const minDim = Math.min(w, h);
     const fs = mirrorRegionLabelFontSize(minDim);
@@ -408,43 +412,92 @@ function renderAnnotationOverlay(
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     const seen = new Set<string>();
+    const calloutInputs: MirrorRegionCalloutInput[] = [];
+    const cropFraction = Math.max(0, (1 - 1 / zoomLevel) / 2);
+    const leftInset = Math.ceil(cropFraction * w - panXPx / zoomLevel) + 10;
+    const rightInset = Math.ceil(cropFraction * w + panXPx / zoomLevel) + 10;
+    const mg = 8;
+    const maxCalloutBoxWidth = Math.max(
+      80,
+      Math.min(w - leftInset - rightInset - mg * 2, w * 0.5),
+    );
+
     for (const { id, indices } of renderRegions) {
       if (!highlightedRegions.has(id)) continue;
-      const label = DISPLAY[id];
-      if (!label || seen.has(label)) continue;
+      const label = resolveMirrorCalloutLabel(id, calloutLabelsByRegionId);
+      if (seen.has(label)) continue;
       seen.add(label);
       const poly = annotationRegionPolygon(id, indices, landmarks, w, h);
       if (poly.length < 1) continue;
       const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;
       const cy = poly.reduce((s, p) => s + p.y, 0) / poly.length;
-      const side = cx < w / 2 ? "right" : "left";
-      const tw = ctx.measureText(label).width;
-      const bw = tw + 16, bh = fs + 10;
-      // At zoom > 1 the canvas edges are cropped; keep labels inside the visible strip.
-      const cropFraction = Math.max(0, (1 - 1 / zoomLevel) / 2);
-      const leftInset = Math.ceil(cropFraction * w - panXPx / zoomLevel) + 10;
-      const rightInset = Math.ceil(cropFraction * w + panXPx / zoomLevel) + 10;
-      const mg = 8;
-      const overlaySafeBottom = mirrorViewportOverlaySafeBottom();
-      let bx = side === "left" ? Math.max(mg, leftInset) : w - bw - Math.max(mg, rightInset);
-      let by = Math.max(
-        side === "left" ? Math.max(mg, overlaySafeBottom) : mg,
-        Math.min(h - bh - mg, cy - bh / 2),
+      const padX = 8;
+      const padY = 5;
+      const fitted = fitMirrorCalloutLabel(
+        ctx,
+        label,
+        maxCalloutBoxWidth,
+        padX,
       );
-      ({ x: bx, y: by } = avoidMirrorViewportOverlay(side, bx, by, bw, bh, h));
-      const ax = side === "left" ? bx + bw : bx;
+      calloutInputs.push({
+        key: id,
+        label: fitted.label,
+        anchorX: cx,
+        anchorY: cy,
+        boxWidth: fitted.boxWidth,
+        boxHeight: fs + padY * 2,
+      });
+    }
+
+    const overlaySafeBottom = mirrorViewportOverlaySafeBottom();
+
+    const layouts = layoutMirrorRegionCallouts(calloutInputs, {
+      canvasWidth: w,
+      canvasHeight: h,
+      margin: mg,
+      yMinLeft: Math.max(mg, overlaySafeBottom),
+      leftInset,
+      rightInset,
+      marginSideMode: "opposite-from-anchor",
+    });
+
+    for (const box of layouts) {
+      let { x: bx, y: by } = box;
+      ({ x: bx, y: by } = avoidMirrorViewportOverlay(
+        box.marginSide,
+        bx,
+        by,
+        box.boxWidth,
+        box.boxHeight,
+        h,
+      ));
+      ({ x: bx, y: by } = clampMirrorCalloutBoxToCanvas(
+        bx,
+        by,
+        box.boxWidth,
+        box.boxHeight,
+        w,
+        h,
+        mg,
+      ));
+      const ax = box.marginSide === "left" ? bx + box.boxWidth : bx;
+      const ay = by + box.boxHeight / 2;
       ctx.strokeStyle = MIRROR_ANNOTATION_THEME.connector;
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(ax, by + bh / 2); ctx.lineTo(cx, cy); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(box.anchorX, box.anchorY);
+      ctx.stroke();
       ctx.fillStyle = MIRROR_ANNOTATION_THEME.labelFill;
       ctx.strokeStyle = MIRROR_ANNOTATION_THEME.labelStroke;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(bx, by, bw, bh, 999);
-      ctx.fill(); ctx.stroke();
+      ctx.roundRect(bx, by, box.boxWidth, box.boxHeight, 999);
+      ctx.fill();
+      ctx.stroke();
       ctx.fillStyle = MIRROR_ANNOTATION_THEME.labelText;
-      const textPos = snapMirrorLabelTextPosition(bx + 8, by + bh / 2);
-      ctx.fillText(label, textPos.x, textPos.y);
+      const textPos = snapMirrorLabelTextPosition(bx + 8, ay);
+      ctx.fillText(box.label, textPos.x, textPos.y);
     }
     ctx.restore();
   }
@@ -486,6 +539,7 @@ export default function Face3DViewer({
   showAnnotations = false,
   highlightTerms = [],
   highlightedAnnotationRegionIds = [],
+  calloutLabelsByRegionId,
   showHint = true,
   initialZoom = 1,
   initialPanY = 0,
@@ -543,12 +597,25 @@ export default function Face3DViewer({
   const highlightTermsRef = useRef(highlightTerms);
   const showAnnotationsRef = useRef(showAnnotations);
   const highlightedAnnotationRegionIdsRef = useRef(highlightedAnnotationRegionIds);
+  const calloutLabelsByRegionIdRef = useRef(calloutLabelsByRegionId);
   const onTimeRatioChangeRef = useRef(onTimeRatioChange);
   const onDragStartRef = useRef(onDragStart);
   const onDragEndRef = useRef(onDragEnd);
+  const controlledTimeRatioRef = useRef(controlledTimeRatio);
+  const controlledYawDegRef = useRef(controlledYawDeg);
+
+  useEffect(() => {
+    controlledTimeRatioRef.current = controlledTimeRatio;
+  }, [controlledTimeRatio]);
+
+  useEffect(() => {
+    controlledYawDegRef.current = controlledYawDeg;
+  }, [controlledYawDeg]);
 
   const [zoom, setZoom] = useState(1);
   const [videoError, setVideoError] = useState<string | null>(null);
+  /** Hide the turntable until the first seek to front (avoids a flash of frame 0 / profile). */
+  const [videoPositioned, setVideoPositioned] = useState(false);
   const zoomRef = useRef(1);
   const panXRef = useRef(0);
   const panYRef = useRef(0);
@@ -560,6 +627,22 @@ export default function Face3DViewer({
   useEffect(() => {
     displaySizeRef.current = displaySize;
   }, [displaySize]);
+
+  /**
+   * crossOrigin on public GCS MP4s requires bucket CORS headers. Without them,
+   * the browser blocks media load entirely. Keep playback first; canvas-backed
+   * landmark capture gracefully skips when the video is cross-origin tainted.
+   */
+  const videoCrossOrigin = useMemo((): "" | "anonymous" | undefined => {
+    if (typeof window === "undefined") return undefined;
+    try {
+      const resolved = new URL(videoUrl, window.location.href);
+      if (resolved.hostname === "storage.googleapis.com") return undefined;
+      return resolved.origin !== window.location.origin ? "anonymous" : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [videoUrl]);
 
   const renderCachedAnnotations = useCallback(() => {
     if (!showAnnotationsRef.current || !overlayRef.current) return;
@@ -588,6 +671,7 @@ export default function Face3DViewer({
         highlightedAnnotationRegionIdsRef.current,
         zoomRef.current,
         panXRef.current,
+        calloutLabelsByRegionIdRef.current,
       );
     } else {
       clearAnnotationOverlay(overlayRef.current);
@@ -595,7 +679,7 @@ export default function Face3DViewer({
   }, []);
 
   // Hides the frame-cache canvas; video is always the active display layer now.
-  const setActiveVideo = useCallback((_which: "forward" | "reverse" = "forward") => {
+  const setActiveVideo = useCallback(() => {
     const dc = displayCanvasRef.current;
     if (dc) dc.style.opacity = "0";
   }, []);
@@ -613,9 +697,13 @@ export default function Face3DViewer({
     if (!video || !dc || video.readyState < 2) return false;
     const ctx = dc.getContext("2d");
     if (!ctx) return false;
-    ctx.clearRect(0, 0, dc.width, dc.height);
-    ctx.drawImage(video, 0, 0, dc.width, dc.height);
-    return true;
+    try {
+      ctx.clearRect(0, 0, dc.width, dc.height);
+      ctx.drawImage(video, 0, 0, dc.width, dc.height);
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const activeCaptureVideo = useCallback((): HTMLVideoElement | null => {
@@ -640,7 +728,11 @@ export default function Face3DViewer({
     }
     const ctx = cap.getContext("2d");
     if (!ctx) return Promise.resolve();
-    ctx.drawImage(video, 0, 0, capW, capH);
+    try {
+      ctx.drawImage(video, 0, 0, capW, capH);
+    } catch {
+      return Promise.resolve();
+    }
     return new Promise((resolve) => {
       void createImageBitmap(cap!).then((bitmap) => {
         const prior = frameCacheRef.current.get(key);
@@ -663,6 +755,7 @@ export default function Face3DViewer({
     lastCaptureKeyRef.current = -9999;
     yawRef.current = 0;
     currentTimeKeyRef.current = 0;
+    setVideoPositioned(false);
     setVideoError(null);
     // Release GPU-backed ImageBitmaps from the previous video
     for (const bmp of frameCacheRef.current.values()) bmp.close();
@@ -700,6 +793,10 @@ export default function Face3DViewer({
     highlightedAnnotationRegionIdsRef.current = highlightedAnnotationRegionIds;
     renderCachedAnnotations();
   }, [highlightedAnnotationRegionIds, renderCachedAnnotations]);
+  useEffect(() => {
+    calloutLabelsByRegionIdRef.current = calloutLabelsByRegionId;
+    renderCachedAnnotations();
+  }, [calloutLabelsByRegionId, renderCachedAnnotations]);
 
   useEffect(() => {
     if (!showAnnotations) {
@@ -822,8 +919,16 @@ export default function Face3DViewer({
         }
 
         if (!cachedFrame) {
+          const isInteractive =
+            autoRotateRef.current || draggingRef.current;
           if (playbackActive) {
             deferredLandmarkKeysRef.current.add(nextKey);
+            pendingLandmarkKeysRef.current.delete(nextKey);
+            processed++;
+            await idle();
+            continue;
+          }
+          if (!isInteractive) {
             pendingLandmarkKeysRef.current.delete(nextKey);
             processed++;
             await idle();
@@ -862,10 +967,17 @@ export default function Face3DViewer({
         }
         ctx.clearRect(0, 0, w, h);
 
-        if (cachedFrame) {
-          ctx.drawImage(cachedFrame, 0, 0, w, h);
-        } else {
-          ctx.drawImage(v, 0, 0, w, h);
+        try {
+          if (cachedFrame) {
+            ctx.drawImage(cachedFrame, 0, 0, w, h);
+          } else {
+            ctx.drawImage(v, 0, 0, w, h);
+          }
+        } catch {
+          pendingLandmarkKeysRef.current.delete(nextKey);
+          processed++;
+          await idle();
+          continue;
         }
 
         const result = landmarker.detect(canvas);
@@ -887,15 +999,18 @@ export default function Face3DViewer({
       console.warn("[Face3DViewer] annotation landmark cache:", err);
     } finally {
       processingLandmarkQueueRef.current = false;
-      if (gen !== landmarkProcessorGenRef.current) return;
-
-      const playbackActive = isTurntablePlaybackActive(videoRef.current, draggingRef.current);
-      const hasQueue = landmarkKeyQueueRef.current.length > 0;
-      const hasDeferred = deferredLandmarkKeysRef.current.size > 0;
-      if (!hasQueue && !hasDeferred) return;
-
-      if (!playbackActive && hasDeferred) drainDeferredLandmarkKeys();
-      scheduleLandmarkProcessor(playbackActive ? 150 : 24);
+      if (gen === landmarkProcessorGenRef.current) {
+        const playbackActive = isTurntablePlaybackActive(
+          videoRef.current,
+          draggingRef.current,
+        );
+        const hasQueue = landmarkKeyQueueRef.current.length > 0;
+        const hasDeferred = deferredLandmarkKeysRef.current.size > 0;
+        if (hasQueue || hasDeferred) {
+          if (!playbackActive && hasDeferred) drainDeferredLandmarkKeys();
+          scheduleLandmarkProcessor(playbackActive ? 150 : 24);
+        }
+      }
     }
   }, [drainDeferredLandmarkKeys, renderCachedAnnotations, scheduleLandmarkProcessor]);
 
@@ -921,7 +1036,9 @@ export default function Face3DViewer({
       return;
     }
     const cache = landmarksByTimeKeyRef.current;
-    const expandNeighbors = opts?.expandNeighbors ?? true;
+    const expandNeighbors =
+      opts?.expandNeighbors ??
+      (autoRotateRef.current || draggingRef.current);
     const neighborSpan = expandNeighbors ? LANDMARK_DETECT_NEIGHBOR_SPAN : 0;
     const toQueue: number[] = [];
     for (let d = -neighborSpan; d <= neighborSpan; d++) {
@@ -964,14 +1081,18 @@ export default function Face3DViewer({
           highlightedAnnotationRegionIdsRef.current,
         )
       ) {
-        enqueueLandmarkDetection(key, { expandNeighbors: false });
+        enqueueLandmarkDetection(key, {
+          expandNeighbors: autoRotateRef.current,
+        });
       }
     });
   }, [activeCaptureVideo, captureFrameBitmapAtKey, logicalVideoTime, enqueueLandmarkDetection]);
 
   const requestLandmarksForTimeKey = useCallback(
     (key: number) => {
-      enqueueLandmarkDetection(key);
+      enqueueLandmarkDetection(key, {
+        expandNeighbors: autoRotateRef.current || draggingRef.current,
+      });
     },
     [enqueueLandmarkDetection],
   );
@@ -983,8 +1104,10 @@ export default function Face3DViewer({
     if (lt === null) return;
     const pp = pingPongRef.current;
     const halfDur = pp ? video.duration / 2 : video.duration;
-    yawRef.current = videoTimeToYaw(lt, halfDur);
-    onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, lt / halfDur)));
+    yawRef.current = videoTimeToYaw(lt, video.duration, pp);
+    if (controlledTimeRatioRef.current === undefined) {
+      onTimeRatioChangeRef.current?.(Math.max(0, Math.min(1, lt / halfDur)));
+    }
     const key = face3dTimelineKey(lt);
     const keyChanged = key !== currentTimeKeyRef.current;
     if (keyChanged) currentTimeKeyRef.current = key;
@@ -1087,12 +1210,21 @@ export default function Face3DViewer({
           const dt = Math.min(0.05, Math.max(0, (ts - lastTs) / 1000));
           lastTs = ts;
           let next = video.currentTime + autoDirRef.current * rate * dt;
-          if (next >= d - END_TIME_EPS) {
-            next = d - END_TIME_EPS;
-            autoDirRef.current = -1;
-          } else if (next <= END_TIME_EPS) {
-            next = END_TIME_EPS;
-            autoDirRef.current = 1;
+          const minT = END_TIME_EPS;
+          const maxT = d - END_TIME_EPS;
+          if (next >= maxT) {
+            next = maxT;
+            video.currentTime = next;
+            syncYawFromVideo();
+            captureCurrentFrame();
+            return;
+          }
+          if (next <= minT) {
+            next = minT;
+            video.currentTime = next;
+            syncYawFromVideo();
+            captureCurrentFrame();
+            return;
           }
           if (Math.abs(video.currentTime - next) > SCRUB_SEEK_EPS_DRAG) {
             video.currentTime = next;
@@ -1121,7 +1253,7 @@ export default function Face3DViewer({
       }
 
       autoMode = 'forward';
-      video.loop = true;
+      video.loop = false;
 
       const doPlay = () => {
         if (cancelled || autoMode !== 'forward') return;
@@ -1129,9 +1261,17 @@ export default function Face3DViewer({
         safeSetPlaybackRate(video, rate);
         void video.play().catch(() => {});
         if (dc) dc.style.opacity = '0';
+        const halfEnd = pp ? d / 2 - END_TIME_EPS : d - END_TIME_EPS;
         const monitor = () => {
           autoRaf = 0;
           if (cancelled || !autoRotateRef.current || draggingRef.current || autoMode !== 'forward') return;
+          const lt = logicalVideoTime() ?? video.currentTime;
+          if (lt >= halfEnd) {
+            video.pause();
+            video.currentTime = halfEnd;
+            syncYawFromVideo();
+            return;
+          }
           syncYawFromVideo();
           autoRaf = requestAnimationFrame(monitor);
         };
@@ -1169,7 +1309,9 @@ export default function Face3DViewer({
       if (cancelled) return;
       const size = fitDisplaySize(video);
       displaySizeRef.current = size;
-      setDisplaySize(size);
+      setDisplaySize((prev) =>
+        prev.w === size.w && prev.h === size.h ? prev : size,
+      );
       if (!initialZoomApplied && (initZoom !== 1 || initPanY !== 0)) {
         initialZoomApplied = true;
         zoomRef.current = initZoom;
@@ -1184,30 +1326,33 @@ export default function Face3DViewer({
       stopAuto();
       const pp = pingPongRef.current;
       const halfDur = pp ? video.duration / 2 : video.duration;
-      const initialYaw = autoRotateRef.current
-        ? -MAX_YAW_DEG
-        : clampYaw(controlledYawDeg ?? 0);
+      const initialControlledRatio = controlledTimeRatioRef.current;
       const controlledTime =
-        controlledTimeRatio === undefined
+        initialControlledRatio === undefined
           ? null
-          : Math.max(0, Math.min(1, controlledTimeRatio)) * halfDur;
-      yawRef.current = controlledTime == null ? initialYaw : videoTimeToYaw(controlledTime, halfDur);
-      const target = controlledTime ?? yawToVideoTime(initialYaw, video.duration, pp);
+          : Math.max(0, Math.min(1, initialControlledRatio)) * halfDur;
+      const initialYaw =
+        controlledTime !== null
+          ? videoTimeToYaw(controlledTime, video.duration, pp)
+          : clampYaw(controlledYawDegRef.current ?? 0);
+      yawRef.current = initialYaw;
+      const target =
+        controlledTime ?? frontVideoTime(video.duration, pp);
       const beginAutoRotate = () => {
         if (cancelled || !autoRotateRef.current) return;
         autoRotateStartedForUrlRef.current = videoUrl;
         autoDirRef.current = 1;
-        yawRef.current = -MAX_YAW_DEG;
+        yawRef.current = 0;
         const d = video.duration;
         if (!d || !isFinite(d)) {
           startAutoPlayback(1);
           return;
         }
-        const leftTime = yawToVideoTime(-MAX_YAW_DEG, d, pingPongRef.current);
+        const frontTime = frontVideoTime(d, pingPongRef.current);
         const go = () => startAutoPlayback(1);
-        if (Math.abs(video.currentTime - leftTime) < SCRUB_SEEK_EPS) go();
+        if (Math.abs(video.currentTime - frontTime) < SCRUB_SEEK_EPS) go();
         else {
-          video.currentTime = leftTime;
+          video.currentTime = frontTime;
           video.addEventListener("seeked", go, { once: true });
         }
       };
@@ -1215,11 +1360,13 @@ export default function Face3DViewer({
       const afterSeek = () => {
         if (cancelled) return;
         syncYawFromVideo({ queueLandmarks: false });
+        video.loop = false;
+        setVideoPositioned(true);
         if (autoRotateRef.current) {
           beginAutoRotate();
           return;
         }
-        setActiveVideo("forward");
+        setActiveVideo();
         const v = videoRef.current;
         if (v?.paused) {
           // iOS/Safari may not paint a frame until play() has run at least once.
@@ -1246,11 +1393,10 @@ export default function Face3DViewer({
       }
     };
 
-    // Safety net: if the video somehow ends (loop=false path), restart.
+    // Playback stops at profile limits; do not restart from ended.
     const onEnded = () => {
-      if (cancelled || draggingRef.current || !autoRotateRef.current) return;
-      if (autoMode === 'forward') startForward();
-      if (autoMode === 'manual-pingpong') startForward(autoDirRef.current);
+      if (cancelled || draggingRef.current) return;
+      video.pause();
     };
 
     const scheduleVideoFrameSync = () => {
@@ -1305,8 +1451,6 @@ export default function Face3DViewer({
     };
   }, [
     videoUrl,
-    controlledYawDeg,
-    controlledTimeRatio,
     initialZoom,
     initialPanY,
     syncYawFromVideo,
@@ -1333,20 +1477,20 @@ export default function Face3DViewer({
     // Cold start is handled in the metadata effect (prime cache, then begin).
     if (autoRotateStartedForUrlRef.current === videoUrl) return;
 
-    const startFromLeft = () => {
+    const startFromFront = () => {
       autoRotateStartedForUrlRef.current = videoUrl;
       autoDirRef.current = 1;
-      yawRef.current = -MAX_YAW_DEG;
-      const leftTime = yawToVideoTime(-MAX_YAW_DEG, video.duration, pingPongRef.current);
+      yawRef.current = 0;
+      const frontTime = frontVideoTime(video.duration, pingPongRef.current);
       const go = () => autoPlaybackControllerRef.current?.start(1);
-      if (Math.abs(video.currentTime - leftTime) < SCRUB_SEEK_EPS) go();
+      if (Math.abs(video.currentTime - frontTime) < SCRUB_SEEK_EPS) go();
       else {
-        video.currentTime = leftTime;
+        video.currentTime = frontTime;
         video.addEventListener("seeked", go, { once: true });
       }
     };
 
-    startFromLeft();
+    startFromFront();
   }, [autoRotate, videoUrl]);
 
   useEffect(() => {
@@ -1358,7 +1502,7 @@ export default function Face3DViewer({
     const target = yawToVideoTime(yaw, video.duration, pingPongRef.current);
     const quantizedTime = quantizeFace3dTimelineTime(target);
     autoPlaybackControllerRef.current?.stop();
-    setActiveVideo("forward");
+    setActiveVideo();
     video.pause();
     safeSetPlaybackRate(video, 1);
     if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "0";
@@ -1379,9 +1523,15 @@ export default function Face3DViewer({
     const pp = pingPongRef.current;
     const halfDur = pp ? video.duration / 2 : video.duration;
     const ratio = Math.max(0, Math.min(1, controlledTimeRatio));
+    const currentRatio = (() => {
+      const lt = logicalVideoTime();
+      if (lt === null || halfDur <= 0) return null;
+      return Math.max(0, Math.min(1, lt / halfDur));
+    })();
+    if (currentRatio !== null && Math.abs(currentRatio - ratio) < 0.002) return;
     const target = ratio * halfDur;
     autoPlaybackControllerRef.current?.stop();
-    setActiveVideo("forward");
+    setActiveVideo();
     video.pause();
     safeSetPlaybackRate(video, 1);
     draggingRef.current = false;
@@ -1412,7 +1562,7 @@ export default function Face3DViewer({
     if (ms === 0 || Math.abs(shortestDelta) < 0.03) {
       setFrame(target, true);
       if (!autoRotateRef.current) {
-        setActiveVideo("forward");
+        setActiveVideo();
         const v = videoRef.current;
         if (v?.paused) {
           void v.play()
@@ -1471,7 +1621,9 @@ export default function Face3DViewer({
       const video = videoRef.current;
       if (!video?.duration) return;
       yawRef.current = yaw;
-      const quantizedTime = quantizeFace3dTimelineTime(yawToVideoTime(yaw, video.duration, pingPongRef.current));
+      const quantizedTime = quantizeFace3dTimelineTime(
+        yawToVideoTime(yaw, video.duration, pingPongRef.current),
+      );
       const targetKey = face3dTimelineKey(quantizedTime);
       const dc = displayCanvasRef.current;
       if (dc) dc.style.opacity = "0";
@@ -1498,18 +1650,22 @@ export default function Face3DViewer({
     const viewer = viewerRef.current;
     if (!viewer || !wheelZoomEnabled) return;
     const onWheel = (e: WheelEvent) => {
-      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const factor = wheelZoomFactor(e.deltaY, e.deltaMode);
       const oldZoom = zoomRef.current;
-      const newZoom = Math.max(minZoomRef.current, Math.min(MAX_ZOOM, oldZoom * factor));
-      if (newZoom === oldZoom) return;
+      const newZoom = clampViewportZoom(oldZoom * factor, minZoomRef.current);
+      if (Math.abs(newZoom - oldZoom) < 0.0001) return;
       e.preventDefault();
       const rect = viewer.getBoundingClientRect();
       const cx = e.clientX - (rect.left + rect.width / 2);
       const cy = e.clientY - (rect.top + rect.height / 2);
-      const localX = (cx - panXRef.current) / oldZoom;
-      const localY = (cy - panYRef.current) / oldZoom;
-      const newPanX = cx - localX * newZoom;
-      const newPanY = cy - localY * newZoom;
+      const { panX: newPanX, panY: newPanY } = zoomViewportAboutPoint({
+        oldZoom,
+        newZoom,
+        panX: panXRef.current,
+        panY: panYRef.current,
+        focalX: cx,
+        focalY: cy,
+      });
       zoomRef.current = newZoom;
       panXRef.current = newPanX;
       panYRef.current = newPanY;
@@ -1585,7 +1741,7 @@ export default function Face3DViewer({
       }
       const video = videoRef.current;
       if (video) {
-        setActiveVideo("forward");
+        setActiveVideo();
         video.pause();
         safeSetPlaybackRate(video, 1);
         if (displayCanvasRef.current) displayCanvasRef.current.style.opacity = "0";
@@ -1603,7 +1759,13 @@ export default function Face3DViewer({
       }
       if (!draggingRef.current) return;
       const dx = e.clientX - dragStartX;
-      const yaw = clampYaw(dragStartYaw - dx * DEG_PER_PX);
+      const rawYaw = dragStartYaw - dx * DEG_PER_PX;
+      const yaw = clampYaw(rawYaw);
+      // Re-anchor to the clamp boundary so dragging back immediately reverses direction.
+      if (rawYaw !== yaw) {
+        dragStartX = e.clientX;
+        dragStartYaw = yaw;
+      }
       scrubTargetYawRef.current = yaw;
       scrubDisplayYawRef.current = yaw;
       publishScrubRatio(yaw);
@@ -1637,7 +1799,11 @@ export default function Face3DViewer({
       viewer!.style.cursor = zoomRef.current > minZoomRef.current ? "grab" : "";
       const video = videoRef.current;
       if (video?.duration) {
-        const target = yawToVideoTime(scrubTargetYawRef.current, video.duration);
+        const target = yawToVideoTime(
+          scrubTargetYawRef.current,
+          video.duration,
+          pingPongRef.current,
+        );
         seekVideoPrecisely(video, quantizeFace3dTimelineTime(target), SCRUB_SEEK_EPS_DRAG);
         yawRef.current = scrubTargetYawRef.current;
         syncYawFromVideo({ queueLandmarks: true });
@@ -1687,7 +1853,10 @@ export default function Face3DViewer({
         title={zoom > 1 ? "Double-click to reset zoom" : undefined}
       >
         <div ref={setZoomLayerRef} className="face3d-zoom-layer">
-          <div className="face3d-media-layer" style={{ opacity: mediaOpacity }}>
+          <div
+            className={`face3d-media-layer${videoPositioned ? "" : " face3d-media-layer--pending"}`}
+            style={{ opacity: mediaOpacity }}
+          >
             <video
               ref={videoRef}
               src={videoUrl}
@@ -1696,7 +1865,7 @@ export default function Face3DViewer({
               preload="auto"
               muted
               playsInline
-              crossOrigin="anonymous"
+              crossOrigin={videoCrossOrigin}
               className="face3d-display"
               onLoadedMetadata={handleVideoReady}
               onCanPlay={handleVideoReady}

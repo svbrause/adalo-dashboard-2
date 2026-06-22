@@ -11,7 +11,10 @@ import {
   storePostVisitBlueprintOnServer,
 } from "../services/api";
 import type { BlueprintAnalysisSummary } from "./postVisitBlueprintAnalysis";
-import { buildAnalysisSummaryFromClient } from "./postVisitBlueprintAnalysis";
+import {
+  buildAnalysisSummaryFromClient,
+  type BlueprintAnalysisOverviewSnapshot,
+} from "./postVisitBlueprintAnalysis";
 import { getDetectedIssueDisplayStrings } from "./analysisOverviewClient";
 import { getAlignedCheckoutLineItemsForDiscussedItems } from "../components/modals/DiscussedTreatmentsModal/TreatmentPlanCheckout";
 import {
@@ -183,62 +186,46 @@ export interface PostVisitBlueprintPayload {
 /** Max bytes to embed as base64 in the blueprint payload (keeps SMS links usable). */
 export const BLUEPRINT_HERO_PHOTO_MAX_EMBED_BYTES = 150 * 1024;
 
-/** Cap narrative length when embedding in URL hash (avoids browser / SMS fragment limits). */
-const BLUEPRINT_URL_EMBED_NARRATIVE_MAX_CHARS = 12_000;
+const BLUEPRINT_SERVER_STORE_NARRATIVE_MAX_CHARS = 4_000;
+const BLUEPRINT_URL_EMBED_ASSESSMENT_MAX_CHARS = 800;
+const BLUEPRINT_SERVER_STORE_ASSESSMENT_MAX_CHARS = 2_500;
+const BLUEPRINT_URL_EMBED_GOAL_MAX_CHARS = 120;
+const BLUEPRINT_URL_EMBED_AREA_IMPROVEMENTS_MAX = 5;
 
-/**
- * Strips the hero data URL and trims long text before putting payload in the URL.
- * Used only when server storage failed — keeps the HTTP request path short (`?t=` only)
- * and the hash fragment smaller than a giant base64 image would allow.
- */
-function slimBlueprintPayloadForUrlEmbed(
-  payload: PostVisitBlueprintPayload,
-): PostVisitBlueprintPayload {
-  const patient = { ...payload.patient, frontPhotoDataUrl: undefined };
-  const as = payload.analysisSummary;
-  if (!as) return { ...payload, patient };
+type CompactBlueprintOptions = {
+  /** Drop fields that inflate URL hash when server storage fails. */
+  forUrlEmbed?: boolean;
+  /** Omit analysis entirely (Wellnest server store). */
+  omitAnalysis?: boolean;
+  /** Rewrite patient id for public Wellnest links. */
+  publicPatientId?: string;
+};
 
-  const os = as.overviewSnapshot;
-  const narrative = os?.aiNarrative;
-  if (
-    typeof narrative === "string" &&
-    narrative.length > BLUEPRINT_URL_EMBED_NARRATIVE_MAX_CHARS
-  ) {
-    return {
-      ...payload,
-      patient,
-      analysisSummary: {
-        ...as,
-        overviewSnapshot: os
-          ? {
-              ...os,
-              aiNarrative: `${narrative.slice(0, BLUEPRINT_URL_EMBED_NARRATIVE_MAX_CHARS)}…`,
-            }
-          : os,
-      },
-    };
-  }
-  return { ...payload, patient };
+function truncateText(value: string | null | undefined, max: number): string | undefined {
+  const s = value?.trim();
+  if (!s) return undefined;
+  if (s.length <= max) return s;
+  return `${s.slice(0, max)}…`;
 }
 
-/**
- * Wellnest payloads carry rich wellness context and can trip API/proxy body limits if we
- * include embedded photo bytes or long analysis prose. Store the durable clinical plan
- * snapshot server-side, but let the patient page resolve media from stable/public sources.
- */
-function slimWellnestBlueprintPayloadForServerStore(
-  payload: PostVisitBlueprintPayload,
-  options?: { publicPatientId?: string },
-): PostVisitBlueprintPayload {
-  if (!isWellnestWellnessProviderCode(payload.providerCode)) return payload;
-  const originalPatientId = payload.patient.id.trim();
-  const publicPatientId =
-    options?.publicPatientId ??
-    (originalPatientId.startsWith("wellnest-")
-      ? originalPatientId
-      : `wellnest-${originalPatientId}`);
-  const slimPayload = slimBlueprintPayloadForUrlEmbed(payload);
-  const compactDiscussedItems = payload.discussedItems.map((item) => ({
+function minimalSkincareQuizForShare(
+  quiz: SkincareQuizData | null | undefined,
+): SkincareQuizData | undefined {
+  if (!quiz?.result) return undefined;
+  return {
+    version: 1,
+    completedAt: quiz.completedAt,
+    answers: {},
+    result: quiz.result,
+    resultLabel: quiz.resultLabel,
+    resultDescription: truncateText(quiz.resultDescription, 240),
+  };
+}
+
+function compactDiscussedItemsForShare(
+  items: DiscussedItem[],
+): DiscussedItem[] {
+  return items.map((item) => ({
     id: item.id,
     addedAt: item.addedAt,
     interest: item.interest,
@@ -254,7 +241,12 @@ function slimWellnestBlueprintPayloadForServerStore(
     recurring: item.recurring,
     planQuoteRole: item.planQuoteRole,
   }));
-  const compactQuoteLineItems = payload.quote.lineItems.map((line) => ({
+}
+
+function compactQuoteLineItemsForShare(
+  lineItems: CheckoutLineItemDetail[],
+): CheckoutLineItemDetail[] {
+  return lineItems.map((line) => ({
     label: line.label,
     skuName: line.skuName,
     skuNote: line.skuNote,
@@ -270,19 +262,214 @@ function slimWellnestBlueprintPayloadForServerStore(
     hidePriceFromPatient: line.hidePriceFromPatient,
     patientPriceOverride: line.patientPriceOverride,
   }));
+}
+
+function compactOverviewSnapshotForShare(
+  snapshot: BlueprintAnalysisOverviewSnapshot,
+  options: { forUrlEmbed: boolean },
+): BlueprintAnalysisOverviewSnapshot {
+  const narrativeMax = options.forUrlEmbed
+    ? 0
+    : BLUEPRINT_SERVER_STORE_NARRATIVE_MAX_CHARS;
+  const assessmentMax = options.forUrlEmbed
+    ? BLUEPRINT_URL_EMBED_ASSESSMENT_MAX_CHARS
+    : BLUEPRINT_SERVER_STORE_ASSESSMENT_MAX_CHARS;
+  const aiNarrative =
+    narrativeMax > 0
+      ? truncateText(snapshot.aiNarrative, narrativeMax)
+      : undefined;
   return {
-    ...slimPayload,
-    patient: {
-      ...slimPayload.patient,
-      id: publicPatientId,
-    },
-    discussedItems: compactDiscussedItems,
+    overallScore: snapshot.overallScore,
+    overallTier: snapshot.overallTier,
+    assessmentParagraph:
+      truncateText(snapshot.assessmentParagraph, assessmentMax) ??
+      snapshot.assessmentParagraph,
+    categories: snapshot.categories.map((c) => ({
+      key: c.key,
+      name: c.name,
+      scoreLabel: c.scoreLabel,
+      score: c.score,
+      tier: c.tier,
+      description: options.forUrlEmbed ? "" : c.description,
+      subScores: c.subScores?.map((s) => ({
+        name: s.name,
+        score: s.score,
+        total: s.total,
+        detected: s.detected,
+      })),
+    })),
+    areas: snapshot.areas.map((a) => ({
+      name: a.name,
+      score: a.score,
+      tier: a.tier,
+      hasInterest: a.hasInterest,
+      improvements: a.improvements.slice(0, BLUEPRINT_URL_EMBED_AREA_IMPROVEMENTS_MAX),
+      ...(options.forUrlEmbed ? {} : { strengths: a.strengths }),
+    })),
+    detectedIssueLabels: snapshot.detectedIssueLabels,
+    ...(aiNarrative ? { aiNarrative } : {}),
+  };
+}
+
+function compactAnalysisSummaryForShare(
+  summary: BlueprintAnalysisSummary | undefined,
+  options: { forUrlEmbed: boolean; omitAnalysis: boolean },
+): BlueprintAnalysisSummary | undefined {
+  if (!summary || options.omitAnalysis) return undefined;
+  const os = summary.overviewSnapshot;
+  if (os) {
+    const compactSnapshot = compactOverviewSnapshotForShare(os, {
+      forUrlEmbed: options.forUrlEmbed,
+    });
+    if (options.forUrlEmbed) {
+      return {
+        goals: summary.goals
+          ?.slice(0, 4)
+          .map((g) => truncateText(g, BLUEPRINT_URL_EMBED_GOAL_MAX_CHARS) ?? g),
+        concerns: null,
+        aestheticGoals: null,
+        interestedIssues: null,
+        whichRegions: null,
+        skinComplaints: null,
+        processedAreasOfInterest: null,
+        overviewSnapshot: compactSnapshot,
+      };
+    }
+    return {
+      goals: summary.goals,
+      overviewSnapshot: compactSnapshot,
+      concerns: truncateText(summary.concerns, 400) ?? summary.concerns,
+      aestheticGoals:
+        truncateText(summary.aestheticGoals, 400) ?? summary.aestheticGoals,
+      interestedIssues: truncateText(summary.interestedIssues, 650) ?? summary.interestedIssues,
+      whichRegions: truncateText(summary.whichRegions, 650) ?? summary.whichRegions,
+      skinComplaints: truncateText(summary.skinComplaints, 650) ?? summary.skinComplaints,
+      processedAreasOfInterest:
+        truncateText(summary.processedAreasOfInterest, 650) ??
+        summary.processedAreasOfInterest,
+    };
+  }
+  return {
+    goals: summary.goals?.slice(0, options.forUrlEmbed ? 4 : undefined),
+    concerns:
+      truncateText(summary.concerns, options.forUrlEmbed ? 300 : 650) ?? null,
+    aestheticGoals: truncateText(
+      summary.aestheticGoals,
+      options.forUrlEmbed ? 300 : 650,
+    ) ?? null,
+    interestedIssues: truncateText(
+      summary.interestedIssues,
+      options.forUrlEmbed ? 200 : 650,
+    ) ?? null,
+    whichRegions: truncateText(
+      summary.whichRegions,
+      options.forUrlEmbed ? 200 : 650,
+    ) ?? null,
+    skinComplaints: truncateText(
+      summary.skinComplaints,
+      options.forUrlEmbed ? 200 : 650,
+    ) ?? null,
+    processedAreasOfInterest: truncateText(
+      summary.processedAreasOfInterest,
+      options.forUrlEmbed ? 200 : 650,
+    ) ?? null,
+  };
+}
+
+function compactPatientForShare(
+  patient: PostVisitBlueprintPayload["patient"],
+  options: { forUrlEmbed: boolean },
+): PostVisitBlueprintPayload["patient"] {
+  const base = {
+    ...patient,
+    frontPhotoDataUrl: undefined,
+  };
+  if (!options.forUrlEmbed) return base;
+  return {
+    id: base.id,
+    name: base.name,
+    phone: base.phone,
+    tableSource: base.tableSource,
+    ageRange: base.ageRange,
+    skinType: base.skinType,
+    skinTone: base.skinTone,
+    frontPhoto: base.frontPhoto,
+    frontPhotoPersistentUrl: base.frontPhotoPersistentUrl,
+    frontPhotoAttachmentId: base.frontPhotoAttachmentId,
+    skincareQuiz: minimalSkincareQuizForShare(base.skincareQuiz),
+  };
+}
+
+/**
+ * Shrinks blueprint JSON before server POST or URL hash embed so links stay short and storage succeeds.
+ * Full payload remains in provider localStorage for dashboard preview.
+ */
+function compactBlueprintPayload(
+  payload: PostVisitBlueprintPayload,
+  options: CompactBlueprintOptions = {},
+): PostVisitBlueprintPayload {
+  const forUrlEmbed = options.forUrlEmbed ?? false;
+  const patient = compactPatientForShare(payload.patient, { forUrlEmbed });
+  if (options.publicPatientId !== undefined) {
+    patient.id = options.publicPatientId;
+  }
+  return {
+    version: payload.version,
+    token: payload.token,
+    createdAt: payload.createdAt,
+    clinicName: payload.clinicName,
+    providerName: payload.providerName,
+    providerCode: payload.providerCode,
+    providerPhone: payload.providerPhone,
+    patient,
+    discussedItems: compactDiscussedItemsForShare(payload.discussedItems),
     quote: {
       ...payload.quote,
-      lineItems: compactQuoteLineItems,
+      lineItems: compactQuoteLineItemsForShare(payload.quote.lineItems),
     },
-    analysisSummary: undefined,
+    cta: payload.cta,
+    analysisSummary: compactAnalysisSummaryForShare(payload.analysisSummary, {
+      forUrlEmbed,
+      omitAnalysis: options.omitAnalysis ?? false,
+    }),
+    ...(forUrlEmbed || options.omitAnalysis
+      ? {}
+      : payload.recommenderFocusRegions?.length
+        ? { recommenderFocusRegions: [...payload.recommenderFocusRegions] }
+        : {}),
   };
+}
+
+/**
+ * Strip embedded photo bytes and trim long prose before POSTing blueprint JSON so
+ * server storage succeeds and SMS links stay short (`/tp?t=` only).
+ */
+function slimBlueprintPayloadForServerStore(
+  payload: PostVisitBlueprintPayload,
+): PostVisitBlueprintPayload {
+  return compactBlueprintPayload(payload, { forUrlEmbed: false });
+}
+
+/**
+ * include embedded photo bytes or long analysis prose. Store the durable clinical plan
+ * snapshot server-side, but let the patient page resolve media from stable/public sources.
+ */
+function slimWellnestBlueprintPayloadForServerStore(
+  payload: PostVisitBlueprintPayload,
+  options?: { publicPatientId?: string },
+): PostVisitBlueprintPayload {
+  if (!isWellnestWellnessProviderCode(payload.providerCode)) return payload;
+  const originalPatientId = payload.patient.id.trim();
+  const publicPatientId =
+    options?.publicPatientId ??
+    (originalPatientId.startsWith("wellnest-")
+      ? originalPatientId
+      : `wellnest-${originalPatientId}`);
+  return compactBlueprintPayload(payload, {
+    forUrlEmbed: false,
+    omitAnalysis: true,
+    publicPatientId,
+  });
 }
 
 export function normalizeFrontPhotoUrl(value: unknown): string | null {
@@ -370,12 +557,27 @@ export function resolveHeroPhotoUrlFromEnvTemplate(
 }
 
 /** Turntable MP4 for patient-facing 3D hero (stored on send, or demo name map). */
+export function isBrokenTurntableVideoUrl(url: string | null | undefined): boolean {
+  const u = (url ?? "").trim();
+  if (!u) return true;
+  if (u.startsWith("/src/") || u.includes("/src/assets/")) return true;
+  return false;
+}
+
+/** Turntable MP4 for patient-facing 3D hero (stored on send, or demo name map). */
 export function resolveBlueprintTurntableVideoUrl(
-  patient: PostVisitBlueprintPayload["patient"],
+  patient: {
+    id?: string;
+    name: string;
+    turntableVideoUrl?: string | null;
+  },
 ): string | null {
+  const fromName = getClientGlbUrl(patient.name);
+  if (fromName) return fromName;
+
   const stored = patient.turntableVideoUrl?.trim();
-  if (stored) return stored;
-  return getClientGlbUrl(patient.name);
+  if (stored && !isBrokenTurntableVideoUrl(stored)) return stored;
+  return null;
 }
 
 /** True when hero can be shown without calling the Airtable refresh endpoint. */
@@ -600,18 +802,13 @@ export function filterDiscussedItemsForPostVisitBlueprint(
 }
 
 /**
- * Default checkbox state when sharing the patient treatment-plan link:
- * **Now**, **Add next visit**, and **Skincare** on; **Wishlist** (and empty timeline) off.
+ * Default checkbox when sharing the patient treatment-plan link: active plan lines
+ * (Now, Add next visit, Scheduled, Skincare) are included; Wishlist lines are not.
  */
 export function defaultIncludeItemInSharedTreatmentPlanLink(
   item: DiscussedItem,
 ): boolean {
-  if (!isDiscussedItemOnPostVisitBlueprint(item)) return false;
-  if (isPlanQuoteCoreDiscussedItem(item)) return true;
-  if ((item.treatment ?? "").trim() === "Skincare") return true;
-  if (item.scheduledDate?.trim()) return true;
-  const t = (item.timeline ?? "").trim();
-  return t === "Add next visit" || t === "Now";
+  return !isWishlistTimelineDiscussedItem(item);
 }
 
 function sliceQuoteForPostVisitBlueprint(
@@ -807,9 +1004,10 @@ export async function createAndStorePostVisitBlueprint(input: {
       frontPhotoDataUrl: frontPhotoDataUrl || undefined,
       frontPhotoAttachmentId: attachmentId || undefined,
       turntableVideoUrl:
-        input.client.turntableVideoUrl?.trim() ||
-        getClientGlbUrl(input.client.name) ||
-        undefined,
+        resolveBlueprintTurntableVideoUrl({
+          name: input.client.name,
+          turntableVideoUrl: input.client.turntableVideoUrl,
+        }) || undefined,
     },
     discussedItems: bpDiscussed,
     quote: bpQuote,
@@ -837,7 +1035,10 @@ export async function createAndStorePostVisitBlueprint(input: {
     );
   } else {
     storedRemote = await storePostVisitBlueprintOnServerWithRetry(
-      payloadOut as unknown as Record<string, unknown>,
+      slimBlueprintPayloadForServerStore(payloadOut) as unknown as Record<
+        string,
+        unknown
+      >,
     );
   }
   if (storedRemote) {
@@ -852,18 +1053,14 @@ export async function createAndStorePostVisitBlueprint(input: {
       localStorage.setItem(getStorageKey(token), JSON.stringify(payloadOut));
     }
   }
-  const link = storedRemote
-    ? buildPostVisitBlueprintLink(token, undefined, {
-        wellnestPath: isWellnestBlueprint,
-      })
-    : isWellnestBlueprint
-      ? ""
-      : buildPostVisitBlueprintLink(token, slimBlueprintPayloadForUrlEmbed(payloadOut));
-  if (isWellnestBlueprint && !link) {
+  if (isWellnestBlueprint && !storedRemote) {
     throw new Error(
       "Could not prepare a short Wellnest treatment plan link. Please try again in a moment.",
     );
   }
+  const link = buildPostVisitBlueprintLink(token, undefined, {
+    wellnestPath: isWellnestBlueprint,
+  });
   return { token, link, payload: payloadOut };
 }
 
@@ -949,6 +1146,14 @@ export function parsePostVisitBlueprintPayload(
   }
   if (!p.patient?.id) return null;
   return p;
+}
+
+/** @internal Exported for unit tests — compacts blueprint JSON before server POST or URL embed. */
+export function compactPostVisitBlueprintPayloadForShare(
+  payload: PostVisitBlueprintPayload,
+  options?: CompactBlueprintOptions,
+): PostVisitBlueprintPayload {
+  return compactBlueprintPayload(payload, options ?? {});
 }
 
 export function trackPostVisitBlueprintEvent(

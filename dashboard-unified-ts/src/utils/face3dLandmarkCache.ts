@@ -45,8 +45,8 @@ export function pruneFace3dLandmarkCaches(keepVideoUrl: string): void {
  * Overlays must match the same 30fps bucket as the turntable video.
  * Only exact-key landmarks are shown (maxKeyDelta 0).
  */
-/** Allow ±1 bucket when the exact frame is still processing. */
-export const FACE3D_LANDMARK_DISPLAY_MAX_DELTA = 1;
+/** Allow nearest cached bucket within this span when the exact frame is still processing. */
+export const FACE3D_LANDMARK_DISPLAY_MAX_DELTA = 10;
 
 /** @deprecated Use FACE3D_LANDMARK_DISPLAY_MAX_DELTA — kept for callers/tests. */
 export const FACE3D_LANDMARK_RESOLVE_MAX_DELTA = FACE3D_LANDMARK_DISPLAY_MAX_DELTA;

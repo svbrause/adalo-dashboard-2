@@ -1,26 +1,26 @@
 {
   "turntableVideoUrl": "",
   "availableViewAngles": [
+    "profile-left",
+    "three-quarter-left",
     "front",
     "three-quarter-right",
-    "profile-right",
-    "three-quarter-left",
-    "profile-left"
+    "profile-right"
   ],
   "cvAnnotations": {
     "redMaskByAngle": {
-      "front": "/demo-3d/morgan-westmoreland/morgan-westmoreland-front-redness-mask.png",
-      "three-quarter-right": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-redness-mask.png",
-      "profile-right": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-redness-mask.png",
-      "three-quarter-left": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-redness-mask.png",
-      "profile-left": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-redness-mask.png"
+      "front": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-front-redness-mask.png",
+      "three-quarter-right": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-redness-mask.png",
+      "profile-right": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-redness-mask.png",
+      "three-quarter-left": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-redness-mask.png",
+      "profile-left": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-redness-mask.png"
     },
     "poreMaskByAngle": {
-      "front": "/demo-3d/morgan-westmoreland/morgan-westmoreland-front-pore-mask.png",
-      "three-quarter-right": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-pore-mask.png",
-      "profile-right": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-pore-mask.png",
-      "three-quarter-left": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-pore-mask.png",
-      "profile-left": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-pore-mask.png"
+      "front": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-front-pore-mask.png",
+      "three-quarter-right": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-pore-mask.png",
+      "profile-right": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-pore-mask.png",
+      "three-quarter-left": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-pore-mask.png",
+      "profile-left": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-pore-mask.png"
     },
     "redSpotsByAngle": {},
     "darkSpotsByAngle": {},
@@ -31,41 +31,41 @@
   },
   "angles": {
     "front": {
-      "src": "/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg",
-      "srcOriginal": "/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg",
-      "srcTexture": "/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg",
+      "src": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg",
+      "srcOriginal": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg",
+      "srcTexture": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-front-color.jpg",
       "timeRatio": 0.5,
       "label": "Front",
       "fromPhoto": true
     },
     "three-quarter-right": {
-      "src": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-color.jpg",
-      "srcOriginal": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-color.jpg",
-      "srcTexture": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-color.jpg",
+      "src": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-color.jpg",
+      "srcOriginal": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-color.jpg",
+      "srcTexture": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-right-color.jpg",
       "timeRatio": 0.24,
       "label": "Three Quarter Right",
       "fromPhoto": true
     },
     "profile-right": {
-      "src": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-color.jpg",
-      "srcOriginal": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-color.jpg",
-      "srcTexture": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-color.jpg",
+      "src": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-color.jpg",
+      "srcOriginal": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-color.jpg",
+      "srcTexture": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-right-color.jpg",
       "timeRatio": 0.0,
       "label": "Profile Right",
       "fromPhoto": true
     },
     "three-quarter-left": {
-      "src": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-color.jpg",
-      "srcOriginal": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-color.jpg",
-      "srcTexture": "/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-color.jpg",
+      "src": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-color.jpg",
+      "srcOriginal": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-color.jpg",
+      "srcTexture": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-three-quarter-left-color.jpg",
       "timeRatio": 0.76,
       "label": "Three Quarter Left",
       "fromPhoto": true
     },
     "profile-left": {
-      "src": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-color.jpg",
-      "srcOriginal": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-color.jpg",
-      "srcTexture": "/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-color.jpg",
+      "src": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-color.jpg",
+      "srcOriginal": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-color.jpg",
+      "srcTexture": "https://storage.googleapis.com/test-deploy-august25/demo-3d/morgan-westmoreland/morgan-westmoreland-profile-left-color.jpg",
       "timeRatio": 0.99,
       "label": "Profile Left",
       "fromPhoto": true

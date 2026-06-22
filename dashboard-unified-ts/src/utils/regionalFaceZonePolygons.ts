@@ -4,6 +4,7 @@ import {
   AI_MIRROR_REGIONS,
   cheekRegionPolygon,
   foreheadRegionPolygon,
+  noseRegionPolygon,
   polygonFromLandmarkIndices,
 } from "../components/postVisitBlueprint/aiMirrorRegions";
 import type { AuraFiveRegionId } from "./auraRegionalDisplay";
@@ -99,12 +100,7 @@ function regionalNoseZone(
   width: number,
   height: number,
 ): { x: number; y: number }[] {
-  const mesh = polygonFromLandmarkIndices(
-    landmarks,
-    mirrorRegionIndices("rNose"),
-    width,
-    height,
-  );
+  const mesh = noseRegionPolygon(landmarks, width, height);
   return finalizeZone(mesh);
 }
 

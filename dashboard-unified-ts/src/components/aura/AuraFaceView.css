@@ -38,7 +38,7 @@
 /* Embedded in client-detail 3D column */
 .avf-root--embedded {
   --avf-topbar-h: 58px;
-  --avf-leftnav-w: 48px;
+  --avf-leftnav-w: 56px;
   --avf-rightnav-w: 48px;
   --avf-tool-btn-size: 40px;
   --avf-tool-icon-size: 20px;
@@ -58,9 +58,9 @@
   max-height: var(--cdp-aura-chrome-row-h, 52px);
 }
 
+.avf-topbar-start,
 .avf-topbar-end {
   position: absolute;
-  right: 10px;
   top: 0;
   bottom: 0;
   display: flex;
@@ -68,6 +68,15 @@
   pointer-events: auto;
 }
 
+.avf-topbar-start {
+  left: 10px;
+}
+
+.avf-topbar-end {
+  right: 10px;
+}
+
+.avf-topbar-start .fmp-fullscreen-btn,
 .avf-topbar-end .fmp-fullscreen-btn {
   min-height: 32px;
   height: 32px;
@@ -91,6 +100,72 @@
 
 .avf-root--turntable-only.avf-root--embedded {
   height: 100%;
+  min-height: 0;
+}
+
+/* Pre-scan: color photo preview before turntable exists — no analysis tabs. */
+.avf-root--pre-scan.avf-root--embedded .avf-topbar {
+  justify-content: flex-end;
+}
+
+.avf-root--topbar-empty {
+  --avf-topbar-h: 0px;
+}
+
+.avf-root--topbar-empty .avf-topbar {
+  display: none;
+}
+
+.avf-root--pre-scan .avf-leftnav,
+.avf-root--pre-scan .avf-rightnav {
+  justify-content: center;
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
+}
+
+.avf-root--pre-scan .avf-static-photo__img,
+.avf-root--pre-scan .ai-mirror-canvas,
+.avf-root--pre-scan .ai-mirror-fallback-img {
+  filter: none;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center center;
+}
+
+.avf-root--pre-scan .avf-photo-align {
+  transform: none;
+}
+
+.avf-root--pre-scan .avf-static-photo.avf-zoom-viewport {
+  cursor: default;
+  touch-action: auto;
+}
+
+.avf-root--pre-scan .avf-viewport {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.avf-root--pre-scan .avf-3d-stage {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.avf-root--pre-scan .avf-3d-frame {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.avf-root--pre-scan .avf-static-photo {
+  flex: 1;
   min-height: 0;
 }
 
@@ -148,13 +223,23 @@
   position: relative;
   display: inline-block;
   line-height: 0;
+  width: fit-content;
   max-width: 100%;
   max-height: 100%;
 }
 
-.avf-photo-stack > .avf-static-photo__img {
+.avf-photo-stack > .avf-static-photo__img,
+.avf-photo-stack > .ai-mirror-canvas-wrap {
   position: relative;
   z-index: 0;
+}
+
+.avf-photo-stack > .avf-diagnostic-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
 }
 
 .avf-photo-stack__overlay {
@@ -165,6 +250,11 @@
   object-fit: fill;
   pointer-events: none;
   z-index: 2;
+}
+
+.avf-photo-stack > .avf-static-photo__img {
+  position: relative;
+  z-index: 0;
 }
 
 .avf-photo-align .avf-drawing-layer,
@@ -191,21 +281,23 @@
 }
 
 .avf-static-photo .ai-mirror-canvas-wrap {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
   min-height: 0;
-  max-height: none;
+  max-width: 100%;
+  max-height: 100%;
   border-radius: 0;
   background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
 }
 
 .avf-static-photo .ai-mirror-canvas,
 .avf-static-photo .ai-mirror-fallback-img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
   max-height: 100%;
-  object-fit: contain;
 }
 
 .avf-zoom-hint {
@@ -259,39 +351,62 @@
 
 /* Turntable mode: 3D head icon with ring when active (top of left rail). */
 .avf-angle-icon--turntable-face {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  object-fit: contain;
-  object-position: center;
+  width: 30px;
+  height: 34px;
+  border-radius: 0;
+  display: block;
+  padding: 0;
   mix-blend-mode: normal;
-  opacity: 0.62;
-  filter: none;
-  background: rgba(0 0 0 / 0.35);
-  border: 2px solid rgba(255 255 255 / 0.2);
+  opacity: 0.82;
+  color: #ffffff;
+  fill: none;
+  background: transparent;
+  border: 0;
   box-sizing: border-box;
   transition:
     opacity 0.15s,
-    border-color 0.15s,
+    filter 0.15s,
     box-shadow 0.15s;
+  filter:
+    drop-shadow(0 0 3px rgba(255 255 255 / 0.48))
+    drop-shadow(0 0 8px rgba(255 255 255 / 0.22));
+}
+
+.avf-turntable-face__head {
+  fill: rgba(255 255 255 / 0.86);
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 2.8px;
+  opacity: 1;
+}
+
+.avf-turntable-face__neck {
+  opacity: 0.96;
 }
 
 .avf-angle-btn--3d:hover .avf-angle-icon--turntable-face {
-  opacity: 0.72;
-  border-color: rgba(255 255 255 / 0.38);
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 4px rgba(255 255 255 / 0.58))
+    drop-shadow(0 0 11px rgba(255 255 255 / 0.26));
+}
+
+.avf-angle-btn--3d:hover,
+.avf-angle-btn--3d.avf-angle-btn--active {
+  background: transparent;
+  box-shadow: none;
 }
 
 .avf-angle-btn--3d.avf-angle-btn--active .avf-angle-icon--turntable-face {
   opacity: 1;
-  border-color: rgba(255 255 255 / 0.92);
-  box-shadow:
-    0 0 0 2px rgba(255 255 255 / 0.18),
-    0 0 14px rgba(255 255 255 / 0.28);
+  filter:
+    drop-shadow(0 0 5px rgba(255 255 255 / 0.68))
+    drop-shadow(0 0 14px rgba(255 255 255 / 0.34));
 }
 
-.avf-root--embedded .avf-angle-icon--turntable-face {
-  width: 40px;
-  height: 40px;
+.avf-root--embedded .avf-angle-icon.avf-angle-icon--turntable-face {
+  width: 28px;
+  height: 32px;
 }
 
 .avf-root--turntable-only .avf-tool-btn:disabled {
@@ -349,20 +464,24 @@
 }
 
 .avf-root--embedded .avf-angle-btn {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
 }
 
 .avf-root--turntable-only.avf-root--embedded .avf-angle-btn {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
 }
 
 .avf-root--embedded .avf-angle-icon {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
+}
+
+.avf-root--embedded .avf-angle-btn:hover {
+  transform: none;
 }
 
 /* ── Top bar ───────────────────────────────────────────────────────────────── */
@@ -557,6 +676,16 @@
   justify-content: center;
   gap: 10px;
   padding: 16px 0;
+  z-index: 12;
+  overflow: visible;
+  box-sizing: border-box;
+  background: var(--avf-bg);
+}
+
+.avf-root--embedded .avf-leftnav {
+  padding: 12px 4px;
+  gap: 8px;
+  border-right: 1px solid rgba(255 255 255 / 0.06);
 }
 
 .avf-angle-btn {
@@ -652,6 +781,8 @@
   align-items: center;
   justify-content: center;
   background: #000;
+  z-index: 0;
+  min-width: 0;
 }
 
 /* Annotate toolbar portal — above 3D/photo layers, not clipped by face3d-viewer */
@@ -742,8 +873,10 @@
 }
 
 .avf-3d-stage .face3d-display,
-.avf-3d-stage .face3d-frame-cache-layer {
+.avf-3d-stage .face3d-frame-cache-layer,
+.avf-3d-stage .face3d-annotation-overlay {
   object-fit: contain;
+  object-position: center center;
 }
 
 /* Client-detail left column: let turntable fill the viewport (not letterboxed 512:488 box). */
@@ -754,7 +887,7 @@
 
 .avf-root--embedded.avf-root--turntable-only .avf-3d-stage {
   align-items: stretch;
-  justify-content: stretch;
+  justify-content: center;
 }
 
 .avf-root--embedded.avf-root--turntable-only .avf-3d-frame--turntable-only {
@@ -780,7 +913,8 @@
 }
 
 .avf-root--embedded.avf-root--turntable-only .avf-3d-stage .face3d-display,
-.avf-root--embedded.avf-root--turntable-only .avf-3d-stage .face3d-frame-cache-layer {
+.avf-root--embedded.avf-root--turntable-only .avf-3d-stage .face3d-frame-cache-layer,
+.avf-root--embedded.avf-root--turntable-only .avf-3d-stage .face3d-annotation-overlay {
   object-fit: contain;
   object-position: center center;
 }
@@ -1004,15 +1138,8 @@
 }
 
 /* Redness / pore mask overlays on static photo view.
-   Rendered as <img> elements so they use the same object-fit layout as the
-   photo, guaranteeing pixel-accurate alignment regardless of aspect ratio. */
+   Positioned inside avf-photo-stack so they track the still image bounds. */
 .avf-photo-mask-overlay {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
   mix-blend-mode: multiply;
   opacity: 0.95;
   pointer-events: none;
@@ -1020,6 +1147,12 @@
 
 .avf-photo-mask-overlay--pores {
   opacity: 0.88;
+}
+
+/* Punch out the lip region so natural lip color isn't flagged as redness. */
+.avf-photo-mask-overlay--redness {
+  -webkit-mask-image: radial-gradient(ellipse 22% 9% at 50% 66%, transparent 0%, black 100%);
+  mask-image: radial-gradient(ellipse 22% 9% at 50% 66%, transparent 0%, black 100%);
 }
 
 /* Transparent wrinkle line cutout over cutout still / turntable. */

@@ -404,6 +404,12 @@
   font: inherit;
   font-size: 15px;
   line-height: 1.35;
+  color: var(--theme-text-primary, #0f172a);
+  background: var(--theme-bg-card, #fff);
+}
+
+.treatment-plan-checkout-blueprint-compose-phone::placeholder {
+  color: var(--theme-text-muted, #94a3b8);
 }
 
 .treatment-plan-checkout-blueprint-compose-phone:focus {
@@ -423,6 +429,12 @@
   resize: vertical;
   min-height: 140px;
   box-sizing: border-box;
+  color: var(--theme-text-primary, #0f172a);
+  background: var(--theme-bg-card, #fff);
+}
+
+.treatment-plan-checkout-blueprint-compose-textarea::placeholder {
+  color: var(--theme-text-muted, #94a3b8);
 }
 
 .treatment-plan-checkout-blueprint-compose-actions {

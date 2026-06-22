@@ -1,0 +1,45 @@
+{
+  "source": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/blonde-portrait-front-source.png",
+  "inputs": {
+    "diagnostic": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/blonde-portrait-front-crease-response-diagnostic.png",
+    "ourOutput": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/our-output/blonde-portrait-front-source-crease-heatmap.png"
+  },
+  "outputs": {
+    "line-filtered-magma": {
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-line-filtered-magma-composite.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-line-filtered-magma-wrinkle-overlay.png",
+      "alphaPixels": 104121,
+      "maxAlpha": 158
+    },
+    "two-layer-magma-subtle": {
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-two-layer-magma-subtle-composite.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-two-layer-magma-subtle-wrinkle-overlay.png",
+      "alphaPixels": 113084,
+      "maxAlpha": 104
+    },
+    "two-layer-magma-diagnostic": {
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-two-layer-magma-diagnostic-composite.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-two-layer-magma-diagnostic-wrinkle-overlay.png",
+      "alphaPixels": 116079,
+      "maxAlpha": 145
+    },
+    "two-layer-magma-strong": {
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-two-layer-magma-strong-composite.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-two-layer-magma-strong-wrinkle-overlay.png",
+      "alphaPixels": 118338,
+      "maxAlpha": 178
+    },
+    "two-layer-warm-diagnostic": {
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-two-layer-warm-diagnostic-composite.png",
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/improved/blonde-portrait-front-two-layer-warm-diagnostic-wrinkle-overlay.png",
+      "alphaPixels": 116079,
+      "maxAlpha": 145
+    }
+  },
+  "method": [
+    "Fused heatmap signal from diagnostic and our-output maps.",
+    "Line-confidence layer from Hessian/blackhat ridge response plus skeleton support suppresses speckle.",
+    "Two-layer overlay separates faint texture alpha from brighter crease alpha.",
+    "All variants clipped to conservative skin/face mask with eye/dark-opening exclusion."
+  ]
+}

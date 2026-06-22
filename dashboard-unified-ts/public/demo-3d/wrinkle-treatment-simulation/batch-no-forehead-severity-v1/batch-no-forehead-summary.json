@@ -1,0 +1,137 @@
+{
+  "outputs": [
+    {
+      "name": "Kacie_Holder_front",
+      "slug": "kacie-holder",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "browTop": 343,
+      "noForeheadY": 340,
+      "activePixels": {
+        "shadow": 16225,
+        "rose": 16211,
+        "blue": 16140
+      },
+      "files": {
+        "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-shadow-severity-composite.png",
+        "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-rose-severity-composite.png",
+        "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-blue-severity-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-response-map-no-forehead.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/kacie-holder/kacie-holder-comparison.jpg"
+    },
+    {
+      "name": "Mary_Matthews_front",
+      "slug": "mary-matthews",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "browTop": 319,
+      "noForeheadY": 316,
+      "activePixels": {
+        "shadow": 16327,
+        "rose": 16306,
+        "blue": 16213
+      },
+      "files": {
+        "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-shadow-severity-composite.png",
+        "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-rose-severity-composite.png",
+        "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-blue-severity-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-response-map-no-forehead.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/mary-matthews/mary-matthews-comparison.jpg"
+    },
+    {
+      "name": "Suzanne_front",
+      "slug": "suzanne",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "browTop": 381,
+      "noForeheadY": 378,
+      "activePixels": {
+        "shadow": 29688,
+        "rose": 29668,
+        "blue": 29546
+      },
+      "files": {
+        "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-shadow-severity-composite.png",
+        "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-rose-severity-composite.png",
+        "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-blue-severity-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-response-map-no-forehead.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/suzanne/suzanne-comparison.jpg"
+    },
+    {
+      "name": "Teresa_front",
+      "slug": "teresa",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "browTop": 310,
+      "noForeheadY": 307,
+      "activePixels": {
+        "shadow": 10046,
+        "rose": 10040,
+        "blue": 10010
+      },
+      "files": {
+        "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/teresa/teresa-shadow-severity-composite.png",
+        "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/teresa/teresa-rose-severity-composite.png",
+        "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/teresa/teresa-blue-severity-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/teresa/teresa-response-map-no-forehead.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/teresa/teresa-comparison.jpg"
+    },
+    {
+      "name": "Terry_Letts_front",
+      "slug": "terry-letts",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "browTop": 339,
+      "noForeheadY": 336,
+      "activePixels": {
+        "shadow": 25108,
+        "rose": 25089,
+        "blue": 24982
+      },
+      "files": {
+        "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-shadow-severity-composite.png",
+        "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-rose-severity-composite.png",
+        "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-blue-severity-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-response-map-no-forehead.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/terry-letts/terry-letts-comparison.jpg"
+    },
+    {
+      "name": "Tonya_Arnold_front",
+      "slug": "tonya-arnold",
+      "imageSize": [
+        1044,
+        1044
+      ],
+      "browTop": 323,
+      "noForeheadY": 320,
+      "activePixels": {
+        "shadow": 32621,
+        "rose": 32618,
+        "blue": 32600
+      },
+      "files": {
+        "shadow": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-shadow-severity-composite.png",
+        "rose": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-rose-severity-composite.png",
+        "blue": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-blue-severity-composite.png"
+      },
+      "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-response-map-no-forehead.png",
+      "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/tonya-arnold/tonya-arnold-comparison.jpg"
+    }
+  ],
+  "contactSheet": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1/batch-no-forehead-shadow-contact-sheet.jpg"
+}

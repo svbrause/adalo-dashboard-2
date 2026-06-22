@@ -1,0 +1,14 @@
+{
+  "slug": "teresa",
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "files": {
+    "shadow-relief": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-shadow-relief-composite.png",
+    "rose-balanced": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-rose-balanced-composite.png",
+    "rose-diagnostic": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-rose-diagnostic-composite.png"
+  },
+  "responseMap": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-v4-response-map.png",
+  "comparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-v4-shadow-relief-v1/teresa/teresa-v4-comparison.jpg"
+}

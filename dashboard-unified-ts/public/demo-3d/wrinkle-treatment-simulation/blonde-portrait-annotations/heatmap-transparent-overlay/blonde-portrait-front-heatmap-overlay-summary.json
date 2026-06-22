@@ -1,0 +1,43 @@
+{
+  "source": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/blonde-portrait-front-source.png",
+  "inputs": {
+    "diagnostic": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/blonde-portrait-front-crease-response-diagnostic.png",
+    "ourOutput": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/our-output/blonde-portrait-front-source-crease-heatmap.png"
+  },
+  "outputs": {
+    "diagnostic-magma": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-diagnostic-magma-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-diagnostic-magma-composite.png",
+      "alphaPixels": 72807,
+      "maxAlpha": 127
+    },
+    "our-output-magma": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-our-output-magma-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-our-output-magma-composite.png",
+      "alphaPixels": 61838,
+      "maxAlpha": 142
+    },
+    "fused-magma-soft": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-fused-magma-soft-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-fused-magma-soft-composite.png",
+      "alphaPixels": 81444,
+      "maxAlpha": 112
+    },
+    "fused-magma-strong": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-fused-magma-strong-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-fused-magma-strong-composite.png",
+      "alphaPixels": 94822,
+      "maxAlpha": 168
+    },
+    "fused-warm-clinical": {
+      "overlay": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-fused-warm-clinical-wrinkle-overlay.png",
+      "composite": "public/demo-3d/wrinkle-treatment-simulation/blonde-portrait-annotations/heatmap-transparent-overlay/blonde-portrait-front-fused-warm-clinical-composite.png",
+      "alphaPixels": 90132,
+      "maxAlpha": 142
+    }
+  },
+  "notes": [
+    "Transparent overlays use heatmap brightness/saturation as alpha, clipped to a face/skin mask and eye/dark-opening exclusion.",
+    "Fused variants combine the diagnostic and our-output heatmaps while preserving heatmap colors for severity/depth."
+  ]
+}

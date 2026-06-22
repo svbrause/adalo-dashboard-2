@@ -20,6 +20,7 @@ import {
   hasFacialInterestedTreatments,
 } from "../../utils/statusFormatting";
 import { applyFilters, applySorting } from "../../utils/filtering";
+import { getDetectedIssueDisplayStrings } from "../../utils/analysisOverviewClient";
 // Unused imports - kept for potential future drag-and-drop functionality
 // import { updateFacialAnalysisStatus } from '../../services/api';
 // import { showToast, showError } from '../../utils/toast';
@@ -125,15 +126,9 @@ export default function FacialAnalysisView() {
       const isPatient = client.tableSource === "Patients";
 
       // Parse issues
-      const allIssues =
-        isPatient && client.allIssues
-          ? typeof client.allIssues === "string"
-            ? client.allIssues
-                .split(",")
-                .map((i) => i.trim())
-                .filter((i) => i)
-            : []
-          : [];
+      const allIssues = isPatient
+        ? getDetectedIssueDisplayStrings(client)
+        : [];
       const interestedIssuesRaw = isPatient
         ? parseInterestedIssuesList(client)
         : [];
@@ -156,6 +151,7 @@ export default function FacialAnalysisView() {
       const hasFacialAnalysisData =
         isPatient &&
         (allIssues.length > 0 ||
+          Object.keys(client.severityScoresFromAnalyses?.issues ?? {}).length > 0 ||
           interestedIssues.length > 0 ||
           wellnessInterests.length > 0 ||
           whichRegions ||
@@ -423,11 +419,11 @@ export default function FacialAnalysisView() {
                             </div>
                           </div>
                         )}
-                        <div className="facial-card-section">
-                          <div className="facial-card-section-title">
-                            Interested Treatments
-                          </div>
-                          {interestedIssues.length > 0 ? (
+                        {interestedIssues.length > 0 ? (
+                          <div className="facial-card-section">
+                            <div className="facial-card-section-title">
+                              Interested Treatments
+                            </div>
                             <div className="facial-card-tags">
                               {interestedIssues.map((interestName, i) => (
                                 <button
@@ -446,12 +442,8 @@ export default function FacialAnalysisView() {
                                 </button>
                               ))}
                             </div>
-                          ) : (
-                            <div className="facial-card-text facial-card-text-muted">
-                              None listed for facial aesthetics.
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        ) : null}
                         {wellnessInterests.length > 0 && (
                           <div className="facial-card-section">
                             <div className="facial-card-section-title">

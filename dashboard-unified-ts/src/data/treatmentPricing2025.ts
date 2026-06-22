@@ -24,6 +24,14 @@ import {
   getSlimStudioEmbeddedPriceListBase,
   isSlimStudioProvider,
 } from "./slimStudioOfferings";
+import {
+  getGravitasEmbeddedPriceListBase,
+  isGravitasProvider,
+} from "./gravitasOfferings";
+import {
+  getPrettyPleaseEmbeddedPriceListBase,
+  isPrettyPleaseProvider,
+} from "./prettyPleaseOfferings";
 export interface TreatmentPriceItem {
   name: string;
   price: number;
@@ -2046,6 +2054,12 @@ function getEmbeddedPriceListBaseForProvider(
   }
   if (isSlimStudioProvider({ code: providerCode ?? undefined })) {
     return getSlimStudioEmbeddedPriceListBase();
+  }
+  if (isGravitasProvider({ code: providerCode ?? undefined })) {
+    return getGravitasEmbeddedPriceListBase();
+  }
+  if (isPrettyPleaseProvider({ code: providerCode ?? undefined })) {
+    return getPrettyPleaseEmbeddedPriceListBase();
   }
   return TREATMENT_PRICE_LIST_2025;
 }

@@ -1,0 +1,132 @@
+{
+  "wrinkle_paths": [
+    {
+      "category": "nasolabial_folds",
+      "severity": 2,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 424,
+          "y": 591
+        },
+        {
+          "x": 435,
+          "y": 635
+        },
+        {
+          "x": 446,
+          "y": 672
+        }
+      ]
+    },
+    {
+      "category": "nasolabial_folds",
+      "severity": 2,
+      "confidence": 0.9,
+      "points": [
+        {
+          "x": 578,
+          "y": 591
+        },
+        {
+          "x": 567,
+          "y": 635
+        },
+        {
+          "x": 556,
+          "y": 672
+        }
+      ]
+    },
+    {
+      "category": "marionette_lines",
+      "severity": 1,
+      "confidence": 0.7,
+      "points": [
+        {
+          "x": 450,
+          "y": 701
+        },
+        {
+          "x": 458,
+          "y": 735
+        }
+      ]
+    },
+    {
+      "category": "marionette_lines",
+      "severity": 1,
+      "confidence": 0.7,
+      "points": [
+        {
+          "x": 552,
+          "y": 701
+        },
+        {
+          "x": 544,
+          "y": 735
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 1,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 368,
+          "y": 465
+        },
+        {
+          "x": 390,
+          "y": 468
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 1,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 385,
+          "y": 475
+        },
+        {
+          "x": 408,
+          "y": 478
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 1,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 634,
+          "y": 465
+        },
+        {
+          "x": 612,
+          "y": 468
+        }
+      ]
+    },
+    {
+      "category": "periorbital_fine_lines",
+      "severity": 1,
+      "confidence": 0.8,
+      "points": [
+        {
+          "x": 617,
+          "y": 475
+        },
+        {
+          "x": 594,
+          "y": 478
+        }
+      ]
+    }
+  ]
+}

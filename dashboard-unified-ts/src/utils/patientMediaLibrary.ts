@@ -1,6 +1,11 @@
 import type { AnnotateStroke } from "../components/aura/AnnotateDrawing";
 import type { Client, ClientPhotoSlot } from "../types";
 import { strokesToSvgMarkup } from "./annotationComposite";
+import type { AuraTanViewAngle } from "./auraTanAnglePhotos";
+import type {
+  PatientAuraAngleAsset,
+  PatientAuraAssetManifest,
+} from "./patientAuraAssets";
 import { getClientFrontPhotoDisplayUrl } from "./photoLoading";
 import type { SavedPatientAnnotation } from "./patientAnnotationsStorage";
 import {
@@ -32,10 +37,153 @@ export type PatientMediaLibrarySections = {
   user: PatientMediaItem[];
 };
 
+const AURA_FILE_ANGLE_ORDER: AuraTanViewAngle[] = [
+  "front",
+  "three-quarter-left",
+  "three-quarter-right",
+  "profile-left",
+  "profile-right",
+];
+
+const AURA_FILE_ANGLE_LABELS: Record<AuraTanViewAngle, string> = {
+  front: "Front",
+  "three-quarter-left": "Left three-quarter",
+  "three-quarter-right": "Right three-quarter",
+  "profile-left": "Left profile",
+  "profile-right": "Right profile",
+};
+
+type AuraGeneratedImageField = keyof Pick<
+  PatientAuraAngleAsset,
+  | "srcCutout"
+  | "srcTexture"
+  | "srcPigmentation"
+  | "srcRedness"
+  | "srcPores"
+  | "srcWrinkles"
+  | "srcWrinklesView"
+>;
+
+const AURA_GENERATED_IMAGE_GROUPS: Array<{
+  id: string;
+  label: string;
+  subtitle: string;
+  systemCategory: TanyaTanSystemMediaCategory;
+  fields: AuraGeneratedImageField[];
+}> = [
+  {
+    id: "cutout",
+    label: "Background removed",
+    subtitle: "Background removed",
+    systemCategory: "color_stills",
+    fields: ["srcCutout"],
+  },
+  {
+    id: "pigmentation",
+    label: "Pigmentation",
+    subtitle: "Pigmentation visualization",
+    systemCategory: "texture_maps",
+    fields: ["srcPigmentation", "srcTexture"],
+  },
+  {
+    id: "redness",
+    label: "Redness",
+    subtitle: "Redness annotation",
+    systemCategory: "redness_annotations",
+    fields: ["srcRedness"],
+  },
+  {
+    id: "pores",
+    label: "Pores",
+    subtitle: "Pore annotation",
+    systemCategory: "pore_annotations",
+    fields: ["srcPores"],
+  },
+  {
+    id: "wrinkles",
+    label: "Wrinkles",
+    subtitle: "Wrinkle annotation",
+    systemCategory: "wrinkle_annotations",
+    fields: ["srcWrinklesView", "srcWrinkles"],
+  },
+];
+
+function normalizedUrl(url: string | undefined): string | null {
+  const trimmed = url?.trim();
+  return trimmed || null;
+}
+
+function orderedAuraManifestAngles(
+  manifest: PatientAuraAssetManifest,
+): AuraTanViewAngle[] {
+  const available = new Set(Object.keys(manifest.angles) as AuraTanViewAngle[]);
+  return AURA_FILE_ANGLE_ORDER.filter((angle) => available.has(angle));
+}
+
+function auraAngleLabel(
+  angle: AuraTanViewAngle,
+  asset: PatientAuraAngleAsset,
+): string {
+  return asset.label?.trim() || AURA_FILE_ANGLE_LABELS[angle];
+}
+
+function auraCutoutUrl(asset: PatientAuraAngleAsset): string | null {
+  const explicitCutout = normalizedUrl(asset.srcCutout);
+  if (explicitCutout) return explicitCutout;
+
+  const src = normalizedUrl(asset.src);
+  const original = normalizedUrl(asset.srcOriginal);
+  if (src && original && src !== original) return src;
+  return null;
+}
+
+function auraGeneratedImageUrl(
+  asset: PatientAuraAngleAsset,
+  group: (typeof AURA_GENERATED_IMAGE_GROUPS)[number],
+): string | null {
+  if (group.id === "cutout") return auraCutoutUrl(asset);
+  return (
+    group.fields
+      .map((field) => normalizedUrl(asset[field]))
+      .find(Boolean) ?? null
+  );
+}
+
+function appendGeneratedAuraMedia(
+  manifest: PatientAuraAssetManifest | null | undefined,
+  system: PatientMediaItem[],
+  seenUrls: Set<string>,
+): void {
+  if (!manifest) return;
+
+  for (const angle of orderedAuraManifestAngles(manifest)) {
+    const asset = manifest.angles[angle];
+    if (!asset) continue;
+
+    const angleLabel = auraAngleLabel(angle, asset);
+    for (const group of AURA_GENERATED_IMAGE_GROUPS) {
+      const url = auraGeneratedImageUrl(asset, group);
+      if (!url || seenUrls.has(url)) continue;
+
+      seenUrls.add(url);
+      system.push({
+        id: `aura-${group.id}-${angle}`,
+        kind: "photo",
+        source: "system",
+        systemCategory: group.systemCategory,
+        title: `${angleLabel} - ${group.label}`,
+        subtitle: `${group.subtitle} from upgraded analysis`,
+        url,
+      });
+    }
+  }
+}
+
 export function buildPatientMediaLibrary(input: {
   client: Client;
   photoSlots?: ClientPhotoSlot[];
   turntableVideoUrl?: string | null;
+  auraManifest?: PatientAuraAssetManifest | null;
   savedAnnotations?: SavedPatientAnnotation[];
 }): PatientMediaLibrarySections {
   const system: PatientMediaItem[] = [];
@@ -57,6 +205,8 @@ export function buildPatientMediaLibrary(input: {
       });
     }
 
+    appendGeneratedAuraMedia(input.auraManifest, system, seenUrls);
+
     const video =
       input.turntableVideoUrl?.trim() ||
       input.client.turntableVideoUrl?.trim() ||
@@ -68,8 +218,8 @@ export function buildPatientMediaLibrary(input: {
         kind: "video",
         source: "system",
         systemCategory: "scan_video",
-        title: "3D turntable",
-        subtitle: "Aura scan video",
+        title: "Rotating face view",
+        subtitle: "From their scan",
         url: video,
       });
     }
@@ -83,7 +233,7 @@ export function buildPatientMediaLibrary(input: {
         source: "system",
         systemCategory: "color_stills",
         title: slot.label || "Photo",
-        subtitle: "Original image",
+        subtitle: "Scan photo",
         url: slot.url,
       });
     };
@@ -97,6 +247,8 @@ export function buildPatientMediaLibrary(input: {
       }
     }
 
+    appendGeneratedAuraMedia(input.auraManifest, system, seenUrls);
+
     const video =
       input.turntableVideoUrl?.trim() ||
       input.client.turntableVideoUrl?.trim() ||
@@ -108,8 +260,8 @@ export function buildPatientMediaLibrary(input: {
         kind: "video",
         source: "system",
         systemCategory: "scan_video",
-        title: "3D turntable",
-        subtitle: "Generated scan video",
+        title: "Rotating face view",
+        subtitle: "From their scan",
         url: video,
       });
     }

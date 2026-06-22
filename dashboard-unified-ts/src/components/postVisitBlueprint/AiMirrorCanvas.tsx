@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
   AI_MIRROR_REGIONS,
   cheekRegionPolygon,
   foreheadRegionPolygon,
+  lipsRegionPolygon,
+  noseRegionPolygon,
   polygonFromLandmarkIndices,
 } from "./aiMirrorRegions";
 import {
@@ -20,14 +22,21 @@ import {
   mirrorViewportOverlaySafeBottom,
 } from "../../constants/mirrorAnnotationTheme";
 import {
+  clampMirrorCalloutBoxToCanvas,
+  fitMirrorCalloutLabel,
   mirrorRegionLabelFont,
   mirrorRegionLabelFontSize,
   prepareMirrorAnnotationCanvas,
+  layoutMirrorRegionCallouts,
+  type MirrorRegionCalloutLayout,
   snapMirrorLabelTextPosition,
+  type MirrorRegionCalloutInput,
 } from "../../utils/mirrorAnnotationCanvas";
 import "./AiMirrorCanvas.css";
 
 import { getFaceLandmarker } from "../../utils/faceLandmarker";
+import { resolveMirrorCalloutLabel } from "../../utils/mirrorCalloutLabels";
+import { mirrorRegionVisibleAtHeadPose } from "../../utils/mirrorRegionProfileVisibility";
 
 export { getFaceLandmarker } from "../../utils/faceLandmarker";
 
@@ -37,9 +46,9 @@ type MirrorRegion = { id: string; indices: number[] };
 const DEBUG_HIGHLIGHT_ALL_AREAS = false;
 
 const REGION_KEYWORDS: Record<string, string[]> = {
-  rForehead: ["forehead", "brow", "frown", "glabella", "wrinkle"],
-  rLeftEye: ["eye", "eyelid", "crow"],
-  rRightEye: ["eye", "eyelid", "crow"],
+  rForehead: ["forehead", "brow", "frown", "glabella", "wrinkle", "fine line"],
+  rLeftEye: ["eye", "eyelid", "crow", "fine line"],
+  rRightEye: ["eye", "eyelid", "crow", "fine line"],
   rNose: ["nose", "nasal", "bridge", "tip", "nostril"],
   rLeftCheek: ["cheek", "midface", "malar"],
   rRightCheek: ["cheek", "midface", "malar"],
@@ -51,24 +60,6 @@ const REGION_KEYWORDS: Record<string, string[]> = {
   rRightNasolabialFold: ["nasolabial", "nasal fold", "smile line"],
   rLeftMarionetteLine: ["marionette", "oral commissure", "mouth corner"],
   rRightMarionetteLine: ["marionette", "oral commissure", "mouth corner"],
-};
-
-const REGION_DISPLAY_LABEL: Record<string, string> = {
-  rForehead: "Forehead",
-  rLeftEye: "Eyes",
-  rRightEye: "Eyes",
-  rNose: "Nose",
-  rLeftCheek: "Cheeks",
-  rRightCheek: "Cheeks",
-  rLips: "Lips",
-  rChin: "Chin/Jawline",
-  rLeftUnderEye: "Under Eyes",
-  rRightUnderEye: "Under Eyes",
-  rLeftNasolabialFold: "Nasolabial Folds",
-  rRightNasolabialFold: "Nasolabial Folds",
-  rLeftMarionetteLine: "Marionette Lines",
-  rRightMarionetteLine: "Marionette Lines",
-  rLowerFace: "Lower Face",
 };
 
 const GRANULAR_MIRROR_REGIONS: MirrorRegion[] = [
@@ -150,13 +141,34 @@ export function getHighlightedRegionIds(highlightTerms: string[]): Set<string> {
   if (hasUnderEye) {
     highlighted.delete("rLeftEye");
     highlighted.delete("rRightEye");
+    highlighted.add("rLeftUnderEye");
+    highlighted.add("rRightUnderEye");
   }
+  const hasCheek = terms.some((t) =>
+    /(?:\bcheek\b|midface|malar|mid cheek)/i.test(t),
+  );
   if (hasNasolabial) {
     highlighted.delete("rNose");
-    highlighted.delete("rLeftCheek");
-    highlighted.delete("rRightCheek");
+    if (!hasCheek) {
+      highlighted.delete("rLeftCheek");
+      highlighted.delete("rRightCheek");
+    }
+    highlighted.add("rLeftNasolabialFold");
+    highlighted.add("rRightNasolabialFold");
   }
   if (hasMarionette) {
+    highlighted.delete("rLips");
+    highlighted.add("rLeftMarionetteLine");
+    highlighted.add("rRightMarionetteLine");
+  }
+  const hasJawline = terms.some((t) =>
+    /(?:jawline|jaw\s*line|ill[-\s]?defined\s*jaw|asymmetric\s*jaw|weak\s*jaw)/i.test(
+      t,
+    ),
+  );
+  if (hasJawline) {
+    highlighted.add("rLowerFace");
+    highlighted.delete("rChin");
     highlighted.delete("rLips");
   }
   // "Lower face" gets its own dedicated region polygon.
@@ -446,6 +458,9 @@ function getRenderRegionPolygon(
   height: number,
   fallbackIndices: number[],
 ): { x: number; y: number }[] {
+  if (!mirrorRegionVisibleAtHeadPose(regionId, landmarks, width, height)) {
+    return [];
+  }
   if (regionId === "rLeftUnderEye") {
     return underEyeRegion(landmarks, width, height, "left");
   }
@@ -476,7 +491,43 @@ function getRenderRegionPolygon(
     return foreheadRegionPolygon(landmarks, width, height);
   }
 
+  if (regionId === "rNose") {
+    return noseRegionPolygon(landmarks, width, height);
+  }
+
   return polygonFromLandmarkIndices(landmarks, fallbackIndices, width, height);
+}
+
+function restoreLipsFromBaseImage(
+  ctx: CanvasRenderingContext2D,
+  baseImg: HTMLImageElement,
+  landmarks: NormalizedLandmark[],
+  imageRect: { x: number; y: number; width: number; height: number },
+): void {
+  const poly = lipsRegionPolygon(
+    landmarks,
+    imageRect.width,
+    imageRect.height,
+  ).map((point) => ({
+    x: point.x + imageRect.x,
+    y: point.y + imageRect.y,
+  }));
+  if (poly.length < 3) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(poly[0]!.x, poly[0]!.y);
+  for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i]!.x, poly[i]!.y);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(
+    baseImg,
+    imageRect.x,
+    imageRect.y,
+    imageRect.width,
+    imageRect.height,
+  );
+  ctx.restore();
 }
 
 function drawAnnotatedFace(
@@ -488,19 +539,52 @@ function drawAnnotatedFace(
   logicalWidth: number,
   logicalHeight: number,
   theme: MirrorAnnotationTheme = MIRROR_ANNOTATION_THEME,
+  calloutLabelsByRegionId?: Record<string, string>,
+  imageRect?: { x: number; y: number; width: number; height: number },
+  annotationThemesByRegionId?: Record<string, MirrorAnnotationTheme>,
+  suppressCalloutLabels?: boolean,
+  options?: {
+    excludeLipsFromAnnotation?: boolean;
+    lipRestoreImage?: HTMLImageElement | null;
+  },
 ): void {
-  const cw = logicalWidth;
-  const ch = logicalHeight;
+  const cw = imageRect?.width ?? logicalWidth;
+  const ch = imageRect?.height ?? logicalHeight;
+  const canvasW = logicalWidth;
+  const canvasH = logicalHeight;
+  const imageX = imageRect?.x ?? 0;
+  const imageY = imageRect?.y ?? 0;
   ctx.clearRect(0, 0, cw, ch);
-  ctx.drawImage(img, 0, 0, cw, ch);
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  ctx.drawImage(img, imageX, imageY, cw, ch);
 
   const highlightedRegions = getEffectiveHighlightedRegionIds(
     highlightTerms,
     manualRegionIds,
   );
-  if (highlightedRegions.size === 0) return;
+  if (options?.excludeLipsFromAnnotation) {
+    highlightedRegions.delete("rLips");
+  }
+  if (highlightedRegions.size === 0) {
+    if (options?.excludeLipsFromAnnotation && options.lipRestoreImage) {
+      restoreLipsFromBaseImage(
+        ctx,
+        options.lipRestoreImage,
+        landmarks,
+        imageRect ?? { x: 0, y: 0, width: cw, height: ch },
+      );
+    }
+    return;
+  }
 
-  const regionLabels: Array<{ label: string; x: number; y: number }> = [];
+  const themeForRegion = (regionId: string): MirrorAnnotationTheme =>
+    annotationThemesByRegionId?.[regionId] ?? theme;
+  const regionLabels: Array<{
+    label: string;
+    x: number;
+    y: number;
+    theme: MirrorAnnotationTheme;
+  }> = [];
 
   const renderRegions: MirrorRegion[] = [
     ...AI_MIRROR_REGIONS.filter((r) => highlightedRegions.has(r.id)),
@@ -508,41 +592,55 @@ function drawAnnotatedFace(
   ];
 
   for (const { id, indices } of renderRegions) {
-    if (isLinearFeatureRegion(id) && highlightedRegions.has(id)) {
+    const regionTheme = themeForRegion(id);
+    if (
+      isLinearFeatureRegion(id) &&
+      highlightedRegions.has(id) &&
+      mirrorRegionVisibleAtHeadPose(id, landmarks, cw, ch)
+    ) {
       const center = softFeatureCenter(id, landmarks, cw, ch);
       if (center) {
-        drawSoftFeatureRegion(ctx, id, center, cw, ch, theme);
+        const offsetCenter = { x: center.x + imageX, y: center.y + imageY };
+        drawSoftFeatureRegion(ctx, id, offsetCenter, cw, ch, regionTheme);
         regionLabels.push({
-          label: REGION_DISPLAY_LABEL[id] ?? "Focus Area",
-          x: center.x,
-          y: center.y,
+          label: resolveMirrorCalloutLabel(id, calloutLabelsByRegionId),
+          x: offsetCenter.x,
+          y: offsetCenter.y,
+          theme: regionTheme,
         });
       }
       continue;
     }
 
-    const poly = getRenderRegionPolygon(id, landmarks, cw, ch, indices);
+    const poly = getRenderRegionPolygon(id, landmarks, cw, ch, indices).map((p) => ({
+      x: p.x + imageX,
+      y: p.y + imageY,
+    }));
     if (poly.length < 3) continue;
 
     ctx.beginPath();
     ctx.moveTo(poly[0].x, poly[0].y);
     for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
     ctx.closePath();
-    ctx.fillStyle = theme.regionFill;
+    ctx.save();
+    ctx.globalCompositeOperation = "source-atop";
+    ctx.fillStyle = regionTheme.regionFill;
     ctx.fill();
-    ctx.strokeStyle = theme.regionStroke;
+    ctx.strokeStyle = regionTheme.regionStroke;
     ctx.lineWidth = Math.max(1.3, Math.min(cw, ch) * 0.0022);
     ctx.stroke();
+    ctx.restore();
 
     const center = polygonCentroid(poly);
     regionLabels.push({
-      label: REGION_DISPLAY_LABEL[id] ?? "Focus Area",
+      label: resolveMirrorCalloutLabel(id, calloutLabelsByRegionId),
       x: center.x,
       y: center.y,
+      theme: regionTheme,
     });
   }
 
-  if (regionLabels.length > 0) {
+  if (regionLabels.length > 0 && !suppressCalloutLabels) {
     ctx.save();
     const minDim = Math.min(cw, ch);
     const fs = mirrorRegionLabelFontSize(minDim);
@@ -551,82 +649,130 @@ function drawAnnotatedFace(
     ctx.textBaseline = "middle";
 
     const seen = new Set<string>();
-    const uniqueRows = regionLabels.filter((row) => {
-      if (seen.has(row.label)) return false;
-      seen.add(row.label);
-      return true;
-    });
-    uniqueRows.sort((a, b) => a.y - b.y);
-
-    const leftRows = uniqueRows.filter((r) => r.x < cw / 2);
-    const rightRows = uniqueRows.filter((r) => r.x >= cw / 2);
-
-    const renderCallout = (
-      row: { label: string; x: number; y: number },
-      side: "left" | "right",
-      slotIndex: number,
-      slotCount: number,
-    ) => {
-      const textW = ctx.measureText(row.label).width;
+    const margin = 10;
+    const maxCalloutBoxWidth = Math.max(88, Math.min(cw - margin * 2, cw * 0.56));
+    const calloutInputs: Array<
+      MirrorRegionCalloutInput & { theme: MirrorAnnotationTheme }
+    > = [];
+    for (const row of regionLabels) {
+      const rowKey = `${row.label}\u0002${row.theme.labelStroke}`;
+      if (seen.has(rowKey)) continue;
+      seen.add(rowKey);
       const padX = 8;
       const padY = 5;
-      const boxW = textW + padX * 2;
-      const boxH = fs + padY * 2;
-      const margin = 10;
-      const overlaySafeBottom = mirrorViewportOverlaySafeBottom();
-      const calloutX = side === "left" ? margin : cw - boxW - margin;
-      const yMin = side === "left" ? Math.max(margin, overlaySafeBottom) : margin;
-      const yMax = ch - boxH - margin;
-      const targetY =
-        slotCount <= 1
-          ? row.y - boxH / 2
-          : yMin + (slotIndex / Math.max(1, slotCount - 1)) * (yMax - yMin);
-      let calloutY = Math.max(yMin, Math.min(yMax, targetY));
-      let resolvedX = calloutX;
+      const fitted = fitMirrorCalloutLabel(
+        ctx,
+        row.label,
+        maxCalloutBoxWidth,
+        padX,
+      );
+      calloutInputs.push({
+        key: row.label,
+        label: fitted.label,
+        anchorX: row.x,
+        anchorY: row.y,
+        boxWidth: fitted.boxWidth,
+        boxHeight: fs + padY * 2,
+        theme: row.theme,
+      });
+    }
+
+    const overlaySafeBottom = mirrorViewportOverlaySafeBottom();
+    const calloutInsetNudge =
+      imageRect && imageX > margin ? Math.min(96, cw * 0.12) : 0;
+    const calloutLeftInset = imageRect
+      ? imageX + margin + calloutInsetNudge
+      : margin;
+    const calloutRightInset = imageRect
+      ? canvasW - (imageX + cw) + margin + calloutInsetNudge
+      : margin;
+    const layouts = layoutMirrorRegionCallouts(calloutInputs, {
+      canvasWidth: canvasW,
+      canvasHeight: canvasH,
+      margin,
+      yMinLeft: Math.max(margin, overlaySafeBottom),
+      leftInset: calloutLeftInset,
+      rightInset: calloutRightInset,
+      marginSideMode: "same-as-anchor",
+    }) as Array<MirrorRegionCalloutLayout & { theme: MirrorAnnotationTheme }>;
+
+    for (const box of layouts) {
+      const boxTheme = box.theme ?? theme;
+      let resolvedX = box.x;
+      let calloutY = box.y;
       ({ x: resolvedX, y: calloutY } = avoidMirrorViewportOverlay(
-        side,
+        box.marginSide,
         resolvedX,
         calloutY,
-        boxW,
-        boxH,
+        box.boxWidth,
+        box.boxHeight,
         ch,
       ));
-      const anchorX = side === "left" ? resolvedX + boxW : resolvedX;
-      const anchorY = calloutY + boxH / 2;
+      ({ x: resolvedX, y: calloutY } = clampMirrorCalloutBoxToCanvas(
+        resolvedX,
+        calloutY,
+        box.boxWidth,
+        box.boxHeight,
+        canvasW,
+        canvasH,
+        margin,
+      ));
+      const padX = 8;
+      const anchorX = box.marginSide === "left" ? resolvedX + box.boxWidth : resolvedX;
+      const anchorY = calloutY + box.boxHeight / 2;
 
-      // Connector line from label box to highlighted region center.
-      ctx.strokeStyle = theme.connector;
+      ctx.strokeStyle = boxTheme.connector;
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(anchorX, anchorY);
-      ctx.lineTo(row.x, row.y);
+      ctx.lineTo(box.anchorX, box.anchorY);
       ctx.stroke();
 
-      ctx.fillStyle = theme.labelFill;
-      ctx.strokeStyle = theme.labelStroke;
+      ctx.fillStyle = boxTheme.labelFill;
+      ctx.strokeStyle = boxTheme.labelStroke;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(resolvedX, calloutY, boxW, boxH, 999);
+      ctx.roundRect(resolvedX, calloutY, box.boxWidth, box.boxHeight, 999);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = theme.labelText;
-      const textPos = snapMirrorLabelTextPosition(resolvedX + padX, calloutY + boxH / 2);
-      ctx.fillText(row.label, textPos.x, textPos.y);
-    };
-
-    leftRows.forEach((row, i) =>
-      renderCallout(row, "left", i, leftRows.length),
-    );
-    rightRows.forEach((row, i) =>
-      renderCallout(row, "right", i, rightRows.length),
-    );
+      ctx.fillStyle = boxTheme.labelText;
+      const textPos = snapMirrorLabelTextPosition(resolvedX + padX, anchorY);
+      ctx.fillText(box.label, textPos.x, textPos.y);
+    }
     ctx.restore();
+  }
+
+  if (options?.excludeLipsFromAnnotation && options.lipRestoreImage) {
+    restoreLipsFromBaseImage(
+      ctx,
+      options.lipRestoreImage,
+      landmarks,
+      imageRect ?? { x: 0, y: 0, width: cw, height: ch },
+    );
   }
 }
 
 function highlightedRegionIdsFingerprint(ids: readonly string[] | undefined): string {
   return [...(ids ?? [])].sort().join("\u0001");
+}
+
+function calloutLabelsFingerprint(labels: Record<string, string> | undefined): string {
+  if (!labels) return "";
+  return Object.entries(labels)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, label]) => `${id}\u0002${label}`)
+    .join("\u0001");
+}
+
+function annotationColorsFingerprint(
+  colors: Record<string, string> | undefined,
+): string {
+  if (!colors) return "";
+  return Object.entries(colors)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, color]) => `${id}\u0002${color}`)
+    .join("\u0001");
 }
 
 export interface AiMirrorCanvasProps {
@@ -635,9 +781,26 @@ export interface AiMirrorCanvasProps {
   highlightTerms?: string[];
   /** Manually selected regions — shared with 3D turntable. */
   highlightedRegionIds?: string[];
+  /** Analysis issue names per mirror region (overrides generic region titles). */
+  calloutLabelsByRegionId?: Record<string, string>;
   showAnnotations?: boolean;
   /** Treatment/chapter accent — tints region fills, strokes, and callout badges. */
   annotationColor?: string;
+  /** Optional per-region severity tints. Falls back to annotationColor when omitted. */
+  annotationColorsByRegionId?: Record<string, string>;
+  /** When true, redraw natural lip pixels from `basePhotoUrl` (front redness views). */
+  excludeLipsFromAnnotation?: boolean;
+  /** Color/cutout still used to restore lips when `excludeLipsFromAnnotation` is set. */
+  basePhotoUrl?: string;
+  /**
+   * Reserves horizontal canvas space around the photo for callout labels.
+   * Useful for tight Aura still crops where labels otherwise hit the viewport edge.
+   */
+  calloutSafePaddingRatio?: number;
+  /** When true, region color overlays are drawn but callout label badges are omitted. */
+  suppressCalloutLabels?: boolean;
+  /** When set, layout width is measured from this container instead of the canvas wrap. */
+  layoutMeasureRef?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -649,8 +812,15 @@ export function AiMirrorCanvas({
   alt = "Your facial analysis",
   highlightTerms = [],
   highlightedRegionIds = [],
+  calloutLabelsByRegionId,
   showAnnotations = true,
   annotationColor,
+  annotationColorsByRegionId,
+  excludeLipsFromAnnotation = false,
+  basePhotoUrl,
+  calloutSafePaddingRatio = 0,
+  suppressCalloutLabels = false,
+  layoutMeasureRef,
 }: AiMirrorCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -660,26 +830,39 @@ export function AiMirrorCanvas({
   const [layoutWidth, setLayoutWidth] = useState(0);
   const highlightFingerprint = highlightTermsFingerprint(highlightTerms);
   const manualRegionsFingerprint = highlightedRegionIdsFingerprint(highlightedRegionIds);
+  const calloutLabelsKey = calloutLabelsFingerprint(calloutLabelsByRegionId);
+  const annotationColorsKey = annotationColorsFingerprint(annotationColorsByRegionId);
+  const lipMaskKey = excludeLipsFromAnnotation
+    ? (basePhotoUrl ?? imageUrl)
+    : "";
 
   useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return undefined;
+    const measureEl = layoutMeasureRef?.current ?? wrapRef.current;
+    if (!measureEl) return undefined;
 
     const syncWidth = () => {
-      const w = Math.round(wrap.getBoundingClientRect().width);
+      const w = Math.round(measureEl.getBoundingClientRect().width);
       if (w > 0) setLayoutWidth(w);
     };
 
     syncWidth();
     const ro = new ResizeObserver(syncWidth);
-    ro.observe(wrap);
+    ro.observe(measureEl);
     return () => ro.disconnect();
-  }, []);
+  }, [layoutMeasureRef]);
 
   useEffect(() => {
     const annotationTheme = annotationColor
       ? mirrorAnnotationThemeFromAccent(annotationColor)
       : MIRROR_ANNOTATION_THEME;
+    const annotationThemesByRegionId = annotationColorsByRegionId
+      ? Object.fromEntries(
+          Object.entries(annotationColorsByRegionId).map(([regionId, color]) => [
+            regionId,
+            mirrorAnnotationThemeFromAccent(color),
+          ]),
+        )
+      : undefined;
     let cancelled = false;
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
@@ -706,9 +889,22 @@ export function AiMirrorCanvas({
         if (cancelled) return;
 
         const maxW = Math.max(280, layoutWidth);
-        const scale = Math.min(1, maxW / img.naturalWidth);
-        const cw = Math.max(1, Math.round(img.naturalWidth * scale));
-        const ch = Math.max(1, Math.round(img.naturalHeight * scale));
+        const safePaddingRatio = showAnnotations
+          ? Math.max(0, Math.min(0.22, calloutSafePaddingRatio))
+          : 0;
+        const safePaddingX = Math.round(maxW * safePaddingRatio);
+        const imageMaxW = Math.max(1, maxW - safePaddingX * 2);
+        const scale = Math.min(1, imageMaxW / img.naturalWidth);
+        const imageW = Math.max(1, Math.round(img.naturalWidth * scale));
+        const imageH = Math.max(1, Math.round(img.naturalHeight * scale));
+        const cw = Math.max(1, imageW + safePaddingX * 2);
+        const ch = imageH;
+        const imageRect = {
+          x: Math.round((cw - imageW) / 2),
+          y: 0,
+          width: imageW,
+          height: imageH,
+        };
 
         const ctx = prepareMirrorAnnotationCanvas(canvas, cw, ch);
         if (!ctx) {
@@ -717,7 +913,30 @@ export function AiMirrorCanvas({
         }
 
         if (!showAnnotations) {
-          ctx.drawImage(img, 0, 0, cw, ch);
+          ctx.clearRect(0, 0, cw, ch);
+          ctx.drawImage(img, imageRect.x, imageRect.y, imageRect.width, imageRect.height);
+          if (excludeLipsFromAnnotation) {
+            const landmarker = await getFaceLandmarker();
+            if (cancelled) return;
+            const result = landmarker.detect(img);
+            const landmarks = result.faceLandmarks?.[0];
+            if (landmarks?.length) {
+              const lipRestoreUrl = sanitizePhotoDisplayUrl(
+                basePhotoUrl ?? displayUrl,
+                { allowExpiringAirtableCdn: true },
+              );
+              const lipRestoreImg =
+                lipRestoreUrl && lipRestoreUrl !== displayUrl
+                  ? await loadImage(lipRestoreUrl, true).catch(() => img)
+                  : img;
+              restoreLipsFromBaseImage(
+                ctx,
+                lipRestoreImg,
+                landmarks,
+                imageRect,
+              );
+            }
+          }
           if (!cancelled) setStatus("ready");
           return;
         }
@@ -729,8 +948,18 @@ export function AiMirrorCanvas({
         const landmarks = result.faceLandmarks?.[0];
 
         if (!landmarks?.length) {
-          ctx.drawImage(img, 0, 0, cw, ch);
+          ctx.clearRect(0, 0, cw, ch);
+          ctx.drawImage(img, imageRect.x, imageRect.y, imageRect.width, imageRect.height);
         } else {
+          const lipRestoreUrl = excludeLipsFromAnnotation
+            ? sanitizePhotoDisplayUrl(basePhotoUrl ?? displayUrl, {
+                allowExpiringAirtableCdn: true,
+              })
+            : null;
+          const lipRestoreImg =
+            lipRestoreUrl && lipRestoreUrl !== displayUrl
+              ? await loadImage(lipRestoreUrl, true).catch(() => img)
+              : img;
           drawAnnotatedFace(
             ctx,
             img,
@@ -740,6 +969,14 @@ export function AiMirrorCanvas({
             cw,
             ch,
             annotationTheme,
+            calloutLabelsByRegionId,
+            imageRect,
+            annotationThemesByRegionId,
+            suppressCalloutLabels,
+            {
+              excludeLipsFromAnnotation,
+              lipRestoreImage: excludeLipsFromAnnotation ? lipRestoreImg : null,
+            },
           );
         }
         if (!cancelled) setStatus("ready");
@@ -776,9 +1013,8 @@ export function AiMirrorCanvas({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- highlightTerms omitted on purpose:
-    // compare via highlightFingerprint so new array refs from parents do not re-run MediaPipe.
-  }, [imageUrl, highlightFingerprint, manualRegionsFingerprint, showAnnotations, annotationColor, layoutWidth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- compare via fingerprints so new array/object refs from parents do not re-run MediaPipe.
+  }, [imageUrl, highlightFingerprint, manualRegionsFingerprint, calloutLabelsKey, showAnnotations, annotationColor, annotationColorsKey, calloutSafePaddingRatio, suppressCalloutLabels, layoutWidth, lipMaskKey, excludeLipsFromAnnotation]);
 
   return (
     <div

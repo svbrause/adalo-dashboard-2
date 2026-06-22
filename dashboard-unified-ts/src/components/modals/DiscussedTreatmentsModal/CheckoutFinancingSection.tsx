@@ -1,8 +1,11 @@
 import {
   buildCheckoutFinancingExampleSummary,
-  FINANCING_TREATMENTS_ONLY_LEAD_NO_PRICES,
   FINANCING_TREATMENTS_ONLY_SCOPE_NOTE,
+  getCheckoutFinancingConfig,
+  getFinancingLeadNoPrices,
   getFinancingMonthlyEstimate,
+  resolveProviderFinancingUrl,
+  type ProviderFinancingFields,
 } from "../../../utils/checkoutFinancingCopy";
 import "./CheckoutFinancingSection.css";
 
@@ -15,6 +18,7 @@ export function CheckoutFinancingSection({
   totalAmount,
   hasUnknownPrices,
   financingUrl,
+  provider,
   variant = "panel",
   integratedSurface = "order-summary",
   onFinancingLinkClick,
@@ -25,7 +29,9 @@ export function CheckoutFinancingSection({
 }: {
   totalAmount: number;
   hasUnknownPrices: boolean;
-  financingUrl: string;
+  financingUrl?: string;
+  /** When set, drives monthly term and copy (e.g. Slim Studio 12-month 0% APR). */
+  provider?: ProviderFinancingFields | string | null;
   /** `integrated` nests financing as rows with the treatment quote; legacy boxed styles are deprecated. */
   variant?: "panel" | "quote-sheet" | "pvb" | "integrated";
   /** When `variant` is `integrated`, controls spacing and palette. */
@@ -34,25 +40,26 @@ export function CheckoutFinancingSection({
   showFinancingLink?: boolean;
   financingScope?: "default" | "treatments_only";
 }) {
+  const financingConfig = getCheckoutFinancingConfig(provider);
+  const resolvedFinancingUrl =
+    financingUrl?.trim() || resolveProviderFinancingUrl(provider);
+
   const showNumbers =
     !hasUnknownPrices && Number.isFinite(totalAmount) && totalAmount > 0;
   const summaryLine = showNumbers
-    ? buildCheckoutFinancingExampleSummary(totalAmount)
+    ? buildCheckoutFinancingExampleSummary(totalAmount, financingConfig)
     : null;
   const monthlyEstimate = showNumbers
-    ? getFinancingMonthlyEstimate(totalAmount)
+    ? getFinancingMonthlyEstimate(totalAmount, financingConfig)
     : null;
 
   const treatmentsOnly = financingScope === "treatments_only";
-  const leadPayInFull =
-    "Pay in full at booking or ask about pay-over-time options.";
-  const leadTreatmentsOnly = FINANCING_TREATMENTS_ONLY_LEAD_NO_PRICES;
-  const noNumbersLeadLegacy =
-    variant === "pvb" && treatmentsOnly ? leadTreatmentsOnly : leadPayInFull;
-  const noNumbersLeadIntegrated =
-    integratedSurface === "pvb-drawer" && treatmentsOnly
-      ? leadTreatmentsOnly
-      : leadPayInFull;
+  const noNumbersLead = getFinancingLeadNoPrices(
+    financingConfig,
+    treatmentsOnly,
+  );
+  const noNumbersLeadLegacy = noNumbersLead;
+  const noNumbersLeadIntegrated = noNumbersLead;
 
   const integratedClass =
     integratedSurface === "quote-footer"
@@ -91,7 +98,7 @@ export function CheckoutFinancingSection({
         {showFinancingLink ? (
           <a
             className="treatment-plan-checkout-financing-integrated__link"
-            href={financingUrl}
+            href={resolvedFinancingUrl}
             target="_blank"
             rel="noreferrer"
             onClick={onFinancingLinkClick}
@@ -129,7 +136,7 @@ export function CheckoutFinancingSection({
       {showFinancingLink ? (
         <a
           className="treatment-plan-checkout-financing__link"
-          href={financingUrl}
+          href={resolvedFinancingUrl}
           target="_blank"
           rel="noreferrer"
           onClick={onFinancingLinkClick}

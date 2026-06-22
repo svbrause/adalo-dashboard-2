@@ -34,6 +34,12 @@ function isAuraPath(): boolean {
   return path === "/aura" || path === "/aura/face";
 }
 
+/** Legacy /clinic-scan/ links hit the SPA; redirect to the static scan app. */
+function isClinicScanSpaFallbackPath(): boolean {
+  const path = window.location.pathname.replace(/\/$/, "") || "/";
+  return path === "/clinic-scan";
+}
+
 /** Detect debug route from pathname or ?debug= (no provider required). */
 function getDebugRoute():
   | "index"
@@ -87,6 +93,12 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!isClinicScanSpaFallbackPath()) return;
+    const target = `/clinic-scan/index.html${window.location.search}${window.location.hash}`;
+    window.location.replace(target);
+  }, []);
+
+  useEffect(() => {
     const savedProvider = loadProviderInfo();
     if (savedProvider) {
       setProvider(savedProvider.info);
@@ -127,6 +139,10 @@ function AppContent() {
       setProvider(null);
     })();
   };
+
+  if (isClinicScanSpaFallbackPath()) {
+    return <div className="flex-center loading-screen">Loading scan...</div>;
+  }
 
   // Public standalone skin quiz (unique link from SMS) – no login
   if (isSkinQuizStandalonePath()) {

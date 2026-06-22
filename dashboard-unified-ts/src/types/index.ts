@@ -136,6 +136,27 @@ export interface AnalysisSeverityScoresData {
   issues: Record<string, AnalysisSeverityIssue>;
 }
 
+export interface ClientFacialAnalysisScan {
+  id?: string;
+  label?: string;
+  date?: string;
+  dateIso?: string;
+  scannedAt?: string;
+  createdAt?: string;
+  photoSlots?: ClientPhotoSlot[];
+  turntableVideoUrl?: string | null;
+  /** Patient Aura manifest payload when the API sends scan-specific generated assets. */
+  auraManifest?: any;
+  severityScores?: AnalysisSeverityScoresData | null;
+  severityScoresFromAnalyses?: AnalysisSeverityScoresData | null;
+  metrics?: Partial<
+    Record<
+      "pigmentation" | "redness" | "pores" | "wrinkles" | "volume" | "structure",
+      number
+    >
+  >;
+}
+
 /** Pre-generated OpenAI/Gemini copy for admin demo patients (skips live LLM in overview). */
 export interface DemoFacialAnalysisAi {
   overview: string;
@@ -226,6 +247,9 @@ export interface Client {
   auraManifestUrl?: string | null;
   /** Optional GCS/HTTPS prefix for the patient's Aura folder, e.g. `gs://bucket/aura/slug/`. */
   auraGcsPrefix?: string | null;
+  /** Optional historical scans for progress tracking and side-by-side comparison. */
+  facialAnalysisScans?: ClientFacialAnalysisScan[];
+  progressScans?: ClientFacialAnalysisScan[];
 }
 
 /** One selectable photo angle in the client detail face mirror. */

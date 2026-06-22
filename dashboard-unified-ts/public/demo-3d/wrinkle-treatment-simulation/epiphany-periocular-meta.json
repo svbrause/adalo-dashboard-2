@@ -1,0 +1,21 @@
+{
+  "source": "/Users/sambrause/.cursor/projects/Users-sambrause-Documents-GitHub-dashboard-unified-ts-merged/assets/wrinkles1_copy-5f2b23cc-0165-4133-af5a-f0a3d9ffd32c.png",
+  "pathCount": 7,
+  "mode": "combined",
+  "strength": 0.82,
+  "detection": {
+    "wrinklePathSource": "detected-creases-periocular-v3",
+    "roiSource": "eye-cascade",
+    "pathCount": 7,
+    "eyeBox": [
+      189,
+      103,
+      307,
+      286
+    ],
+    "outerCanthus": [
+      496,
+      207
+    ]
+  }
+}

@@ -5,7 +5,7 @@ Outputs under public/demo-3d/{slug}/:
   - {slug}-{angle}-rembg.png       — GrabCut background removal
   - {slug}-{angle}-color.png       — original angle still (when supplied)
   - {slug}-{angle}-texture.png     — clinical grayscale skin map
-  - {slug}-{angle}-pigmentation.png — clinical brown pigment map
+  - {slug}-{angle}-pigmentation.png — MediaPipe-masked clinical pigment map (Tanya manual pipeline)
   - {slug}-{angle}-redness-mask.png — granular red spot mask
   - {slug}-turntable-skin-gray.mp4
   - {slug}-turntable-pigmentation.mp4
@@ -17,13 +17,14 @@ from __future__ import annotations
 import importlib.util
 import json
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Callable
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -55,11 +56,13 @@ ANGLE_TIME_RATIOS: dict[str, float] = {
 
 MODAL_KEY_TO_ANGLE: dict[str, str] = {
     "front": "front",
+    # Aura rail labels are visual directions: the silhouette and photo point
+    # the same way on screen.
     "left90": "profile-left",
     "right90": "profile-right",
     "left45": "three-quarter-left",
     "right45": "three-quarter-right",
-    "side": "profile-right",
+    "side": "profile-left",
     "left": "profile-left",
     "right": "profile-right",
 }
@@ -79,10 +82,30 @@ _turntable = _load_module(
     "turntable_pigment",
     SCRIPT_DIR / "generate-turntable-pigmentation-video.py",
 )
+_wrinkle_crease = _load_module(
+    "wrinkle_crease_detect",
+    SCRIPT_DIR / "wrinkle_crease_detect.py",
+)
+_pigment_map = _load_module(
+    "pigment_map_pipeline",
+    SCRIPT_DIR / "generate-tanya-pigmentation-map.py",
+)
+_mp_wrinkles = _load_module(
+    "mediapipe_wrinkle_paths",
+    SCRIPT_DIR / "mediapipe_wrinkle_paths.py",
+)
 segment_person = _cv_assets.segment_person
+subject_mask = _turntable.subject_mask
+composite_matte = _turntable.composite_matte
 process_frame = _turntable.process_frame
 process_video = _turntable.process_video
 is_flat_studio_backdrop = _turntable.is_flat_studio_backdrop
+mediapipe_wrinkle_paths = _mp_wrinkles.mediapipe_wrinkle_paths
+mediapipe_structural_fold_paths = _mp_wrinkles.mediapipe_structural_fold_paths
+pigment_skin_mask = _pigment_map.skin_mask
+pigment_signal = _pigment_map.pigment_signal
+pigment_clinical_base = _pigment_map.clinical_base
+pigment_build_overlay = _pigment_map.build_overlay
 
 
 def slugify_client_name(name: str) -> str:
@@ -99,7 +122,7 @@ def decode_photo(data: bytes) -> np.ndarray:
     # receive when called locally on JPEG files (PIL vs OpenCV differ by 1-3 DN
     # per channel, which shifts percentile thresholds enough to change mask coverage).
     from io import BytesIO
-    img = Image.open(BytesIO(data)).convert("RGB")
+    img = ImageOps.exif_transpose(Image.open(BytesIO(data))).convert("RGB")
     return np.array(img)
 
 
@@ -280,10 +303,33 @@ def detail_preserving_alpha(rgb: np.ndarray, *, turntable_fast: bool = False) ->
     return cv2.GaussianBlur(alpha, (0, 0), 1.4).astype(np.uint8)
 
 
+def _rembg_alpha(rgb: np.ndarray) -> np.ndarray | None:
+    """Try rembg (deep-learning background removal). Returns alpha or None if unavailable."""
+    try:
+        import io
+        from rembg import remove
+        from PIL import Image as _PILImage
+        buf = io.BytesIO()
+        _PILImage.fromarray(rgb).save(buf, format="PNG")
+        result_bytes = remove(buf.getvalue())
+        result_rgba = np.array(_PILImage.open(io.BytesIO(result_bytes)).convert("RGBA"))
+        alpha = result_rgba[:, :, 3]
+        # Close small holes and smooth edges
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        alpha = cv2.morphologyEx(alpha, cv2.MORPH_CLOSE, kernel, iterations=1)
+        return cv2.GaussianBlur(alpha, (0, 0), 1.2).astype(np.uint8)
+    except Exception:
+        return None
+
+
 def aggressive_cutout_alpha(rgb: np.ndarray, *, turntable_fast: bool = False) -> np.ndarray:
-    """Solid matte for rembg / redness / pores — removes studio backdrop aggressively."""
+    """Solid matte — uses rembg (deep learning) when available, falls back to GrabCut."""
     if turntable_fast or _is_black_plate(rgb):
         return _luminance_alpha(rgb, fill_holes=True)
+
+    alpha = _rembg_alpha(rgb)
+    if alpha is not None:
+        return alpha
 
     bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
     alpha = fill_alpha_holes(segment_person(bgr, estimate_bbox(rgb)))
@@ -311,6 +357,136 @@ def clinical_still_rgb(
 ) -> np.ndarray:
     bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
     out_bgr = process_frame(bgr, palette, angle=angle, turntable_fast=turntable_fast)
+    return cv2.cvtColor(out_bgr, cv2.COLOR_BGR2RGB)
+
+
+def profile_pigment_boost_overlay(
+    rgb: np.ndarray,
+    alpha: np.ndarray,
+    *,
+    angle: str,
+) -> Image.Image | None:
+    """Add a profile-aware pigment heat layer when the MediaPipe skin mask under-reads side views."""
+    if not angle.startswith("profile"):
+        return None
+
+    h, w = rgb.shape[:2]
+    bbox = redness_face_bbox(rgb, alpha, angle)
+    x0, y0, x1, y1 = bbox
+    fw, fh = max(1, x1 - x0), max(1, y1 - y0)
+
+    skin = face_skin_mask(rgb, alpha, bbox)
+    roi = np.zeros((h, w), np.uint8)
+    if angle == "profile-right":
+        roi_x0 = x0 + int(0.04 * fw)
+        roi_x1 = x0 + int(0.82 * fw)
+        brow_exclusion = (
+            (x0 + int(0.48 * fw), y0 + int(0.20 * fh)),
+            (x1, y0 + int(0.42 * fh)),
+        )
+    else:
+        roi_x0 = x0 + int(0.18 * fw)
+        roi_x1 = x0 + int(0.96 * fw)
+        brow_exclusion = (
+            (x0, y0 + int(0.20 * fh)),
+            (x0 + int(0.52 * fw), y0 + int(0.42 * fh)),
+        )
+    cv2.rectangle(
+        roi,
+        (roi_x0, y0 + int(0.18 * fh)),
+        (roi_x1, y0 + int(0.88 * fh)),
+        255,
+        -1,
+    )
+    cv2.rectangle(roi, brow_exclusion[0], brow_exclusion[1], 0, -1)
+
+    edge_px = max(9, int(min(h, w) * 0.008))
+    if edge_px % 2 == 0:
+        edge_px += 1
+    eroded_alpha = cv2.erode(
+        (alpha > 40).astype(np.uint8) * 255,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (edge_px, edge_px)),
+        iterations=1,
+    )
+    valid = (skin > 0) & (roi > 0) & (eroded_alpha > 0)
+    if int(valid.sum()) < 800:
+        return None
+
+    lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB)
+    lightness = lab[:, :, 0].astype(np.float32)
+    a_chan = lab[:, :, 1].astype(np.float32)
+    b_chan = lab[:, :, 2].astype(np.float32)
+    local_lightness = cv2.GaussianBlur(lightness, (0, 0), 19)
+    local_dark = np.maximum(local_lightness - lightness, 0)
+
+    median_lightness = float(np.median(lightness[valid]))
+    median_a = float(np.median(a_chan[valid]))
+    median_b = float(np.median(b_chan[valid]))
+    score = (
+        0.78 * local_dark
+        + 0.28 * np.maximum(a_chan - median_a, 0)
+        + 0.14 * np.maximum(b_chan - median_b, 0)
+    )
+    score[lightness < median_lightness - 26] = 0
+    score[lightness > median_lightness + 60] = 0
+    score[~valid] = 0
+
+    valid_scores = score[valid]
+    low = float(np.percentile(valid_scores, 76))
+    high = float(np.percentile(valid_scores, 96))
+    if high <= low + 1e-3:
+        return None
+
+    pigment = np.clip((score - low) / (high - low), 0, 1)
+    pigment = cv2.morphologyEx(
+        np.clip(pigment * 255, 0, 255).astype(np.uint8),
+        cv2.MORPH_OPEN,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)),
+        iterations=1,
+    ).astype(np.float32) / 255.0
+    pigment = cv2.GaussianBlur(pigment, (0, 0), 1.15)
+
+    overlay = np.zeros((h, w, 4), np.uint8)
+    overlay[:, :, :3] = np.array([80, 48, 92], np.uint8)
+    overlay[:, :, 3] = np.clip(pigment * 165, 0, 165).astype(np.uint8)
+    if int((overlay[:, :, 3] > 12).sum()) < 80:
+        return None
+    return Image.fromarray(overlay, "RGBA")
+
+
+def pigmentation_photo_still_rgb(
+    rgb: np.ndarray,
+    alpha: np.ndarray,
+    *,
+    angle: str = "front",
+    turntable_fast: bool = False,
+) -> np.ndarray:
+    """Clinical pigment plate with an added side-view pigment boost for profile photos."""
+    mask = pigment_skin_mask(rgb)
+    diffuse, flecks = pigment_signal(rgb, mask)
+    src = Image.fromarray(rgb)
+    base = pigment_clinical_base(src, "gray")
+    overlay = pigment_build_overlay(diffuse, flecks, "gray")
+    composed_img = Image.alpha_composite(base, overlay)
+    profile_overlay = profile_pigment_boost_overlay(rgb, alpha, angle=angle)
+    if profile_overlay is not None:
+        composed_img = Image.alpha_composite(composed_img, profile_overlay)
+    composed = np.array(composed_img.convert("RGB"))
+
+    subj = subject_mask(rgb)
+    matte = composite_matte(rgb, subj, turntable_fast=turntable_fast)
+    return np.clip(composed.astype(np.float32) * matte[:, :, None], 0, 255).astype(np.uint8)
+
+
+def wrinkle_view_still_rgb(
+    rgb: np.ndarray,
+    *,
+    angle: str = "front",
+    turntable_fast: bool = False,
+) -> np.ndarray:
+    """Teal wrinkle lens still — same renderer as the turntable wrinkles video."""
+    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    out_bgr = process_frame(bgr, "wrinkles", angle=angle, turntable_fast=turntable_fast)
     return cv2.cvtColor(out_bgr, cv2.COLOR_BGR2RGB)
 
 
@@ -940,6 +1116,509 @@ def bake_pore_image(rgb: np.ndarray, pore_mask: np.ndarray) -> np.ndarray:
     return np.clip(result, 0, 255).astype(np.uint8)
 
 
+def _wrinkle_face_surface(rgb: np.ndarray, alpha: np.ndarray | None, angle: str) -> np.ndarray:
+    """Soft facial-skin field used to keep wrinkle heat off hair/beard/background."""
+    h, w = rgb.shape[:2]
+    matte = alpha if alpha is not None else np.full((h, w), 255, np.uint8)
+    x0, y0, x1, y1 = redness_face_bbox(rgb, matte, angle)
+    fw, fh = max(1, x1 - x0), max(1, y1 - y0)
+    yy, xx = np.mgrid[0:h, 0:w]
+    nx = (xx - x0) / fw
+    ny = (yy - y0) / fh
+    if angle == "front":
+        surface = 1 - _smoothstep(0.86, 1.07, ((nx - 0.50) / 0.45) ** 2 + ((ny - 0.55) / 0.56) ** 2)
+        surface *= _smoothstep(0.15, 0.23, nx) * (1 - _smoothstep(0.78, 0.86, nx))
+        surface *= _smoothstep(0.24, 0.31, ny) * (1 - _smoothstep(0.84, 0.94, ny))
+        eyes = _gaussian_2d(nx, ny, 0.35, 0.40, 0.13, 0.055) + _gaussian_2d(nx, ny, 0.65, 0.40, 0.13, 0.055)
+        lips = _gaussian_2d(nx, ny, 0.50, 0.70, 0.20, 0.050)
+        brows = _gaussian_2d(nx, ny, 0.35, 0.32, 0.15, 0.052) + _gaussian_2d(nx, ny, 0.65, 0.32, 0.15, 0.052)
+        surface *= 1 - np.clip(0.95 * eyes + 0.86 * lips + 0.92 * brows, 0, 0.97)
+    else:
+        surface = 1 - _smoothstep(0.82, 1.04, ((nx - 0.67) / 0.36) ** 2 + ((ny - 0.56) / 0.54) ** 2)
+        surface *= _smoothstep(0.24, 0.42, nx) * (1 - _smoothstep(0.86, 0.96, nx))
+        surface *= _smoothstep(0.18, 0.28, ny) * (1 - _smoothstep(0.83, 0.94, ny))
+        eyes = _gaussian_2d(nx, ny, 0.73, 0.40, 0.12, 0.055)
+        lips = _gaussian_2d(nx, ny, 0.80, 0.68, 0.15, 0.050)
+        surface *= 1 - np.clip(0.95 * eyes + 0.82 * lips, 0, 0.96)
+    return np.clip(surface, 0.0, 1.0).astype(np.float32)
+
+
+def _wrinkle_feature_exclusion_mask(nx: np.ndarray, ny: np.ndarray, angle: str) -> np.ndarray:
+    """Small display-only holes for facial features that should not receive wrinkle tint."""
+    if angle == "front":
+        eyes = _gaussian_2d(nx, ny, 0.35, 0.405, 0.110, 0.030) + _gaussian_2d(nx, ny, 0.65, 0.405, 0.110, 0.030)
+        brows = _gaussian_2d(nx, ny, 0.35, 0.323, 0.140, 0.024) + _gaussian_2d(nx, ny, 0.65, 0.323, 0.140, 0.024)
+        lips = _gaussian_2d(nx, ny, 0.50, 0.692, 0.225, 0.052) + _gaussian_2d(nx, ny, 0.50, 0.638, 0.180, 0.032)
+    else:
+        eyes = _gaussian_2d(nx, ny, 0.73, 0.405, 0.105, 0.030)
+        brows = _gaussian_2d(nx, ny, 0.73, 0.323, 0.130, 0.024)
+        lips = _gaussian_2d(nx, ny, 0.80, 0.688, 0.170, 0.052)
+    features = eyes + brows * 0.96 + lips * 0.92
+    return np.clip(_smoothstep(0.24, 0.62, features), 0.0, 1.0).astype(np.float32)
+
+
+_FACE_OVAL_INDICES = [
+    10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+    397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+    172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
+]
+
+
+def _wrinkle_face_oval_mask(
+    rgb: np.ndarray,
+    *,
+    fallback_bbox: tuple[int, int, int, int],
+) -> np.ndarray | None:
+    """Soft MediaPipe face-oval mask for the display overlay boundary."""
+    lm = _mp_wrinkles._landmarks_on_image(rgb, fallback_bbox)
+    if lm is None:
+        return None
+    h, w = rgb.shape[:2]
+    pts = []
+    for idx in _FACE_OVAL_INDICES:
+        if idx >= len(lm):
+            return None
+        pts.append([float(lm[idx].x * w), float(lm[idx].y * h)])
+    pts_arr = np.asarray(pts, np.float32)
+    min_y = float(pts_arr[:, 1].min())
+    max_y = float(pts_arr[:, 1].max())
+    center_y = float(np.median(pts_arr[:, 1]))
+    center_x = float(np.median(pts_arr[:, 0]))
+    face_h = max(1.0, max_y - min_y)
+    upper_span = max(1.0, center_y - min_y)
+    lower_span = max(1.0, max_y - center_y)
+    for point in pts_arr:
+        top_t = np.clip((center_y - point[1]) / upper_span, 0.0, 1.0)
+        bottom_t = np.clip((point[1] - center_y) / lower_span, 0.0, 1.0)
+        point[1] -= face_h * 0.055 * (top_t ** 1.7)
+        point[1] += face_h * 0.026 * (bottom_t ** 2.2)
+        point[0] += (center_x - point[0]) * 0.030 * (bottom_t ** 1.4)
+    pts_arr[:, 0] = np.clip(pts_arr[:, 0], 0, w - 1)
+    pts_arr[:, 1] = np.clip(pts_arr[:, 1], 0, h - 1)
+    mask = np.zeros((h, w), np.uint8)
+    cv2.fillPoly(mask, [np.rint(pts_arr).astype(np.int32)], 255)
+    dilate_size = max(3, int(min(h, w) * 0.0025))
+    if dilate_size % 2 == 0:
+        dilate_size += 1
+    mask = cv2.dilate(
+        mask,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size)),
+        iterations=1,
+    )
+    return cv2.GaussianBlur(
+        mask.astype(np.float32) / 255.0,
+        (0, 0),
+        max(1.2, min(h, w) * 0.004),
+    )
+
+
+def _facial_hair_exclusion(
+    rgb: np.ndarray,
+    alpha: np.ndarray | None,
+    *,
+    angle: str,
+    face_surface: np.ndarray,
+    gray: np.ndarray,
+    sat: np.ndarray,
+    val: np.ndarray,
+) -> np.ndarray:
+    """Soft mask for mustache/beard texture inside the lower facial-skin field."""
+    h, w = rgb.shape[:2]
+    person = alpha if alpha is not None else np.full((h, w), 255, np.uint8)
+    x0, y0, x1, y1 = redness_face_bbox(rgb, person, angle)
+    fw, fh = max(1, x1 - x0), max(1, y1 - y0)
+    yy, xx = np.mgrid[0:h, 0:w]
+    nx = (xx - x0) / fw
+    ny = (yy - y0) / fh
+    lower_chin_zone = np.zeros((h, w), np.float32)
+
+    if angle == "front":
+        moustache = (
+            _smoothstep(0.50, 0.57, ny)
+            * (1 - _smoothstep(0.67, 0.76, ny))
+            * _smoothstep(0.24, 0.34, nx)
+            * (1 - _smoothstep(0.66, 0.76, nx))
+        )
+        chin = (
+            _smoothstep(0.68, 0.75, ny)
+            * (1 - _smoothstep(0.89, 0.98, ny))
+            * _smoothstep(0.24, 0.35, nx)
+            * (1 - _smoothstep(0.65, 0.76, nx))
+        )
+        lower_chin_zone = (
+            _smoothstep(0.80, 0.88, ny)
+            * (1 - _smoothstep(1.00, 1.08, ny))
+            * _smoothstep(0.26, 0.36, nx)
+            * (1 - _smoothstep(0.64, 0.74, nx))
+        ).astype(np.float32)
+        jaw = (
+            _smoothstep(0.66, 0.75, ny)
+            * (1 - _smoothstep(0.89, 0.98, ny))
+            * (
+                _smoothstep(0.10, 0.20, nx) * (1 - _smoothstep(0.34, 0.45, nx))
+                + _smoothstep(0.55, 0.66, nx) * (1 - _smoothstep(0.80, 0.90, nx))
+            )
+        )
+        zone = np.clip(moustache + chin + lower_chin_zone * 1.12 + jaw * 0.72, 0.0, 1.0)
+        lip_hole = (
+            _smoothstep(0.62, 0.68, ny)
+            * (1 - _smoothstep(0.75, 0.82, ny))
+            * _smoothstep(0.32, 0.40, nx)
+            * (1 - _smoothstep(0.60, 0.68, nx))
+        )
+        zone = np.clip(zone * (1.0 - lip_hole * 0.98), 0.0, 1.0)
+    else:
+        zone = (
+            _smoothstep(0.54, 0.64, ny)
+            * (1 - _smoothstep(0.90, 0.99, ny))
+            * _smoothstep(0.30, 0.44, nx)
+            * (1 - _smoothstep(0.88, 0.98, nx))
+        )
+
+    reference = (face_surface > 0.18) & (person > 40) & (sat > 8) & (val > 50)
+    dark_cutoff = 124
+    if int(reference.sum()) > 300:
+        dark_cutoff = int(np.clip(np.percentile(val[reference], 48) - 24, 86, 156))
+
+    hair_binary = (
+        (zone > 0.10)
+        & (person > 40)
+        & (val < dark_cutoff)
+        & (gray < dark_cutoff)
+        & (sat < 150)
+    ).astype(np.uint8)
+
+    if int(hair_binary.sum()) < 12:
+        return np.zeros((h, w), np.float32)
+    zone_area = max(1, int(((zone > 0.08) & (face_surface > 0.08) & (person > 40)).sum()))
+    hair_presence = float(hair_binary.sum()) / float(zone_area)
+    lower_chin_area = max(1, int(((lower_chin_zone > 0.08) & (face_surface > 0.08) & (person > 40)).sum()))
+    lower_chin_presence = float(((hair_binary > 0) & (lower_chin_zone > 0.08)).sum()) / float(lower_chin_area)
+
+    kernel_size = max(9, int(min(h, w) * 0.014))
+    if kernel_size % 2 == 0:
+        kernel_size += 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    hair_binary = cv2.morphologyEx(hair_binary, cv2.MORPH_CLOSE, kernel, iterations=1)
+    hair_binary = cv2.dilate(hair_binary, kernel, iterations=2)
+    soft = cv2.GaussianBlur(hair_binary.astype(np.float32), (0, 0), max(2.4, kernel_size * 1.10))
+    broad_zone = zone * float(_smoothstep(0.010, 0.045, np.array(hair_presence, dtype=np.float32)))
+    lower_chin_suppress = lower_chin_zone * float(_smoothstep(0.006, 0.022, np.array(lower_chin_presence, dtype=np.float32)))
+    return np.clip(
+        np.maximum(np.maximum(soft, broad_zone * 0.92), lower_chin_suppress * 0.98)
+        * zone
+        * face_surface,
+        0.0,
+        1.0,
+    ).astype(np.float32)
+
+
+def _clean_wrinkle_skin_mask(
+    rgb: np.ndarray,
+    alpha: np.ndarray | None,
+    *,
+    angle: str,
+) -> np.ndarray:
+    """Face-skin mask for wrinkle heatmaps; suppresses hair, beard, dark features, background."""
+    h, w = rgb.shape[:2]
+    person = alpha if alpha is not None else np.full((h, w), 255, np.uint8)
+    skin = _wrinkle_crease._build_skin_mask(rgb, person)
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    hue, sat, val = cv2.split(hsv)
+    seed = (skin > 0) & (val > 45) & (sat > 8) & ((hue < 32) | (hue > 164))
+    skin_val_floor = 58
+    if int(seed.sum()) > 200:
+        skin_val_floor = max(45, int(np.percentile(val[seed], 45)) - 55)
+    plausible_skin = (
+        (val > skin_val_floor)
+        & (val < 246)
+        & (sat > 10)
+        & (sat < 108)
+        & ((hue < 30) | (hue > 166))
+        & (gray > skin_val_floor)
+    ).astype(np.uint8) * 255
+    face_surface = _wrinkle_face_surface(rgb, alpha, angle)
+    mask = cv2.bitwise_and(skin, plausible_skin)
+
+    n, labels, stats, _ = cv2.connectedComponentsWithStats((mask > 0).astype(np.uint8), 8)
+    if n > 1:
+        min_area = max(220, int(h * w * 0.006))
+        keep = np.zeros((h, w), np.uint8)
+        for idx in np.argsort(stats[1:, cv2.CC_STAT_AREA])[::-1] + 1:
+            if int(stats[idx, cv2.CC_STAT_AREA]) < min_area:
+                continue
+            keep[labels == idx] = 255
+            if int(keep.sum() / 255) > h * w * 0.10:
+                break
+        if int(keep.sum()) > 0:
+            mask = keep
+
+    mask = cv2.morphologyEx(
+        mask,
+        cv2.MORPH_CLOSE,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13)),
+        iterations=1,
+    )
+    mask = cv2.morphologyEx(
+        mask,
+        cv2.MORPH_OPEN,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)),
+        iterations=1,
+    )
+    soft_mask = cv2.GaussianBlur(mask.astype(np.float32) / 255.0, (0, 0), 2.2) * face_surface
+    facial_hair = _facial_hair_exclusion(
+        rgb,
+        alpha,
+        angle=angle,
+        face_surface=face_surface,
+        gray=gray,
+        sat=sat,
+        val=val,
+    )
+    return np.clip(soft_mask * (1.0 - facial_hair * 0.94), 0.0, 1.0)
+
+
+def _path_center_viewbox(path: list[list[float]]) -> tuple[float, float]:
+    return (
+        sum(point[0] for point in path) / max(len(path), 1),
+        sum(point[1] for point in path) / max(len(path), 1),
+    )
+
+
+def _path_length_viewbox(path: list[list[float]]) -> float:
+    if len(path) < 2:
+        return 0.0
+    return float(
+        sum(
+            ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5
+            for a, b in zip(path[:-1], path[1:])
+        )
+    )
+
+
+def _upper_face_detected_wrinkle_paths(
+    paths: list[list[list[float]]],
+    *,
+    angle: str,
+) -> list[list[list[float]]]:
+    """Keep only detected forehead / periocular creases for the baked wrinkle view."""
+    kept: list[list[list[float]]] = []
+    for path in paths:
+        if len(path) < 2:
+            continue
+        xs = [point[0] for point in path]
+        ys = [point[1] for point in path]
+        cx, cy = _path_center_viewbox(path)
+        length = _path_length_viewbox(path)
+        extent = max(max(xs) - min(xs), max(ys) - min(ys))
+        if length < 1.15 or extent < 0.75:
+            continue
+        if cy < 18 or cy > 54:
+            continue
+        if max(ys) > 60:
+            continue
+        # Avoid nose / upper-lip texture sneaking into the "upper face" bucket.
+        if cy > 50 and 40 <= cx <= 60:
+            continue
+        if angle.startswith("profile") and cy > 57:
+            continue
+        kept.append(path)
+    return kept[:14]
+
+
+def _dedupe_wrinkle_paths(
+    paths: list[list[list[float]]],
+    *,
+    min_dist: float = 1.15,
+) -> list[list[list[float]]]:
+    kept: list[list[list[float]]] = []
+    for path in paths:
+        if len(path) < 2:
+            continue
+        cx, cy = _path_center_viewbox(path)
+        if any(
+            (cx - _path_center_viewbox(other)[0]) ** 2
+            + (cy - _path_center_viewbox(other)[1]) ** 2
+            < min_dist ** 2
+            for other in kept
+        ):
+            continue
+        kept.append(path)
+    return kept
+
+
+def _wrinkle_bake_guides(
+    detected_paths: list[list[list[float]]],
+    fold_guides: list[list[list[float]]],
+    *,
+    angle: str,
+) -> list[list[list[float]]]:
+    upper_detected = _upper_face_detected_wrinkle_paths(detected_paths, angle=angle)
+    return _dedupe_wrinkle_paths([*fold_guides, *upper_detected], min_dist=1.05)
+
+
+def bake_wrinkle_heatmap_image(
+    rgb: np.ndarray,
+    alpha: np.ndarray | None,
+    *,
+    angle: str,
+    paths: list[list[list[float]]] | None = None,
+) -> np.ndarray:
+    """Bake a soft wrinkle texture overlay, excluding only eyes, brows, and lips."""
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    response = _wrinkle_crease._crease_response(gray, "any").astype(np.float32)
+    h, w = gray.shape
+
+    person = (
+        alpha.astype(np.float32) / 255.0
+        if alpha is not None
+        else np.ones((h, w), np.float32)
+    )
+    x0, y0, x1, y1 = redness_face_bbox(
+        rgb,
+        alpha if alpha is not None else np.full((h, w), 255, np.uint8),
+        angle,
+    )
+    fw, fh = max(1, x1 - x0), max(1, y1 - y0)
+    yy, xx = np.mgrid[0:h, 0:w]
+    nx = (xx - x0) / fw
+    ny = (yy - y0) / fh
+    if angle == "front":
+        half_width = np.interp(
+            ny,
+            [-0.02, 0.07, 0.22, 0.50, 0.72, 0.90, 1.03],
+            [0.22, 0.34, 0.42, 0.46, 0.38, 0.25, 0.10],
+        )
+        side = 1 - _smoothstep(0.96, 1.08, np.abs(nx - 0.50) / np.maximum(half_width, 0.05))
+        vertical = _smoothstep(0.015, 0.075, ny) * (1 - _smoothstep(0.985, 1.060, ny))
+        lens_surface = side * vertical
+    else:
+        center_x = 0.66
+        half_width = np.interp(
+            ny,
+            [-0.02, 0.08, 0.24, 0.52, 0.76, 0.94, 1.04],
+            [0.14, 0.25, 0.33, 0.38, 0.31, 0.18, 0.08],
+        )
+        side = 1 - _smoothstep(0.96, 1.08, np.abs(nx - center_x) / np.maximum(half_width, 0.05))
+        vertical = _smoothstep(0.010, 0.075, ny) * (1 - _smoothstep(0.985, 1.060, ny))
+        lens_surface = side * vertical
+    lens_surface = np.clip(lens_surface * person, 0.0, 1.0).astype(np.float32)
+
+    face_oval = _wrinkle_face_oval_mask(rgb, fallback_bbox=(x0, y0, x1 - x0, y1 - y0))
+    if face_oval is None:
+        person_u8 = np.clip(person * 255, 0, 255).astype(np.uint8)
+        skin_seed = _wrinkle_crease._build_skin_mask(rgb, person_u8)
+        skin_seed = ((skin_seed > 0) & (lens_surface > 0.08)).astype(np.uint8) * 255
+        close_size = max(11, int(min(h, w) * 0.020))
+        if close_size % 2 == 0:
+            close_size += 1
+        close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size))
+        skin_seed = cv2.morphologyEx(skin_seed, cv2.MORPH_CLOSE, close_kernel, iterations=2)
+        contours, _hierarchy = cv2.findContours(skin_seed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        skin_face = np.zeros((h, w), np.uint8)
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(largest) > h * w * 0.006:
+                cv2.drawContours(skin_face, [largest], -1, 255, thickness=cv2.FILLED)
+        if int(skin_face.sum()) == 0:
+            skin_face = skin_seed
+        face_oval = cv2.GaussianBlur(
+            skin_face.astype(np.float32) / 255.0,
+            (0, 0),
+            max(1.8, min(h, w) * 0.006),
+        )
+
+    face_only = np.minimum(lens_surface, np.clip(face_oval * 1.08, 0.0, 1.0))
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    _hue, sat, val = cv2.split(hsv)
+    facial_hair = _facial_hair_exclusion(
+        rgb,
+        alpha,
+        angle=angle,
+        face_surface=face_only,
+        gray=gray,
+        sat=sat,
+        val=val,
+    )
+    feature_exclusion = _wrinkle_feature_exclusion_mask(nx, ny, angle)
+    analysis_mask = np.clip(
+        face_only * (1.0 - feature_exclusion) * (1.0 - facial_hair * 0.98),
+        0.0,
+        1.0,
+    )
+
+    path_boost = np.zeros((h, w), np.float32)
+    boost_stroke = max(14, int(min(h, w) * 0.030))
+    path_core = np.zeros((h, w), np.float32)
+    core_stroke = max(3, int(min(h, w) * 0.006))
+    for path in paths or []:
+        xs = [point[0] for point in path]
+        ys = [point[1] for point in path]
+        extent = max(max(xs) - min(xs), max(ys) - min(ys)) if xs and ys else 0.0
+        if _path_length_viewbox(path) < 2.6 or extent < 1.35:
+            continue
+        pts = np.array(
+            [[round(x / 100.0 * w), round(y / 100.0 * h)] for x, y in path],
+            dtype=np.int32,
+        )
+        if len(pts) >= 2:
+            cv2.polylines(path_boost, [pts], False, 1.0, boost_stroke, cv2.LINE_AA)
+            cv2.polylines(path_core, [pts], False, 1.0, core_stroke, cv2.LINE_AA)
+    if path_boost.max() > 0:
+        dilate_size = max(7, int(min(h, w) * 0.016))
+        if dilate_size % 2 == 0:
+            dilate_size += 1
+        path_boost = cv2.dilate(
+            (path_boost > 0.02).astype(np.uint8),
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size)),
+            iterations=1,
+        ).astype(np.float32)
+        path_boost = cv2.GaussianBlur(path_boost, (0, 0), max(2.0, boost_stroke * 0.42))
+        path_boost = np.clip(path_boost, 0.0, 1.0)
+        path_core = cv2.GaussianBlur(path_core, (0, 0), max(0.9, core_stroke * 0.42))
+        path_core = np.clip(path_core, 0.0, 1.0)
+
+    valid = analysis_mask > 0.12
+    if int(valid.sum()) < 400:
+        return np.zeros_like(rgb)
+
+    def normalize_masked(values: np.ndarray, mask: np.ndarray, lo_pct: float, hi_pct: float) -> np.ndarray:
+        if int(mask.sum()) < 100:
+            return np.zeros_like(values, dtype=np.float32)
+        lo = float(np.percentile(values[mask], lo_pct))
+        hi = float(np.percentile(values[mask], hi_pct))
+        return np.clip((values - lo) / max(hi - lo, 1.0), 0.0, 1.0).astype(np.float32)
+
+    ridge = normalize_masked(response, valid, 18, 99.20)
+
+    smooth = cv2.GaussianBlur(gray, (0, 0), 2.4)
+    fine_texture = cv2.absdiff(gray, smooth).astype(np.float32)
+    texture = normalize_masked(fine_texture, valid, 42, 99.25)
+
+    ridge_gate = np.clip((ridge - 0.06) / 0.52, 0.0, 1.0)
+    soft_texture = cv2.GaussianBlur(texture * analysis_mask, (0, 0), 1.15)
+    guide_lift = np.clip(path_boost * 0.20 + path_core * 0.28, 0.0, 0.34) * analysis_mask
+    heat = np.clip((ridge ** 0.78) * 1.08 + (soft_texture ** 0.88) * 0.42, 0.0, 1.0)
+    heat = np.clip(heat + guide_lift, 0.0, 1.0)
+    if path_boost.max() > 0:
+        heat = heat * np.clip(analysis_mask * 0.92 + path_boost * analysis_mask * 0.16, 0.0, 1.0)
+    else:
+        heat = heat * ridge_gate
+    heat = np.where(heat > 0.025, heat, 0.0)
+    heat = cv2.GaussianBlur(heat * analysis_mask, (0, 0), 0.78)
+    heat = np.clip(heat * 1.50, 0.0, 1.0)
+
+    severity = np.clip(heat ** 0.86, 0.0, 1.0)
+    visible_signal = _smoothstep(0.42, 0.84, severity)
+    heat_rgb = np.array([88.0, 161.0, 147.0], dtype=np.float32)
+    base = rgb.astype(np.float32)
+    base = base * (1.0 - np.clip(visible_signal * 0.075, 0.0, 0.075)[..., None])
+    alpha_map = np.clip((visible_signal ** 0.74) * 0.76, 0.0, 0.76)[..., None]
+    out = base * (1.0 - alpha_map) + heat_rgb * alpha_map
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
 def build_cv_annotations(
     angle_images: dict[str, np.ndarray],
     angle_alphas: dict[str, np.ndarray],
@@ -953,6 +1632,8 @@ def build_cv_annotations(
     red_spots: dict[str, list[dict[str, float]]] = {}
     red_masks: dict[str, str] = {}
     pore_masks: dict[str, str] = {}
+    wrinkles_by_angle: dict[str, list[list[list[float]]]] = {}
+    wrinkle_guides_by_angle: dict[str, list[list[list[float]]]] = {}
     all_pores: list[dict[str, float]] = []
     for angle in ANGLES:
         rgb = angle_images.get(angle)
@@ -961,6 +1642,32 @@ def build_cv_annotations(
         if rgb is None:
             continue
         alpha_mask = alpha if alpha is not None else np.zeros((rgb.shape[0], rgb.shape[1]), np.uint8)
+        ih, iw = rgb.shape[:2]
+        bbox = redness_face_bbox(rgb, alpha_mask, angle)
+        wrinkle_paths, _wrinkle_source = mediapipe_wrinkle_paths(
+            rgb,
+            angle,
+            iw,
+            ih,
+            fallback_bbox=bbox,
+            alpha=alpha_mask,
+        )
+        if wrinkle_paths:
+            wrinkles_by_angle[angle] = wrinkle_paths
+        fold_guides, _fold_source = mediapipe_structural_fold_paths(
+            rgb,
+            angle,
+            iw,
+            ih,
+            fallback_bbox=bbox,
+        )
+        bake_guides = _wrinkle_bake_guides(
+            wrinkle_paths,
+            fold_guides,
+            angle=angle,
+        )
+        if bake_guides:
+            wrinkle_guides_by_angle[angle] = bake_guides
         spots = detect_pigment_spots(rgb, alpha_mask, angle=angle)
         if spots:
             dark_spots[angle] = spots
@@ -968,13 +1675,14 @@ def build_cv_annotations(
         if red:
             red_spots[angle] = red
         if target_dir is not None and slug is not None and not skip_mask_files:
-            # Masks don't use background removal — pass alpha=None to use full-image skin detection.
+            # Redness can use full-image skin detection, but pores need the
+            # subject matte so profile crops do not use the whole photo bounds.
             red_mask = render_redness_mask(rgb, angle=angle, spots=red)
             if int((red_mask[:, :, 3] > 6).sum()) > 100:
                 mask_path = target_dir / f"{slug}-{angle}-redness-mask.png"
                 save_rgba_png(red_mask, mask_path)
                 red_masks[angle] = f"/demo-3d/{slug}/{mask_path.name}"
-            pore_mask = render_pore_mask(rgb, angle=angle)
+            pore_mask = render_pore_mask(rgb, alpha_mask, angle=angle)
             if int((pore_mask[:, :, 3] > 6).sum()) > 100:
                 pmask_path = target_dir / f"{slug}-{angle}-pore-mask.png"
                 save_rgba_png(pore_mask, pmask_path)
@@ -986,6 +1694,8 @@ def build_cv_annotations(
         "wrinkles": [],
         "volume": [],
         "redAreas": [],
+        "wrinklesByAngle": wrinkles_by_angle,
+        "wrinkleGuidesByAngle": wrinkle_guides_by_angle,
         "redMaskByAngle": red_masks,
         "poreMaskByAngle": pore_masks,
         "redSpotsByAngle": red_spots,
@@ -1010,7 +1720,7 @@ def _downscale_rgb(rgb: np.ndarray, max_dim: int = 1024) -> np.ndarray:
 def generate_aura_assets(
     *,
     slug: str,
-    turntable_video_path: Path,
+    turntable_video_path: Path | None,
     photo_bytes: dict[str, bytes] | None = None,
     turntable_video_url: str | None = None,
     skip_videos: bool = False,
@@ -1032,7 +1742,7 @@ def generate_aura_assets(
     photo_angles = photo_sourced_angles(photo_bytes)
     angle_images = map_photos_to_angles(photo_bytes)
     for angle in ANGLES:
-        if angle not in angle_images:
+        if angle not in angle_images and turntable_video_path is not None:
             angle_images[angle] = extract_frame_at_ratio(
                 turntable_video_path,
                 ANGLE_TIME_RATIOS[angle],
@@ -1045,21 +1755,16 @@ def generate_aura_assets(
     angle_alphas: dict[str, np.ndarray] = {}
     angle_textures: dict[str, np.ndarray] = {}
     angles_manifest: dict[str, Any] = {}
-    for index, angle in enumerate(ANGLES):
-        report(
-            0.93 + 0.03 * (index / max(len(ANGLES), 1)),
-            f"Generating skin maps ({ANGLE_LABELS[angle]})…",
-        )
+
+    report(0.93, "Generating skin maps…")
+
+    def _process_angle_still(angle: str) -> tuple[str, np.ndarray, np.ndarray, dict[str, Any]]:
         rgb = angle_images[angle]
         turntable_sourced = angle not in photo_angles
         cutout_alpha = aggressive_cutout_alpha(rgb, turntable_fast=turntable_sourced)
         detail_alpha = detail_preserving_alpha(rgb, turntable_fast=turntable_sourced)
         rgba = np.dstack([rgb, cutout_alpha])
-        texture_rgb = clinical_still_rgb(
-            rgb, "gray", angle=angle, turntable_fast=turntable_sourced
-        )
-        angle_alphas[angle] = cutout_alpha
-        angle_textures[angle] = texture_rgb
+        texture_rgb = clinical_still_rgb(rgb, "gray", angle=angle, turntable_fast=turntable_sourced)
 
         color_path = target_dir / f"{slug}-{angle}-color.png"
         rembg_path = target_dir / f"{slug}-{angle}-rembg.png"
@@ -1071,22 +1776,23 @@ def generate_aura_assets(
         save_rgb_png(rgb, color_path)
         save_rgba_png(rgba, rembg_path)
         save_rgb_png(texture_rgb, texture_path)
-        save_rgba_png(
-            rgba_from_rgb_alpha(texture_rgb, detail_alpha, fill_holes=False),
-            texture_cutout_path,
+        save_rgba_png(rgba_from_rgb_alpha(texture_rgb, detail_alpha, fill_holes=False), texture_cutout_path)
+        # Static diagnostic photos use the Tanya manual pigment pipeline (MediaPipe
+        # skin mask + diffuse/fleck overlay). Turntable video keeps frame-by-frame
+        # encode via process_frame.
+        pigment_rgb = pigmentation_photo_still_rgb(
+            rgb,
+            cutout_alpha,
+            angle=angle,
+            turntable_fast=turntable_sourced,
         )
-        pigment_rgb = clinical_still_rgb(
-            rgb, "brown", angle=angle, turntable_fast=turntable_sourced
-        )
-        save_rgb_png(
-            pigment_rgb,
-            pigment_path,
-        )
+        save_rgb_png(pigment_rgb, pigment_path)
         save_rgba_png(rgba_from_rgb_alpha(pigment_rgb, cutout_alpha), pigment_cutout_path)
 
         base = f"/demo-3d/{slug}"
-        angles_manifest[angle] = {
+        return angle, cutout_alpha, texture_rgb, {
             "src": f"{base}/{rembg_path.name}",
+            "srcCutout": f"{base}/{rembg_path.name}",
             "srcOriginal": f"{base}/{color_path.name}",
             "srcTexture": f"{base}/{texture_cutout_path.name}",
             "srcPigmentation": f"{base}/{pigment_cutout_path.name}",
@@ -1094,6 +1800,13 @@ def generate_aura_assets(
             "label": ANGLE_LABELS[angle],
             "fromPhoto": angle in photo_angles,
         }
+
+    angles_to_process = [a for a in ANGLES if a in angle_images]
+    with ThreadPoolExecutor(max_workers=max(len(angles_to_process), 1)) as pool:
+        for angle, cutout_alpha, texture_rgb, manifest_entry in pool.map(_process_angle_still, angles_to_process):
+            angle_alphas[angle] = cutout_alpha
+            angle_textures[angle] = texture_rgb
+            angles_manifest[angle] = manifest_entry
 
     report(0.965, "Detecting skin features…")
     cv_annotations = build_cv_annotations(
@@ -1109,51 +1822,80 @@ def generate_aura_assets(
     # dashboard can display full-quality composites without CSS blend-mode tricks.
     if not scan_optimized:
         report(0.968, "Baking skin analysis stills…")
-        for angle in ANGLES:
+
+        def _bake_angle_stills(angle: str) -> dict[str, str]:
             rgb = angle_images.get(angle)
-            texture = angle_textures.get(angle)
             if rgb is None or target_dir is None:
-                continue
+                return {}
             red_mask_path = target_dir / f"{slug}-{angle}-redness-mask.png"
             pore_mask_path = target_dir / f"{slug}-{angle}-pore-mask.png"
             base = f"/demo-3d/{slug}"
+            turntable_sourced = angle not in photo_angles
+            wrinkle_paths = (
+                cv_annotations.get("wrinkleGuidesByAngle", {}).get(angle)
+                if isinstance(cv_annotations.get("wrinkleGuidesByAngle"), dict)
+                else None
+            ) or (
+                cv_annotations.get("wrinklesByAngle", {}).get(angle)
+                if isinstance(cv_annotations.get("wrinklesByAngle"), dict)
+                else []
+            )
+            baked_w = bake_wrinkle_heatmap_image(
+                rgb,
+                angle_alphas.get(angle),
+                angle=angle,
+                paths=wrinkle_paths,
+            )
+            baked_w_path = target_dir / f"{slug}-{angle}-wrinkles-view.png"
+            save_rgba_png(rgba_from_rgb_alpha(baked_w, angle_alphas[angle]), baked_w_path)
+            updates: dict[str, str] = {"srcWrinklesView": f"{base}/{baked_w_path.name}"}
             if red_mask_path.exists():
                 red_mask = np.array(Image.open(red_mask_path).convert("RGBA"))
                 baked_r = bake_redness_image(rgb, red_mask)
                 baked_r_path = target_dir / f"{slug}-{angle}-redness-cutout.png"
                 save_rgba_png(rgba_from_rgb_alpha(baked_r, angle_alphas[angle]), baked_r_path)
-                angles_manifest[angle]["srcRedness"] = f"{base}/{baked_r_path.name}"
+                updates["srcRedness"] = f"{base}/{baked_r_path.name}"
             if pore_mask_path.exists():
                 pore_mask = np.array(Image.open(pore_mask_path).convert("RGBA"))
                 baked_p = bake_pore_image(rgb, pore_mask)
                 baked_p_path = target_dir / f"{slug}-{angle}-pores-cutout.png"
                 save_rgba_png(rgba_from_rgb_alpha(baked_p, angle_alphas[angle]), baked_p_path)
-                angles_manifest[angle]["srcPores"] = f"{base}/{baked_p_path.name}"
+                updates["srcPores"] = f"{base}/{baked_p_path.name}"
+            return updates
 
-    available_view_angles = photo_angles if photo_angles else ANGLES
+        with ThreadPoolExecutor(max_workers=max(len(angles_to_process), 1)) as pool:
+            for angle, updates in zip(angles_to_process, pool.map(_bake_angle_stills, angles_to_process)):
+                angles_manifest[angle].update(updates)
 
-    turntable_ref = turntable_video_url or f"/demo-3d/{turntable_video_path.name}"
+    available_view_angles = photo_angles if photo_angles else angles_to_process
+
+    turntable_ref = (
+        turntable_video_url
+        or (f"/demo-3d/{turntable_video_path.name}" if turntable_video_path is not None else None)
+    )
+    skip_videos = skip_videos or turntable_video_path is None
     gray_video = target_dir / f"{slug}-turntable-skin-gray.mp4"
     brown_video = target_dir / f"{slug}-turntable-pigmentation.mp4"
     redness_video = target_dir / f"{slug}-turntable-redness.mp4"
     pores_video = target_dir / f"{slug}-turntable-pores.mp4"
     wrinkles_video = target_dir / f"{slug}-turntable-wrinkles.mp4"
     if not skip_videos:
-        report(0.975, "Encoding texture turntable…")
-        print(f"[aura] Processing skin-gray turntable for {slug}…", flush=True)
-        process_video(turntable_video_path, gray_video, "gray", ping_pong=True)
-        report(0.980, "Encoding pigmentation turntable…")
-        print(f"[aura] Processing pigmentation turntable for {slug}…", flush=True)
-        process_video(turntable_video_path, brown_video, "brown", ping_pong=True)
-        report(0.983, "Encoding redness turntable…")
-        print(f"[aura] Processing redness turntable for {slug}…", flush=True)
-        process_video(turntable_video_path, redness_video, "redness", ping_pong=True)
-        report(0.987, "Encoding pores turntable…")
-        print(f"[aura] Processing pores turntable for {slug}…", flush=True)
-        process_video(turntable_video_path, pores_video, "pores", ping_pong=True)
-        report(0.990, "Encoding wrinkles turntable…")
-        print(f"[aura] Processing wrinkles turntable for {slug}…", flush=True)
-        process_video(turntable_video_path, wrinkles_video, "wrinkles", ping_pong=True)
+        report(0.975, "Encoding skin map turntables…")
+        print(f"[aura] Processing 5 turntable palettes in parallel for {slug}…", flush=True)
+        video_tasks = [
+            (turntable_video_path, gray_video, "gray"),
+            (turntable_video_path, brown_video, "brown"),
+            (turntable_video_path, redness_video, "redness"),
+            (turntable_video_path, pores_video, "pores"),
+            (turntable_video_path, wrinkles_video, "wrinkles"),
+        ]
+        with ThreadPoolExecutor(max_workers=len(video_tasks)) as pool:
+            futures = {
+                pool.submit(process_video, src, dst, palette, ping_pong=True): palette
+                for src, dst, palette in video_tasks
+            }
+            for fut in as_completed(futures):
+                fut.result()
 
     base = f"/demo-3d/{slug}"
     manifest: dict[str, Any] = {

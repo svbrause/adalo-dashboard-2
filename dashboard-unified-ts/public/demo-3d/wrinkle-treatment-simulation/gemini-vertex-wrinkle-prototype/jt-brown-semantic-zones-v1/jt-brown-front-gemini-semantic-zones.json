@@ -1,0 +1,488 @@
+{
+  "include_zones": [
+    {
+      "kind": "wrinkle_candidate_skin",
+      "label": "forehead and glabella skin",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 260,
+          "y": 140
+        },
+        {
+          "x": 740,
+          "y": 140
+        },
+        {
+          "x": 740,
+          "y": 340
+        },
+        {
+          "x": 530,
+          "y": 400
+        },
+        {
+          "x": 475,
+          "y": 400
+        },
+        {
+          "x": 260,
+          "y": 340
+        }
+      ]
+    },
+    {
+      "kind": "wrinkle_candidate_skin",
+      "label": "left temple, under-eye, and cheek skin",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 200,
+          "y": 370
+        },
+        {
+          "x": 450,
+          "y": 370
+        },
+        {
+          "x": 450,
+          "y": 410
+        },
+        {
+          "x": 480,
+          "y": 525
+        },
+        {
+          "x": 460,
+          "y": 780
+        },
+        {
+          "x": 250,
+          "y": 780
+        },
+        {
+          "x": 200,
+          "y": 520
+        }
+      ]
+    },
+    {
+      "kind": "wrinkle_candidate_skin",
+      "label": "right temple, under-eye, and cheek skin",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 555,
+          "y": 370
+        },
+        {
+          "x": 820,
+          "y": 370
+        },
+        {
+          "x": 820,
+          "y": 520
+        },
+        {
+          "x": 750,
+          "y": 780
+        },
+        {
+          "x": 540,
+          "y": 780
+        },
+        {
+          "x": 520,
+          "y": 525
+        },
+        {
+          "x": 555,
+          "y": 410
+        }
+      ]
+    },
+    {
+      "kind": "wrinkle_candidate_skin",
+      "label": "nose skin",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 460,
+          "y": 405
+        },
+        {
+          "x": 540,
+          "y": 405
+        },
+        {
+          "x": 540,
+          "y": 590
+        },
+        {
+          "x": 460,
+          "y": 590
+        }
+      ]
+    },
+    {
+      "kind": "wrinkle_candidate_skin",
+      "label": "perioral and chin skin",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 380,
+          "y": 620
+        },
+        {
+          "x": 620,
+          "y": 620
+        },
+        {
+          "x": 650,
+          "y": 700
+        },
+        {
+          "x": 680,
+          "y": 830
+        },
+        {
+          "x": 320,
+          "y": 830
+        },
+        {
+          "x": 350,
+          "y": 700
+        }
+      ]
+    },
+    {
+      "kind": "wrinkle_candidate_skin",
+      "label": "neck skin",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 300,
+          "y": 825
+        },
+        {
+          "x": 700,
+          "y": 825
+        },
+        {
+          "x": 700,
+          "y": 950
+        },
+        {
+          "x": 300,
+          "y": 950
+        }
+      ]
+    }
+  ],
+  "exclude_zones": [
+    {
+      "kind": "background",
+      "label": "background left",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 180,
+          "y": 0
+        },
+        {
+          "x": 180,
+          "y": 1000
+        },
+        {
+          "x": 0,
+          "y": 1000
+        }
+      ]
+    },
+    {
+      "kind": "background",
+      "label": "background right",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 850,
+          "y": 0
+        },
+        {
+          "x": 1000,
+          "y": 0
+        },
+        {
+          "x": 1000,
+          "y": 1000
+        },
+        {
+          "x": 850,
+          "y": 1000
+        }
+      ]
+    },
+    {
+      "kind": "background",
+      "label": "background top",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 180,
+          "y": 0
+        },
+        {
+          "x": 850,
+          "y": 0
+        },
+        {
+          "x": 850,
+          "y": 100
+        },
+        {
+          "x": 180,
+          "y": 100
+        }
+      ]
+    },
+    {
+      "kind": "hair",
+      "label": "hair",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 180,
+          "y": 100
+        },
+        {
+          "x": 850,
+          "y": 100
+        },
+        {
+          "x": 820,
+          "y": 350
+        },
+        {
+          "x": 750,
+          "y": 200
+        },
+        {
+          "x": 500,
+          "y": 120
+        },
+        {
+          "x": 250,
+          "y": 200
+        },
+        {
+          "x": 180,
+          "y": 350
+        }
+      ]
+    },
+    {
+      "kind": "eyebrow",
+      "label": "left eyebrow",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 283,
+          "y": 348
+        },
+        {
+          "x": 453,
+          "y": 353
+        },
+        {
+          "x": 449,
+          "y": 373
+        },
+        {
+          "x": 285,
+          "y": 368
+        }
+      ]
+    },
+    {
+      "kind": "eyebrow",
+      "label": "right eyebrow",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 552,
+          "y": 353
+        },
+        {
+          "x": 721,
+          "y": 348
+        },
+        {
+          "x": 719,
+          "y": 368
+        },
+        {
+          "x": 554,
+          "y": 373
+        }
+      ]
+    },
+    {
+      "kind": "eye",
+      "label": "left eye",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 305,
+          "y": 415
+        },
+        {
+          "x": 435,
+          "y": 418
+        },
+        {
+          "x": 428,
+          "y": 448
+        },
+        {
+          "x": 312,
+          "y": 445
+        }
+      ]
+    },
+    {
+      "kind": "eye",
+      "label": "right eye",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 568,
+          "y": 418
+        },
+        {
+          "x": 692,
+          "y": 415
+        },
+        {
+          "x": 685,
+          "y": 445
+        },
+        {
+          "x": 575,
+          "y": 448
+        }
+      ]
+    },
+    {
+      "kind": "lip",
+      "label": "lips",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 390,
+          "y": 670
+        },
+        {
+          "x": 610,
+          "y": 670
+        },
+        {
+          "x": 605,
+          "y": 695
+        },
+        {
+          "x": 395,
+          "y": 695
+        }
+      ]
+    },
+    {
+      "kind": "nostril",
+      "label": "nostrils",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 455,
+          "y": 595
+        },
+        {
+          "x": 545,
+          "y": 595
+        },
+        {
+          "x": 545,
+          "y": 615
+        },
+        {
+          "x": 455,
+          "y": 615
+        }
+      ]
+    },
+    {
+      "kind": "clothing",
+      "label": "shirt",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 180,
+          "y": 830
+        },
+        {
+          "x": 300,
+          "y": 830
+        },
+        {
+          "x": 350,
+          "y": 800
+        },
+        {
+          "x": 650,
+          "y": 800
+        },
+        {
+          "x": 700,
+          "y": 830
+        },
+        {
+          "x": 850,
+          "y": 830
+        },
+        {
+          "x": 850,
+          "y": 1000
+        },
+        {
+          "x": 180,
+          "y": 1000
+        }
+      ]
+    },
+    {
+      "kind": "jewelry",
+      "label": "earring",
+      "confidence": 1.0,
+      "points": [
+        {
+          "x": 828,
+          "y": 645
+        },
+        {
+          "x": 842,
+          "y": 645
+        },
+        {
+          "x": 842,
+          "y": 665
+        },
+        {
+          "x": 828,
+          "y": 665
+        }
+      ]
+    }
+  ]
+}

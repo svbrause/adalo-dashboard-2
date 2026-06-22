@@ -4,6 +4,12 @@
   border-top: 1px solid rgba(0, 0, 0, 0.12);
 }
 
+.staff-firebase-auth--embedded {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .staff-firebase-auth--loading {
   border-top: 1px solid rgba(0, 0, 0, 0.12);
   margin-top: 1.75rem;
@@ -110,4 +116,36 @@ a.staff-firebase-auth__forgot-link:hover {
   margin: 0.75rem 0 0;
   font-size: 0.8125rem;
   color: #b00020;
+}
+
+@media (max-width: 520px) {
+  .staff-firebase-auth__note,
+  .staff-firebase-auth__hint {
+    margin-bottom: 0.65rem;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
+  .staff-firebase-auth__form {
+    gap: 0.25rem;
+  }
+
+  .staff-firebase-auth__label {
+    margin-top: 0.25rem;
+  }
+
+  .staff-firebase-auth__input {
+    min-height: 46px;
+    padding: 0.65rem 0.75rem;
+    font-size: 16px;
+  }
+
+  .staff-firebase-auth__actions {
+    gap: 0.5rem;
+    margin-top: 0.65rem;
+  }
+
+  .staff-firebase-auth__btn {
+    min-height: 46px;
+  }
 }

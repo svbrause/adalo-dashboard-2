@@ -1,0 +1,233 @@
+/**
+ * Thumbnail image URLs for Slim Studio and Gravitas skincare catalogs.
+ *
+ * Sources (public product imagery):
+ * - ISDIN: Amazon product media (pack shots)
+ * - Hydrinity / Skinade / Olivia Quido / Cleopatra / Primocyn: brand Shopify CDNs
+ * - Gravitas private-label line: Iconic Skincare + Dermal Essentials (same OEM formulas)
+ * - Cell Repair: AcuMedGroup (matching growth-factor formula)
+ * - OTC protocol items: Amazon product media
+ *
+ * Refresh: node scripts/fetch-provider-skincare-images.mjs
+ */
+
+export type SkincareImageKey = string;
+
+/** Slim Studio — ISDIN, Hydrinity, Skinade */
+export const SLIM_STUDIO_SKINCARE_IMAGES: Record<SkincareImageKey, string> = {
+  isdinActinica:
+    "https://cdn.shopify.com/s/files/1/0887/8030/8784/files/sku_ISD-2794_Size_3-38-oz-100-ml_1_00e06b3a-b403-4d4e-9b40-66d52acdfaa7.jpg?v=1740176547",
+  isdinAgeless:
+    "https://cdn.shopify.com/s/files/1/0887/8030/8784/files/sku_ISD-3431_Size_3-38-oz-100-ml_1_38b2abed-ea1a-4d7d-b67f-b4c862a49f28.jpg?v=1740176548",
+  isdinMelatonik:
+    "https://m.media-amazon.com/images/I/514DZwB-lCL._SL1500_.jpg",
+  isdinRetinol:
+    "https://m.media-amazon.com/images/I/61iFc8wdVkL._SL1500_.jpg",
+  isdinMelaclear:
+    "https://m.media-amazon.com/images/I/61Pglu98a9L._SL1500_.jpg",
+  isdinHyaluronic:
+    "https://m.media-amazon.com/images/I/61CkndgSm8L._SL1500_.jpg",
+  isdinAgeContourDay:
+    "https://m.media-amazon.com/images/I/61DraxbURmL._SL1500_.jpg",
+  isdinAgeContourNight:
+    "https://m.media-amazon.com/images/I/51uX83AGn9L._SL1500_.jpg",
+  isdinVitalEyes:
+    "https://m.media-amazon.com/images/I/51Y3Mjx5xuL._SL1200_.jpg",
+  hydrinityHaSerum:
+    "https://cdn.shopify.com/s/files/1/0651/0945/9203/files/Restorative-HA-Serum.jpg?v=1756309196",
+  hydrinityMasque:
+    "https://cdn.shopify.com/s/files/1/0651/0945/9203/files/Restorative-HA_-Masque.jpg?v=1756308519",
+  hydrinityHyacin:
+    "https://cdn.shopify.com/s/files/1/0651/0945/9203/files/Hyacyn-Active.jpg?v=1756308098",
+  hydrinityVivid:
+    "https://cdn.shopify.com/s/files/1/0651/0945/9203/files/Vivid-Brightening-Serum.jpg?v=1756308213",
+  hydrinityEncore:
+    "https://cdn.shopify.com/s/files/1/0651/0945/9203/files/ENCORE-GREY.png?v=1753977890",
+  hydrinityKit:
+    "https://cdn.shopify.com/s/files/1/0651/0945/9203/files/Restorative-Kit.jpg?v=1756309051",
+  skinade:
+    "https://cdn.shopify.com/s/files/1/0349/2567/4628/files/Skinade-BSFW-02_7e42765f-d34b-459e-b113-673fb309bd2f.jpg?v=1690383850",
+};
+
+/** Gravitas — private label, Olivia Quido, Cleopatra, Primocyn, protocol OTC */
+export const GRAVITAS_SKINCARE_IMAGES: Record<SkincareImageKey, string> = {
+  skinVitalizingCleanser:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/HYDRATING_GENTLE_CLEANSER_NEW_PKG.jpg?v=1764099433",
+  skinVitalizingToner:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/CALMING_TONER_NEW_PKG.jpg?v=1764099432",
+  luminousOilCleanser:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/DAILY_GLOW_CLEANSER_NEW_PKG.jpg?v=1764099434",
+  oilControlCleanser:
+    "https://cdn.shopify.com/s/files/1/0454/7051/5360/files/salicylic-acid-cleanser-for-acne-prone-skin-dermal-essentials.jpg?v=1744837644",
+  oilControlToner:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/oil_control_pads_new_pkg.jpg?v=1764099431",
+  powerhouseVitC:
+    "https://cdn.shopify.com/s/files/1/0454/7051/5360/products/BEST-VITAMIN-C-SERUM-FOR-FACE-DERMAL-ESSENTIALS-CLINICAL-SKINCARE.png?v=1728342396",
+  biomeBalance:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/Hydrate_Plump_Anti-Aging_Serum.jpg?v=1767022770",
+  glassSkinSerum:
+    "https://cdn.shopify.com/s/files/1/0454/7051/5360/files/BEST-SERUM-FOR-LARGE-PORES-BEST-ACNE-SERUM-DERMAL-ESSENTIALS-MEDICAL-GRADE-SKINCARE.jpg?v=1728339657",
+  cellRepair: "https://acumedgroup.com/wp-content/uploads/2023/04/growth-1.jpg",
+  silkySmoothPlus:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/RETINOL_NIGHT_REPAIR_NEW_PKG.jpg?v=1764099432",
+  exoluxCream:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/INTENSIVE_PEPTIDE_RENEWAL_NEW_PKG.jpg?v=1764413417",
+  uvProtectTint:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/PHYSICAL_DEFENSE_NEW_PKG.jpg?v=1764099429",
+  matteZincSpf:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/CLEAR_DEFENSE_NEW_PACKAGING.jpg?v=1764099429",
+  zincSpf:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/Physical_Defense_SPF-compressed.jpg?v=1767578174",
+  freshlookEye:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/Age_Defy_Eye_Complex-compressed.jpg?v=1767585111",
+  blemishCorrector:
+    "https://cdn.shopify.com/s/files/1/0454/7051/5360/files/dark-spot-corrector-cream-for-hyperpigmentation-dermal-essentials.jpg?v=1744837996",
+  acneEraseCream:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/Acne_Control_serum_NEW_PKG.jpg?v=1764099431",
+  pumiceScrub:
+    "https://cdn.shopify.com/s/files/1/0712/2996/4610/files/EXFOLIATING_POLISH_NEW_PKG.jpg?v=1764099433",
+  sulfurMask:
+    "https://cdn.shopify.com/s/files/1/0454/7051/5360/files/acne-detox-mask-with-sulfur-and-bentonite-clay-dermal-essentials.jpg?v=1744836543",
+  pumpkinMask:
+    "https://cdn.shopify.com/s/files/1/0454/7051/5360/files/nutrient-rich-exfoliating-enzyme-pumpkin-mask-spa-treatment-dermal-essentials.jpg?v=1745703363",
+  cleansingMilk:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin-PDP-CleansingMilk-1_253ca4a5-c1d2-4d04-bdce-dc392fba47d0.jpg?v=1768596742",
+  balancingToner:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPBalancing_Toner.jpg?v=1751318159",
+  activeMoisturizer:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPActive_Moisturizer.jpg?v=1776461053",
+  vitaminCSerum20:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPVitamin_C.jpg?v=1751318052",
+  bhaEssence:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/BHA_Exfoliating_Essence.jpg?v=1776461914",
+  broadSpectrumSpf50:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPBroad_Spectrum_Sunscreen.jpg?v=1776461090",
+  secretPearl:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin-PDP-SecretPearl.jpg?v=1776461017",
+  secretRadiance:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDP_Secret_Radiance_1.7_OZ.jpg?v=1772581471",
+  secretGold:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPSecret_Gold.jpg?v=1751318291",
+  secretGlow:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPSecret_Glow.jpg?v=1772135248",
+  beautyOil:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPBeauty_Oil.jpg?v=1751318184",
+  /** Provider-directed Rx — no public pack shot; GlutaPro Rx as related OQ brightening product */
+  ff1:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPGlutaPro_Rx.jpg?v=1751317982",
+  ff2:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPGlutaPro_Rx.jpg?v=1751317982",
+  youthSerumElixir:
+    "https://cdn.shopify.com/s/files/1/0902/2871/9920/files/IMG_0125_1.jpg?v=1780336804",
+  acneBlend:
+    "https://cdn.shopify.com/s/files/1/0902/2871/9920/files/ChatGPT_Image_Jun_2_2026_03_07_27_AM.png?v=1780366390",
+  primocynHydrogel:
+    "https://cdn.shopify.com/s/files/1/0275/8683/files/primocyn-hydrogel.webp?v=1723937162",
+  primocynSolution:
+    "https://cdn.shopify.com/s/files/1/0275/8683/products/skinsolution236mlbluep-2_6058be41-235e-4c43-81c6-00d5eaeef8b0.png?v=1602656493",
+  cetaphilWash:
+    "https://m.media-amazon.com/images/I/71bzIktCpVL._SL1500_.jpg",
+  aquaphor: "https://m.media-amazon.com/images/I/51L1jOv20hL._SL1000_.jpg",
+  hydrocortisone:
+    "https://m.media-amazon.com/images/I/61rB2hgVNgL._AC_SL1500_.jpg",
+  benadrylCream:
+    "https://m.media-amazon.com/images/I/71XZW5zIkWL._AC_SL1500_.jpg",
+  acneCream:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPAcne_Cream.jpg?v=1778025448",
+  hydratingGel:
+    "https://cdn.shopify.com/s/files/1/0594/5439/0452/files/OSkin_Web_Topdown_PDPHydrating_Gel.jpg?v=1751317841",
+};
+
+/** Pretty Please Aesthetics shop — HydroPeptide, Revision, Hydrinity, etc. */
+export const PRETTY_PLEASE_SKINCARE_IMAGES: Record<SkincareImageKey, string> = {
+  dailySerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2516.jpg",
+  hairSerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2503.jpg",
+  intenseSerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2502.jpg",
+  regeneratingSkinNectar:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2602.jpg",
+  sunforgettableTotalProtectionFaceShieldFlexSpf50:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2512.jpg",
+  totalProtectionNoShowMineralSunscreenSpf50:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2511.jpg",
+  lipidRecoveryMask:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/LipidRecoveryMaskHero_51a09fe3-bd08-4aa0-a80d-bac994c3b37b__41501.jpg",
+  lipidRecoveryMaskForEyes:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/Epicutis_Lipid_Recovery_Mask_for_Eyes_1_e8287a73-d903-45ef-874f-0fe7008d9eb8.webp",
+  lipidSerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/Lipid_Serum.webp",
+  hyacynActivePurifyingMist:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/Hyacyn.jpg",
+  preludeFacialTreatmentCleanser:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/Screenshot2025-09-24at2.20.28PM.png",
+  restorativeHaMasque:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/shopping.webp",
+  aquaboost:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPAqua.jpg",
+  clarifyingTonerPads:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPToner.jpg",
+  cleansingGel:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPCleansingGel.jpg",
+  collagenReactivatePm:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/020724_Swatch_NimniCream_PDP_950x_2x.progressive_2ddbff0b-ae4c-4246-857a-3c2a12ddec22.webp",
+  eyeAuthority:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPEyeAuth.jpg",
+  firmaBright:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/012224_New_Retail_Packaging_Firma-Bright_PDP_841x_2x.progressive_5917af86-c4c8-4448-82f6-22a4bb2bef00.webp",
+  foamingCreamCleanser:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPFoamingCleanse.jpg",
+  hydroactiveCleanse:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPwipes.jpg",
+  lipService:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2679.jpg",
+  lumaproCSerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPLumaPro.jpg",
+  nimniDayCream:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2681.jpg",
+  powerLift:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPPowerLift.jpg",
+  powerSerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPPOwer.jpg",
+  solarDefenseBodySpf30:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPSolarBody.jpg",
+  solarDefenseTintedSpf30:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPSolarDef.jpg",
+  solarDew:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPSolarDew.jpg",
+  soothingSerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/HPSoothing.jpg",
+  spotCorrection:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2688.jpg",
+  tripleAcidPeptidePeel:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/012224_New_Retail_Packaging_TripleAcidPeptidePeel_PDP_841x_2x.progressive_ddcf6248-1ce9-409d-9be0-e4a188e82dbd.webp",
+  vitalEyes:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/010625_New_Retail_Packaging_VitalEyes_PDP_841x_2x.progressive_8c35d598-3a89-47be-bc76-aa273c7b9d01.webp",
+  haReplenishingEyeSerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/Ourself_PDP_EyeSerum_876x776-02_876x776_crop_center_2x_5aecc6e9-3855-4a0a-99cc-13c2d482855b.webp",
+  replenishingLipFiller:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/lip_filler_new_600x_c0851df6-8e63-4537-abe8-5a5aefb2b2d9.webp",
+  brighteningFacialWash:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2523.jpg",
+  dEJDailyBoostingSerum:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2481.jpg",
+  dEJEyeCream:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2533.jpg",
+  intellishadeClear:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2528.jpg",
+  intellishadeMatte:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2526.jpg",
+  intellishadeOriginal:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2530-Edit.jpg",
+  porePurifyingClayMask:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2591.jpg",
+  retinolComplete05:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2509.jpg",
+  revoxLineRelaxer:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2554.jpg",
+  tripleActionExfoliator:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/Screenshot_2025-09-24_at_2.12.46_PM.png",
+  youthfullLipReplenisher:
+    "https://cdn.shopify.com/s/files/1/0835/3762/5409/files/2O6A2486.jpg",
+};

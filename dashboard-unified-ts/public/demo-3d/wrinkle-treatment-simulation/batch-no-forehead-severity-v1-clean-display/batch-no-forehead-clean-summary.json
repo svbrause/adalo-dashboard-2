@@ -1,0 +1,35 @@
+{
+  "outputs": [
+    {
+      "slug": "kacie-holder",
+      "cleanComposite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/kacie-holder/kacie-holder-clean-shadow-composite.png",
+      "cleanComparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/kacie-holder/kacie-holder-clean-comparison.jpg"
+    },
+    {
+      "slug": "mary-matthews",
+      "cleanComposite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/mary-matthews/mary-matthews-clean-shadow-composite.png",
+      "cleanComparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/mary-matthews/mary-matthews-clean-comparison.jpg"
+    },
+    {
+      "slug": "suzanne",
+      "cleanComposite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/suzanne/suzanne-clean-shadow-composite.png",
+      "cleanComparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/suzanne/suzanne-clean-comparison.jpg"
+    },
+    {
+      "slug": "teresa",
+      "cleanComposite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/teresa/teresa-clean-shadow-composite.png",
+      "cleanComparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/teresa/teresa-clean-comparison.jpg"
+    },
+    {
+      "slug": "terry-letts",
+      "cleanComposite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/terry-letts/terry-letts-clean-shadow-composite.png",
+      "cleanComparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/terry-letts/terry-letts-clean-comparison.jpg"
+    },
+    {
+      "slug": "tonya-arnold",
+      "cleanComposite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/tonya-arnold/tonya-arnold-clean-shadow-composite.png",
+      "cleanComparison": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/tonya-arnold/tonya-arnold-clean-comparison.jpg"
+    }
+  ],
+  "contactSheet": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/batch-no-forehead-severity-v1-clean-display/batch-no-forehead-clean-shadow-contact-sheet.jpg"
+}

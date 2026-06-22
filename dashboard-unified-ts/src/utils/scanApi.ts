@@ -1,5 +1,14 @@
-/** Modal scan worker. Non-scan dashboard APIs still use `api.ts` backend config. */
-const DEFAULT_SCAN_BACKEND = "https://ponce--scan-api-web-app.modal.run";
+/** Backend scan proxy. It forwards work to GCP and owns Airtable persistence. */
+const DEFAULT_SCAN_BACKEND =
+  import.meta.env.VITE_BACKEND_API_URL?.trim().replace(/\/$/, "") ||
+  "https://ponce-patient-backend.vercel.app";
+
+function resolveScanApiBase(): string {
+  const explicit = normalizeApiBase(import.meta.env.VITE_SCAN_API_URL);
+  if (explicit) return explicit;
+
+  return DEFAULT_SCAN_BACKEND;
+}
 
 function normalizeApiBase(url: string | undefined): string {
   return url?.trim().replace(/\/$/, "") ?? "";
@@ -11,9 +20,18 @@ export type ScanProgressEvent = {
   message?: string;
   remaining?: number;
   elapsed?: number;
+  estimatedSeconds?: number;
+  analysisComplete?: boolean;
+  analysisStatus?: string;
+  analysisMessage?: string;
+  assetStatus?: string;
+  assetProgress?: number;
+  assetRemaining?: number;
+  assetMessage?: string;
   videoUrl?: string;
   videoBase64?: string;
   auraAssets?: Record<string, unknown>;
+  severityScores?: Record<string, unknown>;
   error?: string;
 };
 
@@ -83,11 +101,19 @@ export async function fetchScanJobStatus(
  * Base URL for `/api/scan/*` (submit, status, save-video).
  *
  * - `VITE_SCAN_API_URL` — explicit override (e.g. local `server.py` on 8787).
- * - Defaults to the deployed Modal scan worker.
+ * - Defaults to the backend scan proxy, which forwards to GCP and persists outputs.
  */
 export function getScanApiBaseUrl(): string {
+  return resolveScanApiBase();
+}
+
+/**
+ * Base URL for in-clinic scan submit + job polling.
+ * Defaults to the backend scan proxy so clinic scans avoid local Modal fallback.
+ * Set `VITE_SCAN_API_URL=http://localhost:8787` to opt into local `server.py`.
+ */
+export function getClinicScanSubmitApiBase(): string {
   const explicit = normalizeApiBase(import.meta.env.VITE_SCAN_API_URL);
   if (explicit) return explicit;
-
-  return DEFAULT_SCAN_BACKEND;
+  return resolveScanApiBase();
 }

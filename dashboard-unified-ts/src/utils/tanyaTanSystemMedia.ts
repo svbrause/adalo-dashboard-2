@@ -8,12 +8,14 @@ import {
   TANYA_TAN_VIEWER_ANGLE_ASSETS,
   type AuraTanViewAngle,
 } from "./auraTanAnglePhotos";
+import { demo3dAssetUrl } from "./demoAssetUrls";
 
 export type TanyaTanSystemMediaCategory =
   | "color_stills"
   | "texture_maps"
   | "redness_annotations"
   | "pore_annotations"
+  | "wrinkle_annotations"
   | "original_captures"
   | "scan_video";
 
@@ -34,6 +36,7 @@ export const TANYA_TAN_SYSTEM_MEDIA_CATEGORY_LABELS: Record<
   texture_maps: "Pigmentation maps",
   redness_annotations: "Redness annotations",
   pore_annotations: "Pore annotations",
+  wrinkle_annotations: "Wrinkle annotations",
   original_captures: "Original photos",
   scan_video: "3D scan",
 };
@@ -100,6 +103,20 @@ const PORE_ANNOTATIONS: TanyaTanSystemMediaEntry[] = TEXTURE_MAP_ANGLES.map(
   },
 );
 
+const WRINKLE_ANNOTATIONS: TanyaTanSystemMediaEntry[] = TEXTURE_MAP_ANGLES.map(
+  ({ angle, id, title }) => {
+    const asset = TANYA_TAN_VIEWER_ANGLE_ASSETS[angle];
+    return {
+      id: id.replace("sys-texture", "sys-wrinkles"),
+      category: "wrinkle_annotations",
+      kind: "photo",
+      title,
+      subtitle: "Wrinkle annotation",
+      url: asset.srcWrinklesView ?? asset.srcWrinkles ?? asset.src,
+    };
+  },
+);
+
 const ORIGINAL_CAPTURES: TanyaTanSystemMediaEntry[] = TANYA_TAN_ORIGINAL_CAPTURES.map(
   ({ angle, label, url }) => ({
     id: `sys-original-${angle}`,
@@ -118,7 +135,7 @@ const DIAGNOSTIC_VIDEOS: TanyaTanSystemMediaEntry[] = [
     kind: "video",
     title: "Pigmentation map turntable",
     subtitle: "Skin-gray pigmentation pass",
-    url: "/demo-3d/tanya-tan/tanya-tan-turntable-skin-gray.mp4",
+    url: demo3dAssetUrl("tanya-tan/tanya-tan-turntable-skin-gray.mp4"),
   },
   {
     id: "sys-video-pigmentation",
@@ -126,7 +143,7 @@ const DIAGNOSTIC_VIDEOS: TanyaTanSystemMediaEntry[] = [
     kind: "video",
     title: "Brown pigmentation turntable",
     subtitle: "Pigmentation annotation video",
-    url: "/demo-3d/tanya-tan/tanya-tan-turntable-pigmentation.mp4",
+    url: demo3dAssetUrl("tanya-tan/tanya-tan-turntable-pigmentation.mp4"),
   },
   {
     id: "sys-video-redness",
@@ -134,7 +151,7 @@ const DIAGNOSTIC_VIDEOS: TanyaTanSystemMediaEntry[] = [
     kind: "video",
     title: "Redness turntable",
     subtitle: "Redness annotation video",
-    url: "/demo-3d/tanya-tan/tanya-tan-turntable-redness.mp4",
+    url: demo3dAssetUrl("tanya-tan/tanya-tan-turntable-redness.mp4"),
   },
   {
     id: "sys-video-pores",
@@ -142,7 +159,7 @@ const DIAGNOSTIC_VIDEOS: TanyaTanSystemMediaEntry[] = [
     kind: "video",
     title: "Pores turntable",
     subtitle: "Pore annotation video",
-    url: "/demo-3d/tanya-tan/tanya-tan-turntable-pores.mp4",
+    url: demo3dAssetUrl("tanya-tan/tanya-tan-turntable-pores.mp4"),
   },
   {
     id: "sys-video-wrinkles",
@@ -150,7 +167,7 @@ const DIAGNOSTIC_VIDEOS: TanyaTanSystemMediaEntry[] = [
     kind: "video",
     title: "Wrinkles turntable",
     subtitle: "Per-frame crease annotation video",
-    url: "/demo-3d/tanya-tan/tanya-tan-turntable-wrinkles.mp4",
+    url: demo3dAssetUrl("tanya-tan/tanya-tan-turntable-wrinkles.mp4"),
   },
 ];
 
@@ -159,6 +176,7 @@ export const TANYA_TAN_SYSTEM_MEDIA: TanyaTanSystemMediaEntry[] = [
   ...TEXTURE_MAPS,
   ...REDNESS_ANNOTATIONS,
   ...PORE_ANNOTATIONS,
+  ...WRINKLE_ANNOTATIONS,
   ...ORIGINAL_CAPTURES,
   ...DIAGNOSTIC_VIDEOS,
 ];
@@ -169,6 +187,7 @@ export const TANYA_TAN_SYSTEM_MEDIA_ORDER: TanyaTanSystemMediaCategory[] = [
   "texture_maps",
   "redness_annotations",
   "pore_annotations",
+  "wrinkle_annotations",
   "scan_video",
 ];
 
@@ -176,5 +195,6 @@ export function isTanyaTanDemoClient(client: {
   id: string;
   name?: string | null;
 }): boolean {
+  if (client.id.endsWith("-demo-tanya")) return true;
   return client.id === "admin-demo-tanya";
 }

@@ -1,0 +1,134 @@
+{
+  "kacie-holder": {
+    "neutral_relief": {
+      "active_pixels": 8752,
+      "mean_strength": 0.15305924706665372
+    },
+    "cyan_trace": {
+      "active_pixels": 8752,
+      "mean_strength": 0.15305924706665372
+    },
+    "blueprint": {
+      "active_pixels": 8752,
+      "mean_strength": 0.15305924706665372
+    },
+    "slate_pencil": {
+      "active_pixels": 8752,
+      "mean_strength": 0.15305924706665372
+    },
+    "silver_trace": {
+      "active_pixels": 8752,
+      "mean_strength": 0.15305924706665372
+    }
+  },
+  "mary-matthews": {
+    "neutral_relief": {
+      "active_pixels": 10225,
+      "mean_strength": 0.1621372732735951
+    },
+    "cyan_trace": {
+      "active_pixels": 10225,
+      "mean_strength": 0.1621372732735951
+    },
+    "blueprint": {
+      "active_pixels": 10225,
+      "mean_strength": 0.1621372732735951
+    },
+    "slate_pencil": {
+      "active_pixels": 10225,
+      "mean_strength": 0.1621372732735951
+    },
+    "silver_trace": {
+      "active_pixels": 10225,
+      "mean_strength": 0.1621372732735951
+    }
+  },
+  "suzanne": {
+    "neutral_relief": {
+      "active_pixels": 13342,
+      "mean_strength": 0.15998914172671672
+    },
+    "cyan_trace": {
+      "active_pixels": 13342,
+      "mean_strength": 0.15998914172671672
+    },
+    "blueprint": {
+      "active_pixels": 13342,
+      "mean_strength": 0.15998914172671672
+    },
+    "slate_pencil": {
+      "active_pixels": 13342,
+      "mean_strength": 0.15998914172671672
+    },
+    "silver_trace": {
+      "active_pixels": 13342,
+      "mean_strength": 0.15998914172671672
+    }
+  },
+  "teresa": {
+    "neutral_relief": {
+      "active_pixels": 8580,
+      "mean_strength": 0.15777292801615794
+    },
+    "cyan_trace": {
+      "active_pixels": 8580,
+      "mean_strength": 0.15777292801615794
+    },
+    "blueprint": {
+      "active_pixels": 8580,
+      "mean_strength": 0.15777292801615794
+    },
+    "slate_pencil": {
+      "active_pixels": 8580,
+      "mean_strength": 0.15777292801615794
+    },
+    "silver_trace": {
+      "active_pixels": 8580,
+      "mean_strength": 0.15777292801615794
+    }
+  },
+  "terry-letts": {
+    "neutral_relief": {
+      "active_pixels": 12777,
+      "mean_strength": 0.1530735208759294
+    },
+    "cyan_trace": {
+      "active_pixels": 12777,
+      "mean_strength": 0.1530735208759294
+    },
+    "blueprint": {
+      "active_pixels": 12777,
+      "mean_strength": 0.1530735208759294
+    },
+    "slate_pencil": {
+      "active_pixels": 12777,
+      "mean_strength": 0.1530735208759294
+    },
+    "silver_trace": {
+      "active_pixels": 12777,
+      "mean_strength": 0.1530735208759294
+    }
+  },
+  "tonya-arnold": {
+    "neutral_relief": {
+      "active_pixels": 11987,
+      "mean_strength": 0.16032544278607316
+    },
+    "cyan_trace": {
+      "active_pixels": 11987,
+      "mean_strength": 0.16032544278607316
+    },
+    "blueprint": {
+      "active_pixels": 11987,
+      "mean_strength": 0.16032544278607316
+    },
+    "slate_pencil": {
+      "active_pixels": 11987,
+      "mean_strength": 0.16032544278607316
+    },
+    "silver_trace": {
+      "active_pixels": 11987,
+      "mean_strength": 0.16032544278607316
+    }
+  }
+}

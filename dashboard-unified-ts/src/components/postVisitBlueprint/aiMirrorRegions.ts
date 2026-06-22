@@ -123,8 +123,222 @@ function filletArcPoints(
 const LEFT_CHEEK_INDICES = [50, 101, 205, 187, 147, 123, 116, 117];
 const RIGHT_CHEEK_INDICES = [280, 330, 425, 411, 376, 352, 346, 347];
 
-/** Smooth cheek oval anchored to landmark bbox (avoids pac-man mesh polygons). */
-export function cheekRegionPolygon(
+/**
+ * Revert switch for the previous compact cheek ovals.
+ * Set to false if the broader cheek patch feels too large during review.
+ */
+const USE_EXPANDED_CHEEK_REGION = true;
+
+/** Cheek landmarks for hull — wide malar coverage without jaw hinge or ear rim. */
+const LEFT_CHEEK_HULL_INDICES = [
+  117, 118, 119, 100, 50, 101, 123, 116, 147, 187, 205, 227, 234,
+];
+const RIGHT_CHEEK_HULL_INDICES = [
+  346, 347, 348, 329, 280, 330, 352, 376, 411, 425, 427, 454,
+];
+
+function crossProduct(
+  origin: { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  return (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+}
+
+function convexHull(
+  points: { x: number; y: number }[],
+): { x: number; y: number }[] {
+  if (points.length <= 3) return points;
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+
+  const lower: { x: number; y: number }[] = [];
+  for (const point of sorted) {
+    while (
+      lower.length >= 2 &&
+      crossProduct(lower[lower.length - 2]!, lower[lower.length - 1]!, point) <= 0
+    ) {
+      lower.pop();
+    }
+    lower.push(point);
+  }
+
+  const upper: { x: number; y: number }[] = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const point = sorted[i]!;
+    while (
+      upper.length >= 2 &&
+      crossProduct(upper[upper.length - 2]!, upper[upper.length - 1]!, point) <= 0
+    ) {
+      upper.pop();
+    }
+    upper.push(point);
+  }
+
+  lower.pop();
+  upper.pop();
+  return [...lower, ...upper];
+}
+
+function expandPolygonFromCentroid(
+  points: { x: number; y: number }[],
+  factor: number,
+): { x: number; y: number }[] {
+  if (points.length === 0 || factor === 1) return points;
+  const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+  const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+  return points.map((p) => ({
+    x: cx + (p.x - cx) * factor,
+    y: cy + (p.y - cy) * factor,
+  }));
+}
+
+function landmarkPoint(
+  landmarks: { x: number; y: number }[],
+  index: number,
+  width: number,
+  height: number,
+): { x: number; y: number } | null {
+  const lm = landmarks[index];
+  return lm ? { x: lm.x * width, y: lm.y * height } : null;
+}
+
+function clampPointToCanvas(
+  point: { x: number; y: number },
+  width: number,
+  height: number,
+): { x: number; y: number } {
+  return {
+    x: Math.max(0, Math.min(width, point.x)),
+    y: Math.max(0, Math.min(height, point.y)),
+  };
+}
+
+function smoothClosedPath(
+  anchors: { x: number; y: number }[],
+  samplesPerSegment = 4,
+): { x: number; y: number }[] {
+  if (anchors.length < 3) return anchors;
+  const points: { x: number; y: number }[] = [];
+  for (let i = 0; i < anchors.length; i++) {
+    const p0 = anchors[(i - 1 + anchors.length) % anchors.length]!;
+    const p1 = anchors[i]!;
+    const p2 = anchors[(i + 1) % anchors.length]!;
+    const p3 = anchors[(i + 2) % anchors.length]!;
+    for (let j = 0; j < samplesPerSegment; j++) {
+      const t = j / samplesPerSegment;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      points.push({
+        x:
+          0.5 *
+          ((2 * p1.x) +
+            (-p0.x + p2.x) * t +
+            (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+            (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+        y:
+          0.5 *
+          ((2 * p1.y) +
+            (-p0.y + p2.y) * t +
+            (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+            (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+      });
+    }
+  }
+  return points;
+}
+
+function faceMidlineX(
+  landmarks: { x: number; y: number }[],
+  width: number,
+  height: number,
+): number {
+  const ids = [168, 1, 4, 152];
+  const pts = ids
+    .map((index) => landmarkPoint(landmarks, index, width, height))
+    .filter((point): point is { x: number; y: number } => point != null);
+  if (pts.length === 0) return width / 2;
+  return pts.reduce((sum, point) => sum + point.x, 0) / pts.length;
+}
+
+function mirrorPolygonAcrossMidline(
+  points: { x: number; y: number }[],
+  midlineX: number,
+): { x: number; y: number }[] {
+  return points.map((point) => ({
+    x: midlineX * 2 - point.x,
+    y: point.y,
+  }));
+}
+
+/**
+ * Symmetrical nose patch: tapered bridge, paired alae, and a soft columella base.
+ * Avoids the sailboat-like loop from connecting raw mesh indices in order.
+ */
+export function noseRegionPolygon(
+  landmarks: { x: number; y: number }[],
+  width: number,
+  height: number,
+): { x: number; y: number }[] {
+  const scale = faceScalePixels(landmarks, width, height);
+  const midlineX = faceMidlineX(landmarks, width, height);
+  const bridgeTop = landmarkPoint(landmarks, 168, width, height);
+  const bridgeMid = landmarkPoint(landmarks, 6, width, height);
+  const tip = landmarkPoint(landmarks, 4, width, height);
+  const base =
+    landmarkPoint(landmarks, 2, width, height) ??
+    landmarkPoint(landmarks, 1, width, height);
+  const leftAlar =
+    landmarkPoint(landmarks, 49, width, height) ??
+    landmarkPoint(landmarks, 98, width, height);
+  const rightAlar =
+    landmarkPoint(landmarks, 279, width, height) ??
+    landmarkPoint(landmarks, 327, width, height);
+
+  if (!bridgeTop || !tip || !base) {
+    return polygonFromLandmarkIndices(
+      landmarks,
+      AI_MIRROR_REGIONS.find((region) => region.id === "rNose")?.indices ?? [],
+      width,
+      height,
+    );
+  }
+
+  const leftAlarDistance = leftAlar
+    ? Math.abs(midlineX - leftAlar.x)
+    : scale * 0.042;
+  const rightAlarDistance = rightAlar
+    ? Math.abs(rightAlar.x - midlineX)
+    : scale * 0.042;
+  const alarHalfWidth = Math.max(
+    scale * 0.034,
+    (leftAlarDistance + rightAlarDistance) / 2,
+  );
+  const bridgeHalfWidth = alarHalfWidth * 0.34;
+  const midHalfWidth = alarHalfWidth * 0.68;
+
+  const topY = bridgeTop.y - scale * 0.008;
+  const midY = bridgeMid?.y ?? tip.y - scale * 0.05;
+  const tipY = tip.y;
+  const baseY = Math.max(base.y, tipY + scale * 0.018);
+
+  const anchors = [
+    { x: midlineX, y: topY },
+    { x: midlineX - bridgeHalfWidth, y: midY - scale * 0.02 },
+    { x: midlineX - midHalfWidth, y: tipY - scale * 0.01 },
+    { x: midlineX - alarHalfWidth, y: tipY + scale * 0.03 },
+    { x: midlineX - alarHalfWidth * 0.58, y: baseY },
+    { x: midlineX, y: baseY + scale * 0.01 },
+    { x: midlineX + alarHalfWidth * 0.58, y: baseY },
+    { x: midlineX + alarHalfWidth, y: tipY + scale * 0.03 },
+    { x: midlineX + midHalfWidth, y: tipY - scale * 0.01 },
+    { x: midlineX + bridgeHalfWidth, y: midY - scale * 0.02 },
+  ];
+
+  return smoothClosedPath(anchors, 4);
+}
+
+/** Previous compact cheek oval, kept as a one-line revert path. */
+function legacyCheekRegionPolygon(
   landmarks: { x: number; y: number }[],
   width: number,
   height: number,
@@ -145,6 +359,126 @@ export function cheekRegionPolygon(
   const ry = Math.max(14, (maxY - minY) * 0.54);
   const rotation = side === "left" ? -0.14 : 0.14;
   return ovalPoints(center, rx, ry, 36, rotation);
+}
+
+/** Cheek hull with guardrails: full malar area, no ear / jaw / lip spill. */
+function expandedCheekRegionPolygon(
+  landmarks: { x: number; y: number }[],
+  width: number,
+  height: number,
+  side: "left" | "right",
+): { x: number; y: number }[] {
+  const hullIndices =
+    side === "left" ? LEFT_CHEEK_HULL_INDICES : RIGHT_CHEEK_HULL_INDICES;
+  const cheekPoints = polygonFromLandmarkIndices(
+    landmarks,
+    hullIndices,
+    width,
+    height,
+  );
+  if (cheekPoints.length < 6) {
+    return legacyCheekRegionPolygon(landmarks, width, height, side);
+  }
+
+  const scale = faceScalePixels(landmarks, width, height);
+  const hull = convexHull(cheekPoints);
+  if (hull.length < 3) {
+    return legacyCheekRegionPolygon(landmarks, width, height, side);
+  }
+
+  const expanded = expandPolygonFromCentroid(hull, 1.06);
+  const mouthCorner = landmarkPoint(
+    landmarks,
+    side === "left" ? 61 : 291,
+    width,
+    height,
+  );
+  const outerEdge = landmarkPoint(
+    landmarks,
+    side === "left" ? 234 : 454,
+    width,
+    height,
+  );
+  const innerEdge = landmarkPoint(
+    landmarks,
+    side === "left" ? 98 : 327,
+    width,
+    height,
+  );
+  const maxBottomY = mouthCorner
+    ? mouthCorner.y - scale * 0.038
+    : Number.POSITIVE_INFINITY;
+  const outerPad = scale * 0.006;
+  const innerPad = scale * 0.012;
+
+  const bounded = expanded.map((point) => {
+    let { x, y } = point;
+    if (outerEdge) {
+      x =
+        side === "left"
+          ? Math.max(x, outerEdge.x + outerPad)
+          : Math.min(x, outerEdge.x - outerPad);
+    }
+    if (innerEdge) {
+      x =
+        side === "left"
+          ? Math.min(x, innerEdge.x - innerPad)
+          : Math.max(x, innerEdge.x + innerPad);
+    }
+    y = Math.min(y, maxBottomY);
+    return clampPointToCanvas({ x, y }, width, height);
+  });
+
+  return smoothClosedPath(bounded, 5);
+}
+
+export function cheekRegionPolygon(
+  landmarks: { x: number; y: number }[],
+  width: number,
+  height: number,
+  side: "left" | "right",
+): { x: number; y: number }[] {
+  const leftPolygon = USE_EXPANDED_CHEEK_REGION
+    ? expandedCheekRegionPolygon(landmarks, width, height, "left")
+    : legacyCheekRegionPolygon(landmarks, width, height, "left");
+  if (leftPolygon.length < 3) {
+    return side === "left"
+      ? leftPolygon
+      : legacyCheekRegionPolygon(landmarks, width, height, "right");
+  }
+  if (side === "left") return leftPolygon;
+  return mirrorPolygonAcrossMidline(
+    leftPolygon,
+    faceMidlineX(landmarks, width, height),
+  );
+}
+
+const LIPS_LANDMARK_INDICES =
+  AI_MIRROR_REGIONS.find((region) => region.id === "rLips")?.indices ?? [];
+
+/** Closed lip outline from MediaPipe — slightly padded so cheek redness does not tint lips. */
+export function lipsRegionPolygon(
+  landmarks: { x: number; y: number }[],
+  width: number,
+  height: number,
+): { x: number; y: number }[] {
+  const core = polygonFromLandmarkIndices(
+    landmarks,
+    LIPS_LANDMARK_INDICES,
+    width,
+    height,
+  );
+  if (core.length < 3) return [];
+
+  const cx = core.reduce((sum, point) => sum + point.x, 0) / core.length;
+  const cy = core.reduce((sum, point) => sum + point.y, 0) / core.length;
+  const scale = faceScalePixels(landmarks, width, height);
+  const pad = 1 + Math.min(0.1, (scale / Math.min(width, height)) * 0.08);
+
+  return core.map((point) => ({
+    x: cx + (point.x - cx) * pad,
+    y: cy + (point.y - cy) * pad,
+  }));
 }
 
 function subsamplePolyline(

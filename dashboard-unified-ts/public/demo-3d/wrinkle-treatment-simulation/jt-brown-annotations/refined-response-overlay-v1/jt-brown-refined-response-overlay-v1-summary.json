@@ -1,0 +1,70 @@
+{
+  "imageSize": [
+    1044,
+    1044
+  ],
+  "zoneDebug": {
+    "forehead_L": {
+      "pixels": 9565,
+      "lo": 0.032141976058483124,
+      "hi": 0.15156713128089905
+    },
+    "forehead_R": {
+      "pixels": 13412,
+      "lo": 0.032801553606987,
+      "hi": 0.15614637732505798
+    },
+    "glabella": {
+      "pixels": 1508,
+      "lo": 0.018382158130407333,
+      "hi": 0.10420399159193039
+    },
+    "crows_L": {
+      "pixels": 1025,
+      "lo": 0.03862268105149269,
+      "hi": 0.12622904777526855
+    },
+    "crows_R": {
+      "pixels": 1014,
+      "lo": 0.07119134068489075,
+      "hi": 0.21804019808769226
+    },
+    "under_L": {
+      "pixels": 1708,
+      "lo": 0.03543935343623161,
+      "hi": 0.10088212043046951
+    },
+    "under_R": {
+      "pixels": 1004,
+      "lo": 0.037821222096681595,
+      "hi": 0.09913911670446396
+    },
+    "naso_L": {
+      "pixels": 8476,
+      "lo": 0.029739223420619965,
+      "hi": 0.09820998460054398
+    },
+    "naso_R": {
+      "pixels": 6789,
+      "lo": 0.02974001318216324,
+      "hi": 0.09795913100242615
+    }
+  },
+  "variants": {
+    "subtle": {
+      "overlay": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/jt-brown-annotations/refined-response-overlay-v1/jt-brown-refined-response-overlay-v1-subtle-overlay.png",
+      "composite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/jt-brown-annotations/refined-response-overlay-v1/jt-brown-refined-response-overlay-v1-subtle-composite.png",
+      "activePixels": 7555
+    },
+    "balanced": {
+      "overlay": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/jt-brown-annotations/refined-response-overlay-v1/jt-brown-refined-response-overlay-v1-balanced-overlay.png",
+      "composite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/jt-brown-annotations/refined-response-overlay-v1/jt-brown-refined-response-overlay-v1-balanced-composite.png",
+      "activePixels": 8148
+    },
+    "diagnostic": {
+      "overlay": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/jt-brown-annotations/refined-response-overlay-v1/jt-brown-refined-response-overlay-v1-diagnostic-overlay.png",
+      "composite": "/Users/sambrause/Documents/GitHub/dashboard-unified-ts-merged/public/demo-3d/wrinkle-treatment-simulation/jt-brown-annotations/refined-response-overlay-v1/jt-brown-refined-response-overlay-v1-diagnostic-composite.png",
+      "activePixels": 8707
+    }
+  }
+}
