@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { demo3dAssetUrl } from "../../utils/demoAssetUrls";
 import "./RevanceCaseGalleryPage.css";
 
 // ── Two-treatment simplified gallery ─────────────────────────────────────
@@ -53,7 +54,7 @@ const TREATMENTS: Treatment[] = [
       "Treatment case selected for a similar eye-area discussion",
     ],
 
-    tanyaColor:    "/demo-3d/tanya-tan/tanya-tan-front-color.png",
+    tanyaColor:    demo3dAssetUrl("tanya-tan/tanya-tan-front-color.png"),
     tanyaMapUrl:   "/revance-case-gallery/tanya/tanya-tan-front-pores-cutout.png",
     tanyaLabel:    "Moderate pigmentation clustering — cheeks + periorbital",
 

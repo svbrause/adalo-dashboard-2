@@ -348,13 +348,19 @@ export function getAvailableViewAngles(
 
 const STORAGE_KEY = "patient-aura-asset-manifests";
 
+const COURTNEY_BELLAMY_GCS_AURA_BASE =
+  "https://storage.googleapis.com/test-deploy-august25/aura/courtney-bellamy";
+
+function courtneyBellamyAuraUrl(filename: string): string {
+  return `${COURTNEY_BELLAMY_GCS_AURA_BASE}/${filename}`;
+}
+
 const COURTNEY_BELLAMY_AURA_MANIFEST: PatientAuraAssetManifest = {
-  turntableVideoUrl: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-turntable.mp4",
-  textureVideoUrl: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-turntable.mp4",
-  pigmentationVideoUrl: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-turntable.mp4",
-  rednessVideoUrl: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-turntable.mp4",
-  poresVideoUrl: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-turntable.mp4",
-  wrinklesVideoUrl: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-turntable-wrinkles.mp4",
+  turntableVideoUrl: courtneyBellamyAuraUrl("courtney-bellamy-turntable-skin-gray.mp4"),
+  textureVideoUrl: courtneyBellamyAuraUrl("courtney-bellamy-turntable-skin-gray.mp4"),
+  pigmentationVideoUrl: courtneyBellamyAuraUrl("courtney-bellamy-turntable-pigmentation.mp4"),
+  rednessVideoUrl: courtneyBellamyAuraUrl("courtney-bellamy-turntable-redness.mp4"),
+  poresVideoUrl: courtneyBellamyAuraUrl("courtney-bellamy-turntable-pores.mp4"),
   availableViewAngles: ["front", "three-quarter-right", "profile-right"],
   cvAnnotations: {
     wrinkles: [],
@@ -369,14 +375,12 @@ const COURTNEY_BELLAMY_AURA_MANIFEST: PatientAuraAssetManifest = {
   viewerInitialPanY: -72,
   angles: {
     front: {
-      src: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-rembg.png",
-      srcOriginal: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-color.png",
-      srcTexture: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-texture-cutout.png",
-      srcPigmentation: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-pigmentation-cutout.png",
-      srcRedness: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-redness-cutout.png",
-      srcPores: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-pores-cutout.png",
-      srcWrinkles: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-wrinkles.webp",
-      srcWrinklesView: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-front-wrinkles-view.webp",
+      src: courtneyBellamyAuraUrl("courtney-bellamy-front-rembg-solid-v4.png"),
+      srcOriginal: courtneyBellamyAuraUrl("courtney-bellamy-front-color.png"),
+      srcTexture: courtneyBellamyAuraUrl("courtney-bellamy-front-texture-cutout-solid-v4.png"),
+      srcPigmentation: courtneyBellamyAuraUrl("courtney-bellamy-front-pigmentation-cutout-solid-v4.png"),
+      srcRedness: courtneyBellamyAuraUrl("courtney-bellamy-front-redness-cutout-solid-v4.png"),
+      srcPores: courtneyBellamyAuraUrl("courtney-bellamy-front-pores-cutout-solid-v4.png"),
       cssTransform: "translate(0px, 6px) scale(0.86)",
       photoZoom: 0.88,
       timeRatio: 0.5,
@@ -384,26 +388,24 @@ const COURTNEY_BELLAMY_AURA_MANIFEST: PatientAuraAssetManifest = {
       fromPhoto: true,
     },
     "three-quarter-right": {
-      src: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-three-quarter-right-rembg.png",
-      srcOriginal: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-three-quarter-right-color.png",
-      srcTexture: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-three-quarter-right-texture-cutout.png",
-      srcPigmentation: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-three-quarter-right-pigmentation-cutout.png",
-      srcWrinkles: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-three-quarter-right-wrinkles.webp",
-      srcWrinklesView: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-three-quarter-right-wrinkles-view.webp",
+      src: courtneyBellamyAuraUrl("courtney-bellamy-three-quarter-right-rembg-solid-v4.png"),
+      srcOriginal: courtneyBellamyAuraUrl("courtney-bellamy-three-quarter-right-color.png"),
+      srcTexture: courtneyBellamyAuraUrl("courtney-bellamy-three-quarter-right-texture-cutout-solid-v4.png"),
+      srcPigmentation: courtneyBellamyAuraUrl("courtney-bellamy-three-quarter-right-pigmentation-cutout-solid-v4.png"),
+      srcRedness: courtneyBellamyAuraUrl("courtney-bellamy-three-quarter-right-redness-cutout-solid-v4.png"),
+      srcPores: courtneyBellamyAuraUrl("courtney-bellamy-three-quarter-right-pores-cutout-solid-v4.png"),
       cssTransform: "translate(-68px, -30px) scale(1.63)",
       timeRatio: 0.24,
       label: "Right three-quarter",
       fromPhoto: true,
     },
     "profile-right": {
-      src: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-rembg.png",
-      srcOriginal: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-color.png",
-      srcTexture: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-texture-cutout.png",
-      srcPigmentation: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-pigmentation-cutout.png",
-      srcRedness: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-redness-cutout.png",
-      srcPores: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-pores-cutout.png",
-      srcWrinkles: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-wrinkles.webp",
-      srcWrinklesView: "/demo-3d/courtney-bellamy-side-photo/courtney-bellamy-side-photo-profile-right-wrinkles-view.webp",
+      src: courtneyBellamyAuraUrl("courtney-bellamy-profile-right-rembg-solid-v4.png"),
+      srcOriginal: courtneyBellamyAuraUrl("courtney-bellamy-profile-right-color.png"),
+      srcTexture: courtneyBellamyAuraUrl("courtney-bellamy-profile-right-texture-cutout-solid-v4.png"),
+      srcPigmentation: courtneyBellamyAuraUrl("courtney-bellamy-profile-right-pigmentation-cutout-solid-v4.png"),
+      srcRedness: courtneyBellamyAuraUrl("courtney-bellamy-profile-right-redness-cutout-solid-v4.png"),
+      srcPores: courtneyBellamyAuraUrl("courtney-bellamy-profile-right-pores-cutout-solid-v4.png"),
       cssTransform: "translate(-52px, 6px) scale(1.03)",
       initialPanX: -12,
       timeRatio: 0,

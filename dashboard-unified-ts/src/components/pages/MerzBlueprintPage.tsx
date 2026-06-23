@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import AuraFaceView from "../aura/AuraFaceView";
 import { AiMirrorCanvas } from "../postVisitBlueprint/AiMirrorCanvas";
+import { demo3dAssetUrl } from "../../utils/demoAssetUrls";
 import "./MerzBlueprintPage.css";
 
 // ── MediaPipe region IDs per treatment ────────────────────────────────────
@@ -1193,7 +1194,7 @@ function TreatmentFaceCard({
     <div className="mbp-face-hl">
       <div className="mbp-face-hl-inner" ref={faceInnerRef}>
         <AiMirrorCanvas
-          imageUrl="/demo-3d/tanya-tan-front.png"
+          imageUrl={demo3dAssetUrl("tanya-tan-front.png")}
           alt="Tanya M — treatment area"
           highlightedRegionIds={TREATMENT_REGION_IDS[treatmentId] ?? []}
           showAnnotations

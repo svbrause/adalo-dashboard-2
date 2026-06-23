@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  assetSrc,
   dashboardOrigin,
   encodeBlueprintForUrl,
   LinkButton,
@@ -10,6 +9,7 @@ import {
   SplitSlide,
   StoryVisual,
 } from "./DeckPrimitives";
+import { demo3dAssetUrl } from "../utils/demoAssetUrls";
 
 // ─── Speaker notes ────────────────────────────────────────────────────────────
 
@@ -92,15 +92,17 @@ const GOLD   = "#c9a962";
 const MUTED  = "rgba(255,255,255,0.45)";
 const TEXT   = "rgba(255,255,255,0.88)";
 const BORDER = "rgba(255,255,255,0.07)";
+const DECK_TURNTABLE_VIDEO = demo3dAssetUrl("tanya-tan/tanya-tan-turntable-skin-gray.mp4");
+const DECK_LOGO = "/branding/ponce-dark-mode.png";
 
 // ─── Slide 1: Title ───────────────────────────────────────────────────────────
 
 function TitleSlide({ active }: { active: boolean }) {
   return (
     <Slide active={active} className="slide--hero-bg title-slide">
-      <img className="logo-img logo-img--hero" src={assetSrc("public/demo-3d/dark_mode_logo.png")} alt="Ponce AI" width={1580} height={456} />
+      <img className="logo-img logo-img--hero" src={DECK_LOGO} alt="Ponce AI" width={1580} height={456} />
       <div className="title-video-box">
-        <PingPongVideo active={active} preload="auto" src="src/assets/images/turntable_2048_black.mp4" ariaLabel="Rotating 3D digital twin" />
+        <PingPongVideo active={active} preload="auto" src={DECK_TURNTABLE_VIDEO} ariaLabel="Rotating 3D digital twin" />
       </div>
       <h1>Ponce AI Onboarding &amp; <span className="shimmer">Launch Workshop</span></h1>
       <p className="powered-by">Powered by <strong>Ponce AI</strong></p>
@@ -327,7 +329,7 @@ const MORPH_STEPS: ReadonlyArray<{ id: MorphStepIndex; label: string }> = [
   { id: 1, label: "Reconstruct 3D" },
   { id: 2, label: "Digital twin ready" },
 ];
-const TANYA_STILL = assetSrc("public/demo-3d/tanya-tan-front.png");
+const TANYA_STILL = demo3dAssetUrl("tanya-tan-front.png");
 
 function DigitalTwinMorph({ active }: { active: boolean }) {
   const [manualStep, setManualStep] = useState<MorphStepIndex | null>(null);
@@ -363,7 +365,7 @@ function DigitalTwinMorph({ active }: { active: boolean }) {
               </div>
             </div>
             <div className="morph-layer morph-result">
-              <PingPongVideo active={videoActive} className="morph-face-media" src="src/assets/images/turntable_2048_black.mp4" ariaLabel="3D digital twin" preload="auto" />
+              <PingPongVideo active={videoActive} className="morph-face-media" src={DECK_TURNTABLE_VIDEO} ariaLabel="3D digital twin" preload="auto" />
             </div>
             <div className="morph-frame-chrome" aria-hidden="true">
               <span className="morph-bracket morph-bracket--tl" /><span className="morph-bracket morph-bracket--tr" />
@@ -700,7 +702,7 @@ function ShareVisual() {
           <div className="share-link-bar"><span className="share-link-url">ponce.link/tanya</span></div>
           <div className="share-link-card">
             <div className="share-link-header">
-              <img src={assetSrc("public/demo-3d/tanya-tan-front.png")} alt="" draggable={false} />
+              <img src={TANYA_STILL} alt="" draggable={false} />
               <div><span className="share-link-from">From your provider</span><strong>Tanya&apos;s treatment plan</strong></div>
             </div>
             <ol className="share-link-sections">
@@ -842,7 +844,7 @@ function DecisionsContent() {
 function ClosingSlide({ active }: { active: boolean }) {
   return (
     <Slide active={active} className="slide--hero-bg title-slide">
-      <PingPongVideo active={active} className="slide-bg-video" src="src/assets/images/turntable_2048_black.mp4" />
+      <PingPongVideo active={active} className="slide-bg-video" src={DECK_TURNTABLE_VIDEO} />
       <h1>Let&apos;s build a better <span className="shimmer">consult experience</span></h1>
       <p className="hero-line" style={{ textAlign: "center" }}>More visual. More personalized. Easier to follow through.</p>
       <p className="subtitle" style={{ marginTop: "2rem" }}>

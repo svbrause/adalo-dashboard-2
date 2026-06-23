@@ -23,6 +23,7 @@ import { isAdminBlueprintProvider } from "../utils/providerHelpers";
 import { ADMIN_DEMO_SKINCARE_QUIZ } from "./adminDemoSkincareQuiz";
 import {
   TANYA_TAN_GALLERY_PHOTO_SLOTS,
+  TANYA_TAN_VIEWER_ANGLE_ASSETS,
   type AuraTanViewAngle,
 } from "../utils/auraTanAnglePhotos";
 import type { PatientAuraAssetManifest } from "../utils/patientAuraAssets";
@@ -36,8 +37,6 @@ const TANYA_TAN_ANALYSIS_AI = tanyaTanAnalysisAiJson as DemoFacialAnalysisAi;
 const TANYA_TAN_TURNTABLE_URL = demo3dAssetUrl(
   "tanya-tan/tanya-tan-turntable-pigmentation.mp4",
 );
-const TANYA_PROGRESS_BEFORE_SLUG = "tanya-progress-before";
-const TANYA_PROGRESS_AURA_SLUG_PREFIX = "tanya-progress-aura";
 
 function progressAngleTimeRatio(angle: AuraTanViewAngle): number {
   return angle === "profile-left"
@@ -63,25 +62,11 @@ function progressAngleLabel(angle: AuraTanViewAngle): string {
           : "Right profile";
 }
 
-function tanyaProgressStoredAngle(
-  scan: "before" | "after",
-  angle: AuraTanViewAngle,
-): AuraTanViewAngle {
-  if (scan !== "before") return angle;
-  if (angle === "profile-left") return "profile-right";
-  if (angle === "profile-right") return "profile-left";
-  return angle;
-}
-
 function tanyaProgressBeforePhotoUrl(angle: AuraTanViewAngle): string {
-  const storedAngle = tanyaProgressStoredAngle("before", angle);
-  const filename =
-    storedAngle === "front"
-      ? "tanya-progress-before-front.JPG"
-      : storedAngle === "profile-left"
-        ? "tanya-progress-before-profile-left.JPG"
-        : "tanya-progress-before-profile-right.JPG";
-  return `/demo-3d/${TANYA_PROGRESS_BEFORE_SLUG}/${filename}`;
+  return (
+    TANYA_TAN_GALLERY_PHOTO_SLOTS.find((slot) => slot.id === angle)?.url ??
+    demo3dAssetUrl("tanya-tan-front.png")
+  );
 }
 
 function tanyaProgressBeforePhotoSlots(
@@ -100,12 +85,7 @@ function tanyaProgressBeforeAuraManifest(
   return tanyaProgressAuraManifest("before", angles);
 }
 
-function tanyaProgressAuraSlug(scan: "before" | "after"): string {
-  return `${TANYA_PROGRESS_AURA_SLUG_PREFIX}-${scan}`;
-}
-
 function tanyaProgressAuraAssetUrl(
-  scan: "before" | "after",
   angle: AuraTanViewAngle,
   variant:
     | "color"
@@ -116,26 +96,32 @@ function tanyaProgressAuraAssetUrl(
     | "pores-cutout"
     | "wrinkles-view",
 ): string {
-  const slug = tanyaProgressAuraSlug(scan);
-  const storedAngle = tanyaProgressStoredAngle(scan, angle);
-  const path = `/demo-3d/${slug}/${slug}-${storedAngle}-${variant}.png`;
-  const regeneratedProgressLens =
-    variant === "texture-cutout" ||
-    variant === "pigmentation-cutout" ||
-    variant === "redness-cutout" ||
-    variant === "pores-cutout" ||
-    variant === "wrinkles-view";
-  return regeneratedProgressLens ? `${path}?v=7` : path;
+  const asset = TANYA_TAN_VIEWER_ANGLE_ASSETS[angle];
+  switch (variant) {
+    case "color":
+      return asset.srcOriginal ?? asset.src;
+    case "rembg":
+      return asset.srcCutout ?? asset.src;
+    case "texture-cutout":
+      return asset.srcTexture ?? asset.src;
+    case "pigmentation-cutout":
+      return asset.srcPigmentation ?? asset.srcTexture ?? asset.src;
+    case "redness-cutout":
+      return asset.srcRedness ?? asset.src;
+    case "pores-cutout":
+      return asset.srcPores ?? asset.srcTexture ?? asset.src;
+    case "wrinkles-view":
+      return asset.srcWrinklesView ?? asset.srcWrinkles ?? asset.src;
+  }
 }
 
 function tanyaProgressAuraPhotoSlots(
-  scan: "before" | "after",
   angles: AuraTanViewAngle[],
 ): NonNullable<Client["galleryPhotoSlots"]> {
   return angles.map((angle) => ({
     id: angle,
     label: progressAngleLabel(angle),
-    url: tanyaProgressAuraAssetUrl(scan, angle, "color"),
+    url: tanyaProgressAuraAssetUrl(angle, "color"),
   }));
 }
 
@@ -178,32 +164,28 @@ function tanyaProgressAuraManifest(
     availableViewAngles: angles,
     angles: Object.fromEntries(
       angles.map((angle) => {
-        const src = tanyaProgressAuraAssetUrl(scan, angle, "rembg");
+        const src = tanyaProgressAuraAssetUrl(angle, "rembg");
         const framing = TANYA_PROGRESS_ANGLE_FRAMING[scan][angle];
         return [
           angle,
           {
             src,
-            srcOriginal: tanyaProgressAuraAssetUrl(scan, angle, "color"),
+            srcOriginal: tanyaProgressAuraAssetUrl(angle, "color"),
             srcCutout: src,
             srcTexture: tanyaProgressAuraAssetUrl(
-              scan,
               angle,
               "texture-cutout",
             ),
             srcPigmentation: tanyaProgressAuraAssetUrl(
-              scan,
               angle,
               "pigmentation-cutout",
             ),
             srcRedness: tanyaProgressAuraAssetUrl(
-              scan,
               angle,
               "redness-cutout",
             ),
-            srcPores: tanyaProgressAuraAssetUrl(scan, angle, "pores-cutout"),
+            srcPores: tanyaProgressAuraAssetUrl(angle, "pores-cutout"),
             srcWrinklesView: tanyaProgressAuraAssetUrl(
-              scan,
               angle,
               "wrinkles-view",
             ),
@@ -659,10 +641,8 @@ export function getAdminDemoClients(): Client[] {
   ];
   const progressJulyPhotoSlots =
     tanyaProgressBeforePhotoSlots(progressJulyAngles);
-  const progressSeptemberPhotoSlots = tanyaProgressAuraPhotoSlots(
-    "after",
-    progressJulyAngles,
-  );
+  const progressSeptemberPhotoSlots =
+    tanyaProgressAuraPhotoSlots(progressJulyAngles);
 
   return [
     baseClient({
